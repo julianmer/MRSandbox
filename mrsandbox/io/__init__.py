@@ -14,4 +14,5 @@
 #*************#
 #   imports   #
 #*************#
+from mrsandbox.io.pulseq import PulseqSequence, read_seq
 from mrsandbox.io.varian import VarianFid

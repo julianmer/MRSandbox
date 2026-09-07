@@ -99,17 +99,19 @@ class Pulse(Event):
 #                                                                                                  #
 #**************************************************************************************************#
 class SelectivePulse(Event):
-    """Ideal frequency-selective pulse: rotates only the spins inside its band.
+    """Ideal frequency-selective pulse: rotates only the spins inside its band(s).
 
     The ideal-selective approximation: a spin is rotated in full when its resonance lies
     within bandwidth_hz around the pulse offset, and untouched otherwise. This is the
     primitive behind water suppression trains and, later, spectral editing pulses. Offset
-    and bandwidth may be traced tensors, so a network can emit them.
+    and bandwidth may be traced tensors, so a network can emit them. A tuple of offsets
+    is the ideal multi-band pulse: one band per centre, the validated idealization of
+    the dual-lobe cosine-modulated waveforms of Hadamard-encoded editing.
 
     Args:
         flip_deg: Flip angle in degrees.
-        offset_ppm: Pulse centre in ppm (water sits at 4.65).
-        bandwidth_hz: Full width of the band in Hz.
+        offset_ppm: Pulse centre in ppm (water sits at 4.65), or a tuple of centres.
+        bandwidth_hz: Full width of each band in Hz.
         phase_deg: Axis phase in degrees (0 = x, 90 = y).
     """
 
@@ -118,7 +120,7 @@ class SelectivePulse(Event):
     #**********#
     def __init__(self, flip_deg, offset_ppm, bandwidth_hz, phase_deg=0.0):
         self.flip_deg = flip_deg
-        self.offset_ppm = offset_ppm
+        self.offset_ppm = tuple(offset_ppm) if isinstance(offset_ppm, (tuple, list)) else (offset_ppm,)
         self.bandwidth_hz = bandwidth_hz
         self.phase_deg = phase_deg
 
@@ -126,10 +128,13 @@ class SelectivePulse(Event):
     #   apply     #
     #*************#
     def apply(self, rho, ctx):
-        offset_hz = ops.convert_to_tensor(self.offset_ppm) * ctx.f0_mhz
-        inside = ops.cast(
-            ops.abs(ctx.nu_hz - offset_hz) <= ops.convert_to_tensor(self.bandwidth_hz) / 2.0, "float32"
-        )
+        half_width = ops.convert_to_tensor(self.bandwidth_hz) / 2.0
+        inside = None
+        for offset in self.offset_ppm:
+            offset_hz = ops.convert_to_tensor(offset) * ctx.f0_mhz
+            band = ops.abs(ctx.nu_hz - offset_hz) <= half_width
+            inside = band if inside is None else ops.logical_or(inside, band)
+        inside = ops.cast(inside, "float32")
         phase = math.radians(self.phase_deg)
         wx = nops.cast(inside * math.cos(phase), "complex64")
         wy = nops.cast(inside * math.sin(phase), "complex64")
@@ -290,21 +295,33 @@ class ShapedPulse(Event):
             f1 = env * (flip / 360.0) / (ops.sum(env) * dt)
         h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, "complex64"), ops.conj(ctx.v))
         if self.gradient_hz_per_mm:
-            slice_hz = self.gradient_hz_per_mm * ctx.gradient_x
-            h_free = h_free + nops.cast(ops.convert_to_tensor(slice_hz, dtype="float32"),
-                                        "complex64") * ctx.fz
+            slice_hz = self.gradient_hz_per_mm * ops.convert_to_tensor(ctx.gradient_x,
+                                                                       dtype="float32")
+            if ops.ndim(slice_hz) > 0:  # a vector of positions batches the ensemble
+                slice_hz = ops.reshape(slice_hz, (-1, 1, 1))
+            h_free = h_free + nops.cast(slice_hz, "complex64") * ctx.fz
         offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype="float32") * ctx.f0_mhz
         t_mid = (ops.arange(0, steps, dtype="float32") + 0.5) * dt
         phase = math.radians(self.phase_deg) + 2.0 * math.pi * offset_hz * t_mid
         if self.frequency_hz is not None:
             sweep = ops.cast(ops.convert_to_tensor(self.frequency_hz), "float32")
             phase = phase + 2.0 * math.pi * ops.cumsum(sweep) * dt
-        for k in range(steps):
-            wx = nops.cast(f1[k] * ops.cos(phase[k]), "complex64")
-            wy = nops.cast(f1[k] * ops.sin(phase[k]), "complex64")
-            u = Backend.expm_herm(h_free + wx * ctx.fx + wy * ctx.fy, dt)
-            rho = self._sandwich(u, rho)
-        return rho
+        # all step Hamiltonians at once: one batched eigendecomposition replaces the
+        # step loop, then the step propagators collapse into the total by an ordered
+        # pairwise product (log2(steps) batched matmuls), and one sandwich applies it;
+        # with an in-pulse gradient over an isochromat vector the batch gains that axis
+        shape = (-1, 1, 1, 1) if ops.ndim(h_free) == 3 else (-1, 1, 1)
+        wx = nops.cast(f1 * ops.cos(phase), "complex64")
+        wy = nops.cast(f1 * ops.sin(phase), "complex64")
+        h = (ops.expand_dims(h_free, 0)
+             + ops.reshape(wx, shape) * ctx.fx
+             + ops.reshape(wy, shape) * ctx.fy)
+        u = Backend.expm_herm(h, dt)
+        while int(u.shape[0]) > 1:
+            n = int(u.shape[0])
+            pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
+            u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
+        return self._sandwich(u[0], rho)
 
 
 #**************************************************************************************************#
@@ -393,8 +410,12 @@ class Gradient(Event):
     #***********#
     def apply(self, rho, ctx):
         # the sign matches the in-pulse gradient evolution, so a slice pulse rephases
-        # with the scanner-style lobe of minus half its gradient moment
-        angle = -2.0 * math.pi * self.moment_per_mm * ctx.gradient_x * ops.cast(ctx.q, "float32")
+        # with the scanner-style lobe of minus half its gradient moment; a vector of
+        # positions broadcasts the whole isochromat ensemble through one application
+        x = ops.convert_to_tensor(ctx.gradient_x, dtype="float32")
+        if ops.ndim(x) > 0:
+            x = ops.reshape(x, (-1, 1, 1))
+        angle = -2.0 * math.pi * self.moment_per_mm * x * ops.cast(ctx.q, "float32")
         factor = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         return rho * factor
 

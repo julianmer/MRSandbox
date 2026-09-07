@@ -20,9 +20,11 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Brain, Engine, MegaPress, Multiplex, Params, Scanner, SpinSystem
+from mrsandbox import (Brain, CoherenceFilter, Engine, Hercules, Hermes, MegaPress, Multiplex,
+                       Params, Scanner, SelectivePulse, Sequence, SpinSystem)
 
-QUIET = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0))
+QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
 
 
 #*************#
@@ -41,13 +43,34 @@ def acquisition():
                              seed=7, npoints=1024)
 
 
+@pytest.fixture(scope="module")
+def hermes_acquisition():
+    multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                          Hermes.scheme(), combinations=Hermes.combinations, params=QUIET)
+    return multiplex, multiplex.acquire(position_mm=(10.0, -20.0, 5.0), size_mm=20.0,
+                                        seed=7, npoints=512)
+
+
+def render(engine, sequence, name):
+    freqs, amps = engine.lines(sequence, *SpinSystem.from_database(name))
+    ppm, spec = engine.render_spectrum(freqs, amps, 127.73, npoints=4096, sw_hz=4000.0, lw_hz=3.0)
+    return np.asarray(ops.convert_to_numpy(ppm)), np.real(ops.convert_to_numpy(spec))
+
+
 def edited_pair(engine, name):
     spectra = {}
     for condition, sequence in MegaPress.pair().items():
-        freqs, amps = engine.lines(sequence, *SpinSystem.from_database(name))
-        ppm, spec = engine.render_spectrum(freqs, amps, 127.73, npoints=4096, sw_hz=4000.0, lw_hz=3.0)
-        spectra[condition] = np.real(ops.convert_to_numpy(spec))
-    return np.asarray(ops.convert_to_numpy(ppm)), spectra["on"] - spectra["off"], spectra["off"]
+        ppm, spectra[condition] = render(engine, sequence, name)
+    return ppm, spectra["on"] - spectra["off"], spectra["off"]
+
+
+def hadamard_combos(engine, scheme_cls, name):
+    spectra = {}
+    for condition, sequence in scheme_cls.scheme().items():
+        ppm, spectra[condition] = render(engine, sequence, name)
+    combos = {cname: sum(weights[c] * spectra[c] for c in spectra)
+              for cname, weights in scheme_cls.combinations.items()}
+    return ppm, combos, spectra
 
 
 #**************************************************************************************************#
@@ -83,6 +106,88 @@ class TestEditing:
 
 
 #**************************************************************************************************#
+#                                       Class TestHadamard                                         #
+#**************************************************************************************************#
+#                                                                                                  #
+# Hadamard-encoded editing: dual-band pulses rotate every band, the typed schemes match their      #
+# sources, and the combinations separate the targets with exact crosstalk cancellation.            #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestHadamard:
+
+    #***********************#
+    #   dual band rotates   #
+    #***********************#
+    def test_dual_band_pulse_rotates_every_band(self, engine):
+        probe = SpinSystem(name="probe", nucleus="1H", shifts_ppm=(1.9, 4.56, 3.0),
+                           j_hz=((0.0, 0.0, 0.0),) * 3, scale=1.0, gamma_mhz_t=42.5774785)
+        excite = Sequence(SelectivePulse(90.0, (1.9, 4.56), 60.0), CoherenceFilter(-1))
+        freqs, amps = engine.lines(excite, probe)
+        ppm = np.asarray(ops.convert_to_numpy(freqs)) / 127.73
+        amps = np.abs(ops.convert_to_numpy(amps))
+        inside = max(amps[np.abs(ppm - 1.9) < 0.1].sum(), amps[np.abs(ppm - 4.56) < 0.1].sum())
+        assert amps[np.abs(ppm - 1.9) < 0.1].sum() > 0.5 * inside
+        assert amps[np.abs(ppm - 4.56) < 0.1].sum() > 0.5 * inside
+        assert amps[np.abs(ppm - 3.0) < 0.1].sum() < 1e-5 * inside
+
+    #**********************#
+    #   the typed tables   #
+    #**********************#
+    def test_schemes_match_the_typed_sources(self):
+        hermes = Hermes.scheme()
+        assert list(hermes) == ["a", "b", "c", "d"]
+        assert hermes["a"].edit_ppm == (1.9, 4.56)
+        assert hermes["d"].edit_ppm == (7.22,)
+        hercules = Hercules.scheme()
+        assert hercules["a"].edit_ppm == (4.58, 1.9)
+        assert hercules["d"].edit_ppm == (4.18,)
+        for scheme in (hermes, hercules):
+            for sub in scheme.values():
+                assert abs(sum(sub.taus_s) - 0.080) < 1e-12  # the published TE 80 ms
+        for cls in (Hermes, Hercules):
+            gaba, gsh = cls.combinations["gaba"], cls.combinations["gsh"]
+            assert sum(gaba.values()) == sum(gsh.values()) == 0.0
+            assert sum(gaba[c] * gsh[c] for c in cls.bands) == 0.0  # orthogonal rows
+
+    #**************************#
+    #   hermes edits cleanly   #
+    #**************************#
+    def test_hermes_separates_gaba_and_gsh(self, engine):
+        ppm, combos, spectra = hadamard_combos(engine, Hermes, "GABA")
+        window = np.abs(ppm - 3.01) < 0.15
+        assert np.abs(combos["gaba"][window]).max() > 0.5 * np.abs(spectra["d"][window]).max()
+        assert np.abs(combos["gsh"][window]).max() < 1e-5 * np.abs(combos["gaba"][window]).max()
+        ppm, combos, spectra = hadamard_combos(engine, Hermes, "GSH")
+        window = np.abs(ppm - 2.95) < 0.15
+        assert np.abs(combos["gsh"][window]).max() > 0.5 * np.abs(spectra["d"][window]).max()
+        assert np.abs(combos["gaba"][window]).max() < 1e-5 * np.abs(combos["gsh"][window]).max()
+
+    #****************************#
+    #   hercules edits cleanly   #
+    #****************************#
+    def test_hercules_separates_gaba_and_gsh(self, engine):
+        ppm, combos, spectra = hadamard_combos(engine, Hercules, "GABA")
+        window = np.abs(ppm - 3.01) < 0.15
+        assert np.abs(combos["gaba"][window]).max() > 0.5 * np.abs(spectra["d"][window]).max()
+        assert np.abs(combos["gsh"][window]).max() < 1e-5 * np.abs(combos["gaba"][window]).max()
+        ppm, combos, spectra = hadamard_combos(engine, Hercules, "GSH")
+        window = np.abs(ppm - 2.95) < 0.15
+        assert np.abs(combos["gsh"][window]).max() > 0.5 * np.abs(spectra["d"][window]).max()
+        assert np.abs(combos["gaba"][window]).max() < 1e-5 * np.abs(combos["gsh"][window]).max()
+
+    #************************#
+    #   singlets subtract    #
+    #************************#
+    def test_uncoupled_singlets_cancel_in_every_difference(self, engine):
+        for cls in (Hermes, Hercules):
+            ppm, combos, _ = hadamard_combos(engine, cls, "Cr")
+            window = np.abs(ppm - 3.03) < 0.1
+            reference = np.abs(combos["sum"][window]).max()
+            assert np.abs(combos["gaba"][window]).max() < 1e-5 * reference
+            assert np.abs(combos["gsh"][window]).max() < 1e-5 * reference
+
+
+#**************************************************************************************************#
 #                                       Class TestMultiplex                                        #
 #**************************************************************************************************#
 class TestMultiplex:
@@ -108,6 +213,27 @@ class TestMultiplex:
         # co-edited neighbours (NAA at 2.008 sits inside the ON band, as in vivo) put
         # real difference signal below 5 ppm, so the empty reference lives far upfield
         assert at_gaba > 5.0 * at_quiet
+
+    #**********************#
+    #   hadamard acquire   #
+    #**********************#
+    def test_hadamard_conditions_and_weights_are_recorded(self, hermes_acquisition):
+        _, data = hermes_acquisition
+        assert data.shape == (1, 1, 1, 512, 4)
+        assert data.dim_tags[0] == "DIM_EDIT"
+        record = data.hdr_ext.to_dict()["SimulationConditions"]
+        assert record["names"] == ["a", "b", "c", "d"]
+        assert record["combinations"] == Hermes.combinations
+
+    #***********************#
+    #   hadamard combine    #
+    #***********************#
+    def test_combine_applies_the_hadamard_weights(self, hermes_acquisition):
+        multiplex, data = hermes_acquisition
+        volume = np.asarray(data[:])[0, 0, 0]
+        manual = volume[:, 0] + volume[:, 1] - volume[:, 2] - volume[:, 3]
+        np.testing.assert_allclose(multiplex.combine(data, "gaba"), manual,
+                                   atol=1e-5 * np.abs(volume).max())
 
 
 #**************************************************************************************************#

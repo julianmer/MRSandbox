@@ -41,14 +41,17 @@ class Multiplex:
     Args:
         brain, scanner: As for VirtualScan.
         sequences: Mapping of condition name to Sequence (e.g. MegaPress.pair()).
+        combinations: Optional mapping of combination name to per-condition weights
+            (e.g. Hermes.combinations); recorded in the header and applied by combine().
         **kwargs: Forwarded to every condition's VirtualScan (params, water, coils...).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, brain, scanner, sequences, **kwargs):
+    def __init__(self, brain, scanner, sequences, combinations=None, **kwargs):
         self.conditions = tuple(sequences)
+        self.combinations = dict(combinations) if combinations else {}
         self.scans = {
             name: VirtualScan(brain, scanner, sequence, **kwargs)
             for name, sequence in sequences.items()
@@ -91,10 +94,13 @@ class Multiplex:
              "tissue_fractions": dict(voxel.fractions._asdict())},
             "MRSandbox: the one realized parameter tree shared by every condition.",
         )
+        record = {"names": list(self.conditions),
+                  "sequences": [type(self.scans[n].sequence).__name__ for n in self.conditions]}
+        if self.combinations:
+            record["combinations"] = self.combinations
         hdr.set_user_def(
             "SimulationConditions",
-            {"names": list(self.conditions),
-             "sequences": [type(self.scans[n].sequence).__name__ for n in self.conditions]},
+            record,
             "MRSandbox: the multiplexed conditions on DIM_EDIT, in order.",
         )
         hdr.set_user_def(
@@ -104,6 +110,16 @@ class Multiplex:
             "MRSandbox: the virtual brain and the voxel placement.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+
+    #*************#
+    #   combine   #
+    #*************#
+    def combine(self, acquisition, name):
+        """One named combination of an acquired condition stack (e.g. the Hadamard GABA
+        difference): the weighted sum over DIM_EDIT, returned as a complex FID array."""
+        weights = self.combinations[name]
+        w = np.asarray([weights[c] for c in self.conditions], dtype=np.float32)
+        return np.asarray(acquisition[:])[0, 0, 0] @ w
 
     #****************#
     #   transients   #

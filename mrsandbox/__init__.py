@@ -24,8 +24,9 @@ from mrsandbox.phantom import (Brain, CoupledMM, FieldMap, MeasuredMM, NoLipids,
 from mrsandbox.scan import MRSI, Multiplex, VirtualScan, Voxel
 from mrsandbox.sequences import (CoherenceFilter, Delay, Gradient, Pulse, SelectivePulse,
                                  Sequence, ShapedPulse)
-from mrsandbox.sequences.library import (Chess, MegaPress, Press, PulseAcquire, SemiLaser,
-                                         Steam, SuppressionTrain, Vapor, Wet)
+from mrsandbox.sequences.library import (Chess, HadamardEditing, Hercules, Hermes, MegaPress,
+                                         Press, PulseAcquire, SemiLaser, Steam,
+                                         SuppressionTrain, Vapor, Wet)
 from mrsandbox.spins import Operators, SpinSystem
 
 __version__ = "0.0.1"

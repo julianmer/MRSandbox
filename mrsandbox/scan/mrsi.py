@@ -35,8 +35,30 @@ class MRSI:
     coil reception all apply per position. With `oversampling` above one, the object is
     simulated on a finer source grid and phase encoded through k-space: the acquisition
     keeps only the central matrix of k, which imprints the real point spread function
-    (Gibbs ringing, the lipid ring bleeding inward). `weighting="hamming"` applies the
-    usual acquisition weighting, trading resolution for suppressed sidelobes.
+    (Gibbs ringing, the lipid ring bleeding inward).
+
+    The k-space conventions, exactly: after the spatial FFT the acquired grid holds the
+    centred k indices p = i - n//2 per axis, so DC sits at index n//2 and an even
+    matrix carries its single Nyquist row at p = -n/2. `weighting="hamming"` multiplies
+    k by the DC-centred window w(p) = 0.54 + 0.46 cos(pi p / (n/2)) per axis (w(0) = 1,
+    so a uniform object keeps its amplitude; w = 0.08 at the Nyquist edge). Note that
+    numpy's window peaks between samples on an even grid and would both attenuate DC
+    and shift the point spread function by half a k step. `sampling="elliptical"`
+    measures only the encodes with (2 px / nx)^2 + (2 py / ny)^2 <= 1, edge inclusive,
+    the standard reduced phase encoding (Maudsley et al. 1994): the corners (about
+    1 - pi/4, one fifth of the encodes) are never measured and stay zero, buying
+    acquisition time for a slightly broader response function. `sampling` also accepts
+    an explicit (nx, ny) array multiplying k, ordered like the acquired grid with DC at
+    (nx//2, ny//2): booleans give an arbitrary measured-point mask, floats an arbitrary
+    acquisition density. Amplitudes are normalized so full sampling of a uniform object
+    is exactly the identity.
+
+    Stated limits: encoding is in-plane only; the z extent of every source voxel equals
+    voxel_mm / oversampling (a cubic source box), so with oversampling above one the
+    sampled slab is thinner than the nominal voxel until the z slice profile lands.
+    Receiver noise is drawn per acquired voxel after decoding, independent of the
+    weighting and sampling, so acquisition weighting shapes the signal response but
+    never colours the noise (the filtering idealization).
 
     Args:
         scan: The VirtualScan to acquire with.
@@ -45,13 +67,15 @@ class MRSI:
         voxel_mm: Nominal voxel edge (also the acquired grid spacing).
         oversampling: Source grid refinement per dimension; 1 gives ideal box voxels.
         weighting: None, or "hamming" k-space acquisition weighting.
+        sampling: None (full Cartesian), "elliptical" corner-free coverage, or an
+            explicit (nx, ny) mask or density array on the acquired k grid.
     """
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
-                 oversampling=1, weighting=None):
+                 oversampling=1, weighting=None, sampling=None):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
         self.scan = scan
@@ -60,6 +84,15 @@ class MRSI:
         self.voxel_mm = float(voxel_mm)
         self.oversampling = int(oversampling)
         self.weighting = weighting
+        if sampling is None or (isinstance(sampling, str) and sampling == "elliptical"):
+            self.sampling = sampling
+        elif isinstance(sampling, str):
+            raise ValueError(f"unknown sampling {sampling!r}; known: None, elliptical, or an array")
+        else:
+            mask = np.asarray(sampling, dtype=np.float32)
+            if mask.shape != self.matrix:
+                raise ValueError(f"sampling mask shape {mask.shape} does not match matrix {self.matrix}")
+            self.sampling = mask
         nx, ny = self.source_matrix
         source_mm = self.voxel_mm / self.oversampling
         self.voxels = [
@@ -156,7 +189,9 @@ class MRSI:
             "SimulationGrid",
             {"brain": self.scan.brain.name, "center_mm": list(self.center_mm),
              "matrix": list(self.matrix), "voxel_mm": self.voxel_mm,
-             "oversampling": self.oversampling, "weighting": self.weighting},
+             "oversampling": self.oversampling, "weighting": self.weighting,
+             "sampling": self.sampling.tolist() if isinstance(self.sampling, np.ndarray)
+             else self.sampling},
             "MRSandbox: the virtual brain and the slice lattice.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
@@ -167,19 +202,42 @@ class MRSI:
     def _encode(self, source):
         """Phase encode the source grid and decode the central k-space matrix.
 
-        With oversampling 1 and no weighting this is exactly the identity (ideal box
-        voxels). Otherwise the truncation to the acquired matrix imprints the point
-        spread function; amplitudes are normalized so a uniform object keeps its value.
+        With oversampling 1, no weighting, and full sampling this is exactly the
+        identity (ideal box voxels). Otherwise the truncation to the acquired matrix
+        imprints the point spread function. The forward FFT runs over the oversampled
+        source grid and the inverse over the acquired grid, so dividing by
+        oversampling^2 makes a uniform object keep its amplitude exactly; the sampling
+        mask and the DC-centred weighting (w(0) = 1) both preserve that identity.
         """
-        if self.oversampling == 1 and self.weighting is None:
+        if self.oversampling == 1 and self.weighting is None and self.sampling is None:
             return source
         nx, ny = self.matrix
         k = np.fft.fftshift(np.fft.fft2(source, axes=(0, 1)), axes=(0, 1))
         sx, sy = self.source_matrix
         cx, cy = sx // 2, sy // 2
         k = k[cx - nx // 2:cx - nx // 2 + nx, cy - ny // 2:cy - ny // 2 + ny]
+        mask = self._sampling_mask()
+        if mask is not None:
+            k = k * mask.reshape(nx, ny, *([1] * (k.ndim - 2)))
         if self.weighting == "hamming":
-            window = np.outer(np.hamming(nx), np.hamming(ny))
-            k = k * window.reshape(nx, ny, *([1] * (k.ndim - 2)))
+            # the k-space Hamming centred on DC: w(p) = 0.54 + 0.46 cos(pi p / (n/2)),
+            # w(0) exactly 1; numpy's np.hamming peaks between samples on an even grid
+            # and would attenuate DC and shift the point spread function half a k step
+            wx = 0.54 + 0.46 * np.cos(np.pi * (np.arange(nx) - nx // 2) / (nx / 2.0))
+            wy = 0.54 + 0.46 * np.cos(np.pi * (np.arange(ny) - ny // 2) / (ny / 2.0))
+            k = k * np.outer(wx, wy).reshape(nx, ny, *([1] * (k.ndim - 2)))
         decoded = np.fft.ifft2(np.fft.ifftshift(k, axes=(0, 1)), axes=(0, 1))
         return (decoded / self.oversampling ** 2).astype(np.complex64)
+
+    def _sampling_mask(self):
+        """The sampling mask on the acquired k grid as float32, or None for full
+        Cartesian: the inscribed ellipse (2 px / nx)^2 + (2 py / ny)^2 <= 1 (edge
+        inclusive) for "elliptical", or the user's explicit array verbatim."""
+        if self.sampling is None:
+            return None
+        if isinstance(self.sampling, np.ndarray):
+            return self.sampling
+        nx, ny = self.matrix
+        u = (np.arange(nx) - nx // 2) / (nx / 2.0)
+        v = (np.arange(ny) - ny // 2) / (ny / 2.0)
+        return ((u[:, None] ** 2 + v[None, :] ** 2) <= 1.0 + 1e-9).astype(np.float32)

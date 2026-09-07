@@ -32,7 +32,8 @@ KW = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 def spectra():
     brain = Brain.load("icbm152")
     pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
-    quiet = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0))
+    quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                   acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
 
     def spectrum(level, mm=None):
         params = quiet | Params(mm=dict(level_mm=level))
@@ -182,7 +183,8 @@ class TestCoupled:
     @staticmethod
     def background(sequence, seed=7, **params):
         brain = Brain.load("icbm152")
-        tree = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0),
+        tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
                       mm=dict(kappa=7.0, t1_s=0.4, t2_s=0.03), **params)
         pieces = (Scanner.preset("generic_3t"), sequence)
         with_mm = VirtualScan(brain, *pieces, params=tree)
@@ -206,7 +208,8 @@ class TestCoupled:
     #********************#
     def test_short_te_fraction_in_the_consensus_ballpark(self):
         brain = Brain.load("icbm152")
-        tree = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0),
+        tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
                       mm=dict(kappa=7.5, t1_s=0.4, t2_s=0.03))
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
         with_mm = VirtualScan(brain, *pieces, params=tree)

@@ -98,8 +98,24 @@ class VirtualScan:
             # a few percent calibration scatter at 3 T is a stated assumption
             b1_scale=Normal(1.0, 0.03),
             # receiver-side imperfections, stated assumptions: scanner frequency error
-            # and drift as a global shift, and an uncorrected zero-order phase
-            acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0)),
+            # and drift as a global shift, an uncorrected zero-order phase, and a
+            # residual eddy current as a decaying phase on the FID (the leading term of
+            # the multi-exponential gradient response, de Graaf 2019; in vivo the bulk
+            # is removed by Klose 1990 ECC, so the residual amplitude stays modest)
+            acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
+                             eddy_deg=Uniform(-30.0, 30.0), eddy_tau_s=(0.01, 0.1)),
+            # spurious echo: out-of-voxel magnetization that imperfect crushing or phase
+            # cycling fails to remove and that rephases mid-acquisition (the mechanism
+            # is demonstrated physically by the crusher gates in tests/sequences). The
+            # form and every range are typed from the AGNOSTIC OOV synthesis
+            # (Gudmundson et al. 2023, Imaging Neuroscience, imag_a_00025): a Gaussian
+            # envelope echo a exp(-W (t - tau)^2) exp(i (2 pi f t + phi)) with tau
+            # 10-400 ms, W 500-8000 1/s^2 (FWHM 18-74 ms), position 1-4 ppm, amplitude
+            # 0.1-20% of the FID maximum, free phase; the source adds one echo to 85%
+            # of examples, here it is always on and amplitude=0.0 switches it off
+            spurious=dict(amplitude=(0.001, 0.2), tau_s=(0.010, 0.400),
+                          width_s2=(500.0, 8000.0), ppm=(1.0, 4.0),
+                          phase_deg=(0.0, 360.0)),
             # scanner and subject instabilities across repeated transients. The drift
             # rate is grounded in Hui et al. 2021 (NeuroImage 241:118430, 80 sites,
             # 99 scanners at 3 T): median 0.29 Hz/min before fMRI heating with an
@@ -143,12 +159,12 @@ class VirtualScan:
     #   mrsi    #
     #***********#
     def mrsi(self, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
-             oversampling=1, weighting=None):
+             oversampling=1, weighting=None, sampling=None):
         """Place an MRSI slice lattice and get its acquisition handle; see scan.mrsi.MRSI."""
         from mrsandbox.scan.mrsi import MRSI
 
         return MRSI(self, center_mm=center_mm, matrix=matrix, voxel_mm=voxel_mm,
-                    oversampling=oversampling, weighting=weighting)
+                    oversampling=oversampling, weighting=weighting, sampling=sampling)
 
     #*****************#
     #   training      #
@@ -288,8 +304,9 @@ class Voxel:
         return t, fid
 
     def _clean_fid(self, truth, npoints, dwell_s):
-        """The noise-free voxel FID: components summed, B0 dephasing and the drawn
-        acquisition imperfections (frequency shift, zero-order phase) applied."""
+        """The noise-free voxel FID: components summed, B0 dephasing, the drawn spurious
+        echo, and the drawn acquisition imperfections (frequency shift, zero-order
+        phase, decaying eddy-current phase) applied."""
         freqs, amps, lw, gauss = self._flat_lines(truth)
         t, total = self.scan.engine.render_fid(freqs, amps, npoints=npoints, dwell_s=dwell_s,
                                                lw_hz=lw, gauss_hz=gauss)
@@ -300,8 +317,18 @@ class Voxel:
             fid = fid + mm_fid
         if self.scan.field is not None:
             fid = fid * self._field_kernel(npoints, dwell_s)
+        spur = truth.spurious
+        if spur.amplitude > 0.0:
+            # the AGNOSTIC-form out-of-voxel echo, scaled to this voxel's FID maximum
+            # and entering before the receiver-side modulation like any received signal
+            echo = np.exp(-spur.width_s2 * (grid - spur.tau_s) ** 2) * np.exp(
+                1j * (2.0 * np.pi * spur.ppm * self._f0_mhz() * grid
+                      + np.radians(spur.phase_deg)))
+            fid = fid + spur.amplitude * np.abs(fid).max() * echo.astype(np.complex64)
         modulation = np.exp(1j * (2.0 * np.pi * truth.acquisition.shift_hz * grid
-                                  + np.radians(truth.acquisition.phase_deg)))
+                                  + np.radians(truth.acquisition.phase_deg)
+                                  + np.radians(truth.acquisition.eddy_deg)
+                                  * np.exp(-grid / truth.acquisition.eddy_tau_s)))
         return t, (fid * modulation).astype(np.complex64)
 
     def _field_kernel(self, npoints, dwell_s):

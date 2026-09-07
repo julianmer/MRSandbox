@@ -21,7 +21,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Brain, Engine, Press, PulseAcquire, Scanner, SpinSystem, SuppressionTrain, VirtualScan
+from mrsandbox import (Brain, Engine, Params, Press, PulseAcquire, Scanner, SpinSystem,
+                       SuppressionTrain, VirtualScan)
 from mrsandbox.phantom.water import WaterSource
 
 
@@ -79,9 +80,14 @@ class TestInSequenceRelaxation:
     #*********************#
     def test_scan_amplitudes_carry_the_te_dependence(self):
         brain = Brain.load("icbm152")
+        # quiet receiver: the real-part peak reads an absorption line only without the
+        # drawn shift, phase, eddy, and spurious content (each gated by its own test)
+        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
+                       spurious=dict(amplitude=0.0))
         heights, truth = [], None
         for te in (0.03, 0.06):
-            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te / 2, te / 2))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te / 2, te / 2),
+                               params=quiet)
             voxel = scan.voxel(position_mm=(10, -20, 5), size_mm=20)
             truth = voxel.sample(seed=7)  # same seed, same draw for both scans
             ppm, spec = voxel.spectrum(seed=7, npoints=8192)

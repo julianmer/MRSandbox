@@ -20,7 +20,8 @@ import pytest
 
 from mrsandbox import Brain, CoilArray, Params, Press, Scanner, VirtualScan
 
-QUIET = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0))
+QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
 
 
 #*************#
@@ -191,6 +192,67 @@ class TestEncoding:
         # and the main lobe broadens: nearest neighbours gain relative to the centre
         assert (hamming[3, 4] / hamming[4, 4]) > (plain[3, 4] / plain[4, 4])
 
+    #**************************#
+    #   dc-centred weighting   #
+    #**************************#
+    def test_hamming_preserves_a_uniform_object_exactly(self):
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        n = 64
+        gm = np.ones((n, n, 3), dtype=np.float32)
+        affine = np.eye(4)
+        affine[:3, 3] = (-(n - 1) / 2.0, -(n - 1) / 2.0, -1.0)
+        brain = Brain.from_maps(gm=gm, wm=np.zeros_like(gm), csf=np.zeros_like(gm),
+                                affine=affine)
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=QUIET, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0)
+        a = np.asarray(scan.mrsi(**kw).acquire(seed=3, npoints=16)[:])[:, :, 0]
+        b = np.asarray(scan.mrsi(**kw, weighting="hamming").acquire(seed=3, npoints=16)[:])[:, :, 0]
+        # a uniform object lives at DC alone, where the centred window is exactly one;
+        # a window peaking between samples (numpy's) attenuates this by 4.6 percent
+        np.testing.assert_allclose(b, a, rtol=1e-4, atol=1e-6 * np.abs(a).max())
+
+    #*******************#
+    #   explicit mask   #
+    #*******************#
+    def test_explicit_mask_reproduces_the_named_ellipse(self):
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        brain = self.point_brain()
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=QUIET, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+        u = (np.arange(8) - 4) / 4.0
+        mask = ((u[:, None] ** 2 + u[None, :] ** 2) <= 1.0 + 1e-9).astype(np.float32)
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=4.0, oversampling=2)
+        named = scan.mrsi(**kw, sampling="elliptical").acquire(seed=3, npoints=32)
+        custom = scan.mrsi(**kw, sampling=mask).acquire(seed=3, npoints=32)
+        np.testing.assert_array_equal(np.asarray(custom[:]), np.asarray(named[:]))
+        assert custom.hdr_ext.to_dict()["SimulationGrid"]["sampling"] == mask.tolist()
+
+    #***************************#
+    #   elliptical sampling     #
+    #***************************#
+    def test_elliptical_sampling_never_measures_the_corners(self):
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        brain = self.point_brain()
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=QUIET, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+        volumes = {}
+        for sampling in (None, "elliptical"):
+            mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=4.0,
+                             oversampling=2, sampling=sampling)
+            data = mrsi.acquire(seed=3, npoints=32)
+            assert data.hdr_ext.to_dict()["SimulationGrid"]["sampling"] == sampling
+            volumes[sampling] = np.asarray(data[:])[:, :, 0]
+        k_full = np.fft.fftshift(np.fft.fft2(volumes[None], axes=(0, 1)), axes=(0, 1))
+        k_ell = np.fft.fftshift(np.fft.fft2(volumes["elliptical"], axes=(0, 1)), axes=(0, 1))
+        scale = np.abs(k_full[4, 4]).max()
+        assert np.abs(k_full[0, 0]).max() > 1e-3 * scale  # full sampling measures the corner
+        assert np.abs(k_ell[0, 0]).max() < 1e-6 * scale  # elliptical never does
+        assert np.abs(k_ell[0, 4]).max() > 1e-3 * scale  # the axis edge stays measured
+
     #********************#
     #   normalization    #
     #********************#
@@ -198,8 +260,13 @@ class TestEncoding:
         ideal = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=16.0)
         encoded = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=16.0,
                             oversampling=2)
+        elliptical = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=16.0,
+                               oversampling=2, sampling="elliptical")
         a = np.abs(np.asarray(ideal.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
         b = np.abs(np.asarray(encoded.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
+        c = np.abs(np.asarray(elliptical.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
         # a central 4x4 patch deep in the brain is nearly uniform, so encoding at twice
-        # the source resolution must reproduce the ideal amplitudes closely
+        # the source resolution must reproduce the ideal amplitudes closely; dropping
+        # the k corners barely moves a smooth object (Maudsley's argument)
         assert np.abs(a - b).max() < 0.15 * a.max()
+        assert np.abs(a - c).max() < 0.15 * a.max()

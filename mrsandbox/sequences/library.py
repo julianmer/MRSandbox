@@ -250,7 +250,8 @@ class MegaPress(Sequence):
     classic target); uncoupled singlets subtract away.
 
     Args:
-        edit_ppm: Editing pulse centre (1.88 for ON, 7.5 for OFF).
+        edit_ppm: Editing pulse centre (1.88 for ON, 7.5 for OFF), or a tuple of
+            centres for a multi-band editing pulse (Hadamard-encoded schemes).
         taus_s: The five inter-pulse delays in seconds; their sum is the echo time.
         bandwidth_hz: Full selective bandwidth of the editing pulses.
     """
@@ -286,6 +287,100 @@ class MegaPress(Sequence):
     def pair(cls, on_ppm=1.88, off_ppm=7.5, **kwargs):
         """The ON and OFF conditions of the editing experiment, as a named dict."""
         return {"on": cls(edit_ppm=on_ppm, **kwargs), "off": cls(edit_ppm=off_ppm, **kwargs)}
+
+
+#**************************************************************************************************#
+#                                      Class HadamardEditing                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The machinery of Hadamard-encoded editing: MEGA sub-experiments with multi-band editing pulses   #
+# plus the combination weights that reconstruct each edited difference.                            #
+#                                                                                                  #
+#**************************************************************************************************#
+class HadamardEditing(MegaPress):
+    """The machinery of Hadamard-encoded editing (Chan et al. 2016): MEGA sub-experiments
+    whose editing pulses carry one or two bands, encoded so every target is ON in half
+    the sub-experiments and OFF in the other half. Named subclasses type `bands` (the
+    editing band centres of each condition) and `combinations` (per-condition weights);
+    `scheme()` builds the named condition dict that Multiplex acquires, and the weights
+    reconstruct each edited difference from the acquired stack.
+
+    The published schemes below run at TE 80 ms with 20 ms editing pulses. The papers
+    type no delay table, so the default taus place the editing pulse centres at TE/4
+    and 3TE/4 (their TE/2 spacing refocuses the J evolution of the edited spins at TE)
+    and keep the FID-A convention of 5 ms from excitation to the first refocusing
+    pulse, which then sits TE/2 before the second: a stated assumption.
+
+    Args:
+        edit_ppm: Editing band centre(s) in ppm of one sub-experiment.
+        taus_s: The five inter-pulse delays in seconds; their sum is the echo time.
+        bandwidth_hz: Full selective bandwidth of each editing band.
+    """
+
+    bands = {}
+    combinations = {}
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, edit_ppm, taus_s=(0.005, 0.015, 0.025, 0.015, 0.020), bandwidth_hz=60.0):
+        super().__init__(edit_ppm=edit_ppm, taus_s=taus_s, bandwidth_hz=bandwidth_hz)
+
+    #************#
+    #   scheme   #
+    #************#
+    @classmethod
+    def scheme(cls, **kwargs):
+        """The named sub-experiments of this scheme, as Multiplex consumes them."""
+        return {name: cls(edit_ppm=centres, **kwargs) for name, centres in cls.bands.items()}
+
+
+#**************************************************************************************************#
+#                                           Class Hermes                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# HERMES for GABA and GSH: four Hadamard-encoded sub-experiments at TE 80 ms.                      #
+#                                                                                                  #
+#**************************************************************************************************#
+class Hermes(HadamardEditing):
+    """HERMES for GABA and GSH (Saleh et al. 2016): four sub-experiments at TE 80 ms
+    with 20 ms editing pulses at 1.9 ppm (ON GABA), 4.56 ppm (ON GSH), both at once (a
+    dual-lobe pulse), or 7.22 ppm (the published non-interacting position of the
+    OFF-both scan). The gaba combination a + b - c - d sums the ON GABA scans minus
+    the OFF GABA scans (the 3.01 ppm multiplet); gsh is a - b + c - d (the 2.95 ppm
+    cysteinyl resonance); sum recovers the unedited spectrum.
+    """
+
+    bands = {"a": (1.9, 4.56), "b": (1.9,), "c": (4.56,), "d": (7.22,)}
+    combinations = {
+        "sum": {"a": +1.0, "b": +1.0, "c": +1.0, "d": +1.0},
+        "gaba": {"a": +1.0, "b": +1.0, "c": -1.0, "d": -1.0},
+        "gsh": {"a": +1.0, "b": -1.0, "c": +1.0, "d": -1.0},
+    }
+
+
+#**************************************************************************************************#
+#                                          Class Hercules                                          #
+#**************************************************************************************************#
+#                                                                                                  #
+# HERCULES: four Hadamard-encoded sub-experiments editing seven metabolites at once.               #
+#                                                                                                  #
+#**************************************************************************************************#
+class Hercules(HadamardEditing):
+    """HERCULES (Oeltzschner et al. 2019): four sub-experiments at TE 80 ms with 20 ms
+    editing pulses at 4.58 and 1.9 ppm, 4.18 and 1.9 ppm, 4.58 ppm, or 4.18 ppm,
+    editing seven low-concentration metabolites at once. The gaba combination
+    a + b - c - d carries the 1.9 ppm targets (GABA, lactate among them); gsh, as
+    a - b + c - d, carries the targets that distinguish 4.58 from 4.18 ppm (GSH,
+    aspartate, NAA, NAAG); sum recovers the unedited spectrum.
+    """
+
+    bands = {"a": (4.58, 1.9), "b": (4.18, 1.9), "c": (4.58,), "d": (4.18,)}
+    combinations = {
+        "sum": {"a": +1.0, "b": +1.0, "c": +1.0, "d": +1.0},
+        "gaba": {"a": +1.0, "b": +1.0, "c": -1.0, "d": -1.0},
+        "gsh": {"a": +1.0, "b": -1.0, "c": +1.0, "d": -1.0},
+    }
 
 
 #**************************************************************************************************#

@@ -90,6 +90,20 @@ class TestGradient:
         assert weak > 1.1 * ideal  # the artifact exists and the mask cannot show it
         assert abs(strong / ideal - 1.0) < 0.01  # strong crushers suppress it, as on scanners
 
+    #********************#
+    #   compiled path    #
+    #********************#
+    def test_compiled_path_carries_the_crushers(self, engine):
+        # the isochromat ensemble compiles as a batch axis, so a crushed sequence
+        # replays jitted with exactly the eager physics
+        system = SpinSystem.from_database("Lac")[0]
+        fn = engine.compiled(crushed_echo(3.7), system)
+        args = [ops.convert_to_tensor(np.float32(v)) for v in (1.4, 0.28, 1.0)]
+        _, compiled = fn(*args)
+        _, eager = engine.lines(crushed_echo(3.7), system.with_relaxation(t1_s=1.4, t2_s=0.28))
+        np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(compiled)),
+                                   np.asarray(ops.convert_to_numpy(eager)), atol=1e-5)
+
 
 #**************************************************************************************************#
 #                                     Class TestSliceSelection                                     #

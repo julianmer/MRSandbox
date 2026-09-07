@@ -70,8 +70,10 @@ This repository consists of the following main structures:
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, and
   coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, or any sampled
   waveform) share one propagator, and named designs compose from the same events: PRESS, STEAM,
-  CHESS, WET, and VAPOR ship with their published series. Every timing and every waveform is a
-  tensor, so sequences can come from your code or from a neural network.
+  semi-LASER, CHESS, WET, and VAPOR ship with their published series, and J-difference editing
+  spans MEGA-PRESS plus the Hadamard-encoded HERMES and HERCULES schemes, whose dual-band
+  editing pulses and combination weights ship as typed tables. Every timing and every waveform
+  is a tensor, so sequences can come from your code or from a neural network.
 * The `mrsandbox/spins/` folder holds the spin systems and their operator algebra.
 * The `mrsandbox/engine/` folder runs sequences on spin systems and reads out transition lines,
   which render to spectra and FIDs on any grid. A compiled path replays jitted per system graphs,
@@ -81,8 +83,10 @@ This repository consists of the following main structures:
 * The `mrsandbox/scan/` folder composes everything into `VirtualScan` and `Voxel`, scales up to
   MRSI slices (a voxel lattice sharing one truth, spatial contrast from the anatomy, NIfTI-MRS
   with real spatial dimensions), and provides the on the fly generators for training.
-* The `mrsandbox/io/` folder reads external file formats that lack a maintained Python reader,
-  such as the Varian format of the consensus macromolecule spectra.
+* The `mrsandbox/io/` folder reads external file formats: the Varian format of the consensus
+  macromolecule spectra, and Pulseq `.seq` files (via pypulseq), whose blocks translate into
+  the event primitives with the ADC marking the readout, so vendor-agnostic sequences run
+  through the engine unchanged.
 * The `externals/` folder pins third party resources as git submodules, such as the Gudmundson
   MRS database behind AGNOSTIC.
 * The `examples/` folder demonstrates the pieces with small runnable scripts.

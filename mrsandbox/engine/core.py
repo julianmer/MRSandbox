@@ -141,34 +141,36 @@ class Engine:
             (freqs_hz, amps): flat complex64-compatible tensors over all d*d elements of
             every system (silent elements carry zero amplitude).
         """
+        all_freqs, all_amps = [], []
+        for system in systems:
+            ctx = self._ensemble_context(sequence, self.context(system, b1_scale=b1_scale),
+                                         isochromats)
+            freqs, amps = self._system_lines(sequence, ctx)
+            all_freqs.append(freqs)
+            all_amps.append(amps)
+        return ops.concatenate(all_freqs), ops.concatenate(all_amps)
+
+    @staticmethod
+    def _ensemble_context(sequence, ctx, isochromats):
+        """The context with the isochromat position vector a gradient-bearing sequence
+        needs (the events broadcast it as a batch axis), or the context untouched."""
         from mrsandbox.sequences.events import Gradient, ShapedPulse
 
         extents = [event.extent_mm for event in sequence.events if isinstance(event, Gradient)]
         extents += [event.extent_mm for event in sequence.events
                     if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm]
-        all_freqs, all_amps = [], []
-        for system in systems:
-            ctx = self.context(system, b1_scale=b1_scale)
-            if not extents:
-                freqs, amps = self._system_lines(sequence, ctx)
-            else:
-                span = max(extents)
-                offsets = (np.arange(isochromats) + 0.5) / isochromats - 0.5
-                stack = []
-                for x in offsets * span:
-                    freqs, amps = self._system_lines(
-                        sequence, dataclasses.replace(ctx, gradient_x=float(x))
-                    )
-                    stack.append(amps)
-                amps = ops.mean(ops.stack(stack, axis=0), axis=0)
-            all_freqs.append(freqs)
-            all_amps.append(amps)
-        return ops.concatenate(all_freqs), ops.concatenate(all_amps)
+        if not extents:
+            return ctx
+        offsets = ((np.arange(isochromats) + 0.5) / isochromats - 0.5) * max(extents)
+        return dataclasses.replace(ctx, gradient_x=ops.convert_to_tensor(
+            offsets.astype(np.float32)))
 
     def _system_lines(self, sequence, ctx):
-        """The (freqs, amps) of one system context, receiver phase applied."""
+        """The (freqs, amps) of one system context, receiver phase applied; a vector
+        gradient_x runs the whole isochromat ensemble as one batch, and the detected
+        amplitudes average over it."""
         rho = sequence.run(ctx.rho_eq, ctx)
-        rho_e = ops.einsum("ai,ab,bj->ij", ops.conj(ctx.v), rho, ctx.v)
+        rho_e = ops.einsum("ai,...ab,bj->...ij", ops.conj(ctx.v), rho, ctx.v)
         det_e = ops.einsum("ai,ab,bj->ij", ops.conj(ctx.v), ctx.fplus, ctx.v)
         freqs = ops.expand_dims(ctx.lam, 1) - ops.expand_dims(ctx.lam, 0)
         phase = math.radians(self.receiver_phase_deg)
@@ -176,22 +178,27 @@ class Engine:
             ops.convert_to_tensor(math.cos(phase), dtype="float32"),
             ops.convert_to_tensor(math.sin(phase), dtype="float32"),
         )
-        return ops.reshape(freqs, (-1,)), receiver * ops.reshape(det_e * ops.transpose(rho_e), (-1,))
+        amps = det_e * ops.einsum("...ij->...ji", rho_e)
+        if ops.ndim(amps) == 3:
+            amps = ops.mean(amps, axis=0)
+        return ops.reshape(freqs, (-1,)), receiver * ops.reshape(amps, (-1,))
 
     #****************#
     #   compiled     #
     #****************#
-    def compiled(self, sequence, system):
+    def compiled(self, sequence, system, isochromats=32):
         """A jit-compiled (t1_s, t2_s, b1_scale) -> (freqs, amps) for one system and sequence.
 
         The context (eigendecomposition, operators) is built once and closed over; only
         the relaxation times remain inputs, passed as backend tensors so the trace is
         reused across draws. This is what makes per-draw relaxation sampling cheap: the
-        first call compiles, every further call replays the compiled graph.
+        first call compiles, every further call replays the compiled graph. A gradient-
+        bearing sequence compiles with its isochromat ensemble as a batch axis, so
+        crushers and slice selection run at replay speed too.
         """
         from nifti_mrs_plus.backend import jit
 
-        ctx0 = self.context(system)
+        ctx0 = self._ensemble_context(sequence, self.context(system), isochromats)
 
         def fn(t1_s, t2_s, b1_scale):
             ctx = dataclasses.replace(ctx0, t1_s=t1_s, t2_s=t2_s, b1_scale=b1_scale)
