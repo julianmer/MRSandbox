@@ -1,3 +1,6 @@
 [submodule "externals/mrs-database"]
 	path = externals/mrs-database
 	url = https://github.com/agudmundson/mrs-database
+[submodule "externals/denmatsim"]
+	path = externals/denmatsim
+	url = https://git.fmrib.ox.ac.uk/wclarke/denmatsim.git

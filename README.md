@@ -97,7 +97,8 @@ against independent references:
 * An in test complex128 oracle shares nothing with the engine but the input values and must
   agree to a relative 1e-3, for ideal and for shaped pulses.
 * Clarke's `fsl_denmatsim` runs the same spin systems and sequences and must correlate above
-  0.9999, with a derived convention adapter rather than a fitted one.
+  0.9999, with a derived convention adapter rather than a fitted one. It is pinned as the
+  `externals/denmatsim` submodule and installed with `pip install ./externals/denmatsim`.
 * Shaped pulse excitation and inversion profiles reproduce the bandwidth length products of
   de Graaf Table 5.1.
 * Analytic laws hold exactly where they should: echo attenuation exp(-TE/T2), suppression

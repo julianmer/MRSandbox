@@ -172,9 +172,9 @@ class TestShapedPulse:
     #   denmatsim parity     #
     #************************#
     def test_denmatsim_parity_on_lactate(self, engine):
+        fsl = pytest.importorskip("fsl_denmatsim")
         from fsl_denmatsim.simseq import simseq
 
-        fsl = pytest.importorskip("fsl_denmatsim")
         table = json.loads((pathlib.Path(fsl.__file__).parent / "spinSystems.json").read_text())
 
         flip_deg, duration, steps = 90.0, 0.002, 32

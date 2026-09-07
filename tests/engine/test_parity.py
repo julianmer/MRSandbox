@@ -162,9 +162,9 @@ class TestDenmatsimParity:
     #*******************#
     @staticmethod
     def denmatsim_fid(system_name, pulses, delays, coherence_filter):
+        fsl = pytest.importorskip("fsl_denmatsim")
         from fsl_denmatsim.simseq import simseq
 
-        fsl = pytest.importorskip("fsl_denmatsim")
         table = json.loads((pathlib.Path(fsl.__file__).parent / "spinSystems.json").read_text())
         time, samples = 1e-6, 4
         blocks = [
