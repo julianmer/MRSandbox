@@ -1,0 +1,3 @@
+[submodule "externals/mrs-database"]
+	path = externals/mrs-database
+	url = https://github.com/agudmundson/mrs-database

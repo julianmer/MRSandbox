@@ -1,0 +1,134 @@
+####################################################################################################
+#                                            priors.py                                             #
+####################################################################################################
+#                                                                                                  #
+# Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
+#                                                                                                  #
+# Created: 03/09/26                                                                                #
+#                                                                                                  #
+# Purpose: Builders that turn database sources into Params subtrees, so priors come from cited     #
+#          values and compose like any other Params. In the closed loop a fitted posterior         #
+#          replaces any of these leaves without further changes.                                   #
+#                                                                                                  #
+####################################################################################################
+
+#*************#
+#   imports   #
+#*************#
+from mrsandbox.database import Database, concentrations
+from mrsandbox.database.gudmundson import Gudmundson
+from mrsandbox.params.trees import Params
+from mrsandbox.params.values import Fixed, Normal, Uniform
+
+
+#**************************************************************************************************#
+#                                           Class Priors                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# Params subtrees built from database sources.                                                     #
+#                                                                                                  #
+#**************************************************************************************************#
+class Priors:
+    """Params subtrees built from database sources."""
+
+    #****************#
+    #   de graaf     #
+    #****************#
+    @staticmethod
+    def de_graaf(metabolites=None, database=None):
+        """Uniform concentration priors (mM) from the de Graaf ranges.
+
+        Args:
+            metabolites: Names to include; defaults to every metabolite in the source.
+            database: Database instance; defaults to the packaged one.
+
+        Returns:
+            Params mapping each metabolite to a Uniform(low, high) leaf.
+        """
+        db = database if database is not None else Database()
+        names = metabolites if metabolites is not None else sorted(concentrations.DE_GRAAF)
+        return Params({name: Uniform(*db.concentration(name, source="de_graaf")) for name in names})
+
+    #*******************#
+    #   gudmundson t2   #
+    #*******************#
+    @staticmethod
+    def gudmundson_t2(metabolites, fallback_s=0.160, tesla=3):
+        """Per-metabolite T2 priors pooled from the Gudmundson database, in seconds.
+
+        Metabolites with pooled rows get Normal(mean, between-study spread); the rest
+        fall back to a Fixed stated assumption. Requires the externals/mrs-database
+        submodule; without it, everything falls back.
+
+        Args:
+            metabolites: Names to include.
+            fallback_s: T2 for metabolites without pooled data.
+            tesla: Nominal field filter.
+
+        Returns:
+            Params mapping each metabolite to its T2 leaf.
+        """
+        source = Gudmundson() if Gudmundson.available() else None
+        leaves = {}
+        for name in metabolites:
+            pooled = source.pooled_t2(name, tesla=tesla) if source else None
+            leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
+        return Params(leaves)
+
+    #*****************************#
+    #   gudmundson concentrations #
+    #*****************************#
+    @staticmethod
+    def gudmundson_concentrations(metabolites, groups=("Healthy", "Control"), tesla=None):
+        """Concentration priors pooled from the Gudmundson database for a cohort, in mM.
+
+        Pass a clinical group name (the database's own strings, e.g. "Multiple
+        Sclerosis", "Schizophrenia") to build disease priors; only metabolites with
+        pooled molar rows appear in the result, so compose over the healthy defaults:
+        `Priors.de_graaf(...) | Params(conc=Priors.gudmundson_concentrations(...))`.
+
+        Returns:
+            Params mapping each covered metabolite to Normal(mean, spread).
+        """
+        source = Gudmundson() if Gudmundson.available() else None
+        leaves = {}
+        for name in metabolites:
+            pooled = source.pooled_concentration(name, groups=groups, tesla=tesla) if source else None
+            if pooled is not None:
+                leaves[name] = Normal(pooled.mean_s, pooled.sd_s)
+        return Params(leaves)
+
+    #*******************#
+    #   literature t1   #
+    #*******************#
+    @staticmethod
+    def literature_t1(metabolites, fallback_s=1.300, database=None):
+        """Per-metabolite T1 priors pooled from the typed 3 T literature tables, in seconds.
+
+        Metabolites with pooled rows (Mlynarik 2001, Ethofer 2003, Traber 2004, gathered
+        under Database.T1_ALIASES) get Normal(mean, between-study spread); the rest fall
+        back to a Fixed stated assumption.
+
+        Args:
+            metabolites: Names to include.
+            fallback_s: T1 for metabolites without pooled data.
+            database: Database instance; defaults to the packaged one.
+
+        Returns:
+            Params mapping each metabolite to its T1 leaf.
+        """
+        db = database if database is not None else Database()
+        leaves = {}
+        for name in metabolites:
+            pooled = db.pooled_t1(name)
+            leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
+        return Params(leaves)
+
+    #***************************#
+    #   simple relaxation       #
+    #***************************#
+    @staticmethod
+    def simple_relaxation(database=None):
+        """Fixed T1 and T2 leaves from the stated simple assumptions."""
+        db = database if database is not None else Database()
+        return Params(t2_s=Fixed(db.t2(source="simple")), t1_s=Fixed(db.t1(source="simple")))

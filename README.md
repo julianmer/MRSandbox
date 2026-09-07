@@ -1,0 +1,106 @@
+<div align="center">
+  <img src="assets/logo/logo.png" alt="MRSandbox Logo" width="130" style="margin-bottom: -30px;"/>
+  <h1 style="margin-top: 5px; margin-bottom: 5px;">MRSandbox</h1>
+  <p style="margin-top: 0px;"><em>A simulation sandbox for magnetic resonance spectroscopy</em></p>
+</div>
+
+---
+
+MRSandbox creates magnetic resonance spectra from first principles. A virtual brain provides the
+tissue composition at any voxel position, a virtual scanner provides the field strength and the
+hardware limits, and fully flexible pulse sequences probe both through a density matrix engine.
+Every quantity is a configurable parameter that can be fixed, sampled from literature ranges, or
+replaced by a learned posterior. The simulations are written with Keras operations and run batched
+and differentiable on JAX, PyTorch, and TensorFlow.
+
+```python
+brain = Brain.load("icbm152")                      # the MNI average brain, fetched once and cached
+scan  = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+data  = scan.voxel(position_mm=(10, -20, 5), size_mm=20).acquire(seed=7)    # NIfTI-MRS
+```
+
+> MRSandbox is under active development and grows with my research. It is a personal research toolbox and interfaces are adjusted as we see fit.
+
+## Overview
+
+```mermaid
+flowchart LR
+    subgraph values [Values]
+        DB[(Database)] --> PR[Params]
+    end
+    subgraph world [Virtual World]
+        BR[Brain<br/>Phantom]
+        HW[Scanner<br/>Hardware]
+        SQ[Sequences<br/>Events, Shapes, Timings]
+    end
+    subgraph physics [Physics]
+        SP[Spins] --> EN[Engine]
+        BK[Backend] --> EN
+    end
+    PR --> BR
+    PR --> HW
+    PR --> SQ
+    BR --> SC[Virtual Scan<br/>Voxel]
+    HW --> SC
+    SQ --> SC
+    SC --> EN
+    EN --> OUT[[NIfTI-MRS+]]
+```
+
+This repository consists of the following main structures:
+* The `mrsandbox/params/` folder holds the parameter system: `Value` providers (fixed, uniform,
+  normal, per tissue, spatial map, posterior) inside composable `Params` trees. Sampling a tree
+  realizes every leaf with one seed and records the ground truth.
+* The `mrsandbox/database/` folder stores literature values as source named Python dicts with the
+  citation beside each dict, including the de Graaf concentration ranges, per metabolite T2 pooled
+  from the Gudmundson database in `externals/`, per metabolite T1 typed from Mlynarik 2001,
+  Ethofer 2003, and Traber 2004, the published WET and VAPOR suppression series, and the de Graaf
+  RF pulse characteristics. Pooling across sources is code, never data.
+* The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
+  any position, together with swappable water, lipid, and macromolecule sources (LCModel style
+  Gaussians, or the measured consensus spectrum) and B0 field maps that dephase each voxel
+  physically (after a first order voxel shim, as a real acquisition would). ICBM152
+  (TemplateFlow) and BigBrain-MR (Sainz Martinez et al. 2023) are fetched on first use; the
+  wheel ships no data.
+* The `mrsandbox/resources/` folder pulls large named datasets from their canonical homes on
+  first use into a local, checksum verified cache, so the package itself stays lightweight.
+* The `mrsandbox/hardware/` folder describes scanners and receive coil arrays. Loops carry
+  Biot-Savart sensitivities, arrays carry the Roemer noise resistance matrix, and acquisitions
+  gain a DIM_COIL dimension with the Roemer optimum combination to fold them back.
+* The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, and
+  coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, or any sampled
+  waveform) share one propagator, and named designs compose from the same events: PRESS, STEAM,
+  CHESS, WET, and VAPOR ship with their published series. Every timing and every waveform is a
+  tensor, so sequences can come from your code or from a neural network.
+* The `mrsandbox/spins/` folder holds the spin systems and their operator algebra.
+* The `mrsandbox/engine/` folder runs sequences on spin systems and reads out transition lines,
+  which render to spectra and FIDs on any grid. A compiled path replays jitted per system graphs,
+  so training draws cost milliseconds instead of a fresh simulation.
+* The `mrsandbox/backend/` folder contains the propagator mathematics. Generic backend utilities
+  (jit, autograd) live upstream in NIfTI-MRS+ so that anyone can use them.
+* The `mrsandbox/scan/` folder composes everything into `VirtualScan` and `Voxel`, scales up to
+  MRSI slices (a voxel lattice sharing one truth, spatial contrast from the anatomy, NIfTI-MRS
+  with real spatial dimensions), and provides the on the fly generators for training.
+* The `mrsandbox/io/` folder reads external file formats that lack a maintained Python reader,
+  such as the Varian format of the consensus macromolecule spectra.
+* The `externals/` folder pins third party resources as git submodules, such as the Gudmundson
+  MRS database behind AGNOSTIC.
+* The `examples/` folder demonstrates the pieces with small runnable scripts.
+* The `scripts/` folder holds larger workflows such as dataset generation.
+* The `tests/` folder mirrors the package layout and asserts the physics.
+
+## Validation
+
+Every physical claim in the codebase is gated by a test, and the engine itself is validated
+against independent references:
+
+* An in test complex128 oracle shares nothing with the engine but the input values and must
+  agree to a relative 1e-3, for ideal and for shaped pulses.
+* Clarke's `fsl_denmatsim` runs the same spin systems and sequences and must correlate above
+  0.9999, with a derived convention adapter rather than a fitted one.
+* Shaped pulse excitation and inversion profiles reproduce the bandwidth length products of
+  de Graaf Table 5.1.
+* Analytic laws hold exactly where they should: echo attenuation exp(-TE/T2), suppression
+  recovery 1 - exp(-t/T1), flip errors cos(flip)^n, and the WET and VAPOR series deliver their
+  published T1 and B1 insensitivity.
+

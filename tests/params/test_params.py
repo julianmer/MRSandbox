@@ -1,0 +1,119 @@
+####################################################################################################
+#                                          test_params.py                                          #
+####################################################################################################
+#                                                                                                  #
+# Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
+#                                                                                                  #
+# Created: 03/09/26                                                                                #
+#                                                                                                  #
+# Purpose: Parameter system gate: coercion sugar, nesting, attribute access, right biased          #
+#          composition, seeded determinism, and realizations that contain no providers and         #
+#          serialize cleanly.                                                                      #
+#                                                                                                  #
+####################################################################################################
+
+#*************#
+#   imports   #
+#*************#
+import numpy as np
+import pytest
+
+from mrsandbox import Fixed, Normal, Params, PerTissue, Tissues, Uniform, Value
+
+
+#**************************************************************************************************#
+#                                         Class TestValues                                         #
+#**************************************************************************************************#
+class TestValues:
+
+    #**************#
+    #   coercion   #
+    #**************#
+    def test_coercion_sugar(self):
+        assert Value.of(0.011) == Fixed(0.011)
+        assert Value.of((2.0, 15.0)) == Uniform(2.0, 15.0)
+        assert Value.of("icbm152") == Fixed("icbm152")
+        assert Value.of((1, 2, 3)) == Fixed((1, 2, 3))
+        u = Uniform(0.0, 1.0)
+        assert Value.of(u) is u
+
+    #*******************#
+    #   distributions   #
+    #*******************#
+    def test_distributions_sample_in_range(self):
+        rng = np.random.default_rng(0)
+        for _ in range(50):
+            assert 7.5 <= Uniform(7.5, 12.0).sample(rng) < 12.0
+        draws = [Normal(0.0, 1.0).sample(rng) for _ in range(2000)]
+        assert abs(np.mean(draws)) < 0.1 and abs(np.std(draws) - 1.0) < 0.1
+
+    #****************#
+    #   per tissue   #
+    #****************#
+    def test_per_tissue_realizes_components(self):
+        value = PerTissue(gm=(6.0, 12.0), wm=Uniform(4.0, 9.0), csf=0.0)
+        concrete = value.sample(np.random.default_rng(1))
+        assert isinstance(concrete, Tissues)
+        assert 6.0 <= concrete.gm < 12.0 and 4.0 <= concrete.wm < 9.0 and concrete.csf == 0.0
+
+
+#**************************************************************************************************#
+#                                         Class TestParams                                         #
+#**************************************************************************************************#
+class TestParams:
+
+    #******************#
+    #   construction   #
+    #******************#
+    def test_nesting_and_attribute_access(self):
+        p = Params(brain=dict(NAA=dict(conc=(7.5, 12.0), t2=0.16)), te1_s=0.011)
+        assert isinstance(p.brain, Params)
+        assert p.brain.NAA.conc == Uniform(7.5, 12.0)
+        assert p["brain"]["NAA"]["t2"] == Fixed(0.16)
+        with pytest.raises(AttributeError, match="known:"):
+            p.brain.GABA
+
+    #*****************#
+    #   composition   #
+    #*****************#
+    def test_or_merges_deep_and_right_biased(self):
+        base = Params(brain=dict(NAA=dict(conc=(7.5, 12.0)), Cr=dict(conc=(4.5, 10.5))), noise=0.0)
+        override = Params(brain=dict(NAA=dict(conc=10.0)), noise=(0.0, 5.0))
+        merged = base | override
+        assert merged.brain.NAA.conc == Fixed(10.0)
+        assert merged.brain.Cr.conc == Uniform(4.5, 10.5)
+        assert merged.noise == Uniform(0.0, 5.0)
+        assert base.brain.NAA.conc == Uniform(7.5, 12.0)  # inputs untouched
+
+    #*****************#
+    #   determinism   #
+    #*****************#
+    def test_sampling_is_seeded_and_deterministic(self):
+        p = Params(brain=dict(NAA=dict(conc=(7.5, 12.0))), lw_hz=(2.0, 15.0), te1_s=0.011)
+        a, b, c = p.sample(seed=7), p.sample(seed=7), p.sample(seed=8)
+        assert a.to_dict() == b.to_dict()
+        assert a.to_dict() != c.to_dict()
+        assert a.te1_s == 0.011
+        assert 7.5 <= a.brain.NAA.conc < 12.0
+
+    #*****************#
+    #   realization   #
+    #*****************#
+    def test_realization_holds_no_providers(self):
+        p = Params(
+            brain=dict(NAA=dict(conc=PerTissue(gm=(6.0, 12.0), wm=(4.0, 9.0)))),
+            te1_s=(0.01, 0.1),
+        )
+        truth = p.sample(seed=3)
+
+        def providers(tree):
+            for value in tree.values():
+                if isinstance(value, Params):
+                    yield from providers(value)
+                elif isinstance(value, Value):
+                    yield value
+
+        assert list(providers(truth)) == []
+        assert isinstance(truth.brain.NAA.conc.gm, float)
+        d = truth.to_dict()
+        assert d["brain"]["NAA"]["conc"]["gm"] == truth.brain.NAA.conc.gm

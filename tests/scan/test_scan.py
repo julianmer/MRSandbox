@@ -1,0 +1,123 @@
+####################################################################################################
+#                                           test_scan.py                                           #
+####################################################################################################
+#                                                                                                  #
+# Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
+#                                                                                                  #
+# Created: 03/09/26                                                                                #
+#                                                                                                  #
+# Purpose: Scan gate: the north-star script works end to end. Defaults derive from the database    #
+#          (including the Cho interval built from GPC plus PCho), acquisitions are seeded and      #
+#          deterministic, the NIfTI-MRS header carries the full provenance, and knocking a         #
+#          metabolite out of the params removes its peak.                                          #
+#                                                                                                  #
+####################################################################################################
+
+#*************#
+#   imports   #
+#*************#
+import numpy as np
+import pytest
+from keras import ops
+
+from mrsandbox import Brain, Fixed, Normal, Params, Press, Scanner, Uniform, VirtualScan
+
+
+#*****************#
+#   shared scan   #
+#*****************#
+@pytest.fixture(scope="module")
+def scan():
+    return VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+
+
+#**************************************************************************************************#
+#                                      Class TestVirtualScan                                       #
+#**************************************************************************************************#
+class TestVirtualScan:
+
+    #**************#
+    #   defaults   #
+    #**************#
+    def test_default_params_derive_from_the_database(self, scan):
+        assert len(scan.params.conc) == 21
+        assert scan.params.conc.NAA == Uniform(7.5, 12.0)
+        assert scan.params.conc.Glu == Uniform(6.0, 12.5)
+        assert "Cho" not in scan.params.conc  # covered by GPC and PCho
+        assert isinstance(scan.params.t2.NAA, Normal)  # pooled from Gudmundson
+        assert 0.2 < scan.params.t2.NAA.mean < 0.35
+        assert scan.params.t2.Ser == Fixed(0.160)  # no rows: the stated fallback
+        assert isinstance(scan.params.t1.NAA, Normal)  # pooled from the typed literature
+        assert 1.3 < scan.params.t1.NAA.mean < 1.5
+        assert scan.params.t1.Ser == Fixed(1.300)  # no rows: the stated fallback
+        assert scan.params.b1_scale == Normal(1.0, 0.03)  # transmit scatter, stated
+
+    #*****************#
+    #   determinism   #
+    #*****************#
+    def test_acquisitions_are_seeded(self, scan):
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        _, fid_a = voxel.fid(seed=7)
+        _, fid_b = voxel.fid(seed=7)
+        _, fid_c = voxel.fid(seed=8)
+        np.testing.assert_array_equal(ops.convert_to_numpy(fid_a), ops.convert_to_numpy(fid_b))
+        assert np.abs(ops.convert_to_numpy(fid_a) - ops.convert_to_numpy(fid_c)).max() > 0.0
+
+    #****************#
+    #   provenance   #
+    #****************#
+    def test_acquire_returns_nifti_mrs_with_provenance(self, scan):
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        data = voxel.acquire(seed=7, npoints=1024, dwell_s=1.0 / 4000.0)
+        assert data.shape == (1, 1, 1, 1024)
+        assert abs(data.dwelltime - 1.0 / 4000.0) < 1e-12
+        truth = data.hdr_ext["SimulationGroundTruth"]
+        assert truth["seed"] == 7
+        assert len(truth["params"]["conc"]) == 21
+        assert {"NAA", "Glu", "Ins", "GABA", "Lac"} <= set(truth["params"]["conc"])
+        assert 0.0 <= truth["tissue_fractions"]["gm"] <= 1.0
+        assert data.hdr_ext["SimulationSequence"]["name"] == "Press"
+        assert data.hdr_ext["SimulationSequence"]["te1_s"] == 0.011
+        assert data.hdr_ext["SimulationPhantom"]["brain"] == "icbm152"
+
+    #*******************************#
+    #   physics through the stack   #
+    #*******************************#
+    def test_knocking_out_naa_removes_its_peak(self, scan):
+        knockout = VirtualScan(
+            scan.brain, scan.scanner, scan.sequence, params=Params(conc=dict(NAA=0.0))
+        )
+        heights = []
+        for source in (scan, knockout):
+            voxel = source.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+            ppm, spec = voxel.spectrum(seed=7, npoints=8192)
+            ppm, spec = np.asarray(ppm), ops.convert_to_numpy(spec)
+            heights.append(spec.real[np.argmin(np.abs(ppm - 2.008))])
+        # NAA must dominate its own peak: its contribution (the difference) exceeds the
+        # genuine neighbors that remain there (NAAG acetyl, Glu, Gln, GABA), as in vivo.
+        assert heights[0] - heights[1] > max(heights[1], 0.0)
+
+
+#**************************************************************************************************#
+#                                     Class TestAcquisition                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# The drawn acquisition imperfections modulate the FID by exactly the analytic factor.             #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestAcquisitionImperfections:
+
+    #**********************#
+    #   exact modulation   #
+    #**********************#
+    def test_shift_and_phase_modulate_the_fid_exactly(self, scan):
+        brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        clean = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0))
+        bent = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=5.0, phase_deg=90.0))
+        base = VirtualScan(brain, *pieces, params=clean).voxel(position_mm=(10, -20, 5), size_mm=20)
+        warp = VirtualScan(brain, *pieces, params=bent).voxel(position_mm=(10, -20, 5), size_mm=20)
+        _, fid0 = base.fid(seed=7, npoints=512)
+        _, fid1 = warp.fid(seed=7, npoints=512)
+        t = np.arange(512) / 4000.0
+        expected = fid0 * np.exp(1j * (2.0 * np.pi * 5.0 * t + np.pi / 2.0))
+        assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
