@@ -106,7 +106,7 @@ class Multiplex:
         hdr.set_user_def(
             "SimulationPhantom",
             {"brain": self.brain.name, "position_mm": [float(x) for x in position_mm],
-             "size_mm": float(size_mm)},
+             "size_mm": list(size_mm) if hasattr(size_mm, "__len__") else float(size_mm)},
             "MRSandbox: the virtual brain and the voxel placement.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
@@ -204,7 +204,7 @@ class Multiplex:
         hdr.set_user_def(
             "SimulationPhantom",
             {"brain": self.brain.name, "position_mm": [float(x) for x in position_mm],
-             "size_mm": float(size_mm)},
+             "size_mm": list(size_mm) if hasattr(size_mm, "__len__") else float(size_mm)},
             "MRSandbox: the virtual brain and the voxel placement.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)

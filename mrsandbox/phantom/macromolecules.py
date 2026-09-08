@@ -24,6 +24,34 @@ from mrsandbox.database import macromolecules
 from mrsandbox.io import VarianFid
 
 
+#*****************#
+#   echo timing   #
+#*****************#
+def _echo_time_s(sequence):
+    """Transverse (echo) time of a sequence, for the measured-shape TE decay: the te_s
+    attribute where the design carries one (STEAM's mixing time is longitudinal and
+    excluded), te1_s plus te2_s for PRESS designs, the tau sum for MEGA designs, and
+    the sum of Delay events as the fallback (exact for gradient-crushed echoes)."""
+    if hasattr(sequence, "te_s"):
+        return float(sequence.te_s)
+    if hasattr(sequence, "te1_s"):
+        return float(sequence.te1_s) + float(sequence.te2_s)
+    if hasattr(sequence, "taus_s"):
+        return float(sum(sequence.taus_s))
+    from mrsandbox.sequences.events import Delay
+
+    return float(sum(float(event.t_s) for event in sequence.events if isinstance(event, Delay)))
+
+
+#*******************#
+#   peak position   #
+#*******************#
+def _peak_ppm(label):
+    """Position of a consensus peak from its frequency label (M3.4-3.6 to the midpoint)."""
+    parts = label.lstrip("M").split("-")
+    return sum(float(part) for part in parts) / len(parts)
+
+
 #**************************************************************************************************#
 #                                          Class MMSource                                          #
 #**************************************************************************************************#
@@ -50,8 +78,10 @@ class MMSource(abc.ABC):
     #*********#
     #   fid   #
     #*********#
-    def fid(self, fractions, truth, f0_mhz, t_s):
-        """Return the complex time domain contribution on `t_s`, or None when silent."""
+    def fid(self, fractions, truth, f0_mhz, t_s, sequence=None):
+        """Return the complex time domain contribution on the uniform grid `t_s`, or
+        None when silent. `sequence` is the scan's sequence, so a measured source can
+        carry echo time behaviour."""
         return None
 
 
@@ -120,7 +150,7 @@ class ParameterizedMM(MMSource):
 #**************************************************************************************************#
 class MeasuredMM(MMSource):
     """The measured consensus macromolecule spectrum as the background: real in vivo
-    shapes instead of Gaussians.
+    shapes instead of Gaussians, decaying with the sequence's echo time.
 
     The 3 T human metabolite-nulled STEAM spectrum from the consensus data collection
     (fetched on first use) is mapped into the simulation frame: conjugated to our sign
@@ -129,9 +159,18 @@ class MeasuredMM(MMSource):
     consensus peak positions) to the 0 ppm reference frame. The signal is normalized so
     the drawn mm.level_mm leaf keeps the ParameterizedMM meaning: total MM area equals
     the level times the parameterization's summed proton areas.
+
+    The measurement was acquired at TE 8 ms; for any other sequence every frequency bin
+    is attenuated by exp(-(TE - 8 ms) / T2(ppm)), with T2(ppm) the value of the nearest
+    peak in the consensus 3 T human column (Landheer 2020 in the typed Appendix S1
+    Table S3, the 3 T study reporting uncertainties) and the echo time read from the
+    sequence's own timings. Stated approximations: the T2 map is a nearest-peak step
+    function, and the editing-band response of the measured shapes is not modelled
+    (couplings are not resolvable in a measured sum; CoupledMM carries co-editing).
     """
 
     TOTAL_PROTON_AREAS = 11.39  # the ParameterizedMM MM components summed
+    MEASURED_TE_S = 0.008  # the consensus 3 T human STEAM acquisition
 
     #**********#
     #   init   #
@@ -139,11 +178,12 @@ class MeasuredMM(MMSource):
     def __init__(self, center_ppm=4.7):
         self.center_ppm = center_ppm
         self._measured = None
+        self._t2_map = None
 
     #*********#
     #   fid   #
     #*********#
-    def fid(self, fractions, truth, f0_mhz, t_s):
+    def fid(self, fractions, truth, f0_mhz, t_s, sequence=None):
         tissue = fractions.gm + fractions.wm
         if tissue <= 0.0:
             return None
@@ -156,8 +196,33 @@ class MeasuredMM(MMSource):
                      + 1j * np.interp(t_measured, grid, measured.imag, right=0.0))
         # conjugate into our +ppm convention, shift the transmitter frame to 0 ppm
         signal = np.conj(resampled) * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
+        if sequence is not None:
+            signal = self._echo_decay(signal, t, f0_mhz, _echo_time_s(sequence))
         scale = truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS / np.conj(measured[0])
         return (signal * scale).astype(np.complex64)
+
+    #****************#
+    #   echo decay   #
+    #****************#
+    def _echo_decay(self, signal, t, f0_mhz, te_s):
+        """Attenuate every frequency bin by exp(-(TE - 8 ms) / T2(ppm)), the typed
+        per-peak T2 of the nearest consensus 3 T peak, via one FFT round trip."""
+        delta = te_s - self.MEASURED_TE_S
+        if abs(delta) < 1e-9:
+            return signal
+        if self._t2_map is None:
+            table = macromolecules.CONSENSUS_T2["t2_ms"]
+            rows = sorted((_peak_ppm(peak), value[0] / 1000.0)
+                          for peak, entries in table.items()
+                          if (value := entries.get("landheer_2020")) is not None)
+            self._t2_map = (np.asarray([ppm for ppm, _ in rows]),
+                            np.asarray([t2 for _, t2 in rows]))
+        positions, t2_s = self._t2_map
+        dwell = float(t[1] - t[0])
+        ppm = (np.fft.fftfreq(t.size, d=dwell) % (1.0 / dwell)) / f0_mhz
+        nearest = np.searchsorted(0.5 * (positions[1:] + positions[:-1]), ppm)
+        attenuation = np.exp(-delta / t2_s[nearest])
+        return np.fft.ifft(np.fft.fft(signal) * attenuation)
 
     #*************#
     #   loading   #

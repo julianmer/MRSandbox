@@ -116,3 +116,182 @@ CONSENSUS_COUPLINGS = (
     (1.43, 4.32, 7.7),  # alanine: CH3 to CH
     (1.70, 3.00, 7.7),  # lysine, arginine: the GABA-relevant chain
 )
+
+#***************************#
+#   consensus t1 (app s1)   #
+#***************************#
+# Source: Cudalbu, C., et al. (the CUDALBU table above), Appendix S1 (supporting
+#         information of nbm.4393), Table S2: T1 relaxation times of MM at different
+#         magnetic fields in humans and rats.
+# Data:   per MM peak and study column: (value_ms, error_ms), error None where the table
+#         prints none (the error type is not stated in the source); study metadata typed
+#         from the table headers, echo and repetition times as printed.
+# Units:  milliseconds; b0_t in tesla.
+# Notes:  entries the source prints in brackets reached the FitAid fit limit and are
+#         listed in fit_limit; entries printed with ~ are listed in approximate. The
+#         source marks Murali-Manohar 2019 as updated values first published in this
+#         table. Peaks without any reported value are omitted.
+CONSENSUS_T1 = {
+    "studies": {
+        "lopez_kolkovsky_2016": dict(b0_t=17.2, species="rat", sequence="IR-LASER",
+                                     te_ms="16.5", tr_ms="5000", roi="cerebral cortex"),
+        "cudalbu_2009_14t1": dict(b0_t=14.1, species="rat", sequence="IR-SPECIAL",
+                                  te_ms="2.8", tr_ms="4000",
+                                  roi="frontal cortex, corpus callosum, striatum"),
+        "cudalbu_2009_9t4": dict(b0_t=9.4, species="rat", sequence="IR-SPECIAL",
+                                 te_ms="2.8", tr_ms="4000",
+                                 roi="frontal cortex, corpus callosum, striatum"),
+        "de_graaf_2006_11t7": dict(b0_t=11.7, species="rat", sequence="in house method",
+                                   te_ms=None, tr_ms=None, roi="cerebral cortex"),
+        "de_graaf_2006_9t4": dict(b0_t=9.4, species="rat", sequence="in house method",
+                                  te_ms=None, tr_ms=None, roi="cerebral cortex"),
+        "de_graaf_2006_4t": dict(b0_t=4.0, species="rat", sequence="in house method",
+                                 te_ms=None, tr_ms=None, roi="cerebral cortex"),
+        "pfeuffer_1999": dict(b0_t=9.4, species="rat", sequence="IR-STEAM",
+                              te_ms="1", tr_ms="4000", roi="posterior to bregma"),
+        "murali_manohar_2019_gm": dict(b0_t=9.4, species="human",
+                                       sequence="DIR-MC-semiLASER", te_ms="24",
+                                       tr_ms="8000", roi="occipital lobe, GM rich"),
+        "murali_manohar_2019_wm": dict(b0_t=9.4, species="human",
+                                       sequence="DIR-MC-semiLASER", te_ms="24",
+                                       tr_ms="8000", roi="occipital lobe, WM rich"),
+        "xin_2013": dict(b0_t=7.0, species="human", sequence="IR-SPECIAL", te_ms="12",
+                         tr_ms="7500", roi="occipital lobe (GM rich)"),
+        "hoefemann_2020": dict(b0_t=3.0, species="human", sequence="2DJ-IRMC-PRESS",
+                               te_ms="20-95", tr_ms="3000-4000",
+                               roi="occipital lobe (GM rich)"),
+        "behar_1994": dict(b0_t=2.1, species="human", sequence="IR-3D ISIS", te_ms="17",
+                           tr_ms="4450", roi="occipital lobe (mixed)"),
+        "kreis_2005": dict(b0_t=1.5, species="human", sequence="IR-PRESS", te_ms="20",
+                           tr_ms="400-9000", roi="mixed voxel"),
+    },
+    "t1_ms": {
+        "M0.94": {"lopez_kolkovsky_2016": (748, 14), "cudalbu_2009_14t1": (660, 70),
+                  "cudalbu_2009_9t4": (510, 70), "de_graaf_2006_11t7": (762, 30),
+                  "de_graaf_2006_9t4": (633, 30), "de_graaf_2006_4t": (354, 39),
+                  "pfeuffer_1999": (300, None), "murali_manohar_2019_gm": (280, 10),
+                  "murali_manohar_2019_wm": (284, 10), "xin_2013": (420, 20),
+                  "hoefemann_2020": (290, None), "behar_1994": (250, 36),
+                  "kreis_2005": (220, 60)},
+        "M1.22": {"de_graaf_2006_11t7": (634, 25), "de_graaf_2006_9t4": (581, 22),
+                  "de_graaf_2006_4t": (361, 38), "murali_manohar_2019_gm": (273, 27),
+                  "murali_manohar_2019_wm": (280, 28), "hoefemann_2020": (309, None),
+                  "kreis_2005": (200, 50)},
+        "M1.43": {"murali_manohar_2019_gm": (326, 21), "murali_manohar_2019_wm": (270, 24)},
+        "M1.70": {"de_graaf_2006_11t7": (627, 43), "de_graaf_2006_9t4": (531, 42),
+                  "murali_manohar_2019_gm": (231, 13), "murali_manohar_2019_wm": (253, 17),
+                  "hoefemann_2020": (225, None)},
+        "M1.81": {"hoefemann_2020": (247, None)},
+        "M1.9": {"lopez_kolkovsky_2016": (652, 41)},
+        "M2.05": {"murali_manohar_2019_gm": (279, 8), "murali_manohar_2019_wm": (319, 9)},
+        "M2.27": {"murali_manohar_2019_gm": (281, 7), "murali_manohar_2019_wm": (313, 9),
+                  "hoefemann_2020": (263, None)},
+        "M2.57": {"murali_manohar_2019_gm": (309, 20), "murali_manohar_2019_wm": (327, 18)},
+        "M2.74": {"murali_manohar_2019_gm": (306, 19), "murali_manohar_2019_wm": (383, 22),
+                  "hoefemann_2020": (400, None)},
+        "M2.97": {"lopez_kolkovsky_2016": (574, 22), "murali_manohar_2019_gm": (463, 15),
+                  "murali_manohar_2019_wm": (518, 15), "hoefemann_2020": (400, None)},
+        "M3.09": {"hoefemann_2020": (400, None)},
+        "M3.21": {"murali_manohar_2019_gm": (204, 20), "murali_manohar_2019_wm": (379, 29)},
+        "M3.26-3.28": {"hoefemann_2020": (400, None)},
+        "M3.4-3.6": {"murali_manohar_2019_gm": (510, 30), "murali_manohar_2019_wm": (564, 35),
+                     "hoefemann_2020": (400, None)},
+        "M3.71": {"lopez_kolkovsky_2016": (792, 39), "murali_manohar_2019_gm": (280, 24),
+                  "murali_manohar_2019_wm": (434, 25)},
+        "M3.87": {"murali_manohar_2019_gm": (280, 27), "murali_manohar_2019_wm": (307, 22),
+                  "hoefemann_2020": (347, None)},
+    },
+    "approximate": {("M0.94", "pfeuffer_1999")},
+    "fit_limit": {("M2.74", "hoefemann_2020"), ("M2.97", "hoefemann_2020"),
+                  ("M3.09", "hoefemann_2020"), ("M3.26-3.28", "hoefemann_2020"),
+                  ("M3.4-3.6", "hoefemann_2020")},
+}
+
+#***************************#
+#   consensus t2 (app s1)   #
+#***************************#
+# Source: Cudalbu, C., et al. (the CUDALBU table above), Appendix S1 (supporting
+#         information of nbm.4393), Table S3: T2 relaxation times of MM at different
+#         magnetic fields in humans and rats.
+# Data:   per MM peak and study column: (value_ms, error_ms), error None where the table
+#         prints none (the error type is not stated in the source); study metadata typed
+#         from the table headers, echo time series and repetition times as printed.
+# Units:  milliseconds; b0_t in tesla.
+# Notes:  entries the source prints in brackets reached the FitAid fit limit and are
+#         listed in fit_limit; entries printed with ~ are listed in approximate. Peaks
+#         without any reported value are omitted. The 3 T human columns are Landheer
+#         2020 (with errors) and Hoefemann 2020.
+CONSENSUS_T2 = {
+    "studies": {
+        "lopez_kolkovsky_2016": dict(b0_t=17.2, species="rat", sequence="IR-LASER",
+                                     te_ms="16.5-200", tr_ms="5000", roi="cerebral cortex"),
+        "de_graaf_2006_11t7": dict(b0_t=11.7, species="rat", sequence="in house method",
+                                   te_ms="10-450", tr_ms="3000", roi="cerebral cortex"),
+        "de_graaf_2006_9t4": dict(b0_t=9.4, species="rat", sequence="in house method",
+                                  te_ms="10-450", tr_ms="3000", roi="cerebral cortex"),
+        "de_graaf_2006_4t": dict(b0_t=4.0, species="rat", sequence="in house method",
+                                 te_ms="10-450", tr_ms="3000", roi="cerebral cortex"),
+        "pfeuffer_1999": dict(b0_t=9.4, species="rat", sequence="STEAM", te_ms="100-200",
+                              tr_ms="6000", roi="posterior to bregma"),
+        "xin_2008": dict(b0_t=9.4, species="rat", sequence="SPECIAL", te_ms="2.8-300",
+                         tr_ms="4000", roi="centered on the hippocampus"),
+        "murali_manohar_2020_gm": dict(b0_t=9.4, species="human", sequence="DIR-semiLASER",
+                                       te_ms="24-60", tr_ms="10000",
+                                       roi="occipital lobe, GM rich"),
+        "murali_manohar_2020_wm": dict(b0_t=9.4, species="human", sequence="DIR-semiLASER",
+                                       te_ms="24-60", tr_ms="10000",
+                                       roi="occipital lobe, WM rich"),
+        "landheer_2020": dict(b0_t=3.0, species="human", sequence="DIR-semiLASER",
+                              te_ms="20.1-62.1", tr_ms="2000",
+                              roi="occipital and frontal lobe (GM rich)"),
+        "hoefemann_2020": dict(b0_t=3.0, species="human", sequence="2DJ-IRMC-PRESS",
+                               te_ms="20-95", tr_ms="3000-4000",
+                               roi="occipital lobe (GM rich)"),
+        "behar_1994": dict(b0_t=2.1, species="human", sequence="ISIS", te_ms="19.4-145.2",
+                           tr_ms="3300", roi="occipital lobe (mixed)"),
+    },
+    "t2_ms": {
+        "M0.94": {"lopez_kolkovsky_2016": (20, 2), "de_graaf_2006_11t7": (25, 2),
+                  "de_graaf_2006_9t4": (27, 2), "de_graaf_2006_4t": (23, 1),
+                  "pfeuffer_1999": (26, None), "xin_2008": (19, 0.4),
+                  "murali_manohar_2020_gm": (36, 7), "murali_manohar_2020_wm": (35, 10),
+                  "landheer_2020": (27, 2), "hoefemann_2020": (21, None),
+                  "behar_1994": (44, 4)},
+        "M1.22": {"de_graaf_2006_11t7": (31, 2), "de_graaf_2006_9t4": (34, 2),
+                  "de_graaf_2006_4t": (32, 2), "murali_manohar_2020_gm": (34, 13),
+                  "murali_manohar_2020_wm": (25, 0), "landheer_2020": (39, 13),
+                  "hoefemann_2020": (19, None)},
+        "M1.43": {"murali_manohar_2020_gm": (32, 7), "murali_manohar_2020_wm": (40, 24),
+                  "landheer_2020": (18, 4)},
+        "M1.70": {"de_graaf_2006_11t7": (20, 2), "de_graaf_2006_9t4": (20, 2),
+                  "murali_manohar_2020_gm": (18, 4), "murali_manohar_2020_wm": (18, 8),
+                  "landheer_2020": (17, 3), "hoefemann_2020": (27, None)},
+        "M1.81": {"hoefemann_2020": (19, None)},
+        "M1.9": {"lopez_kolkovsky_2016": (28, 3), "murali_manohar_2020_gm": (16, 2),
+                 "murali_manohar_2020_wm": (19, 2), "landheer_2020": (14, 1)},
+        "M2.17": {"murali_manohar_2020_gm": (18, 2), "murali_manohar_2020_wm": (18, 1),
+                  "landheer_2020": (20, 2)},
+        "M2.27": {"hoefemann_2020": (24, None)},
+        "M2.57": {"murali_manohar_2020_gm": (20, 3), "murali_manohar_2020_wm": (24, 3),
+                  "landheer_2020": (26, 4)},
+        "M2.74": {"murali_manohar_2020_gm": (14, 3), "murali_manohar_2020_wm": (13, 2),
+                  "hoefemann_2020": (16, None)},
+        "M2.97": {"lopez_kolkovsky_2016": (55, 5), "murali_manohar_2020_gm": (19, 2),
+                  "murali_manohar_2020_wm": (19, 1), "landheer_2020": (21, 4),
+                  "hoefemann_2020": (35, None)},
+        "M3.09": {"hoefemann_2020": (35, None)},
+        "M3.21": {"murali_manohar_2020_gm": (18, 3), "murali_manohar_2020_wm": (16, 5),
+                  "landheer_2020": (18, 5)},
+        "M3.26-3.28": {"hoefemann_2020": (35, None)},
+        "M3.4-3.6": {"murali_manohar_2020_gm": (14, 6), "murali_manohar_2020_wm": (16, 5),
+                     "landheer_2020": (21, 2), "hoefemann_2020": (24, None)},
+        "M3.71": {"lopez_kolkovsky_2016": (43, 6), "murali_manohar_2020_gm": (25, 7),
+                  "murali_manohar_2020_wm": (25, 7)},
+        "M3.87": {"murali_manohar_2020_gm": (22, 5), "murali_manohar_2020_wm": (24, 7),
+                  "hoefemann_2020": (34, None)},
+        "M3.97": {"murali_manohar_2020_gm": (21, 8)},
+    },
+    "approximate": {("M0.94", "pfeuffer_1999")},
+    "fit_limit": {("M2.97", "hoefemann_2020"), ("M3.09", "hoefemann_2020"),
+                  ("M3.26-3.28", "hoefemann_2020")},
+}

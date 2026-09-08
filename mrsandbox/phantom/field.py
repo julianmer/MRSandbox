@@ -90,7 +90,8 @@ class FieldMap:
     #   offsets    #
     #**************#
     def offsets(self, position_mm, size_mm, shim="linear"):
-        """The Hz offsets inside a cubic voxel box after the voxel shim, flat.
+        """The Hz offsets inside a voxel box (cubic, or per-axis edges) after the
+        voxel shim, flat.
 
         A real MRS acquisition shims the voxel first, so the parts of the field a shim
         can null must not broaden the line: `shim` removes nothing ("none"), the mean
@@ -99,7 +100,7 @@ class FieldMap:
         """
         inverse = np.linalg.inv(self.affine)
         centre = (inverse @ np.array([*position_mm, 1.0]))[:3]
-        half = size_mm / 2.0 / np.abs(np.diag(self.affine)[:3])
+        half = np.asarray(size_mm, dtype=np.float64) / 2.0 / np.abs(np.diag(self.affine)[:3])
         low = np.maximum(np.round(centre - half).astype(int), 0)
         high = np.minimum(np.round(centre + half).astype(int) + 1, self.offsets_hz.shape)
         if np.any(low >= high):

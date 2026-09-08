@@ -167,6 +167,40 @@ class TestMeasured:
         ratio = measured[window].sum() / (parameterized - without)[window].sum()
         assert 0.5 < ratio < 2.0
 
+    #****************#
+    #   te decay     #
+    #****************#
+    @staticmethod
+    def measured_background(te_s, seed=7, npoints=4096):
+        brain = Brain.load("icbm152")
+        tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
+        pieces = (Scanner.preset("generic_3t"), Press(te_s / 2.0, te_s / 2.0))
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        with_mm = VirtualScan(brain, *pieces, params=tree, mm=MeasuredMM())
+        without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())
+        ppm, s1 = with_mm.voxel(**kw).spectrum(seed=seed, npoints=npoints)
+        _, s0 = without.voxel(**kw).spectrum(seed=seed, npoints=npoints)
+        return np.asarray(ppm), np.real(np.asarray(s1) - np.asarray(s0))
+
+    def test_te_decay_follows_the_typed_t2(self):
+        from mrsandbox.database.macromolecules import CONSENSUS_T2
+
+        peaks = {}
+        for te in (0.02, 0.06):
+            ppm, background = self.measured_background(te)
+            window = (ppm > 0.84) & (ppm < 1.04)
+            peaks[te] = background[window].max()
+        t2 = CONSENSUS_T2["t2_ms"]["M0.94"]["landheer_2020"][0] / 1000.0
+        expected = np.exp(-0.04 / t2)  # the typed 3 T human M0.94 value
+        assert abs(peaks[0.06] / peaks[0.02] - expected) < 0.05 * expected
+
+    def test_measured_background_vanishes_at_long_echo_time(self):
+        ppm, short = self.measured_background(0.02)
+        _, long_te = self.measured_background(0.144)
+        window = (ppm > 0.5) & (ppm < 4.2)
+        assert np.abs(long_te[window]).max() < 0.08 * np.abs(short[window]).max()
+
 
 #**************************************************************************************************#
 #                                        Class TestCoupled                                         #

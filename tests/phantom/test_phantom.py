@@ -57,6 +57,21 @@ class TestBrain:
         inside = brain.fractions(position_mm=(5.0, 5.0, 5.0), size_mm=4.0)
         assert inside == Tissues(gm=1.0, wm=0.0, csf=0.0)
 
+    #**********************#
+    #   anisotropic box    #
+    #**********************#
+    def test_anisotropic_box_averages_its_own_extent(self):
+        # tissue in three z layers: stretching the box along z alone dilutes the mean
+        # exactly as the box-lookup convention (floor/ceil plus one) predicts
+        gm = np.zeros((10, 10, 10))
+        gm[:, :, 3:6] = 1.0
+        brain = Brain.from_maps(gm=gm, wm=np.zeros_like(gm), csf=np.zeros_like(gm),
+                                affine=np.eye(4))
+        thin = brain.fractions(position_mm=(5.0, 5.0, 4.0), size_mm=(4.0, 4.0, 3.0))
+        thick = brain.fractions(position_mm=(5.0, 5.0, 4.0), size_mm=(4.0, 4.0, 7.0))
+        assert abs(thin.gm - 3.0 / 5.0) < 1e-6  # layers 2..6 hold three GM layers
+        assert abs(thick.gm - 3.0 / 9.0) < 1e-6  # layers 0..8 hold the same three
+
     #********************#
     #   unknown preset   #
     #********************#

@@ -128,11 +128,12 @@ class Brain:
     #   tissue fractions   #
     #**********************#
     def fractions(self, position_mm, size_mm):
-        """Mean tissue fractions inside a cubic voxel.
+        """Mean tissue fractions inside a voxel box.
 
         Args:
             position_mm: Voxel centre in world millimetres (x, y, z).
-            size_mm: Edge length of the cubic voxel in millimetres.
+            size_mm: Edge length of the cubic voxel in millimetres, or the three
+                (x, y, z) edges of an anisotropic box.
 
         Returns:
             Tissues(gm, wm, csf) mean probabilities; all zero when the box lies
@@ -172,9 +173,10 @@ class Brain:
     #   box lookup    #
     #*****************#
     def _box(self, position_mm, size_mm):
-        """Voxel-index slices of the cubic box, or None when it lies outside the maps."""
+        """Voxel-index slices of the box (cubic, or per-axis edges), or None when it
+        lies outside the maps."""
         centre = np.asarray(position_mm, dtype=np.float64)
-        half = float(size_mm) / 2.0
+        half = np.asarray(size_mm, dtype=np.float64) * np.ones(3) / 2.0
         corners = np.array([centre + half * np.array(s) for s in
                             [(-1, -1, -1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1),
                              (1, 1, -1), (1, -1, 1), (-1, 1, 1), (1, 1, 1)]])

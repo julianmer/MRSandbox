@@ -146,7 +146,8 @@ class VirtualScan:
     #   voxel   #
     #***********#
     def voxel(self, position_mm, size_mm, compiled=False):
-        """Place a cubic voxel and get its acquisition handle.
+        """Place a voxel (a size_mm cube, or an (x, y, z) box) and get its acquisition
+        handle.
 
         With `compiled`, metabolite lines run through jitted per-system functions cached
         on the scan: the first draw compiles, every further draw replays. Worth it for
@@ -159,12 +160,13 @@ class VirtualScan:
     #   mrsi    #
     #***********#
     def mrsi(self, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
-             oversampling=1, weighting=None, sampling=None):
+             thickness_mm=None, oversampling=1, weighting=None, sampling=None):
         """Place an MRSI slice lattice and get its acquisition handle; see scan.mrsi.MRSI."""
         from mrsandbox.scan.mrsi import MRSI
 
         return MRSI(self, center_mm=center_mm, matrix=matrix, voxel_mm=voxel_mm,
-                    oversampling=oversampling, weighting=weighting, sampling=sampling)
+                    thickness_mm=thickness_mm, oversampling=oversampling,
+                    weighting=weighting, sampling=sampling)
 
     #*****************#
     #   training      #
@@ -197,8 +199,9 @@ class Voxel:
     def __init__(self, scan, position_mm, size_mm, compiled=False):
         self.scan = scan
         self.position_mm = tuple(float(x) for x in position_mm)
-        self.size_mm = float(size_mm)
-        self.fractions = scan.brain.fractions(position_mm, size_mm)
+        self.size_mm = (tuple(float(x) for x in size_mm) if hasattr(size_mm, "__len__")
+                        else float(size_mm))
+        self.fractions = scan.brain.fractions(position_mm, self.size_mm)
         self.compiled = compiled
         self._kernels = {}
 
@@ -312,7 +315,8 @@ class Voxel:
                                                lw_hz=lw, gauss_hz=gauss)
         fid = np.asarray(ops.convert_to_numpy(total), dtype=np.complex64)
         grid = np.arange(npoints) * dwell_s
-        mm_fid = self.scan.mm.fid(self.fractions, truth, self._f0_mhz(), grid)
+        mm_fid = self.scan.mm.fid(self.fractions, truth, self._f0_mhz(), grid,
+                                  sequence=self.scan.sequence)
         if mm_fid is not None:
             fid = fid + mm_fid
         if self.scan.field is not None:
@@ -386,7 +390,8 @@ class Voxel:
         )
         hdr.set_user_def(
             "SimulationPhantom",
-            {"brain": self.scan.brain.name, "position_mm": list(self.position_mm), "size_mm": self.size_mm},
+            {"brain": self.scan.brain.name, "position_mm": list(self.position_mm),
+             "size_mm": list(self.size_mm) if isinstance(self.size_mm, tuple) else self.size_mm},
             "MRSandbox: the virtual brain and the voxel placement.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)

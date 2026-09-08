@@ -61,6 +61,18 @@ class TestLattice:
         assert data.shape == (8, 8, 1, 128)
         assert np.allclose(np.asarray(data.voxToWorldMat), mrsi.affine)
 
+    #**************#
+    #   the slab   #
+    #**************#
+    def test_source_voxels_keep_the_slab_thickness(self, scan):
+        # oversampling refines in plane only: every source voxel spans the full slab
+        fine = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=8.0,
+                         oversampling=2)
+        assert fine.voxels[0][0].size_mm == (4.0, 4.0, 8.0)
+        thick = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=8.0,
+                          thickness_mm=12.0)
+        assert thick.voxels[0][0].size_mm == (8.0, 8.0, 12.0)
+
 
 #**************************************************************************************************#
 #                                        Class TestContrast                                        #

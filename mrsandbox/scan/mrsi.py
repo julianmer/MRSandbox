@@ -53,19 +53,21 @@ class MRSI:
     acquisition density. Amplitudes are normalized so full sampling of a uniform object
     is exactly the identity.
 
-    Stated limits: encoding is in-plane only; the z extent of every source voxel equals
-    voxel_mm / oversampling (a cubic source box), so with oversampling above one the
-    sampled slab is thinner than the nominal voxel until the z slice profile lands.
-    Receiver noise is drawn per acquired voxel after decoding, independent of the
-    weighting and sampling, so acquisition weighting shapes the signal response but
-    never colours the noise (the filtering idealization).
+    Stated limits: encoding is in-plane only; every source voxel spans the full slab
+    thickness in z as an ideal box (thickness_mm, the nominal voxel edge by default),
+    while the shaped z excitation profile is not modelled yet. Receiver noise is drawn
+    per acquired voxel after decoding, independent of the weighting and sampling, so
+    acquisition weighting shapes the signal response but never colours the noise (the
+    filtering idealization).
 
     Args:
         scan: The VirtualScan to acquire with.
         center_mm: World centre of the slice (x, y, z).
         matrix: Acquired grid size (nx, ny).
         voxel_mm: Nominal voxel edge (also the acquired grid spacing).
-        oversampling: Source grid refinement per dimension; 1 gives ideal box voxels.
+        thickness_mm: Slab thickness in z (an ideal box); defaults to voxel_mm.
+        oversampling: Source grid refinement per in-plane dimension; 1 gives ideal box
+            voxels.
         weighting: None, or "hamming" k-space acquisition weighting.
         sampling: None (full Cartesian), "elliptical" corner-free coverage, or an
             explicit (nx, ny) mask or density array on the acquired k grid.
@@ -75,13 +77,14 @@ class MRSI:
     #   init   #
     #**********#
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
-                 oversampling=1, weighting=None, sampling=None):
+                 thickness_mm=None, oversampling=1, weighting=None, sampling=None):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
         self.scan = scan
         self.center_mm = tuple(float(x) for x in center_mm)
         self.matrix = (int(matrix[0]), int(matrix[1]))
         self.voxel_mm = float(voxel_mm)
+        self.thickness_mm = float(thickness_mm) if thickness_mm is not None else self.voxel_mm
         self.oversampling = int(oversampling)
         self.weighting = weighting
         if sampling is None or (isinstance(sampling, str) and sampling == "elliptical"):
@@ -95,8 +98,11 @@ class MRSI:
             self.sampling = mask
         nx, ny = self.source_matrix
         source_mm = self.voxel_mm / self.oversampling
+        # in-plane the source grid refines with the oversampling; in z every source
+        # voxel spans the full slab, so oversampling never thins the sampled slice
+        box = (source_mm, source_mm, self.thickness_mm)
         self.voxels = [
-            [scan.voxel(self.source_position(i, j), source_mm, compiled=True) for j in range(ny)]
+            [scan.voxel(self.source_position(i, j), box, compiled=True) for j in range(ny)]
             for i in range(nx)
         ]
 
@@ -189,7 +195,8 @@ class MRSI:
             "SimulationGrid",
             {"brain": self.scan.brain.name, "center_mm": list(self.center_mm),
              "matrix": list(self.matrix), "voxel_mm": self.voxel_mm,
-             "oversampling": self.oversampling, "weighting": self.weighting,
+             "thickness_mm": self.thickness_mm, "oversampling": self.oversampling,
+             "weighting": self.weighting,
              "sampling": self.sampling.tolist() if isinstance(self.sampling, np.ndarray)
              else self.sampling},
             "MRSandbox: the virtual brain and the slice lattice.",
