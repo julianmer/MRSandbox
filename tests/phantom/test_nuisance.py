@@ -22,6 +22,9 @@ from keras import ops
 
 from mrsandbox import Brain, NoLipids, NoWater, Press, Scanner, Unsuppressed, VirtualScan
 
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
+pytestmark = pytest.mark.slow
+
 INTERIOR = (10.0, -20.0, 5.0)
 
 

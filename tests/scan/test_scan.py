@@ -22,6 +22,9 @@ from keras import ops
 
 from mrsandbox import Brain, Fixed, Normal, Params, Press, Scanner, Uniform, VirtualScan
 
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
+pytestmark = pytest.mark.slow
+
 
 #*****************#
 #   shared scan   #

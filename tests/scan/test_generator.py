@@ -20,6 +20,9 @@ import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
 
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
+pytestmark = pytest.mark.slow
+
 VOXEL = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 
 

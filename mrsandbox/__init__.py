@@ -18,7 +18,8 @@ from mrsandbox.backend import Backend
 from mrsandbox.database import Database
 from mrsandbox.engine import Context, Engine
 from mrsandbox.hardware import CoilArray, Loop, MappedCoilArray, Scanner
-from mrsandbox.params import Fixed, Normal, Params, PerTissue, Priors, Tissues, Uniform, Value
+from mrsandbox.params import (Clipped, Fixed, Normal, Params, PerTissue, Priors, Tissues,
+                              Uniform, Value)
 from mrsandbox.phantom import (Brain, CoupledMM, FieldMap, MeasuredMM, NoLipids, NoMM,
                                NoWater, ParameterizedMM, Skull, Suppressed, Unsuppressed)
 from mrsandbox.scan import MRSI, Multiplex, VirtualScan, Voxel

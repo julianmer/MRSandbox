@@ -22,7 +22,7 @@ from keras import ops
 from mrsandbox.database import Database, concentrations
 from mrsandbox.database.relaxation import WATER
 from mrsandbox.engine import Engine
-from mrsandbox.params import Normal, Params, PerTissue, Priors, Uniform
+from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
 from mrsandbox.phantom.lipids import Skull
 from mrsandbox.phantom.macromolecules import CoupledMM
 from mrsandbox.phantom.water import Suppressed
@@ -136,8 +136,25 @@ class VirtualScan:
             # to its own measured basis normalization, not to concentration units, so
             # kappa here is recalibrated (stated) to land the short echo time MM area
             # fraction in the consensus 10 to 25 percent ballpark; level_mm drives the
-            # ParameterizedMM alternative; the mm relaxation times are stated
-            mm=dict(level_mm=(1.5, 4.0), kappa=(5.5, 9.5), t1_s=0.4, t2_s=0.03),
+            # ParameterizedMM alternative. Per-component relaxation is typed from the
+            # consensus Appendix S1 3 T human columns (T2: Landheer 2020, else
+            # Hoefemann 2020; T1: Hoefemann 2020, fit-limit rows excluded; the
+            # database.macromolecules CONSENSUS tables), components mapped by peak
+            # identity (challenge M0.91 is consensus M0.94 and so on, positions vary
+            # 0.01 to 0.04 ppm between papers). Where the table prints an error the
+            # leaf draws from it, clipped at a 5 ms floor (a stated plausibility
+            # bound); values without errors and components without a 3 T value stay
+            # fixed at the typed value or the stated fallback
+            mm=dict(level_mm=(1.5, 4.0), kappa=(5.5, 9.5),
+                    t1=dict(mm091=0.290, mm121=0.309, mm143=0.400, mm167=0.225,
+                            mm226=0.263, mm321=0.400, mm377=0.400),
+                    t2=dict(mm091=Clipped(Normal(0.027, 0.002), low=0.005),
+                            mm121=Clipped(Normal(0.039, 0.013), low=0.005),
+                            mm143=Clipped(Normal(0.018, 0.004), low=0.005),
+                            mm167=Clipped(Normal(0.017, 0.003), low=0.005),
+                            mm226=0.024,
+                            mm321=Clipped(Normal(0.018, 0.005), low=0.005),
+                            mm377=0.030)),
         )
         relaxation = Params(t2=t2, t1=Priors.literature_t1(names))
         return Params(conc=conc) | relaxation | nuisance
@@ -160,13 +177,15 @@ class VirtualScan:
     #   mrsi    #
     #***********#
     def mrsi(self, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
-             thickness_mm=None, oversampling=1, weighting=None, sampling=None):
+             thickness_mm=None, oversampling=1, weighting=None, sampling=None,
+             profile=None, averages=None, trajectory=None):
         """Place an MRSI slice lattice and get its acquisition handle; see scan.mrsi.MRSI."""
         from mrsandbox.scan.mrsi import MRSI
 
         return MRSI(self, center_mm=center_mm, matrix=matrix, voxel_mm=voxel_mm,
                     thickness_mm=thickness_mm, oversampling=oversampling,
-                    weighting=weighting, sampling=sampling)
+                    weighting=weighting, sampling=sampling, profile=profile,
+                    averages=averages, trajectory=trajectory)
 
     #*****************#
     #   training      #

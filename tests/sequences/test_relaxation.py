@@ -78,6 +78,7 @@ class TestInSequenceRelaxation:
     #*********************#
     #   scan carries it   #
     #*********************#
+    @pytest.mark.slow  # a full-scan render, skipped on the tensorflow CI leg
     def test_scan_amplitudes_carry_the_te_dependence(self):
         brain = Brain.load("icbm152")
         # quiet receiver: the real-part peak reads an absorption line only without the

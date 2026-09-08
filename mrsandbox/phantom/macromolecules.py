@@ -256,8 +256,10 @@ class CoupledMM(MMSource):
     scales with the subject. Chain partners at 2.04 and 2.99 are emitted by their chains
     (matching the challenge ratios within about 20 percent); Gaussian widths come from
     the Osprey values at matching positions, stated where no label matches. The proton
-    counts of the chains (3:1 and 2:2) and the mm t1_s and t2_s leaves are stated
-    assumptions.
+    counts of the chains (3:1 and 2:2) are stated assumptions. Each system relaxes with
+    its own mm.t1 and mm.t2 leaves, typed from the consensus Appendix S1 3 T human
+    columns where the tables carry a value (see default_params) and stated otherwise,
+    so TE behaviour is component-faithful.
     """
 
     # (name, groups as (ppm, protons), couplings as (a, b, j_hz), gauss width ppm)
@@ -313,8 +315,8 @@ class CoupledMM(MMSource):
                 self._compiled[key] = engine.compiled(sequence, system)
             from keras import ops
             fn = self._compiled[key]
-            line_f, line_a = fn(ops.convert_to_tensor(np.float32(truth.mm.t1_s)),
-                                ops.convert_to_tensor(np.float32(truth.mm.t2_s)),
+            line_f, line_a = fn(ops.convert_to_tensor(np.float32(truth.mm.t1[name])),
+                                ops.convert_to_tensor(np.float32(truth.mm.t2[name])),
                                 ops.convert_to_tensor(np.float32(truth.b1_scale)))
             line_f = np.asarray(ops.convert_to_numpy(line_f))
             line_a = np.asarray(ops.convert_to_numpy(line_a)) * weight

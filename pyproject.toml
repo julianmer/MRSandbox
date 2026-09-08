@@ -30,3 +30,6 @@ include = ["mrsandbox*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: integration tests that render full scans; deselect with -m 'not slow'",
+]

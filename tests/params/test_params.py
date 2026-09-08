@@ -18,7 +18,7 @@
 import numpy as np
 import pytest
 
-from mrsandbox import Fixed, Normal, Params, PerTissue, Tissues, Uniform, Value
+from mrsandbox import Clipped, Fixed, Normal, Params, PerTissue, Tissues, Uniform, Value
 
 
 #**************************************************************************************************#
@@ -46,6 +46,19 @@ class TestValues:
             assert 7.5 <= Uniform(7.5, 12.0).sample(rng) < 12.0
         draws = [Normal(0.0, 1.0).sample(rng) for _ in range(2000)]
         assert abs(np.mean(draws)) < 0.1 and abs(np.std(draws) - 1.0) < 0.1
+
+    #*************#
+    #   clipped   #
+    #*************#
+    def test_clipped_bounds_the_draw_without_touching_the_stream(self):
+        raw = [Normal(0.0, 1.0).sample(np.random.default_rng(s)) for s in range(60)]
+        held = [Clipped(Normal(0.0, 1.0), low=-0.5, high=0.5).sample(np.random.default_rng(s))
+                for s in range(60)]
+        # the same randomness, clipped: out-of-bound mass lands exactly on the bound
+        assert held == [min(max(x, -0.5), 0.5) for x in raw]
+        assert any(x == -0.5 or x == 0.5 for x in held)  # the bounds actually engage
+        # shorthand coerces inside the wrapper, one side may stay open
+        assert Clipped((1.0, 5.0), high=3.0).sample(np.random.default_rng(2)) <= 3.0
 
     #****************#
     #   per tissue   #

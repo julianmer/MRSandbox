@@ -40,7 +40,7 @@ def acquisition():
     multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
                           MegaPress.pair(), params=QUIET)
     return multiplex.acquire(position_mm=(10.0, -20.0, 5.0), size_mm=20.0,
-                             seed=7, npoints=1024)
+                             seed=7, npoints=2048)
 
 
 @pytest.fixture(scope="module")
@@ -191,9 +191,10 @@ class TestHadamard:
 #                                       Class TestMultiplex                                        #
 #**************************************************************************************************#
 class TestMultiplex:
+    pytestmark = pytest.mark.slow  # full-scan renders, skipped on the tensorflow CI leg
 
     def test_conditions_stack_on_dim_edit(self, acquisition):
-        assert acquisition.shape == (1, 1, 1, 1024, 2)
+        assert acquisition.shape == (1, 1, 1, 2048, 2)
         assert acquisition.dim_tags[0] == "DIM_EDIT"
         header = acquisition.hdr_ext.to_dict()
         assert header["SimulationConditions"]["names"] == ["on", "off"]
@@ -206,7 +207,7 @@ class TestMultiplex:
         volume = np.asarray(acquisition[:])[0, 0, 0]
         diff_fid = volume[:, 0] - volume[:, 1]
         spec = np.abs(np.fft.fft(diff_fid))
-        freqs = np.fft.fftfreq(1024, d=1.0 / 4000.0) % 4000.0
+        freqs = np.fft.fftfreq(2048, d=1.0 / 4000.0) % 4000.0
         ppm = freqs / 127.73
         at_gaba = spec[np.abs(ppm - 3.01) < 0.15].max()
         at_quiet = spec[(ppm > 8.0) & (ppm < 9.5)].max()
@@ -244,6 +245,7 @@ class TestMultiplex:
 #                                                                                                  #
 #**************************************************************************************************#
 class TestTransients:
+    pytestmark = pytest.mark.slow  # full-scan renders, skipped on the tensorflow CI leg
 
     #*************#
     #   helpers   #

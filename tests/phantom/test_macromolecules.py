@@ -22,6 +22,9 @@ from mrsandbox import Brain, MeasuredMM, NoMM, ParameterizedMM, Params, Press, S
 from mrsandbox.resources import Resources
 from mrsandbox.database import macromolecules
 
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
+pytestmark = pytest.mark.slow
+
 KW = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 
 
@@ -219,7 +222,7 @@ class TestCoupled:
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
-                      mm=dict(kappa=7.0, t1_s=0.4, t2_s=0.03), **params)
+                      mm=dict(kappa=7.0), **params)
         pieces = (Scanner.preset("generic_3t"), sequence)
         with_mm = VirtualScan(brain, *pieces, params=tree)
         without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())
@@ -244,7 +247,7 @@ class TestCoupled:
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
-                      mm=dict(kappa=7.5, t1_s=0.4, t2_s=0.03))
+                      mm=dict(kappa=7.5))
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
         with_mm = VirtualScan(brain, *pieces, params=tree)
         without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())

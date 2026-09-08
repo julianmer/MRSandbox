@@ -20,6 +20,9 @@ import pytest
 
 from mrsandbox import Brain, CoilArray, Params, Press, Scanner, VirtualScan
 
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
+pytestmark = pytest.mark.slow
+
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
 
@@ -68,10 +71,16 @@ class TestLattice:
         # oversampling refines in plane only: every source voxel spans the full slab
         fine = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=8.0,
                          oversampling=2)
-        assert fine.voxels[0][0].size_mm == (4.0, 4.0, 8.0)
+        assert fine.voxels[0][0][0].size_mm == (4.0, 4.0, 8.0)
         thick = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=8.0,
                           thickness_mm=12.0)
-        assert thick.voxels[0][0].size_mm == (8.0, 8.0, 12.0)
+        assert thick.voxels[0][0][0].size_mm == (8.0, 8.0, 12.0)
+        # a profile splits the slab into that many sub-slabs, centres spanning it
+        shaped = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=8.0,
+                           thickness_mm=12.0, profile=np.ones(3))
+        cell = shaped.voxels[0][0]
+        assert [v.size_mm for v in cell] == [(8.0, 8.0, 4.0)] * 3
+        assert [v.position_mm[2] for v in cell] == [1.0, 5.0, 9.0]
 
 
 #**************************************************************************************************#
@@ -282,3 +291,255 @@ class TestEncoding:
         # the k corners barely moves a smooth object (Maudsley's argument)
         assert np.abs(a - b).max() < 0.15 * a.max()
         assert np.abs(a - c).max() < 0.15 * a.max()
+
+
+#**************************************************************************************************#
+#                                      Class TestSliceProfile                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The z profile weights sub-slab signals: an all-ones profile is the box, a soft profile keeps     #
+# its mean excitation, and the weights select what the slab sees along z.                          #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestSliceProfile:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def synthetic_scan(gm):
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        n = gm.shape[0]
+        affine = np.eye(4)
+        affine[:3, 3] = (-(n - 1) / 2.0, -(n - 1) / 2.0, -(gm.shape[2] - 1) / 2.0)
+        brain = Brain.from_maps(gm=gm, wm=np.zeros_like(gm), csf=np.zeros_like(gm),
+                                affine=affine)
+        return VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=QUIET, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+
+    #***********************#
+    #   box and mean gate   #
+    #***********************#
+    def test_flat_profile_is_the_box_and_gaussian_keeps_its_mean(self):
+        scan = self.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2), voxel_mm=4.0)
+        box = np.asarray(scan.mrsi(**kw).acquire(seed=3, npoints=32)[:])[:, :, 0]
+        flat = np.asarray(scan.mrsi(**kw, profile=np.ones(3)).acquire(seed=3, npoints=32)[:])[:, :, 0]
+        np.testing.assert_allclose(flat, box, rtol=1e-5, atol=1e-6 * np.abs(box).max())
+        soft = scan.mrsi(**kw, profile="gaussian")
+        data = soft.acquire(seed=3, npoints=32)
+        gaussian = np.asarray(data[:])[:, :, 0]
+        # every sub-slab of a uniform object is identical, so the soft slab keeps
+        # exactly the mean excitation of its profile: the signal a soft pulse loses
+        np.testing.assert_allclose(gaussian, soft.profile.mean() * box, rtol=1e-4,
+                                   atol=1e-6 * np.abs(box).max())
+        assert data.hdr_ext.to_dict()["SimulationGrid"]["profile"] == soft.profile.tolist()
+
+    #******************#
+    #   z selection    #
+    #******************#
+    def test_profile_selects_what_the_slab_sees_along_z(self):
+        gm = np.zeros((16, 16, 9), dtype=np.float32)
+        gm[:, :, 6:] = 1.0  # tissue only above the slab centre
+        scan = self.synthetic_scan(gm)
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2), voxel_mm=4.0, thickness_mm=6.0)
+        bottom = np.asarray(scan.mrsi(**kw, profile=[1.0, 0.0, 0.0])
+                            .acquire(seed=3, npoints=32)[:])[:, :, 0]
+        top = np.asarray(scan.mrsi(**kw, profile=[0.0, 0.0, 1.0])
+                         .acquire(seed=3, npoints=32)[:])[:, :, 0]
+        assert np.abs(top).max() > 0.0  # the upper sub-slab reaches the tissue
+        assert np.abs(bottom).max() < 1e-12 * np.abs(top).max()  # the lower never does
+
+
+#**************************************************************************************************#
+#                                 Class TestAcquisitionWeighting                                   #
+#**************************************************************************************************#
+#                                                                                                  #
+# Acquisition-weighted averaging: quantized per-encode counts weight the signal, weak encodes      #
+# drop out, and averaging buys the square root noise gain.                                         #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestAcquisitionWeighting:
+
+    #**********************#
+    #   realized counts    #
+    #**********************#
+    def test_realized_counts_weight_the_signal_and_the_header(self):
+        scan = TestSliceProfile.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=2.0)
+        plain = scan.mrsi(**kw)
+        weighted = scan.mrsi(**kw, weighting="hamming", averages=8)
+        counts = weighted._averages_map()
+        assert counts[4, 4] == 8  # the k-space centre gets the full count
+        assert counts[0, 0] == 0  # the hamming corner rounds to unmeasured
+        np.testing.assert_array_equal(counts, np.rint(8.0 * weighted._weight_map()).astype(int))
+        a = np.asarray(plain.acquire(seed=3, npoints=16)[:])[:, :, 0]
+        acquired = weighted.acquire(seed=3, npoints=16)
+        b = np.asarray(acquired[:])[:, :, 0]
+        # a uniform object lives at DC alone, where the count normalization is one
+        np.testing.assert_allclose(b, a, rtol=1e-4, atol=1e-6 * np.abs(a).max())
+        grid = acquired.hdr_ext.to_dict()["SimulationGrid"]
+        assert grid["averages"] == 8
+        assert grid["transients"] == int(counts.sum()) == int(np.sum(counts))
+
+    #*******************#
+    #   the snr gain    #
+    #*******************#
+    def test_averaging_buys_the_square_root_noise_gain(self):
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        gm = np.zeros((16, 16, 3), dtype=np.float32)
+        affine = np.eye(4)
+        affine[:3, 3] = (-7.5, -7.5, -1.0)
+        brain = Brain.from_maps(gm=gm, wm=np.zeros_like(gm), csf=np.zeros_like(gm),
+                                affine=affine)
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=Params(noise=dict(sigma=2.0)), water=NoWater(),
+                           lipids=NoLipids(), mm=NoMM())
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2), voxel_mm=4.0)
+        single = np.asarray(scan.mrsi(**kw, averages=1).acquire(seed=3, npoints=256)[:])
+        four = np.asarray(scan.mrsi(**kw, averages=4).acquire(seed=5, npoints=256)[:])
+        assert abs(np.std(single.real) - 2.0) < 0.2  # one transient keeps sigma
+        assert abs(np.std(four.real) - 1.0) < 0.1  # four transients halve it
+
+
+#**************************************************************************************************#
+#                                        Class TestSlab3D                                          #
+#**************************************************************************************************#
+#                                                                                                  #
+# The 3D slab: partitions resolve z, the sampling ellipsoid and 3D weighting extend over kz, and   #
+# the profile weights the partitions.                                                              #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestSlab3D:
+
+    #*****************#
+    #   z resolved    #
+    #*****************#
+    def test_partitions_resolve_the_z_axis(self):
+        gm = np.zeros((16, 16, 9), dtype=np.float32)
+        gm[:, :, 6:] = 1.0  # tissue only in the upper third of the maps
+        scan = TestSliceProfile.synthetic_scan(gm)
+        mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 3), voxel_mm=4.0,
+                         thickness_mm=2.0)
+        data = mrsi.acquire(seed=3, npoints=16)
+        assert data.shape == (2, 2, 3, 16)
+        assert data.hdr_ext.to_dict()["SimulationGrid"]["matrix"] == [2, 2, 3]
+        assert mrsi.position(0, 0, 0)[2] == -2.0 and mrsi.position(0, 0, 2)[2] == 2.0
+        assert np.allclose(np.diag(mrsi.affine)[:3], (4.0, 4.0, 2.0))
+        power = np.abs(np.asarray(data[:])).sum(axis=(0, 1, 3))
+        assert power[2] > 0.0  # the top partition reaches the tissue
+        assert power[0] < 1e-12 * power[2]  # the bottom partition never does
+
+    #*******************#
+    #   the ellipsoid   #
+    #*******************#
+    def test_spherical_sampling_and_3d_weighting(self):
+        scan = TestSliceProfile.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 4), voxel_mm=4.0,
+                  thickness_mm=1.0)
+        mask = scan.mrsi(**kw, sampling="elliptical")._sampling_mask()
+        assert mask.shape == (2, 2, 4)
+        assert mask[0, 0, 0] == 0.0  # the ellipsoid corner is never measured
+        assert mask[0, 1, 2] == 1.0  # the axis edge stays measured
+        # a uniform object lives at DC alone, where every 3D map normalizes to one
+        plain = np.asarray(scan.mrsi(**kw).acquire(seed=3, npoints=8)[:])
+        soft = np.asarray(scan.mrsi(**kw, weighting="hamming", averages=8)
+                          .acquire(seed=3, npoints=8)[:])
+        np.testing.assert_allclose(soft, plain, rtol=1e-4, atol=1e-6 * np.abs(plain).max())
+
+    #**********************#
+    #   partition profile  #
+    #**********************#
+    def test_profile_weights_the_partitions(self):
+        scan = TestSliceProfile.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 3), voxel_mm=4.0,
+                  thickness_mm=1.0)
+        box = np.asarray(scan.mrsi(**kw).acquire(seed=3, npoints=8)[:])
+        shaped = scan.mrsi(**kw, profile="gaussian")
+        assert shaped.profile.size == 3  # sampled at the partition centres
+        data = np.asarray(shaped.acquire(seed=3, npoints=8)[:])
+        for l in range(3):  # a uniform object realizes the profile weight exactly
+            np.testing.assert_allclose(data[:, :, l], shaped.profile[l] * box[:, :, l],
+                                       rtol=1e-4, atol=1e-6 * np.abs(box).max())
+        with pytest.raises(ValueError, match="per partition"):
+            scan.mrsi(**kw, profile=np.ones(5))
+
+
+#**************************************************************************************************#
+#                                       Class TestTrajectory                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The EPSI readout: k lines sampled at their visit times, so the flyback clock shift is exact      #
+# and the bidirectional odd-even ghost emerges at half the spectral width.                         #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestTrajectory:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def singlet_scan():
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        gm = np.ones((64, 64, 9), dtype=np.float32)
+        affine = np.eye(4)
+        affine[:3, 3] = (-31.5, -31.5, -4.0)
+        brain = Brain.from_maps(gm=gm, wm=np.zeros_like(gm), csf=np.zeros_like(gm),
+                                affine=affine)
+        conc = {name: 0.0 for name in VirtualScan.default_params().conc}
+        conc["sIns"] = 5.0  # the scyllo-inositol singlet: one exponential line
+        params = QUIET | Params(conc=conc)
+        return VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=params, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+
+    def acquired(self, scan, npoints=64, **kw):
+        data = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0, **kw)
+        return data, np.asarray(data.acquire(seed=3, npoints=npoints)[:])[:, :, 0]
+
+    #********************#
+    #   the exact clock  #
+    #********************#
+    def test_flyback_shifts_the_sampling_clock_exactly(self):
+        scan = self.singlet_scan()
+        _, csi = self.acquired(scan)
+        mrsi, epsi = self.acquired(scan, trajectory="epsi")
+        # a uniform single-line object lives at kx DC, visited mid sweep: every voxel
+        # FID is the CSI one advanced by that visit time, one constant complex factor
+        # for a single exponential line
+        ratio = epsi[2, 2] / csi[2, 2]
+        assert np.std(ratio) < 1e-3 * np.abs(np.mean(ratio))
+        assert abs(np.angle(np.mean(ratio))) > 0.05  # the line is genuinely off DC
+        grid = mrsi.acquire(seed=3, npoints=8).hdr_ext.to_dict()["SimulationGrid"]
+        assert grid["trajectory"] == "epsi"
+        assert grid["visit_order"] == [0, 1, 2, 3] == grid["visit_order_odd"]
+
+    #****************#
+    #   the ghost    #
+    #****************#
+    def test_bidirectional_ghosts_at_half_the_bandwidth(self):
+        scan = self.singlet_scan()
+        _, flyback = self.acquired(scan, trajectory="epsi")
+        _, bidirectional = self.acquired(scan, trajectory="epsi-bidirectional")
+        fly = np.abs(np.fft.fft(flyback[2, 2]))
+        bid = np.abs(np.fft.fft(bidirectional[2, 2]))
+        peak = int(np.argmax(fly))
+        ghost = (peak + 32) % 64  # half the spectral width away
+        assert bid[peak] > bid[ghost]  # the main line still dominates
+        assert bid[ghost] > 10.0 * fly[ghost]  # the odd-even ghost is bidirectional only
+
+    #******************#
+    #   composition    #
+    #******************#
+    def test_trajectory_rejects_the_csi_knobs(self):
+        scan = self.singlet_scan()
+        kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0)
+        for bad in (dict(weighting="hamming"), dict(oversampling=2), dict(averages=4),
+                    dict(sampling="elliptical")):
+            with pytest.raises(ValueError, match="conventional CSI"):
+                scan.mrsi(**kw, trajectory="epsi", **bad)
+        with pytest.raises(ValueError, match="conventional CSI"):
+            scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4, 2), voxel_mm=4.0,
+                      trajectory="epsi")

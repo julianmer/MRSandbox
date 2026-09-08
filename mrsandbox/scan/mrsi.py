@@ -53,76 +53,172 @@ class MRSI:
     acquisition density. Amplitudes are normalized so full sampling of a uniform object
     is exactly the identity.
 
-    Stated limits: encoding is in-plane only; every source voxel spans the full slab
-    thickness in z as an ideal box (thickness_mm, the nominal voxel edge by default),
-    while the shaped z excitation profile is not modelled yet. Receiver noise is drawn
-    per acquired voxel after decoding, independent of the weighting and sampling, so
-    acquisition weighting shapes the signal response but never colours the noise (the
-    filtering idealization).
+    The slab is shaped in z by `profile`: the given weights are the relative excitation
+    at the centres of that many equal sub-slabs spanning thickness_mm, every source
+    cell renders one voxel per sub-slab, and the cell signal is their weighted mean.
+    The ideal box slab is the all-ones profile (the default, one sub-slab); a soft
+    profile both tapers what the slab edges see and loses the total signal a real soft
+    excitation loses. "gaussian" gives the truncated Gaussian of the pulse factories
+    (de Graaf 2019 Eq 5.15 at 1 percent truncation, the small-tip shape of a Gaussian
+    excitation, seven sub-slabs); an explicit array supplies any measured or computed
+    profile, e.g. one read off the engine's own slice-profile machinery. Rendering cost
+    scales with the number of sub-slabs.
+
+    With `averages`, the weighting becomes a real acquisition-weighted averaging scheme
+    (Pohmann and von Kienlin 2001): every encode is acquired NA(k) = round(averages
+    times W(k)) times, W being the product the sampling and weighting knobs already
+    define (all ones bare). The signal then carries the realized quantized weighting
+    NA(k)/NA(0), receiver noise enters per encode in k-space with standard deviation
+    proportional to sqrt(NA(k)) (encodes rounded to zero are never measured and
+    contribute neither signal nor noise), and the header records the realized map and
+    the total transient count, the scan time currency. Without `averages` the
+    weighting stays the ideal continuous multiplication with white per-voxel noise.
+
+    A three-long `matrix` makes the acquisition a 3D slab: nz phase-encoded partitions
+    of thickness_mm each, spanning nz times thickness_mm around the centre, output
+    (nx, ny, nz, npoints). The sampling, weighting, and averages maps then extend over
+    kz (the ellipse becomes the inscribed ellipsoid, Maudsley's spherical encoding, and
+    the Hamming window multiplies separably along every encoded axis), while the
+    excitation profile weights the partitions across the slab instead of sub-slabs
+    (an explicit profile must then carry one weight per partition). The z axis is
+    phase encoded at the acquired resolution: oversampling refines in plane only.
+
+    `trajectory` replaces the one-encode-per-excitation CSI readout with an echo
+    planar traversal (EPSI): within every spectral dwell the ADC sweeps the whole kx
+    axis (one sample per kx line, dwell_s/nx apart), so each k line is sampled at its
+    own visit time inside the period. The samples are exact FID values at those times,
+    which is the whole physics: off-resonance phase accrues during the traversal,
+    T2 star decays across it, and "epsi-bidirectional" (alternating sweep direction,
+    no flyback) shows the classic odd-even ghost at half the spectral width, while
+    "epsi" idealizes an instantaneous flyback (stated). ky stays phase encoded. The
+    header records the kx visit order so reconstruction can be scored against it;
+    the standard reconstruction here ignores the visit times, as an uncorrected recon
+    would. A trajectory composes with the z profile but not with oversampling,
+    sampling, weighting, averages, or slabs (v1).
+
+    Stated limits: oversampling and its truncation PSF are in-plane only; the z profile
+    is an excitation weighting, not a per-metabolite run under the slice gradient;
+    trajectories are 2D single-slice with idealized gradients (the sweep timing is the
+    model, not the gradient waveform).
 
     Args:
         scan: The VirtualScan to acquire with.
-        center_mm: World centre of the slice (x, y, z).
-        matrix: Acquired grid size (nx, ny).
-        voxel_mm: Nominal voxel edge (also the acquired grid spacing).
-        thickness_mm: Slab thickness in z (an ideal box); defaults to voxel_mm.
+        center_mm: World centre of the slice or slab (x, y, z).
+        matrix: Acquired grid, (nx, ny) for a slice or (nx, ny, nz) for a slab.
+        voxel_mm: Nominal in-plane voxel edge (also the acquired grid spacing).
+        thickness_mm: Slice thickness, or partition thickness of a slab; defaults to
+            voxel_mm.
         oversampling: Source grid refinement per in-plane dimension; 1 gives ideal box
             voxels.
         weighting: None, or "hamming" k-space acquisition weighting.
         sampling: None (full Cartesian), "elliptical" corner-free coverage, or an
-            explicit (nx, ny) mask or density array on the acquired k grid.
+            explicit mask or density array matching the encoded grid.
+        profile: None (an ideal box slab), "gaussian", or explicit excitation weights
+            along z (per sub-slab for a slice, per partition for a slab).
+        averages: None (one ideal acquisition per encode), or the transient count at
+            the k-space centre of the acquisition-weighted scheme.
+        trajectory: None (conventional CSI), "epsi" (flyback), or
+            "epsi-bidirectional" (alternating sweep direction).
     """
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
-                 thickness_mm=None, oversampling=1, weighting=None, sampling=None):
+                 thickness_mm=None, oversampling=1, weighting=None, sampling=None,
+                 profile=None, averages=None, trajectory=None):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
+        if averages is not None and (int(averages) != averages or averages < 1):
+            raise ValueError(f"averages must be a positive integer, got {averages!r}")
+        self.averages = int(averages) if averages is not None else None
         self.scan = scan
         self.center_mm = tuple(float(x) for x in center_mm)
-        self.matrix = (int(matrix[0]), int(matrix[1]))
+        self.matrix = tuple(int(n) for n in matrix)
+        if len(self.matrix) not in (2, 3):
+            raise ValueError(f"matrix must be (nx, ny) or (nx, ny, nz), got {matrix!r}")
+        self.partitions = self.matrix[2] if len(self.matrix) == 3 else 1
         self.voxel_mm = float(voxel_mm)
         self.thickness_mm = float(thickness_mm) if thickness_mm is not None else self.voxel_mm
         self.oversampling = int(oversampling)
         self.weighting = weighting
+        # z render voxels per cell: sub-slabs of one slice, or the slab's partitions
+        renders = self.partitions if self.partitions > 1 else None
+        if profile is None:
+            self.profile = None
+        elif isinstance(profile, str):
+            if profile != "gaussian":
+                raise ValueError(f"unknown profile {profile!r}; known: None, gaussian, or an array")
+            steps = renders if renders is not None else 7
+            tau = ((np.arange(steps) + 0.5) / steps) * 2.0 - 1.0
+            self.profile = np.exp(np.log(0.01) * tau * tau)
+        else:
+            self.profile = np.asarray(profile, dtype=np.float64)
+            if self.profile.ndim != 1 or self.profile.size < 1:
+                raise ValueError("profile must be a one dimensional array of weights")
+            if renders is not None and self.profile.size != renders:
+                raise ValueError(f"a slab profile needs one weight per partition: "
+                                 f"{self.profile.size} given for {renders} partitions")
         if sampling is None or (isinstance(sampling, str) and sampling == "elliptical"):
             self.sampling = sampling
         elif isinstance(sampling, str):
             raise ValueError(f"unknown sampling {sampling!r}; known: None, elliptical, or an array")
         else:
             mask = np.asarray(sampling, dtype=np.float32)
-            if mask.shape != self.matrix:
-                raise ValueError(f"sampling mask shape {mask.shape} does not match matrix {self.matrix}")
+            if mask.shape != self.dims:
+                raise ValueError(f"sampling mask shape {mask.shape} does not match the "
+                                 f"encoded grid {self.dims}")
             self.sampling = mask
         nx, ny = self.source_matrix
         source_mm = self.voxel_mm / self.oversampling
-        # in-plane the source grid refines with the oversampling; in z every source
-        # voxel spans the full slab, so oversampling never thins the sampled slice
-        box = (source_mm, source_mm, self.thickness_mm)
-        self.voxels = [
-            [scan.voxel(self.source_position(i, j), box, compiled=True) for j in range(ny)]
-            for i in range(nx)
-        ]
+        # in-plane the source grid refines with the oversampling; along z every source
+        # cell holds its render voxels spanning the excited slab: the profile's
+        # sub-slabs of the single slice, or one full-thickness box per slab partition
+        span = self.thickness_mm * self.partitions
+        nzr = renders if renders is not None else (
+            self.profile.size if self.profile is not None else 1)
+        sub = (source_mm, source_mm, span / nzr)
+
+        def cell(i, j):
+            x, y, z0 = self.source_position(i, j)
+            centres = z0 + ((np.arange(nzr) + 0.5) / nzr - 0.5) * span
+            return [scan.voxel((x, y, float(z)), sub, compiled=True) for z in centres]
+
+        self.voxels = [[cell(i, j) for j in range(ny)] for i in range(nx)]
+        if trajectory not in (None, "epsi", "epsi-bidirectional"):
+            raise ValueError(f"unknown trajectory {trajectory!r}; known: None, epsi, "
+                             f"epsi-bidirectional")
+        self.trajectory = trajectory
+        if trajectory is not None and (
+                self.oversampling != 1 or self.partitions != 1 or self.weighting is not None
+                or self.sampling is not None or self.averages is not None):
+            raise ValueError("a trajectory composes only with the z profile: oversampling, "
+                             "sampling, weighting, averages, and slabs stay conventional CSI")
 
     #**************#
     #   geometry   #
     #**************#
     @property
+    def dims(self):
+        """The encoded k grid, (nx, ny) for a slice or (nx, ny, nz) for a slab."""
+        return self.matrix if len(self.matrix) == 3 else self.matrix[:2]
+
+    @property
     def source_matrix(self):
-        """The simulated source grid, `oversampling` times finer than the acquisition."""
+        """The simulated in-plane source grid, `oversampling` times finer than the
+        acquisition."""
         return (self.matrix[0] * self.oversampling, self.matrix[1] * self.oversampling)
 
-    def position(self, i, j):
-        """World position of acquired grid point (i, j), the lattice centred on center_mm."""
-        nx, ny = self.matrix
+    def position(self, i, j, l=0):
+        """World position of acquired grid point (i, j, l), the lattice centred on
+        center_mm; l indexes the slab partition (0 for a slice)."""
+        nx, ny = self.matrix[0], self.matrix[1]
         return (self.center_mm[0] + (i - (nx - 1) / 2.0) * self.voxel_mm,
                 self.center_mm[1] + (j - (ny - 1) / 2.0) * self.voxel_mm,
-                self.center_mm[2])
+                self.center_mm[2] + (l - (self.partitions - 1) / 2.0) * self.thickness_mm)
 
     def source_position(self, i, j):
-        """World position of source grid point (i, j)."""
+        """World in-plane position of source grid point (i, j), at the slab centre."""
         nx, ny = self.source_matrix
         spacing = self.voxel_mm / self.oversampling
         return (self.center_mm[0] + (i - (nx - 1) / 2.0) * spacing,
@@ -131,9 +227,10 @@ class MRSI:
 
     @property
     def affine(self):
-        """Voxel-to-world matrix of the acquisition grid."""
-        affine = np.diag([self.voxel_mm, self.voxel_mm, self.voxel_mm, 1.0])
-        affine[:3, 3] = self.position(0, 0)
+        """Voxel-to-world matrix of the acquisition grid; the third axis steps one
+        partition (or the slice thickness)."""
+        affine = np.diag([self.voxel_mm, self.voxel_mm, self.thickness_mm, 1.0])
+        affine[:3, 3] = self.position(0, 0, 0)
         return affine
 
     #*****************#
@@ -145,8 +242,9 @@ class MRSI:
         One parameter draw serves every voxel (a subject has one set of concentrations).
         The clean source grid is phase encoded (spatial FFT), truncated to the central
         acquisition matrix of k with the optional weighting, and decoded back; receiver
-        noise is then drawn per acquired voxel and per coil. With a CoilArray on the
-        scan the data gains a trailing DIM_COIL dimension.
+        noise is drawn per acquired voxel and per coil, or, with `averages`, per encode
+        in k-space with the acquisition-weighted scheme's per-count scaling. With a
+        CoilArray on the scan the data gains a trailing DIM_COIL dimension.
         """
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
@@ -154,36 +252,79 @@ class MRSI:
         rng = np.random.default_rng(seed)
         truth = self.scan.params.sample(rng)
         coils = self.scan.coils
-        nx, ny = self.matrix
+        nx, ny = self.matrix[0], self.matrix[1]
+        nz = self.partitions
         sx, sy = self.source_matrix
-        source = np.zeros((sx, sy, npoints) + ((len(coils),) if coils is not None else ()),
-                          dtype=np.complex64)
+        # a trajectory samples every kx line once per spectral dwell, so the sources
+        # render on the fine ADC grid and the sampler picks each line's visit times
+        fine = npoints if self.trajectory is None else npoints * nx
+        step = dwell_s if self.trajectory is None else dwell_s / nx
+        tail = (npoints,) + ((len(coils),) if coils is not None else ())
+        source = np.zeros((sx, sy) + ((nz,) if nz > 1 else ())
+                          + (fine,) + tail[1:], dtype=np.complex64)
+        weights = (self.profile if self.profile is not None
+                   else np.ones(len(self.voxels[0][0])))
         for i in range(sx):
             for j in range(sy):
-                voxel = self.voxels[i][j]
-                _, fid = voxel._clean_fid(truth, npoints, dwell_s)
-                if coils is None:
-                    source[i, j] = fid
-                else:
-                    source[i, j] = np.transpose(coils.sensitivities(voxel.position_mm)[:, None]
-                                                * fid[None, :])
-
-        encoded = self._encode(source)
-        shape = (nx, ny, 1, npoints) + ((len(coils),) if coils is not None else ())
-        data = np.zeros(shape, dtype=np.complex64)
-        for i in range(nx):
-            for j in range(ny):
-                signal = encoded[i, j]
-                if truth.noise.sigma > 0.0:
+                cell = self.voxels[i][j]
+                fids = [voxel._clean_fid(truth, fine, step)[1] for voxel in cell]
+                if nz == 1:
                     if coils is None:
-                        signal = signal + truth.noise.sigma * (
+                        source[i, j] = sum(w * fid for w, fid in zip(weights, fids)) / weights.size
+                    else:
+                        channels = sum(
+                            w * coils.sensitivities(voxel.position_mm)[:, None] * fid[None, :]
+                            for w, voxel, fid in zip(weights, cell, fids)
+                        ) / weights.size
+                        source[i, j] = np.transpose(channels)
+                else:
+                    for l, (w, voxel, fid) in enumerate(zip(weights, cell, fids)):
+                        channel = w * fid if coils is None else np.transpose(
+                            w * coils.sensitivities(voxel.position_mm)[:, None] * fid[None, :])
+                        source[i, j, l] = channel
+
+        if self.trajectory is None:
+            encoded = self._encode(source)
+        else:
+            encoded = self._sample_trajectory(source, npoints)
+        data = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
+        if nz == 1:
+            data[:, :, 0] = encoded
+        else:
+            data[:] = encoded
+        if truth.noise.sigma > 0.0:
+            if self.averages is None:
+                for index in np.ndindex(nx, ny, nz):
+                    if coils is None:
+                        data[index] += truth.noise.sigma * (
                             rng.standard_normal(npoints) + 1j * rng.standard_normal(npoints)
                         ).astype(np.complex64)
                     else:
-                        signal = signal + np.transpose(coils.noise(rng, truth.noise.sigma, npoints))
-                data[i, j, 0] = signal
+                        data[index] += np.transpose(
+                            coils.noise(rng, truth.noise.sigma, npoints))
+            else:
+                # per-encode noise, summed over the NA(k) transients and normalized by
+                # the centre count like the signal: std sigma sqrt(prod(dims)) sqrt(NA)
+                # over NA(0) in the centred k frame, nothing where never measured
+                counts = self._averages_map()
+                centre = tuple(n // 2 for n in self.dims)
+                scale = (truth.noise.sigma * np.sqrt(float(np.prod(self.dims)))
+                         * np.sqrt(counts) / counts[centre])
+                if coils is None:
+                    noise_k = scale[..., None] * (
+                        rng.standard_normal(self.dims + (npoints,))
+                        + 1j * rng.standard_normal(self.dims + (npoints,)))
+                else:
+                    noise_k = np.zeros(self.dims + (npoints, len(coils)), dtype=np.complex64)
+                    for index in np.ndindex(*self.dims):
+                        if counts[index] > 0:
+                            noise_k[index] = np.transpose(
+                                coils.noise(rng, float(scale[index]), npoints))
+                axes = tuple(range(len(self.dims)))
+                image = np.fft.ifftn(np.fft.ifftshift(noise_k, axes=axes), axes=axes)
+                data += image.reshape((nx, ny, nz) + tail).astype(np.complex64)
 
-        hdr = Hdr_Ext(self.voxels[0][0]._f0_mhz(), "1H")
+        hdr = Hdr_Ext(self.voxels[0][0][0]._f0_mhz(), "1H")
         if coils is not None:
             hdr.set_dim_info(0, "DIM_COIL")
         hdr.set_user_def(
@@ -198,7 +339,15 @@ class MRSI:
              "thickness_mm": self.thickness_mm, "oversampling": self.oversampling,
              "weighting": self.weighting,
              "sampling": self.sampling.tolist() if isinstance(self.sampling, np.ndarray)
-             else self.sampling},
+             else self.sampling,
+             "profile": self.profile.tolist() if self.profile is not None else None,
+             "averages": self.averages, "trajectory": self.trajectory,
+             **({"visit_order": self._visit_order(0).tolist(),
+                 "visit_order_odd": self._visit_order(1).tolist()}
+                if self.trajectory is not None else {}),
+             **({"transients": int(self._averages_map().sum()),
+                 "averages_map": self._averages_map().tolist()}
+                if self.averages is not None else {})},
             "MRSandbox: the virtual brain and the slice lattice.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
@@ -216,35 +365,96 @@ class MRSI:
         oversampling^2 makes a uniform object keep its amplitude exactly; the sampling
         mask and the DC-centred weighting (w(0) = 1) both preserve that identity.
         """
-        if self.oversampling == 1 and self.weighting is None and self.sampling is None:
+        if (self.oversampling == 1 and self.weighting is None and self.sampling is None
+                and self.averages is None):
             return source
-        nx, ny = self.matrix
-        k = np.fft.fftshift(np.fft.fft2(source, axes=(0, 1)), axes=(0, 1))
+        axes = tuple(range(len(self.dims)))
+        k = np.fft.fftshift(np.fft.fftn(source, axes=axes), axes=axes)
+        nx, ny = self.matrix[0], self.matrix[1]
         sx, sy = self.source_matrix
         cx, cy = sx // 2, sy // 2
         k = k[cx - nx // 2:cx - nx // 2 + nx, cy - ny // 2:cy - ny // 2 + ny]
-        mask = self._sampling_mask()
-        if mask is not None:
-            k = k * mask.reshape(nx, ny, *([1] * (k.ndim - 2)))
-        if self.weighting == "hamming":
-            # the k-space Hamming centred on DC: w(p) = 0.54 + 0.46 cos(pi p / (n/2)),
-            # w(0) exactly 1; numpy's np.hamming peaks between samples on an even grid
-            # and would attenuate DC and shift the point spread function half a k step
-            wx = 0.54 + 0.46 * np.cos(np.pi * (np.arange(nx) - nx // 2) / (nx / 2.0))
-            wy = 0.54 + 0.46 * np.cos(np.pi * (np.arange(ny) - ny // 2) / (ny / 2.0))
-            k = k * np.outer(wx, wy).reshape(nx, ny, *([1] * (k.ndim - 2)))
-        decoded = np.fft.ifft2(np.fft.ifftshift(k, axes=(0, 1)), axes=(0, 1))
+        pad = [1] * (k.ndim - len(self.dims))
+        if self.averages is not None:
+            counts = self._averages_map()
+            centre = tuple(n // 2 for n in self.dims)
+            k = k * (counts / counts[centre]).reshape(*self.dims, *pad)
+        else:
+            weight = self._weight_map()
+            if weight is not None:
+                k = k * weight.reshape(*self.dims, *pad)
+        decoded = np.fft.ifftn(np.fft.ifftshift(k, axes=axes), axes=axes)
         return (decoded / self.oversampling ** 2).astype(np.complex64)
 
     def _sampling_mask(self):
-        """The sampling mask on the acquired k grid as float32, or None for full
-        Cartesian: the inscribed ellipse (2 px / nx)^2 + (2 py / ny)^2 <= 1 (edge
-        inclusive) for "elliptical", or the user's explicit array verbatim."""
+        """The sampling mask on the encoded k grid as float32, or None for full
+        Cartesian: the inscribed ellipse sum((2 p / n)^2) <= 1 over the encoded axes
+        (edge inclusive; the ellipsoid of a slab) for "elliptical", or the user's
+        explicit array verbatim."""
         if self.sampling is None:
             return None
         if isinstance(self.sampling, np.ndarray):
             return self.sampling
-        nx, ny = self.matrix
-        u = (np.arange(nx) - nx // 2) / (nx / 2.0)
-        v = (np.arange(ny) - ny // 2) / (ny / 2.0)
-        return ((u[:, None] ** 2 + v[None, :] ** 2) <= 1.0 + 1e-9).astype(np.float32)
+        radius = np.zeros(self.dims, dtype=np.float64)
+        for axis, n in enumerate(self.dims):
+            u = (np.arange(n) - n // 2) / (n / 2.0)
+            shape = [1] * len(self.dims)
+            shape[axis] = n
+            radius = radius + (u ** 2).reshape(shape)
+        return (radius <= 1.0 + 1e-9).astype(np.float32)
+
+    def _weight_map(self):
+        """The combined sampling times weighting map on the encoded k grid, or None
+        when both knobs are absent (full uniform Cartesian)."""
+        weight = self._sampling_mask()
+        if self.weighting == "hamming":
+            # the k-space Hamming centred on DC, one factor per encoded axis:
+            # w(p) = 0.54 + 0.46 cos(pi p / (n/2)), w(0) exactly 1; numpy's np.hamming
+            # peaks between samples on an even grid and would attenuate DC and shift
+            # the point spread function half a k step
+            window = np.ones(self.dims, dtype=np.float64)
+            for axis, n in enumerate(self.dims):
+                w = 0.54 + 0.46 * np.cos(np.pi * (np.arange(n) - n // 2) / (n / 2.0))
+                shape = [1] * len(self.dims)
+                shape[axis] = n
+                window = window * w.reshape(shape)
+            window = window.astype(np.float32)
+            weight = window if weight is None else weight * window
+        return weight
+
+    def _averages_map(self):
+        """The realized per-encode transient counts NA(k) = round(averages x W(k)),
+        the quantized acquisition weighting; encodes rounded to zero are unmeasured."""
+        weight = self._weight_map()
+        if weight is None:
+            weight = np.ones(self.dims, dtype=np.float32)
+        return np.rint(self.averages * weight).astype(int)
+
+    #****************#
+    #   trajectory   #
+    #****************#
+    def _visit_order(self, parity):
+        """Sample slot of every centred kx index inside one spectral period: the sweep
+        runs from low to high kx; bidirectional periods of odd parity reverse it."""
+        order = np.arange(self.matrix[0])
+        if self.trajectory == "epsi-bidirectional" and parity == 1:
+            return order[::-1].copy()
+        return order
+
+    def _sample_trajectory(self, source, npoints):
+        """Sample the EPSI readout and decode it the standard way.
+
+        The fine-grid sources are spatially Fourier transformed, every kx line is
+        taken at its visit time inside each spectral period (exact FID values, no
+        interpolation), and the k data is decoded ignoring the visit times, exactly
+        as an uncorrected reconstruction would."""
+        nx, ny = self.matrix[0], self.matrix[1]
+        k = np.fft.fftshift(np.fft.fft2(source, axes=(0, 1)), axes=(0, 1))
+        kdata = np.empty((nx, ny, npoints) + source.shape[3:], dtype=np.complex64)
+        rows = np.arange(nx)[:, None]
+        cols = np.arange(ny)[None, :]
+        for n in range(npoints):
+            slots = n * nx + self._visit_order(n % 2)
+            kdata[:, :, n] = k[rows, cols, slots[:, None]]
+        decoded = np.fft.ifft2(np.fft.ifftshift(kdata, axes=(0, 1)), axes=(0, 1))
+        return decoded.astype(np.complex64)

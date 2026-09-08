@@ -120,6 +120,49 @@ class Normal(Value):
 
 
 #**************************************************************************************************#
+#                                          Class Clipped                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# Any scalar provider held to physically plausible bounds: the draw is clipped, not resampled.     #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class Clipped(Value):
+    """Any scalar provider held to physically plausible bounds: the draw is clipped,
+    not resampled, so it consumes exactly the inner provider's randomness and the
+    seeded draw stream stays stable. Wrap any provider (or its shorthand) anywhere in
+    a Params tree, e.g. Clipped(Normal(0.039, 0.013), low=0.005) for a relaxation time
+    that must stay positive; out-of-bound mass lands on the bound, the stated clipping
+    semantics.
+
+    Args:
+        value: The provider to draw from, or its coercible shorthand.
+        low, high: Physical bounds; None leaves that side open.
+    """
+
+    value: Value
+    low: float = None
+    high: float = None
+
+    #**************#
+    #   coercion   #
+    #**************#
+    def __post_init__(self):
+        object.__setattr__(self, "value", Value.of(self.value))
+
+    #************#
+    #   sample   #
+    #************#
+    def sample(self, rng):
+        drawn = self.value.sample(rng)
+        if self.low is not None:
+            drawn = max(drawn, self.low)
+        if self.high is not None:
+            drawn = min(drawn, self.high)
+        return drawn
+
+
+#**************************************************************************************************#
 #                                          Class Tissues                                           #
 #**************************************************************************************************#
 #                                                                                                  #

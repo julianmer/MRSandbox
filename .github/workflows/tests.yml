@@ -29,4 +29,7 @@ jobs:
           if [ "${{ matrix.backend }}" = "tensorflow" ]; then pip install tensorflow-cpu; fi
           if [ "${{ matrix.backend }}" = "torch" ]; then pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
       - name: Run tests
-        run: pytest -q
+        # tensorflow runs eagerly and pays minutes per integration scan, so its leg
+        # skips the slow-marked tests; jax and torch always run the full suite
+        run: |
+          if [ "${{ matrix.backend }}" = "tensorflow" ]; then pytest -q -m "not slow"; else pytest -q; fi
