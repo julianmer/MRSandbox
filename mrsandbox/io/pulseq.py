@@ -6,9 +6,9 @@
 #                                                                                                  #
 # Created: 07/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Pulseq import: read a .seq file (via pypulseq) and translate its blocks into the        #
-#          event primitives, so any single-voxel Pulseq sequence runs through the engine with      #
-#          the ADC marking the readout.                                                            #
+# Purpose: Pulseq import and export (via pypulseq): read_seq translates .seq blocks into the       #
+#          event primitives with the ADC marking the readout, and write_seq turns a physical       #
+#          event sequence back into a .seq file any Pulseq scanner or simulator can play.          #
 #                                                                                                  #
 ####################################################################################################
 
@@ -19,7 +19,7 @@ import math
 
 import numpy as np
 
-from mrsandbox.sequences.events import Delay, Gradient, Sequence, ShapedPulse
+from mrsandbox.sequences.events import Delay, Gradient, Pulse, Sequence, ShapedPulse
 
 
 #**************************************************************************************************#
@@ -74,8 +74,9 @@ def _shaped_pulse(rf, center_ppm, steps, traps, extent_mm):
     sweep = np.diff(phase, prepend=phase[0]) / (2.0 * math.pi * dt) + freq_offset
     phase0_deg = math.degrees(float(phase[0]) + float(rf.phase_offset)
                               - math.pi * freq_offset * dt)
-    flat = [g for g in traps.values() if g.amplitude]
-    gradient = float(flat[0].amplitude) / 1000.0 if flat else 0.0
+    flat = [(channel, grad) for channel, grad in traps.items() if grad.amplitude]
+    gradient = float(flat[0][1].amplitude) / 1000.0 if flat else 0.0
+    axis = flat[0][0][1] if flat else "x"
     return ShapedPulse(
         flip_deg=None,
         duration_s=duration,
@@ -85,6 +86,7 @@ def _shaped_pulse(rf, center_ppm, steps, traps, extent_mm):
         frequency_hz=sweep.astype(np.float32) if np.any(sweep) else None,
         peak_hz=peak,
         gradient_hz_per_mm=gradient,
+        gradient_axis=axis,
         extent_mm=extent_mm,
     )
 
@@ -102,9 +104,9 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
     declares the readout. The .seq frame puts the carrier at the scanner reference,
     which `center_ppm` places on the ppm axis (water at 4.65).
 
-    Stated v1 idealizations: gradients act along one axis (the largest-area axis of
-    each block), trapezoids only; ramp moments outside an RF pulse are not applied;
-    blocks after the first ADC are ignored (one readout per file).
+    Stated v1 idealizations: trapezoid gradients only (every axis's area becomes its
+    own kick); ramp moments outside an RF pulse are not applied; blocks after the
+    first ADC are ignored (one readout per file).
 
     Args:
         path: The .seq file.
@@ -148,10 +150,119 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
             if tail > 1e-9:
                 events.append(Delay(tail))
         elif traps:
-            axis = max(traps.values(), key=lambda grad: abs(float(grad.area)))
             events.append(Delay(duration / 2.0))
-            events.append(Gradient(moment_per_mm=float(axis.area) / 1000.0, extent_mm=extent_mm))
+            for channel, grad in traps.items():
+                if float(grad.area):
+                    events.append(Gradient(moment_per_mm=float(grad.area) / 1000.0,
+                                           extent_mm=extent_mm, axis=channel[1]))
             events.append(Delay(duration / 2.0))
         elif duration > 0.0:
             events.append(Delay(duration))
     raise ValueError("the .seq file has no ADC block: nothing marks the readout")
+
+
+#***********************#
+#   waveform to hertz   #
+#***********************#
+def _export_waveform(pulse, f0_mhz, center_ppm):
+    """The exact complex Hz waveform a ShapedPulse plays, with the carrier expressed
+    as a Hz offset from the scanner reference at center_ppm."""
+    envelope = np.asarray(pulse.envelope, dtype=np.float64)
+    dt = float(pulse.duration_s) / envelope.size
+    if pulse.peak_hz is not None:
+        amplitude = envelope * float(pulse.peak_hz)
+    else:
+        amplitude = envelope * (float(pulse.flip_deg) / 360.0) / (envelope.sum() * dt)
+    phase = np.full(envelope.size, math.radians(float(pulse.phase_deg)))
+    if pulse.frequency_hz is not None:
+        sweep = np.asarray(pulse.frequency_hz, dtype=np.float64)
+        phase = phase + 2.0 * math.pi * np.cumsum(sweep) * dt
+    offsets = pulse.offset_ppm if isinstance(pulse.offset_ppm, tuple) else (pulse.offset_ppm,)
+    if len(offsets) != 1:
+        raise ValueError("multi-band pulses have no single carrier to export")
+    freq_offset = (float(offsets[0]) - center_ppm) * f0_mhz
+    return amplitude * np.exp(1j * phase), dt, freq_offset
+
+
+#****************#
+#   seq export   #
+#****************#
+def write_seq(sequence, path, npoints, dwell_s, f0_mhz, center_ppm=4.65,
+              hard_pulse_s=1e-4, system=None):
+    """Write a physical event Sequence to a Pulseq .seq file, the ADC appended.
+
+    Hardware-realizable events export exactly: hard Pulses play as hard_pulse_s block
+    pulses, ShapedPulses as their exact Hz waveforms (with a flat slice trapezoid when
+    the pulse carries a gradient, and the carrier as the Hz offset from the scanner
+    reference at center_ppm), Delays as delays, and Gradients as minimal-duration
+    trapezoids on their own axis's channel.
+    CoherenceFilters and SelectivePulses are validated idealizations without a
+    hardware counterpart and raise: export the physical design, with crushers in place
+    of filters and shaped pulses in place of ideal bands.
+
+    Ideal events are instantaneous in the simulation but not on hardware, so their
+    block durations are borrowed from the following delays: the total sequence
+    duration is preserved exactly (delays too short to lend raise), event centres
+    shift by at most half the borrowed time, and emitted delays round to the block
+    raster. Waveform steps must sit on the RF raster of `system`.
+    """
+    try:
+        import pypulseq
+    except ImportError:
+        raise ImportError("Pulseq export needs pypulseq: pip install pypulseq") from None
+
+    system = system if system is not None else pypulseq.Opts()
+    seq = pypulseq.Sequence(system=system)
+    raster = system.block_duration_raster
+    owed = 0.0
+    for event in sequence.events:
+        if isinstance(event, Delay):
+            remaining = float(event.t_s) - owed
+            if remaining < -1e-9:
+                owed = -remaining
+                continue
+            owed = 0.0
+            rounded = round(remaining / raster) * raster
+            if rounded > 1e-9:
+                seq.add_block(pypulseq.make_delay(rounded))
+        elif isinstance(event, ShapedPulse):
+            signal, dt, freq_offset = _export_waveform(event, f0_mhz, center_ppm)
+            use = "refocusing" if (event.peak_hz is not None
+                                   or float(event.flip_deg) >= 135.0) else "excitation"
+            rf = pypulseq.make_arbitrary_rf(
+                signal=signal, flip_angle=2.0 * math.pi * np.abs(signal).sum() * dt,
+                dwell=dt, freq_offset=freq_offset, no_signal_scaling=True,
+                system=system, use=use)
+            if event.gradient_hz_per_mm:
+                slab = pypulseq.make_trapezoid(
+                    channel=event.gradient_axis, amplitude=float(event.gradient_hz_per_mm) * 1000.0,
+                    flat_time=float(event.duration_s), system=system)
+                rf.delay = max(rf.delay, slab.rise_time)
+                seq.add_block(rf, slab)
+                owed += rf.delay + slab.fall_time + rf.ringdown_time
+            else:
+                seq.add_block(rf)
+                owed += rf.delay + rf.ringdown_time
+        elif isinstance(event, Pulse):
+            use = "refocusing" if float(event.flip_deg) >= 135.0 else "excitation"
+            rf = pypulseq.make_block_pulse(
+                flip_angle=math.radians(float(event.flip_deg)), duration=hard_pulse_s,
+                phase_offset=math.radians(float(event.phase_deg)), system=system, use=use)
+            seq.add_block(rf)
+            owed += rf.delay + hard_pulse_s + rf.ringdown_time
+        elif isinstance(event, Gradient):
+            trap = pypulseq.make_trapezoid(
+                channel=event.axis, area=float(event.moment_per_mm) * 1000.0, system=system)
+            seq.add_block(trap)
+            owed += trap.rise_time + trap.flat_time + trap.fall_time
+        else:
+            raise ValueError(
+                f"{type(event).__name__} is a validated idealization with no hardware "
+                f"counterpart; export the physical design instead (crushers for "
+                f"coherence filters, shaped pulses for ideal-selective bands)")
+    if owed > 1e-9:
+        raise ValueError(f"the delays are {owed * 1e3:.3f} ms too short to absorb the "
+                         f"hardware event durations; lengthen them or shorten the pulses")
+    seq.add_block(pypulseq.make_adc(num_samples=int(npoints), dwell=float(dwell_s),
+                                    system=system))
+    seq.write(str(path))

@@ -174,6 +174,7 @@ class ShapedPulse(Event):
         offset_ppm: Carrier position in ppm (water sits at 4.65).
         phase_deg: RF phase at t = 0 in degrees (0 = x, 90 = y).
         gradient_hz_per_mm: Slice gradient strength; 0 plays without a gradient.
+        gradient_axis: The slice gradient axis, "x", "y", or "z".
         extent_mm: Isochromat span when a gradient is set.
         frequency_hz: Optional per-step frequency modulation (adiabatic sweeps).
         peak_hz: Optional peak RF amplitude in Hz; when set the envelope is scaled to
@@ -185,13 +186,17 @@ class ShapedPulse(Event):
     #   init   #
     #**********#
     def __init__(self, flip_deg, duration_s, envelope, offset_ppm=0.0, phase_deg=0.0,
-                 gradient_hz_per_mm=0.0, extent_mm=20.0, frequency_hz=None, peak_hz=None):
+                 gradient_hz_per_mm=0.0, gradient_axis="x", extent_mm=20.0,
+                 frequency_hz=None, peak_hz=None):
+        if gradient_axis not in ("x", "y", "z"):
+            raise ValueError(f"unknown gradient axis {gradient_axis!r}; known: x, y, z")
         self.flip_deg = flip_deg
         self.duration_s = duration_s
         self.envelope = envelope
         self.offset_ppm = offset_ppm
         self.phase_deg = phase_deg
         self.gradient_hz_per_mm = gradient_hz_per_mm
+        self.gradient_axis = gradient_axis
         self.extent_mm = extent_mm
         self.frequency_hz = frequency_hz
         self.peak_hz = peak_hz
@@ -295,8 +300,8 @@ class ShapedPulse(Event):
             f1 = env * (flip / 360.0) / (ops.sum(env) * dt)
         h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, "complex64"), ops.conj(ctx.v))
         if self.gradient_hz_per_mm:
-            slice_hz = self.gradient_hz_per_mm * ops.convert_to_tensor(ctx.gradient_x,
-                                                                       dtype="float32")
+            slice_hz = self.gradient_hz_per_mm * ops.convert_to_tensor(
+                getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
             if ops.ndim(slice_hz) > 0:  # a vector of positions batches the ensemble
                 slice_hz = ops.reshape(slice_hz, (-1, 1, 1))
             h_free = h_free + nops.cast(slice_hz, "complex64") * ctx.fz
@@ -387,23 +392,29 @@ class Gradient(Event):
     Args:
         moment_per_mm: Gradient moment k in cycles per millimetre (gamma times area).
         extent_mm: Voxel extent along the gradient axis (sets the ensemble span).
+        axis: The gradient axis, "x", "y", or "z"; kicks on different axes dephase
+            independently and never rephase each other.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, moment_per_mm, extent_mm=20.0):
+    def __init__(self, moment_per_mm, extent_mm=20.0, axis="x"):
+        if axis not in ("x", "y", "z"):
+            raise ValueError(f"unknown gradient axis {axis!r}; known: x, y, z")
         self.moment_per_mm = moment_per_mm
         self.extent_mm = extent_mm
+        self.axis = axis
 
     #*************#
     #   crusher   #
     #*************#
     @classmethod
-    def crusher(cls, amplitude_mt_m, duration_s, extent_mm=20.0, gamma_mhz_t=42.5774785):
+    def crusher(cls, amplitude_mt_m, duration_s, extent_mm=20.0, gamma_mhz_t=42.5774785,
+                axis="x"):
         """A crusher from hardware terms: k = gamma x amplitude x duration."""
         moment = gamma_mhz_t * 1e6 * amplitude_mt_m * 1e-3 * duration_s * 1e-3
-        return cls(moment_per_mm=moment, extent_mm=extent_mm)
+        return cls(moment_per_mm=moment, extent_mm=extent_mm, axis=axis)
 
     #***********#
     #   apply   #
@@ -412,7 +423,7 @@ class Gradient(Event):
         # the sign matches the in-pulse gradient evolution, so a slice pulse rephases
         # with the scanner-style lobe of minus half its gradient moment; a vector of
         # positions broadcasts the whole isochromat ensemble through one application
-        x = ops.convert_to_tensor(ctx.gradient_x, dtype="float32")
+        x = ops.convert_to_tensor(getattr(ctx, "gradient_" + self.axis), dtype="float32")
         if ops.ndim(x) > 0:
             x = ops.reshape(x, (-1, 1, 1))
         angle = -2.0 * math.pi * self.moment_per_mm * x * ops.cast(ctx.q, "float32")

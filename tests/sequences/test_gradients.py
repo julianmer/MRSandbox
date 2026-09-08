@@ -90,6 +90,32 @@ class TestGradient:
         assert weak > 1.1 * ideal  # the artifact exists and the mask cannot show it
         assert abs(strong / ideal - 1.0) < 0.01  # strong crushers suppress it, as on scanners
 
+    #***********************#
+    #   axis independence   #
+    #***********************#
+    def test_axes_dephase_independently(self, engine):
+        water = WaterSource.system(gamma_mhz_t=42.5774785)
+        full = np.abs(amps(engine, Sequence(Pulse(90.0)), water)).sum()
+        same = np.abs(amps(engine, Sequence(Pulse(90.0), Gradient(1.5, 1.0),
+                                            Gradient(-1.5, 1.0)), water)).sum()
+        cross = np.abs(amps(engine, Sequence(Pulse(90.0), Gradient(1.5, 1.0, axis="x"),
+                                             Gradient(-1.5, 1.0, axis="y")), water)).sum()
+        assert abs(same / full - 1.0) < 1e-3  # one axis: the pair still cancels exactly
+        assert cross < 0.3 * full  # opposite axes never rephase each other
+
+    def test_balanced_pairs_on_two_axes_refocus_exactly(self, engine):
+        for system in SpinSystem.from_database("Lac"):
+            a = amps(engine, masked_echo(), system)
+            crushed = Sequence(Pulse(90.0), Delay(TE / 2),
+                               Gradient(3.7, 20.0, axis="x"), Gradient(2.9, 20.0, axis="z"),
+                               Pulse(180.0, phase_deg=90.0),
+                               Gradient(3.7, 20.0, axis="x"), Gradient(2.9, 20.0, axis="z"),
+                               Delay(TE / 2))
+            b = amps(engine, crushed, system)
+            corr = np.abs(np.vdot(a, b)) / (np.linalg.norm(a) * np.linalg.norm(b))
+            assert corr > 0.9999
+            assert abs(np.abs(b).sum() / np.abs(a).sum() - 1.0) < 1e-3
+
     #********************#
     #   compiled path    #
     #********************#

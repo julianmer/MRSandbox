@@ -129,3 +129,81 @@ class TestPulseqImport:
         # (gradient ramp-up before it, ringdown after it)
         around_rf = float(seq.get_block(1).block_duration) - float(rf.shape_dur)
         assert abs(delays - (1e-3 + 5e-3 + around_rf)) < 1e-6
+
+
+#**************************************************************************************************#
+#                                      Class TestPulseqExport                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# Export round trips: a physical sequence written to .seq and read back reproduces its physics,    #
+# and idealized events refuse to pretend they are hardware.                                        #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestPulseqExport:
+
+    #*******************#
+    #   shaped pulse    #
+    #*******************#
+    def test_shaped_pulse_round_trips(self, engine, tmp_path):
+        from mrsandbox.io import write_seq
+
+        native = Sequence(ShapedPulse.gaussian(90.0, 0.004, offset_ppm=2.0), Delay(0.010))
+        path = tmp_path / "gaussian.seq"
+        write_seq(native, path, npoints=256, dwell_s=2.5e-4, f0_mhz=127.73)
+        back = read_seq(path)
+        assert back.npoints == 256 and abs(back.dwell_s - 2.5e-4) < 1e-12
+        lac = SpinSystem.from_database("Lac")
+        corr = correlation(spectrum(engine, back, lac), spectrum(engine, native, lac))
+        assert corr > 0.999
+
+    #*****************#
+    #   spin echo     #
+    #*****************#
+    def test_crushed_spin_echo_round_trips(self, engine, tmp_path):
+        from mrsandbox.io import write_seq
+
+        crusher = Gradient(2.0, extent_mm=20.0)
+        native = Sequence(Pulse(90.0), Delay(0.021), crusher,
+                          Pulse(180.0, phase_deg=90.0), crusher, Delay(0.021))
+        path = tmp_path / "echo.seq"
+        write_seq(native, path, npoints=512, dwell_s=2.5e-4, f0_mhz=127.73)
+        back = read_seq(path)
+        lac = SpinSystem.from_database("Lac")
+        corr = correlation(spectrum(engine, back, lac), spectrum(engine, native, lac))
+        assert corr > 0.99
+
+    #*******************#
+    #   idealizations   #
+    #*******************#
+    def test_idealized_events_refuse_to_export(self, tmp_path):
+        from mrsandbox.io import write_seq
+
+        masked = Sequence(Pulse(90.0), CoherenceFilter(-1), Delay(0.01))
+        with pytest.raises(ValueError, match="idealization"):
+            write_seq(masked, tmp_path / "bad.seq", npoints=64, dwell_s=2.5e-4, f0_mhz=127.73)
+        short = Sequence(Pulse(90.0), Delay(1e-5))
+        with pytest.raises(ValueError, match="too short"):
+            write_seq(short, tmp_path / "short.seq", npoints=64, dwell_s=2.5e-4, f0_mhz=127.73)
+
+
+#**************************************************************************************************#
+#                                     Class TestMultiAxisImport                                    #
+#**************************************************************************************************#
+class TestMultiAxisImport:
+
+    #*******************#
+    #   per-axis kicks  #
+    #*******************#
+    def test_every_gradient_axis_imports_as_its_own_kick(self, system, tmp_path):
+        seq = pypulseq.Sequence(system=system)
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=1e-4,
+                                                system=system))
+        gx = pypulseq.make_trapezoid(channel="x", area=1000.0, duration=1e-3, system=system)
+        gz = pypulseq.make_trapezoid(channel="z", area=-500.0, duration=1.45e-3, system=system)
+        seq.add_block(gx, gz)
+        seq.add_block(pypulseq.make_adc(num_samples=64, dwell=2.5e-4, system=system))
+        path = tmp_path / "axes.seq"
+        seq.write(str(path))
+
+        kicks = [e for e in read_seq(path).events if isinstance(e, Gradient)]
+        assert {(k.axis, round(k.moment_per_mm, 3)) for k in kicks} == {("x", 1.0), ("z", -0.5)}

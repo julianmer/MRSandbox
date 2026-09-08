@@ -27,6 +27,21 @@ from nifti_mrs_plus import ops as nops
 from mrsandbox.backend import Backend
 
 
+#*********************#
+#   ensemble stride   #
+#*********************#
+def _coprime_stride(count, order):
+    """A deterministic stride coprime to `count` (successive golden-ratio fractions,
+    nudged to the nearest coprime): reorders one ensemble axis so its joint sampling
+    with the others decorrelates while its own marginal stays the exact uniform grid."""
+    target = max(1, int(round(count * 0.6180339887 ** order)))
+    for offset in range(count):
+        for candidate in (target + offset, target - offset):
+            if 1 <= candidate < count and math.gcd(candidate, count) == 1:
+                return candidate
+    return 1
+
+
 #**************************************************************************************************#
 #                                          Class Context                                           #
 #**************************************************************************************************#
@@ -49,7 +64,8 @@ class Context:
         fplus: The detection operator F+.
         t1_s, t2_s: The system's relaxation times, or None for coherent-only delays.
         b1_scale: Transmit field scale; every pulse flip is multiplied by it.
-        gradient_x: Isochromat position along the gradient axis in millimetres.
+        gradient_x, gradient_y, gradient_z: Isochromat positions along the three
+            gradient axes in millimetres (scalars, or vectors batching the ensemble).
         fz: The longitudinal total-spin operator (gradient offsets act through it).
     """
 
@@ -70,6 +86,8 @@ class Context:
     b1_scale: object
     fz: object = None
     gradient_x: object = 0.0
+    gradient_y: object = 0.0
+    gradient_z: object = 0.0
 
 
 #**************************************************************************************************#
@@ -152,18 +170,34 @@ class Engine:
 
     @staticmethod
     def _ensemble_context(sequence, ctx, isochromats):
-        """The context with the isochromat position vector a gradient-bearing sequence
-        needs (the events broadcast it as a batch axis), or the context untouched."""
+        """The context with the isochromat position vectors a gradient-bearing sequence
+        needs (the events broadcast them as one shared batch axis), or the context
+        untouched.
+
+        Every used axis gets the exact uniform grid over its largest extent, so all
+        per-axis dephasing laws hold exactly; with several axes the later grids are
+        reordered by deterministic coprime strides (golden-ratio fractions), which
+        decorrelates the axes so cross-axis moments dephase instead of spuriously
+        refocusing. Cross-axis combinations are thereby sampled along a torus line,
+        a stated approximation; raise `isochromats` for dense multi-axis schemes."""
         from mrsandbox.sequences.events import Gradient, ShapedPulse
 
-        extents = [event.extent_mm for event in sequence.events if isinstance(event, Gradient)]
-        extents += [event.extent_mm for event in sequence.events
-                    if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm]
+        extents = {}
+        for event in sequence.events:
+            if isinstance(event, Gradient):
+                extents[event.axis] = max(extents.get(event.axis, 0.0), event.extent_mm)
+            elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
+                extents[event.gradient_axis] = max(extents.get(event.gradient_axis, 0.0),
+                                                   event.extent_mm)
         if not extents:
             return ctx
-        offsets = ((np.arange(isochromats) + 0.5) / isochromats - 0.5) * max(extents)
-        return dataclasses.replace(ctx, gradient_x=ops.convert_to_tensor(
-            offsets.astype(np.float32)))
+        grid = (np.arange(isochromats) + 0.5) / isochromats - 0.5
+        replacements = {}
+        for order, axis in enumerate(sorted(extents)):
+            stride = 1 if order == 0 else _coprime_stride(isochromats, order)
+            positions = grid[(np.arange(isochromats) * stride) % isochromats] * extents[axis]
+            replacements["gradient_" + axis] = ops.convert_to_tensor(positions.astype(np.float32))
+        return dataclasses.replace(ctx, **replacements)
 
     def _system_lines(self, sequence, ctx):
         """The (freqs, amps) of one system context, receiver phase applied; a vector
