@@ -15,6 +15,7 @@
 #   imports   #
 #*************#
 from mrsandbox.phantom.brain import Brain
+from mrsandbox.phantom.downfield import DownfieldSource, NoDownfield, ParameterizedDownfield
 from mrsandbox.phantom.field import FieldMap
 from mrsandbox.phantom.lipids import LipidSource, NoLipids, Skull
 from mrsandbox.phantom.macromolecules import (CoupledMM, MeasuredMM, MMSource, NoMM,

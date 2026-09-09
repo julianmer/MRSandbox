@@ -33,6 +33,8 @@ version = { attr = "mrsandbox.__version__" }
 
 [tool.ruff]
 line-length = 100
+# third-party submodules are not ours to lint
+extend-exclude = ["externals"]
 
 [tool.ruff.lint]
 # pyflakes plus the pycodestyle errors; the house style keeps dict(...) calls,

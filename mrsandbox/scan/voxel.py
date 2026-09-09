@@ -94,10 +94,16 @@ class Voxel:
         f0_mhz = self._f0_mhz()
         tissue = self.fractions.gm + self.fractions.wm
         faded = self._diffusion_factor(truth)
+        # an empirical downfield source carries everything above its cutoff, so the
+        # spin systems' exchangeable NH lines up there leave the render (see
+        # phantom.downfield.DownfieldSource)
+        cutoff = self.scan.downfield.replaces_above_ppm
         parts = []
         for name, concentration in truth.conc.items():
             t2 = truth.t2[name]
             freqs, amps = self._metabolite_lines(name, truth)
+            if cutoff is not None:
+                amps = ops.where(freqs > cutoff * f0_mhz, ops.zeros_like(amps), amps)
             weight = ops.convert_to_tensor(
                 np.complex64(concentration * tissue * faded(truth.diffusion.adc[name])))
             parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))
@@ -119,6 +125,11 @@ class Voxel:
             freqs, amps, gauss = mm
             parts.append((ops.convert_to_tensor(freqs),
                           ops.convert_to_tensor(amps * faded(truth.diffusion.mm)),
+                          0.0, ops.convert_to_tensor(gauss)))
+        df = self.scan.downfield.lines(engine, sequence, self, truth, f0_mhz)
+        if df is not None:
+            freqs, amps, gauss = df
+            parts.append((ops.convert_to_tensor(freqs), ops.convert_to_tensor(amps),
                           0.0, ops.convert_to_tensor(gauss)))
         return parts
 

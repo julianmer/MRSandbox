@@ -495,8 +495,11 @@ class TestTrajectory:
         conc = {name: 0.0 for name in VirtualScan.default_params().conc}
         conc["sIns"] = 5.0  # the scyllo-inositol singlet: one exponential line
         params = QUIET | Params(conc=conc)
+        from mrsandbox import NoDownfield
+
         return VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
-                           params=params, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+                           params=params, water=NoWater(), lipids=NoLipids(), mm=NoMM(),
+                           downfield=NoDownfield())
 
     def acquired(self, scan, npoints=64, **kw):
         data = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0, **kw)

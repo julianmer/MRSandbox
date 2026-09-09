@@ -20,8 +20,9 @@ from mrsandbox.engine import Context, Engine
 from mrsandbox.hardware import CoilArray, Loop, MappedCoilArray, Scanner
 from mrsandbox.params import (Clipped, Fixed, Normal, Params, PerTissue, Priors, Tissues,
                               Uniform, Value)
-from mrsandbox.phantom import (Brain, CoupledMM, FieldMap, MeasuredMM, NoLipids, NoMM,
-                               NoWater, ParameterizedMM, Skull, Suppressed, Unsuppressed)
+from mrsandbox.phantom import (Brain, CoupledMM, FieldMap, MeasuredMM, NoDownfield, NoLipids,
+                               NoMM, NoWater, ParameterizedDownfield, ParameterizedMM, Skull,
+                               Suppressed, Unsuppressed)
 from mrsandbox.scan import MRSI, Generator, Multiplex, VirtualScan, Voxel
 from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, HadamardEditing,
                                  Hercules, Hermes, MegaPress, Press, Pulse, PulseAcquire,

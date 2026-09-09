@@ -18,6 +18,7 @@
 from mrsandbox.database import Database
 from mrsandbox.engine import Engine
 from mrsandbox.params import Params
+from mrsandbox.phantom.downfield import ParameterizedDownfield
 from mrsandbox.phantom.lipids import Skull
 from mrsandbox.phantom.macromolecules import CoupledMM
 from mrsandbox.phantom.water import Suppressed
@@ -45,6 +46,8 @@ class VirtualScan:
             channel.
         field: A phantom.FieldMap for B0 inhomogeneity; None gives a uniform field.
         mm: A phantom.MMSource; defaults to the LCModel-convention parameterization.
+        downfield: A phantom.DownfieldSource; defaults to the nine-peak
+            parameterization, presaturated along with the default suppressed water.
         isochromats: Ensemble size for gradient-bearing sequences, handed to the
             engine; raise it for dense multi-axis gradient schemes.
     """
@@ -53,7 +56,7 @@ class VirtualScan:
     #   init   #
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
-                 lipids=None, coils=None, field=None, mm=None, isochromats=32):
+                 lipids=None, coils=None, field=None, mm=None, downfield=None, isochromats=32):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -62,6 +65,7 @@ class VirtualScan:
         self.water = water if water is not None else Suppressed()
         self.lipids = lipids if lipids is not None else Skull()
         self.mm = mm if mm is not None else CoupledMM()
+        self.downfield = downfield if downfield is not None else ParameterizedDownfield()
         self.coils = coils
         self.field = field
         self.params = default_params(self.database) | (params if params is not None else Params())
