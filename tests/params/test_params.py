@@ -109,6 +109,19 @@ class TestParams:
         assert a.te1_s == 0.011
         assert 7.5 <= a.brain.NAA.conc < 12.0
 
+    #********************#
+    #   leaf stability   #
+    #********************#
+    def test_draws_are_stable_under_tree_membership(self):
+        # every leaf draws from its own path-keyed stream: adding an unrelated
+        # parameter never shifts the realization of the others, so recorded ground
+        # truths stay reproducible as the tree grows
+        small = Params(brain=dict(NAA=dict(conc=(7.5, 12.0))), lw_hz=(2.0, 15.0))
+        grown = small | Params(aaa=(0.0, 1.0), zzz=(0.0, 1.0))
+        a, b = small.sample(seed=7), grown.sample(seed=7)
+        assert a.brain.NAA.conc == b.brain.NAA.conc
+        assert a.lw_hz == b.lw_hz
+
     #*****************#
     #   realization   #
     #*****************#

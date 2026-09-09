@@ -61,6 +61,16 @@ class TestOperators:
         support = np.abs(op.fplus) > 1e-9
         assert np.all(op.coherence_order[support] == +1)  # F+ pairs with (detects) the -1 coherences
 
+    #*************#
+    #   caching   #
+    #*************#
+    def test_relaxed_variants_share_one_cached_stack(self, lac):
+        # relaxation never changes the operator algebra, so per-draw relaxed copies
+        # must hit the structural system's cache entry instead of growing it
+        base = lac.operators()
+        for i in range(8):
+            assert lac.with_relaxation(t1_s=1.0 + i, t2_s=0.1 + i).operators() is base
+
 
 #**************************************************************************************************#
 #                                       Class TestSpinSystem                                       #

@@ -17,7 +17,11 @@
 #*************#
 #   imports   #
 #*************#
+import numbers
+
 import numpy as np
+
+from mrsandbox.scan.virtual_scan import acquisition_seed
 
 
 #**************************************************************************************************#
@@ -129,7 +133,8 @@ class MRSI:
                  profile=None, averages=None, trajectory=None):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
-        if averages is not None and (int(averages) != averages or averages < 1):
+        if averages is not None and (not isinstance(averages, numbers.Real)
+                                     or int(averages) != averages or averages < 1):
             raise ValueError(f"averages must be a positive integer, got {averages!r}")
         self.averages = int(averages) if averages is not None else None
         self.scan = scan
@@ -249,6 +254,7 @@ class MRSI:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
+        seed = acquisition_seed(seed)
         rng = np.random.default_rng(seed)
         truth = self.scan.params.sample(rng)
         coils = self.scan.coils

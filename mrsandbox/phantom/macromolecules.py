@@ -19,9 +19,11 @@
 import abc
 
 import numpy as np
+from keras import ops
 
 from mrsandbox.database import macromolecules
 from mrsandbox.io import VarianFid
+from mrsandbox.spins import SpinSystem
 
 
 #*****************#
@@ -281,14 +283,12 @@ class CoupledMM(MMSource):
     #   init   #
     #**********#
     def __init__(self):
-        self._compiled = {}
+        self._lines = None
 
     #***********#
     #   lines   #
     #***********#
     def lines(self, engine, sequence, fractions, truth, f0_mhz):
-        from mrsandbox.spins import SpinSystem
-
         tissue = fractions.gm + fractions.wm
         if tissue <= 0.0:
             return None
@@ -299,27 +299,9 @@ class CoupledMM(MMSource):
             anchor = components[self.ANCHORS[name]]
             weighted = fractions.gm * anchor["gm"] + fractions.wm * anchor["wm"]
             weight = truth.mm.kappa * weighted * c_tcr / groups[0][1]
-            key = (id(engine), id(sequence), name)
-            if key not in self._compiled:
-                shifts = tuple(ppm for ppm, protons in groups for _ in range(protons))
-                spins = len(shifts)
-                j = [[0.0] * spins for _ in range(spins)]
-                offsets = [sum(protons for _, protons in groups[:k]) for k in range(len(groups))]
-                for a, b, j_hz in couplings:
-                    for i in range(offsets[a], offsets[a] + groups[a][1]):
-                        for k in range(offsets[b], offsets[b] + groups[b][1]):
-                            j[i][k] = j[k][i] = j_hz
-                system = SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts,
-                                    j_hz=tuple(map(tuple, j)), scale=1.0,
-                                    gamma_mhz_t=f0_mhz / engine.b0_t)
-                self._compiled[key] = engine.compiled(sequence, system)
-            from keras import ops
-            fn = self._compiled[key]
-            line_f, line_a = fn(ops.convert_to_tensor(np.float32(truth.mm.t1[name])),
-                                ops.convert_to_tensor(np.float32(truth.mm.t2[name])),
-                                ops.convert_to_tensor(np.float32(truth.b1_scale)))
-            line_f = np.asarray(ops.convert_to_numpy(line_f))
-            line_a = np.asarray(ops.convert_to_numpy(line_a)) * weight
+            line_f, line_a = self._unit_lines(engine, sequence, truth, f0_mhz,
+                                              name, groups, couplings)
+            line_a = line_a * weight
             keep = np.abs(line_a) > 1e-9
             freqs.append(line_f[keep])
             amps.append(line_a[keep])
@@ -327,3 +309,37 @@ class CoupledMM(MMSource):
         return (np.concatenate(freqs).astype(np.float32),
                 np.concatenate(amps).astype(np.complex64),
                 np.concatenate(gauss))
+
+    #****************#
+    #   unit lines   #
+    #****************#
+    def _unit_lines(self, engine, sequence, truth, f0_mhz, name, groups, couplings):
+        """One system's unweighted numpy lines for one truth, cached per truth: the
+        draw fixes relaxation and b1 while the position only scales amplitudes, so one
+        truth serving many voxels replays each system once. Compilation itself is
+        cached on the engine, keyed by the sequence and the structural system."""
+        cached = self._lines
+        if cached is None or cached[0] is not truth:
+            cached = self._lines = (truth, {})
+        key = (engine, sequence, name)
+        if key in cached[1]:
+            return cached[1][key]
+        shifts = tuple(ppm for ppm, protons in groups for _ in range(protons))
+        spins = len(shifts)
+        j = [[0.0] * spins for _ in range(spins)]
+        offsets = [sum(protons for _, protons in groups[:k]) for k in range(len(groups))]
+        for a, b, j_hz in couplings:
+            for i in range(offsets[a], offsets[a] + groups[a][1]):
+                for k in range(offsets[b], offsets[b] + groups[b][1]):
+                    j[i][k] = j[k][i] = j_hz
+        system = SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts,
+                            j_hz=tuple(map(tuple, j)), scale=1.0,
+                            gamma_mhz_t=f0_mhz / engine.b0_t)
+        fn = engine.compiled(sequence, system)
+        line_f, line_a = fn(ops.convert_to_tensor(np.float32(truth.mm.t1[name])),
+                            ops.convert_to_tensor(np.float32(truth.mm.t2[name])),
+                            ops.convert_to_tensor(np.float32(truth.b1_scale)))
+        lines = (np.asarray(ops.convert_to_numpy(line_f)),
+                 np.asarray(ops.convert_to_numpy(line_a)))
+        cached[1][key] = lines
+        return lines

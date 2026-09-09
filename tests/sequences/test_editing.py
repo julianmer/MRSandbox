@@ -260,6 +260,19 @@ class TestTransients:
         return Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
                          MegaPress.pair(), params=params)
 
+    #*****************#
+    #   single shot   #
+    #*****************#
+    def test_single_transient_schedule_works(self):
+        # n = 1 has no later transient to place a motion event on, so even a high
+        # drawn rate must yield zero events and one valid FID
+        data = self.multiplex(motion_rate_per_min=30.0).transients(
+            (10, -20, 5), 20.0, schedule=1, seed=3, npoints=128)
+        # the container squeezes the trailing singleton DIM_DYN axis
+        assert np.asarray(data[:]).shape == (1, 1, 1, 128)
+        assert np.abs(np.asarray(data[:])).max() > 0.0
+        assert data.hdr_ext["SimulationSchedule"]["motion_events"] == []
+
     #******************#
     #   still scanner  #
     #******************#

@@ -17,10 +17,22 @@
 #   imports   #
 #*************#
 import dataclasses
+import functools
+import hashlib
 
 import numpy as np
 
 from mrsandbox.params.values import Value
+
+
+#********************#
+#   leaf seed keys   #
+#********************#
+@functools.lru_cache(maxsize=4096)
+def _path_entropy(path):
+    """A stable integer derived from a leaf's key path, mixed with the draw seed to
+    give every leaf its own independent stream."""
+    return int.from_bytes(hashlib.sha256("/".join(path).encode()).digest()[:8], "little")
 
 
 #**************************************************************************************************#
@@ -93,23 +105,43 @@ class Params(dict):
     #   sampling   #
     #**************#
     def sample(self, seed=None):
-        """Realize every leaf with one seeded generator and return the concrete tree.
+        """Realize every leaf independently from one seed and return the concrete tree.
 
-        Leaves are visited in sorted key order, so a given seed always yields the same
-        realization. The returned tree contains no Value providers; it is the ground
-        truth record of this draw.
+        Every leaf draws from its own generator, derived from the seed and the leaf's
+        key path, so a given seed always yields the same realization for a given leaf
+        no matter what else the tree holds: adding, removing, or renaming parameters
+        never shifts the other draws. The returned tree contains no Value providers;
+        it is the ground truth record of this draw.
 
         Args:
-            seed: Seed for numpy's default generator, or an existing Generator.
+            seed: Seed, or an existing Generator (one root integer is drawn from it,
+                so a stream of samples stays reproducible).
 
         Returns:
             Params of concrete values.
         """
-        rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
+        if isinstance(seed, np.random.Generator):
+            root = int(seed.integers(2 ** 63))
+        elif seed is None:
+            root = int(np.random.SeedSequence().entropy)
+        else:
+            root = int(seed)
+        return self._realize(root, ())
+
+    def _realize(self, root, path):
+        """Realize the subtree at `path`, giving every leaf its path-keyed generator."""
         realization = Params()
         for key in sorted(self):
             value = self[key]
-            dict.__setitem__(realization, key, value.sample(rng) if isinstance(value, (Params, Value)) else value)
+            if isinstance(value, Params):
+                drawn = value._realize(root, path + (key,))
+            elif isinstance(value, Value):
+                rng = np.random.default_rng(
+                    np.random.SeedSequence([root, _path_entropy(path + (key,))]))
+                drawn = value.sample(rng)
+            else:
+                drawn = value
+            dict.__setitem__(realization, key, drawn)
         return realization
 
     #*******************#

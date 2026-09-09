@@ -106,14 +106,19 @@ class Engine:
         receiver_phase_deg: Receiver phase applied to all detected lines. The default of
             90 makes a simple 90x pulse-acquire render as a positive real absorption
             spectrum (the convention every fitting tool expects); 0 gives raw physics.
+        isochromats: Default ensemble size for gradient-bearing sequences (positions
+            spanning each gradient extent); raise it for dense multi-axis schemes.
+            Per-call arguments override it.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, b0, receiver_phase_deg=90.0):
+    def __init__(self, b0, receiver_phase_deg=90.0, isochromats=32):
         self.b0_t = getattr(b0, "b0_t", b0)
         self.receiver_phase_deg = receiver_phase_deg
+        self.isochromats = isochromats
+        self._compiled = {}
 
     #*************#
     #   context   #
@@ -146,19 +151,21 @@ class Engine:
     #***********#
     #   lines   #
     #***********#
-    def lines(self, sequence, *systems, b1_scale=1.0, isochromats=32):
+    def lines(self, sequence, *systems, b1_scale=1.0, isochromats=None):
         """Transition lines of `sequence` run on each system, concatenated.
 
         The pre-readout density matrix is projected onto the Hamiltonian eigenbasis, where
         every element is one exponential: s(t) = sum_k amp_k * exp(+i 2 pi freq_k t).
         When the sequence contains Gradient events the lines are averaged over an
-        isochromat ensemble of `isochromats` positions spanning the gradient extent, so
-        crusher pairs rephase coherently and unbalanced moments dephase physically.
+        isochromat ensemble of `isochromats` positions (the engine default when None)
+        spanning the gradient extent, so crusher pairs rephase coherently and
+        unbalanced moments dephase physically.
 
         Returns:
             (freqs_hz, amps): flat complex64-compatible tensors over all d*d elements of
             every system (silent elements carry zero amplitude).
         """
+        isochromats = isochromats if isochromats is not None else self.isochromats
         all_freqs, all_amps = [], []
         for system in systems:
             ctx = self._ensemble_context(sequence, self.context(system, b1_scale=b1_scale),
@@ -220,7 +227,7 @@ class Engine:
     #****************#
     #   compiled     #
     #****************#
-    def compiled(self, sequence, system, isochromats=32):
+    def compiled(self, sequence, system, isochromats=None):
         """A jit-compiled (t1_s, t2_s, b1_scale) -> (freqs, amps) for one system and sequence.
 
         The context (eigendecomposition, operators) is built once and closed over; only
@@ -229,16 +236,24 @@ class Engine:
         first call compiles, every further call replays the compiled graph. A gradient-
         bearing sequence compiles with its isochromat ensemble as a batch axis, so
         crushers and slice selection run at replay speed too.
+
+        Compiled functions are cached on the engine, keyed by the sequence and the
+        structural system (relaxation stays an input), so every consumer - metabolites,
+        water, lipids, macromolecules - shares one compilation per system and sequence.
         """
         from nifti_mrs_plus.backend import jit
 
-        ctx0 = self._ensemble_context(sequence, self.context(system), isochromats)
+        isochromats = isochromats if isochromats is not None else self.isochromats
+        key = (sequence, system, isochromats)
+        if key not in self._compiled:
+            ctx0 = self._ensemble_context(sequence, self.context(system), isochromats)
 
-        def fn(t1_s, t2_s, b1_scale):
-            ctx = dataclasses.replace(ctx0, t1_s=t1_s, t2_s=t2_s, b1_scale=b1_scale)
-            return self._system_lines(sequence, ctx)
+            def fn(t1_s, t2_s, b1_scale):
+                ctx = dataclasses.replace(ctx0, t1_s=t1_s, t2_s=t2_s, b1_scale=b1_scale)
+                return self._system_lines(sequence, ctx)
 
-        return jit(fn)
+            self._compiled[key] = jit(fn)
+        return self._compiled[key]
 
     #**************#
     #   spectrum   #
@@ -291,17 +306,21 @@ class Engine:
         an additional Gaussian FWHM (g = (pi gauss_hz)^2 / (4 ln 2)), together a Voigt
         line, the shape macromolecule parameterizations are stated in.
         """
-        t = ops.arange(0, npoints, dtype=ops.dtype(freqs)) * dwell_s
+        n = ops.arange(0, npoints, dtype=ops.dtype(freqs))
+        t = n * dwell_s
         r = math.pi * ops.convert_to_tensor(lw_hz, dtype=ops.dtype(freqs)) * ops.ones_like(freqs)
         g = (math.pi * ops.convert_to_tensor(gauss_hz, dtype=ops.dtype(freqs))) ** 2 / (
             4.0 * math.log(2.0)
         ) * ops.ones_like(freqs)
         decay = (-ops.expand_dims(r, 1) * ops.expand_dims(t, 0)
                  - ops.expand_dims(g, 1) * ops.expand_dims(t * t, 0))
-        phase = nops.complex_from(
-            decay,
-            2.0 * math.pi * ops.expand_dims(freqs, 1) * ops.expand_dims(t, 0),
-        )
+        # the oscillation f t runs to thousands of cycles on long FIDs, where float32
+        # representation alone costs ~1e-3 rad; folding (f dwell) n modulo one cycle
+        # before the 2 pi scaling keeps the final phase at wrapped magnitude, leaving
+        # only the single-product float32 floor (fully removing it needs 64-bit
+        # floats, which jax disables by default)
+        cycles = ops.mod(ops.expand_dims(freqs * dwell_s, 1) * ops.expand_dims(n, 0), 1.0)
+        phase = nops.complex_from(decay, 2.0 * math.pi * cycles)
         return t, ops.sum(ops.expand_dims(amps, 1) * ops.exp(phase), axis=0)
 
     #*******************#

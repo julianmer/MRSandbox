@@ -18,7 +18,7 @@
 #*************#
 import numpy as np
 
-from mrsandbox.scan.virtual_scan import VirtualScan
+from mrsandbox.scan.virtual_scan import VirtualScan, acquisition_seed
 
 
 #**************************************************************************************************#
@@ -72,6 +72,7 @@ class Multiplex:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
+        seed = acquisition_seed(seed)
         rng = np.random.default_rng(seed)
         truth = self.params.sample(rng)
         stack = []
@@ -144,6 +145,7 @@ class Multiplex:
         if isinstance(schedule, int):
             schedule = [self.conditions[0]] * schedule
         schedule = list(schedule)
+        seed = acquisition_seed(seed)
         rng = np.random.default_rng(seed)
         truth = self.params.sample(rng)
         knobs = truth.transients
@@ -163,8 +165,8 @@ class Multiplex:
         events = []
         for _ in range(n_events):
             at = int(rng.integers(1, n))
-            shift = float(rng.uniform(*(knobs.motion_shift_hz if hasattr(knobs.motion_shift_hz, "__iter__") else (knobs.motion_shift_hz,) * 2))) * float(rng.choice((-1.0, 1.0)))
-            phase = float(rng.uniform(-abs(knobs.motion_phase_deg), abs(knobs.motion_phase_deg))) if not hasattr(knobs.motion_phase_deg, "__iter__") else float(rng.uniform(*knobs.motion_phase_deg))
+            shift = float(knobs.motion_shift_hz) * float(rng.choice((-1.0, 1.0)))
+            phase = float(rng.uniform(-abs(knobs.motion_phase_deg), abs(knobs.motion_phase_deg)))
             events.append({"transient": at, "shift_hz": shift, "phase_deg": phase})
             drift_hz[at:] += shift
             phase_rad[at:] += np.radians(phase)

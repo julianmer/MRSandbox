@@ -39,7 +39,8 @@ class VarianFid:
     @staticmethod
     def load(path):
         """The complex FID of the first block."""
-        raw = open(path, "rb").read()
+        with open(path, "rb") as handle:
+            raw = handle.read()
         nblocks, ntraces, npoints, ebytes, _, _ = struct.unpack(">6i", raw[:24])
         status = struct.unpack(">h", raw[26:28])[0]
         if not (status & 0x8 and ebytes == 4):
@@ -51,7 +52,8 @@ class VarianFid:
     def parameters(path, names=("sw", "sfrq", "np")):
         """Selected procpar values (first value of each named parameter)."""
         values = {}
-        lines = open(path, errors="ignore").read().splitlines()
+        with open(path, errors="ignore") as handle:
+            lines = handle.read().splitlines()
         for i, line in enumerate(lines):
             token = line.split(" ", 1)[0]
             if token in names and i + 1 < len(lines):

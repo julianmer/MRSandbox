@@ -19,6 +19,9 @@
 #*************#
 import abc
 
+import numpy as np
+from keras import ops
+
 from mrsandbox.database import tissue
 from mrsandbox.params import Tissues
 from mrsandbox.spins import SpinSystem
@@ -82,6 +85,18 @@ class WaterSource(abc.ABC):
                           shifts_ppm=(tissue.MRSI_CHALLENGE["water_shift_ppm"],),
                           j_hz=((0.0,),), scale=2.0, gamma_mhz_t=gamma_mhz_t)
 
+    #******************#
+    #   engine lines   #
+    #******************#
+    def _engine_lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
+        """The water lines of this draw through the engine's compiled path: relaxation
+        and b1 stay inputs, so the first call compiles and every voxel replays."""
+        t1_s, t2_s = self.relaxation(fractions, truth)
+        fn = engine.compiled(sequence, self.system(gamma_mhz_t))
+        return fn(ops.convert_to_tensor(np.float32(t1_s)),
+                  ops.convert_to_tensor(np.float32(t2_s)),
+                  ops.convert_to_tensor(np.float32(truth.b1_scale)))
+
 
 #**************************************************************************************************#
 #                                          Class NoWater                                           #
@@ -114,9 +129,7 @@ class Unsuppressed(WaterSource):
     #   lines   #
     #***********#
     def lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
-        t1_s, t2_s = self.relaxation(fractions, truth)
-        system = self.system(gamma_mhz_t).with_relaxation(t1_s=t1_s, t2_s=t2_s)
-        freqs, amps = engine.lines(sequence, system, b1_scale=truth.b1_scale)
+        freqs, amps = self._engine_lines(engine, sequence, fractions, truth, gamma_mhz_t)
         return freqs, amps * complex(self.full_amplitude_mm(fractions))
 
 
@@ -138,8 +151,6 @@ class Suppressed(WaterSource):
     #   lines   #
     #***********#
     def lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
-        t1_s, t2_s = self.relaxation(fractions, truth)
-        system = self.system(gamma_mhz_t).with_relaxation(t1_s=t1_s, t2_s=t2_s)
-        freqs, amps = engine.lines(sequence, system, b1_scale=truth.b1_scale)
+        freqs, amps = self._engine_lines(engine, sequence, fractions, truth, gamma_mhz_t)
         residual = truth.water.residual_fraction * self.full_amplitude_mm(fractions)
         return freqs, amps * complex(residual)

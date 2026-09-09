@@ -342,8 +342,9 @@ class Delay(Event):
     When the system carries relaxation times, the phenomenological model applies after
     the coherent evolution: every coherence decays with exp(-t/T2) (zero-quantum terms
     included, the standard approximation), and the populations recover toward thermal
-    equilibrium with exp(-t/T1). Without relaxation times the delay stays purely
-    coherent, exactly as before.
+    equilibrium with exp(-t/T1). A missing partner is treated as infinite, so a
+    T1-only system still recovers and a T2-only system still dephases. Without any
+    relaxation times the delay stays purely coherent, exactly as before.
 
     Args:
         t_s: Duration in seconds - may be a traced tensor, so sequence timings stay
@@ -362,11 +363,11 @@ class Delay(Event):
     def apply(self, rho, ctx):
         u = Backend.propagator_from_eigh(ctx.lam, ctx.v, self.t_s)
         rho = self._sandwich(u, rho)
-        if ctx.t2_s is None:
+        if ctx.t1_s is None and ctx.t2_s is None:
             return rho
         t = ops.convert_to_tensor(self.t_s)
-        e2 = nops.cast(ops.exp(-t / ctx.t2_s), "complex64")
         one = nops.cast(ops.ones_like(t), "complex64")
+        e2 = nops.cast(ops.exp(-t / ctx.t2_s), "complex64") if ctx.t2_s is not None else one
         e1 = nops.cast(ops.exp(-t / ctx.t1_s), "complex64") if ctx.t1_s is not None else one
         off = (rho - rho * ctx.eye) * e2
         equilibrium = ctx.rho_eq * ctx.eye

@@ -75,6 +75,20 @@ class TestInSequenceRelaxation:
         echoed = total_amplitude(engine, Press(0.072, 0.072), scyllo)
         assert abs(echoed - reference) < 1e-4 * reference
 
+    #********************#
+    #   t1-only delays   #
+    #********************#
+    def test_t1_only_recovers_and_keeps_the_coherences(self, engine):
+        # a missing partner means an infinite time, never no relaxation at all: a
+        # T1-only system still recovers longitudinally while its echo does not decay
+        water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=1.0)
+        full = total_amplitude(engine, PulseAcquire(), water)
+        train = SuppressionTrain([90.0], delays_s=[0.3]) + PulseAcquire()
+        recovered = total_amplitude(engine, train, water) / full
+        assert abs(recovered - (1.0 - math.exp(-0.3 / 1.0))) < 1e-3
+        echoed = total_amplitude(engine, Press(0.072, 0.072), water) / full
+        assert abs(echoed - 1.0) < 1e-3
+
     #*********************#
     #   scan carries it   #
     #*********************#

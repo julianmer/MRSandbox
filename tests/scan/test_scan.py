@@ -66,6 +66,29 @@ class TestVirtualScan:
         np.testing.assert_array_equal(ops.convert_to_numpy(fid_a), ops.convert_to_numpy(fid_b))
         assert np.abs(ops.convert_to_numpy(fid_a) - ops.convert_to_numpy(fid_c)).max() > 0.0
 
+    #*******************#
+    #   isochromats     #
+    #*******************#
+    def test_isochromats_reach_the_engine(self, scan):
+        assert scan.engine.isochromats == 32  # the stated default
+        eight = VirtualScan(scan.brain, scan.scanner, scan.sequence, isochromats=8)
+        assert eight.engine.isochromats == 8
+
+    #***********************#
+    #   serializable seed   #
+    #***********************#
+    def test_acquire_records_a_regenerating_seed(self, scan):
+        # seed None must still yield a file that regenerates itself: a fresh seed is
+        # drawn and recorded; a Generator cannot be recorded and is refused
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        data = voxel.acquire(seed=None, npoints=256)
+        recorded = data.hdr_ext["SimulationGroundTruth"]["seed"]
+        assert isinstance(recorded, int)
+        again = voxel.acquire(seed=recorded, npoints=256)
+        np.testing.assert_array_equal(np.asarray(data[:]), np.asarray(again[:]))
+        with pytest.raises(TypeError):
+            voxel.acquire(seed=np.random.default_rng(3), npoints=256)
+
     #****************#
     #   provenance   #
     #****************#
@@ -87,11 +110,16 @@ class TestVirtualScan:
     #   physics through the stack   #
     #*******************************#
     def test_knocking_out_naa_removes_its_peak(self, scan):
+        # quiet the receiver-side nuisances: this gates composition, and a drawn
+        # frequency shift, phase, or spurious echo would move or pollute the read bin
+        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0),
+                       spurious=dict(amplitude=0.0))
+        clean = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=quiet)
         knockout = VirtualScan(
-            scan.brain, scan.scanner, scan.sequence, params=Params(conc=dict(NAA=0.0))
+            scan.brain, scan.scanner, scan.sequence, params=quiet | Params(conc=dict(NAA=0.0))
         )
         heights = []
-        for source in (scan, knockout):
+        for source in (clean, knockout):
             voxel = source.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
             ppm, spec = voxel.spectrum(seed=7, npoints=8192)
             ppm, spec = np.asarray(ppm), ops.convert_to_numpy(spec)

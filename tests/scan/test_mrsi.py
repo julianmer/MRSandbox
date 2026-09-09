@@ -370,6 +370,9 @@ class TestAcquisitionWeighting:
         kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=2.0)
         plain = scan.mrsi(**kw)
         weighted = scan.mrsi(**kw, weighting="hamming", averages=8)
+        for bad in ("four", 0, 2.5):  # non-numeric included: always the stated error
+            with pytest.raises(ValueError, match="positive integer"):
+                scan.mrsi(**kw, averages=bad)
         counts = weighted._averages_map()
         assert counts[4, 4] == 8  # the k-space centre gets the full count
         assert counts[0, 0] == 0  # the hamming corner rounds to unmeasured

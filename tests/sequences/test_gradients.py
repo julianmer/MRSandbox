@@ -66,6 +66,22 @@ class TestGradient:
             assert abs(crushed / full - abs(np.sinc(kl))) < 1e-3
 
     #**********************#
+    #   ensemble default   #
+    #**********************#
+    def test_engine_default_isochromats_reach_the_ensemble(self):
+        # the engine-level default must reach lines(): the single isochromat sits at
+        # the voxel centre and sees no gradient, so it keeps the signal the true
+        # ensemble dephases away (scans hand their isochromats argument to the engine)
+        water = WaterSource.system(gamma_mhz_t=42.5774785)
+        sequence = Sequence(Pulse(90.0), Gradient(1.5, 1.0))
+        full = np.abs(amps(Engine(3.0), Sequence(Pulse(90.0)), water)).sum()
+        for isochromats, expected in ((1, 1.0), (None, abs(np.sinc(1.5)))):
+            engine = Engine(3.0) if isochromats is None else Engine(3.0, isochromats=isochromats)
+            _, a = engine.lines(sequence, water)
+            ratio = np.abs(np.asarray(ops.convert_to_numpy(a))).sum() / full
+            assert abs(ratio - expected) < 1e-2
+
+    #**********************#
     #   pair equals mask   #
     #**********************#
     def test_balanced_pair_reproduces_the_coherence_mask(self, engine):

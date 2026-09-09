@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Brain, NoLipids, NoWater, Press, Scanner, Unsuppressed, VirtualScan
+from mrsandbox import Brain, NoLipids, NoWater, Params, Press, Scanner, Unsuppressed, VirtualScan
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
 pytestmark = pytest.mark.slow
@@ -43,8 +43,14 @@ def height_at(scan, position, ppm_at, seed=7):
     return float(np.abs(spec[np.argmin(np.abs(ppm - ppm_at))]))
 
 
-def make_scan(brain, **kwargs):
-    return VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019), **kwargs)
+def make_scan(brain, params=None, **kwargs):
+    # quiet the receiver-side nuisances: these gates compare component heights across
+    # scans, and a drawn frequency shift or spurious echo would move or pollute the
+    # read bins (the nuisances carry their own exact-form tests in tests/scan)
+    quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0))
+    params = quiet | (params if params is not None else Params())
+    return VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                       params=params, **kwargs)
 
 
 #**************************************************************************************************#
@@ -75,8 +81,6 @@ class TestWater:
         # NoWater must equal a residual fraction forced to zero exactly: what remains at
         # 4.65 ppm is the genuine metabolite floor (the beta-glucose anomeric proton sits
         # 3 Hz away), not water
-        from mrsandbox import Params
-
         none = height_at(make_scan(brain, water=NoWater()), INTERIOR, 4.65)
         zeroed = height_at(
             make_scan(brain, params=Params(water=dict(residual_fraction=0.0))), INTERIOR, 4.65

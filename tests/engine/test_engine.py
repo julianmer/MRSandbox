@@ -153,3 +153,28 @@ class TestB1Scale:
         full = self.water_amplitude(sim, acquire, 1.0)
         ratio = self.water_amplitude(sim, acquire, 0.8) / full
         assert abs(ratio - np.sin(np.radians(0.8 * 90.0))) < 1e-2
+
+
+#**************************************************************************************************#
+#                                     Class TestRenderPrecision                                    #
+#**************************************************************************************************#
+class TestRenderPrecision:
+
+    #********************#
+    #   long fid phase   #
+    #********************#
+    def test_long_fid_tail_phase_stays_folded(self, sim):
+        # the rendered oscillation must track exp(i 2 pi f t) against a float64 oracle
+        # on long FIDs: folding the cycles before the 2 pi scaling keeps the worst
+        # tail phase error at the single-product float32 floor (the unfolded form
+        # reaches 4e-3 rad at 8192 points and this gate catches a regression to it)
+        npoints, dwell = 8192, 1.0 / 4000.0
+        t64 = np.arange(npoints, dtype=np.float64) * dwell
+        for f0 in (-1907.3, 433.1, 1990.7):
+            f = np.asarray([f0], dtype=np.float32)
+            a = np.asarray([1.0], dtype=np.complex64)
+            _, fid = sim.render_fid(ops.convert_to_tensor(f), ops.convert_to_tensor(a),
+                                    npoints=npoints, dwell_s=dwell, lw_hz=0.0)
+            fid = np.asarray(ops.convert_to_numpy(fid), dtype=np.complex128)
+            oracle = np.exp(1j * 2.0 * np.pi * np.float64(f[0]) * t64)
+            assert np.abs(np.angle(fid / oracle)).max() < 3.4e-3

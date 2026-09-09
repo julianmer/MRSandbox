@@ -29,6 +29,20 @@ from mrsandbox.phantom.water import Suppressed
 from mrsandbox.spins import SpinSystem
 
 
+#**********************#
+#   acquisition seed   #
+#**********************#
+def acquisition_seed(seed):
+    """A serializable seed for an acquisition header: an int passes through, None draws
+    a fresh one, so the recorded value always regenerates the file. A Generator is
+    refused because its state cannot be recorded; use fid() for generator-driven draws."""
+    if isinstance(seed, np.random.Generator):
+        raise TypeError("acquire needs a serializable seed (an int, or None for a fresh "
+                        "one) so the file can regenerate itself; use fid() for "
+                        "generator-driven draws")
+    return int(np.random.SeedSequence().entropy) if seed is None else seed
+
+
 #**************************************************************************************************#
 #                                        Class VirtualScan                                         #
 #**************************************************************************************************#
@@ -49,25 +63,27 @@ class VirtualScan:
             channel.
         field: A phantom.FieldMap for B0 inhomogeneity; None gives a uniform field.
         mm: A phantom.MMSource; defaults to the LCModel-convention parameterization.
+        isochromats: Ensemble size for gradient-bearing sequences, handed to the
+            engine; raise it for dense multi-axis gradient schemes.
     """
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
-                 lipids=None, coils=None, field=None, mm=None):
+                 lipids=None, coils=None, field=None, mm=None, isochromats=32):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
         self.database = database if database is not None else Database()
-        self.engine = Engine(scanner)
+        self.engine = Engine(scanner, isochromats=isochromats)
         self.water = water if water is not None else Suppressed()
         self.lipids = lipids if lipids is not None else Skull()
         self.mm = mm if mm is not None else CoupledMM()
         self.coils = coils
         self.field = field
         self.params = self.default_params(self.database) | (params if params is not None else Params())
-        self._compiled = {}
+        self._lines = None
         self._b_value = None
 
     #*************************#
@@ -303,7 +319,7 @@ class Voxel:
         parts = []
         for name, concentration in truth.conc.items():
             t2 = truth.t2[name]
-            freqs, amps = self._metabolite_lines(name, truth.t1[name], t2, truth.b1_scale)
+            freqs, amps = self._metabolite_lines(name, truth)
             weight = ops.convert_to_tensor(
                 np.complex64(concentration * tissue * faded(truth.diffusion.adc[name])))
             parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))
@@ -441,6 +457,7 @@ class Voxel:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
+        seed = acquisition_seed(seed)
         rng = np.random.default_rng(seed)
         truth = self.scan.params.sample(rng)
         coils = self.scan.coils
@@ -508,26 +525,37 @@ class Voxel:
                 ops.convert_to_tensor(np.pad(lw, (0, pad), constant_values=1.0)),
                 ops.convert_to_tensor(np.pad(gauss, (0, pad))))
 
-    def _metabolite_lines(self, name, t1_s, t2_s, b1_scale):
-        """Lines of one metabolite, plain or through the compiled per-system path.
+    def _metabolite_lines(self, name, truth):
+        """Unweighted lines of one metabolite for one truth, plain or through the
+        compiled per-system path.
 
-        Compiled, the jitted (t1_s, t2_s, b1_scale) -> (freqs, amps) functions are
-        cached on the scan, so drawing fresh values per sample replays compiled graphs
-        instead of re-tracing the whole simulation.
+        The lines depend on the draw (relaxation, b1) but not on the voxel position,
+        so they are cached per truth on the scan: one truth serving many voxels (MRSI,
+        multiplex) simulates each metabolite once, and every voxel applies only its own
+        weights. Compiled, the jitted (t1_s, t2_s, b1_scale) -> (freqs, amps) functions
+        are cached on the engine, so drawing fresh values per sample replays compiled
+        graphs instead of re-tracing the whole simulation.
         """
+        cached = self.scan._lines
+        if cached is None or cached[0] is not truth:
+            cached = self.scan._lines = (truth, {})
+        key = (name, self.compiled)
+        if key in cached[1]:
+            return cached[1][key]
         systems = SpinSystem.from_database(name, database=self.scan.database)
-        if not self.compiled:
-            relaxed = tuple(s.with_relaxation(t1_s=t1_s, t2_s=t2_s) for s in systems)
-            return self.scan.engine.lines(self.scan.sequence, *relaxed, b1_scale=b1_scale)
-        if name not in self.scan._compiled:
-            self.scan._compiled[name] = tuple(
-                self.scan.engine.compiled(self.scan.sequence, s) for s in systems
-            )
-        t1 = ops.convert_to_tensor(np.float32(t1_s))
-        t2 = ops.convert_to_tensor(np.float32(t2_s))
-        b1 = ops.convert_to_tensor(np.float32(b1_scale))
-        lines = [fn(t1, t2, b1) for fn in self.scan._compiled[name]]
-        return ops.concatenate([f for f, _ in lines]), ops.concatenate([a for _, a in lines])
+        if self.compiled:
+            t1 = ops.convert_to_tensor(np.float32(truth.t1[name]))
+            t2 = ops.convert_to_tensor(np.float32(truth.t2[name]))
+            b1 = ops.convert_to_tensor(np.float32(truth.b1_scale))
+            parts = [self.scan.engine.compiled(self.scan.sequence, s)(t1, t2, b1) for s in systems]
+            lines = (ops.concatenate([f for f, _ in parts]),
+                     ops.concatenate([a for _, a in parts]))
+        else:
+            relaxed = tuple(s.with_relaxation(t1_s=truth.t1[name], t2_s=truth.t2[name])
+                            for s in systems)
+            lines = self.scan.engine.lines(self.scan.sequence, *relaxed, b1_scale=truth.b1_scale)
+        cached[1][key] = lines
+        return lines
 
     def _f0_mhz(self):
         return self.scan.database.gamma("1H") * self.scan.engine.b0_t

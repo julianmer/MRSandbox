@@ -45,6 +45,8 @@ class SpinSystem:
         gamma_mhz_t: Gyromagnetic ratio of the nucleus, MHz/T.
         t1_s, t2_s: Optional relaxation times; when set, Delay events relax the system
             (T2 decays every coherence, T1 recovers the populations toward equilibrium).
+            Excluded from equality and hash: relaxation never changes the operator
+            algebra, so relaxed variants share one cached operator stack.
     """
 
     name: str
@@ -53,8 +55,8 @@ class SpinSystem:
     j_hz: tuple
     scale: float
     gamma_mhz_t: float
-    t1_s: float = None
-    t2_s: float = None
+    t1_s: float = dataclasses.field(default=None, compare=False)
+    t2_s: float = dataclasses.field(default=None, compare=False)
 
     #*******************#
     #   from database   #
@@ -178,9 +180,10 @@ class Operators:
     #   build   #
     #***********#
     @classmethod
-    @functools.cache
+    @functools.lru_cache(maxsize=256)
     def build(cls, system):
-        """Build (and cache) the operator stack of a hashable SpinSystem."""
+        """Build (and cache) the operator stack of a hashable SpinSystem; relaxed
+        variants of one structural system hit the same entry."""
         pauli = {
             "x": np.array([[0.0, 0.5], [0.5, 0.0]], dtype=np.complex64),
             "y": np.array([[0.0, -0.5j], [0.5j, 0.0]], dtype=np.complex64),

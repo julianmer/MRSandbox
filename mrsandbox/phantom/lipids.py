@@ -18,6 +18,7 @@
 #*************#
 import abc
 
+import numpy as np
 from keras import ops
 
 from mrsandbox.database import lipids as lipid_table
@@ -96,10 +97,12 @@ class Skull(LipidSource):
         if weight == 0.0:
             return None
         amplitude = truth.lipids.amplitude_mm * weight
+        t1 = ops.convert_to_tensor(np.float32(truth.lipids.t1_s))
+        t2 = ops.convert_to_tensor(np.float32(truth.lipids.t2_s))
+        b1 = ops.convert_to_tensor(np.float32(truth.b1_scale))
         freqs_all, amps_all = [], []
         for system in self.systems(gamma_mhz_t):
-            system = system.with_relaxation(t1_s=truth.lipids.t1_s, t2_s=truth.lipids.t2_s)
-            freqs, amps = engine.lines(sequence, system, b1_scale=truth.b1_scale)
+            freqs, amps = engine.compiled(sequence, system)(t1, t2, b1)
             freqs_all.append(freqs)
             amps_all.append(amps * complex(amplitude))
         return ops.concatenate(freqs_all), ops.concatenate(amps_all)
