@@ -22,12 +22,11 @@ from mrsandbox.params import (Clipped, Fixed, Normal, Params, PerTissue, Priors,
                               Uniform, Value)
 from mrsandbox.phantom import (Brain, CoupledMM, FieldMap, MeasuredMM, NoLipids, NoMM,
                                NoWater, ParameterizedMM, Skull, Suppressed, Unsuppressed)
-from mrsandbox.scan import MRSI, Multiplex, VirtualScan, Voxel
-from mrsandbox.sequences import (CoherenceFilter, Delay, Gradient, Pulse, SelectivePulse,
-                                 Sequence, ShapedPulse)
-from mrsandbox.sequences.library import (Chess, HadamardEditing, Hercules, Hermes, MegaPress,
-                                         Press, PulseAcquire, SemiLaser, Steam,
-                                         SuppressionTrain, Vapor, Wet)
+from mrsandbox.scan import MRSI, Generator, Multiplex, VirtualScan, Voxel
+from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, HadamardEditing,
+                                 Hercules, Hermes, MegaPress, Press, Pulse, PulseAcquire,
+                                 SelectivePulse, SemiLaser, Sequence, ShapedPulse, Steam,
+                                 SuppressionTrain, Vapor, Wet)
 from mrsandbox.spins import Operators, SpinSystem
 
 __version__ = "0.0.1"

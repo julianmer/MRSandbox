@@ -191,7 +191,7 @@ class TestHadamard:
 #                                       Class TestMultiplex                                        #
 #**************************************************************************************************#
 class TestMultiplex:
-    pytestmark = pytest.mark.slow  # full-scan renders, skipped on the tensorflow CI leg
+    pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
 
     def test_conditions_stack_on_dim_edit(self, acquisition):
         assert acquisition.shape == (1, 1, 1, 2048, 2)
@@ -245,7 +245,7 @@ class TestMultiplex:
 #                                                                                                  #
 #**************************************************************************************************#
 class TestTransients:
-    pytestmark = pytest.mark.slow  # full-scan renders, skipped on the tensorflow CI leg
+    pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
 
     #*************#
     #   helpers   #

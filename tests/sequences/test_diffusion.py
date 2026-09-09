@@ -82,7 +82,7 @@ class TestAttenuation:
     #**********************#
     #   the rendered law   #
     #**********************#
-    @pytest.mark.slow  # a full-scan render, skipped on the tensorflow CI leg
+    @pytest.mark.render  # a full-scan render, skipped on the tensorflow CI leg
     def test_rendered_amplitudes_fade_by_exp_minus_b_adc(self):
         brain = Brain.load("icbm152")
         weighted = Sequence(Pulse(90.0), CoherenceFilter(+1), Gradient(30.0),

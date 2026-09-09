@@ -122,7 +122,7 @@ class TestCombination:
 #                                       Class TestAcquisition                                      #
 #**************************************************************************************************#
 class TestAcquisition:
-    pytestmark = pytest.mark.slow  # full-scan renders, skipped on the tensorflow CI leg
+    pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
 
     #****************#
     #   dimensions   #

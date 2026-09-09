@@ -21,7 +21,7 @@ import numbers
 
 import numpy as np
 
-from mrsandbox.scan.virtual_scan import acquisition_seed
+from mrsandbox.scan.voxel import acquisition_seed, receiver_noise
 
 
 #**************************************************************************************************#
@@ -302,9 +302,7 @@ class MRSI:
             if self.averages is None:
                 for index in np.ndindex(nx, ny, nz):
                     if coils is None:
-                        data[index] += truth.noise.sigma * (
-                            rng.standard_normal(npoints) + 1j * rng.standard_normal(npoints)
-                        ).astype(np.complex64)
+                        data[index] += receiver_noise(rng, truth.noise.sigma, npoints)
                     else:
                         data[index] += np.transpose(
                             coils.noise(rng, truth.noise.sigma, npoints))

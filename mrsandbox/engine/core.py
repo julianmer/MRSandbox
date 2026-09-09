@@ -119,6 +119,7 @@ class Engine:
         self.receiver_phase_deg = receiver_phase_deg
         self.isochromats = isochromats
         self._compiled = {}
+        self._renderers = {}
 
     #*************#
     #   context   #
@@ -305,23 +306,40 @@ class Engine:
         compositions render in a single call. `lw_hz` is the Lorentzian FWHM; `gauss_hz`
         an additional Gaussian FWHM (g = (pi gauss_hz)^2 / (4 ln 2)), together a Voigt
         line, the shape macromolecule parameterizations are stated in.
+
+        The render replays a jitted graph cached per (npoints, dwell); the callers'
+        stable line-bucket shapes keep retracing rare, so training draws render at
+        replay speed.
         """
-        n = ops.arange(0, npoints, dtype=ops.dtype(freqs))
-        t = n * dwell_s
-        r = math.pi * ops.convert_to_tensor(lw_hz, dtype=ops.dtype(freqs)) * ops.ones_like(freqs)
-        g = (math.pi * ops.convert_to_tensor(gauss_hz, dtype=ops.dtype(freqs))) ** 2 / (
-            4.0 * math.log(2.0)
-        ) * ops.ones_like(freqs)
-        decay = (-ops.expand_dims(r, 1) * ops.expand_dims(t, 0)
-                 - ops.expand_dims(g, 1) * ops.expand_dims(t * t, 0))
-        # the oscillation f t runs to thousands of cycles on long FIDs, where float32
-        # representation alone costs ~1e-3 rad; folding (f dwell) n modulo one cycle
-        # before the 2 pi scaling keeps the final phase at wrapped magnitude, leaving
-        # only the single-product float32 floor (fully removing it needs 64-bit
-        # floats, which jax disables by default)
-        cycles = ops.mod(ops.expand_dims(freqs * dwell_s, 1) * ops.expand_dims(n, 0), 1.0)
-        phase = nops.complex_from(decay, 2.0 * math.pi * cycles)
-        return t, ops.sum(ops.expand_dims(amps, 1) * ops.exp(phase), axis=0)
+        key = (npoints, float(dwell_s))
+        if key not in self._renderers:
+            self._renderers[key] = self._fid_renderer(npoints, dwell_s)
+        dtype = ops.dtype(freqs)
+        lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * ops.ones_like(freqs)
+        gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
+        return self._renderers[key](freqs, amps, lw, gauss)
+
+    def _fid_renderer(self, npoints, dwell_s):
+        """A jitted (freqs, amps, lw_hz, gauss_hz) -> (t, fid) for one time grid."""
+        from nifti_mrs_plus.backend import jit
+
+        def fn(freqs, amps, lw_hz, gauss_hz):
+            n = ops.arange(0, npoints, dtype=ops.dtype(freqs))
+            t = n * dwell_s
+            r = math.pi * lw_hz
+            g = (math.pi * gauss_hz) ** 2 / (4.0 * math.log(2.0))
+            decay = (-ops.expand_dims(r, 1) * ops.expand_dims(t, 0)
+                     - ops.expand_dims(g, 1) * ops.expand_dims(t * t, 0))
+            # the oscillation f t runs to thousands of cycles on long FIDs, where
+            # float32 representation alone costs ~1e-3 rad; folding (f dwell) n modulo
+            # one cycle before the 2 pi scaling keeps the final phase at wrapped
+            # magnitude, leaving only the single-product float32 floor (fully removing
+            # it needs 64-bit floats, which jax disables by default)
+            cycles = ops.mod(ops.expand_dims(freqs * dwell_s, 1) * ops.expand_dims(n, 0), 1.0)
+            phase = nops.complex_from(decay, 2.0 * math.pi * cycles)
+            return t, ops.sum(ops.expand_dims(amps, 1) * ops.exp(phase), axis=0)
+
+        return jit(fn)
 
     #*******************#
     #   ppm reference   #

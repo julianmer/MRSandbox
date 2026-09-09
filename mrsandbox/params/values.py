@@ -176,6 +176,18 @@ class Tissues(typing.NamedTuple):
     wm: float
     csf: float = 0.0
 
+    #**************#
+    #   weighing   #
+    #**************#
+    def weighted(self, fractions):
+        """This per-tissue value averaged by a voxel's composition (another Tissues of
+        gm, wm, csf fractions, normalized); an empty voxel falls back to the gm value."""
+        total = fractions.gm + fractions.wm + fractions.csf
+        if total <= 0.0:
+            return self.gm
+        return (fractions.gm * self.gm + fractions.wm * self.wm
+                + fractions.csf * self.csf) / total
+
 
 #**************************************************************************************************#
 #                                         Class PerTissue                                          #

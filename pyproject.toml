@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mrsandbox"
-version = "0.0.1"
+dynamic = ["version"]
 description = "A simulation sandbox for magnetic resonance spectroscopy."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,13 +23,32 @@ dependencies = [
 jax = ["jax"]
 torch = ["torch"]
 tensorflow = ["tensorflow"]
-dev = ["pytest", "pypulseq"]
+dev = ["pytest", "pypulseq", "ruff", "mrsandbox[jax]"]
 
 [tool.setuptools.packages.find]
 include = ["mrsandbox*"]
 
+[tool.setuptools.dynamic]
+version = { attr = "mrsandbox.__version__" }
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# pyflakes plus the pycodestyle errors; the house style keeps dict(...) calls,
+# unsorted grouped imports, and the banner comment layout out of lint's reach,
+# and allows short lambdas in helpers (E731) and l as the partition index (E741)
+select = ["E4", "E7", "E9", "F", "W"]
+ignore = ["E731", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# package inits are banner plus re-export imports only
+"**/__init__.py" = ["F401"]
+# pypulseq is gated by importorskip before the module imports
+"tests/io/test_pulseq.py" = ["E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "slow: integration tests that render full scans; deselect with -m 'not slow'",
+    "render: integration tests that render full scans; deselect with -m 'not render'",
 ]

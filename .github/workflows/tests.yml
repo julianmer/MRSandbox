@@ -5,12 +5,31 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Ruff
+        run: |
+          python -m pip install --upgrade pip ruff
+          ruff check mrsandbox tests scripts
+
   test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         backend: [jax, tensorflow, torch]
+        python: ["3.11"]
+        include:
+          # newer interpreters run on the jax leg only (the fastest backend)
+          - backend: jax
+            python: "3.12"
+          - backend: jax
+            python: "3.13"
     env:
       KERAS_BACKEND: ${{ matrix.backend }}
     steps:
@@ -19,7 +38,13 @@ jobs:
           submodules: recursive
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
+      # per-leg keys avoid parallel jobs racing to save one shared cache entry
+      - name: Cache simulation resources
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mrsandbox
+          key: mrsandbox-resources-${{ matrix.backend }}-${{ matrix.python }}-v1
       - name: Install
         run: |
           python -m pip install --upgrade pip
@@ -28,8 +53,22 @@ jobs:
           if [ "${{ matrix.backend }}" = "jax" ]; then pip install jax; fi
           if [ "${{ matrix.backend }}" = "tensorflow" ]; then pip install tensorflow-cpu; fi
           if [ "${{ matrix.backend }}" = "torch" ]; then pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
+      # the resource-gated tests (MeasuredMM, BigBrain fields) would silently skip
+      # without their data; one leg fetches it so they actually run in CI. The
+      # 6.4 GB coil volumes stay out: MappedCoilArray remains a local-only gate.
+      - name: Prime gated resources
+        if: matrix.backend == 'jax' && matrix.python == '3.11'
+        run: |
+          python - << 'EOF'
+          from mrsandbox.resources import Resources
+          for name in ("mm_consensus/3t_human_steam_fid",
+                       "mm_consensus/3t_human_steam_procpar",
+                       "bigbrain_mr/labels_800um",
+                       "bigbrain_mr/background_field_400um"):
+              Resources.path(name)
+          EOF
       - name: Run tests
         # tensorflow runs eagerly and pays minutes per integration scan, so its leg
-        # skips the slow-marked tests; jax and torch always run the full suite
+        # skips the render-marked tests; jax and torch always run the full suite
         run: |
-          if [ "${{ matrix.backend }}" = "tensorflow" ]; then pytest -q -m "not slow"; else pytest -q; fi
+          if [ "${{ matrix.backend }}" = "tensorflow" ]; then pytest -q -m "not render"; else pytest -q; fi

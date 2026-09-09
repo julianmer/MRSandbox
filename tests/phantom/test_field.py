@@ -88,7 +88,7 @@ class TestKernel:
 #                                         Class TestScan                                           #
 #**************************************************************************************************#
 class TestScan:
-    pytestmark = pytest.mark.slow  # full-scan renders, skipped on the tensorflow CI leg
+    pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
 
     #*******************#
     #   broader lines   #

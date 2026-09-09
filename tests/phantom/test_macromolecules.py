@@ -22,8 +22,8 @@ from mrsandbox import Brain, MeasuredMM, NoMM, ParameterizedMM, Params, Press, S
 from mrsandbox.resources import Resources
 from mrsandbox.database import macromolecules
 
-# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
-pytestmark = pytest.mark.slow
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
+pytestmark = pytest.mark.render
 
 KW = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 
@@ -281,3 +281,17 @@ class TestCoupled:
         _, high = self.background(Press(te1_s=0.015, te2_s=0.015), conc=dict(Cr=8.0, PCr=4.0))
         window = np.abs(ppm - 0.91) < 0.1
         assert abs(high[window].max() / low[window].max() - 2.0) < 0.05
+
+    #***********************#
+    #   couplings by table  #
+    #***********************#
+    def test_couplings_come_from_the_consensus_table(self):
+        # the simulated J values are read from the cited CONSENSUS_COUPLINGS rows by
+        # nearest peak position, so the table and the physics cannot drift apart
+        from mrsandbox.phantom.macromolecules import CoupledMM
+
+        assert CoupledMM._coupling_j_hz(0.91, 2.04) == 7.7  # leu/ile/val chain
+        assert CoupledMM._coupling_j_hz(1.21, 4.24) == 6.6  # threonine
+        assert CoupledMM._coupling_j_hz(1.67, 2.99) == 7.7  # the GABA-relevant chain
+        with pytest.raises(ValueError, match="no consensus coupling"):
+            CoupledMM._coupling_j_hz(6.0, 7.0)

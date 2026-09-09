@@ -22,8 +22,8 @@ from keras import ops
 
 from mrsandbox import Brain, Fixed, Normal, Params, Press, Scanner, Uniform, VirtualScan
 
-# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
-pytestmark = pytest.mark.slow
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
+pytestmark = pytest.mark.render
 
 
 #*****************#
@@ -110,7 +110,7 @@ class TestVirtualScan:
     #   physics through the stack   #
     #*******************************#
     def test_knocking_out_naa_removes_its_peak(self, scan):
-        # quiet the receiver-side nuisances: this gates composition, and a drawn
+        # quiet the receiver-side imperfections: this gates composition, and a drawn
         # frequency shift, phase, or spurious echo would move or pollute the read bin
         quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0),
                        spurious=dict(amplitude=0.0))

@@ -18,7 +18,8 @@
 #*************#
 import numpy as np
 
-from mrsandbox.scan.virtual_scan import VirtualScan, acquisition_seed
+from mrsandbox.scan.virtual_scan import VirtualScan
+from mrsandbox.scan.voxel import acquisition_seed, receiver_noise
 
 
 #**************************************************************************************************#
@@ -80,9 +81,7 @@ class Multiplex:
             voxel = self.scans[name].voxel(position_mm, size_mm)
             _, fid = voxel._clean_fid(truth, npoints, dwell_s)
             if truth.noise.sigma > 0.0:
-                fid = fid + truth.noise.sigma * (
-                    rng.standard_normal(npoints) + 1j * rng.standard_normal(npoints)
-                ).astype(np.complex64)
+                fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
             stack.append(fid)
         data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(self.conditions))
 
@@ -179,9 +178,7 @@ class Multiplex:
             )
             fid = clean[name] * modulation
             if truth.noise.sigma > 0.0:
-                fid = fid + truth.noise.sigma * (
-                    rng.standard_normal(npoints) + 1j * rng.standard_normal(npoints)
-                ).astype(np.complex64)
+                fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
             data[0, 0, 0, :, k] = fid
 
         voxel = self.scans[schedule[0]].voxel(position_mm, size_mm)

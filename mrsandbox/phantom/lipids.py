@@ -39,8 +39,11 @@ class LipidSource(abc.ABC):
     #   lines   #
     #***********#
     @abc.abstractmethod
-    def lines(self, engine, sequence, voxel, truth, gamma_mhz_t):
-        """Return (freqs, amps) line tensors, or None when this source is silent."""
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        """Return (freqs, amps) line tensors, or None when this source is silent.
+
+        The shared source signature: the placed scan.Voxel (fractions and geometry),
+        the realized truth, and the spectrometer frequency in MHz."""
 
     #*******************#
     #   lipid systems   #
@@ -70,7 +73,7 @@ class NoLipids(LipidSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, voxel, truth, gamma_mhz_t):
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
         return None
 
 
@@ -92,7 +95,7 @@ class Skull(LipidSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, voxel, truth, gamma_mhz_t):
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
         weight = voxel.scan.brain.lipid_weight(voxel.position_mm, voxel.size_mm)
         if weight == 0.0:
             return None
@@ -101,7 +104,7 @@ class Skull(LipidSource):
         t2 = ops.convert_to_tensor(np.float32(truth.lipids.t2_s))
         b1 = ops.convert_to_tensor(np.float32(truth.b1_scale))
         freqs_all, amps_all = [], []
-        for system in self.systems(gamma_mhz_t):
+        for system in self.systems(f0_mhz / engine.b0_t):
             freqs, amps = engine.compiled(sequence, system)(t1, t2, b1)
             freqs_all.append(freqs)
             amps_all.append(amps * complex(amplitude))

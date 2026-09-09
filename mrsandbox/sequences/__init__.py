@@ -16,3 +16,6 @@
 #*************#
 from mrsandbox.sequences.events import (CoherenceFilter, Delay, Event, Gradient, Pulse,
                                         SelectivePulse, Sequence, ShapedPulse)
+from mrsandbox.sequences.library import (Chess, HadamardEditing, Hercules, Hermes, MegaPress,
+                                         Press, PulseAcquire, SemiLaser, Steam,
+                                         SuppressionTrain, Vapor, Wet)

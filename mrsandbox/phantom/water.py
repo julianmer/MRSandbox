@@ -41,8 +41,11 @@ class WaterSource(abc.ABC):
     #   lines   #
     #***********#
     @abc.abstractmethod
-    def lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
-        """Return (freqs, amps) line tensors, or None when this source is silent."""
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        """Return (freqs, amps) line tensors, or None when this source is silent.
+
+        The shared source signature: the placed scan.Voxel (fractions and geometry),
+        the realized truth, and the spectrometer frequency in MHz."""
 
     #******************#
     #   relaxation     #
@@ -53,13 +56,7 @@ class WaterSource(abc.ABC):
         composition; scalar overrides pass through unchanged."""
 
         def weigh(value):
-            if not isinstance(value, Tissues):
-                return value
-            total = fractions.gm + fractions.wm + fractions.csf
-            if total <= 0.0:
-                return value.gm
-            return (fractions.gm * value.gm + fractions.wm * value.wm
-                    + fractions.csf * value.csf) / total
+            return value.weighted(fractions) if isinstance(value, Tissues) else value
 
         return weigh(truth.water.t1_s), weigh(truth.water.t2_s)
 
@@ -88,11 +85,11 @@ class WaterSource(abc.ABC):
     #******************#
     #   engine lines   #
     #******************#
-    def _engine_lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
+    def _engine_lines(self, engine, sequence, voxel, truth, f0_mhz):
         """The water lines of this draw through the engine's compiled path: relaxation
         and b1 stay inputs, so the first call compiles and every voxel replays."""
-        t1_s, t2_s = self.relaxation(fractions, truth)
-        fn = engine.compiled(sequence, self.system(gamma_mhz_t))
+        t1_s, t2_s = self.relaxation(voxel.fractions, truth)
+        fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t))
         return fn(ops.convert_to_tensor(np.float32(t1_s)),
                   ops.convert_to_tensor(np.float32(t2_s)),
                   ops.convert_to_tensor(np.float32(truth.b1_scale)))
@@ -111,7 +108,7 @@ class NoWater(WaterSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
         return None
 
 
@@ -128,9 +125,9 @@ class Unsuppressed(WaterSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
-        freqs, amps = self._engine_lines(engine, sequence, fractions, truth, gamma_mhz_t)
-        return freqs, amps * complex(self.full_amplitude_mm(fractions))
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
+        return freqs, amps * complex(self.full_amplitude_mm(voxel.fractions))
 
 
 #**************************************************************************************************#
@@ -150,7 +147,7 @@ class Suppressed(WaterSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, fractions, truth, gamma_mhz_t):
-        freqs, amps = self._engine_lines(engine, sequence, fractions, truth, gamma_mhz_t)
-        residual = truth.water.residual_fraction * self.full_amplitude_mm(fractions)
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
+        residual = truth.water.residual_fraction * self.full_amplitude_mm(voxel.fractions)
         return freqs, amps * complex(residual)

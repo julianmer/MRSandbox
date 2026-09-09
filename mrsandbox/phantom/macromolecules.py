@@ -71,16 +71,18 @@ class MMSource(abc.ABC):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, fractions, truth, f0_mhz):
-        """Return (freqs_hz, amps, gauss_hz), or None when line-silent. Sources built
-        from static parameterizations may ignore the engine and sequence; sources built
-        from spin systems run them through both, so TE behaviour and editing emerge."""
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        """Return (freqs_hz, amps, gauss_hz), or None when line-silent. The shared
+        source signature: the placed scan.Voxel (fractions and geometry), the realized
+        truth, and the spectrometer frequency in MHz. Sources built from static
+        parameterizations may ignore the engine and sequence; sources built from spin
+        systems run them through both, so TE behaviour and editing emerge."""
         return None
 
     #*********#
     #   fid   #
     #*********#
-    def fid(self, fractions, truth, f0_mhz, t_s, sequence=None):
+    def fid(self, voxel, truth, f0_mhz, t_s, sequence=None):
         """Return the complex time domain contribution on the uniform grid `t_s`, or
         None when silent. `sequence` is the scan's sequence, so a measured source can
         carry echo time behaviour."""
@@ -128,8 +130,8 @@ class ParameterizedMM(MMSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, fractions, truth, f0_mhz):
-        tissue = fractions.gm + fractions.wm
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        tissue = voxel.fractions.gm + voxel.fractions.wm
         if tissue <= 0.0:
             return None
         freqs, amps, gauss = [], [], []
@@ -185,8 +187,8 @@ class MeasuredMM(MMSource):
     #*********#
     #   fid   #
     #*********#
-    def fid(self, fractions, truth, f0_mhz, t_s, sequence=None):
-        tissue = fractions.gm + fractions.wm
+    def fid(self, voxel, truth, f0_mhz, t_s, sequence=None):
+        tissue = voxel.fractions.gm + voxel.fractions.wm
         if tissue <= 0.0:
             return None
         measured, sw_hz, sfrq_mhz = self._load()
@@ -264,12 +266,13 @@ class CoupledMM(MMSource):
     so TE behaviour is component-faithful.
     """
 
-    # (name, groups as (ppm, protons), couplings as (a, b, j_hz), gauss width ppm)
+    # (name, groups as (ppm, protons), coupled group pairs, gauss width ppm); the J of
+    # each pair is read from the cited CONSENSUS_COUPLINGS table by peak position
     SYSTEMS = (
-        ("mm091", ((0.91, 3), (2.04, 1)), ((0, 1, 7.7),), 0.14),
-        ("mm121", ((1.21, 3), (4.24, 1)), ((0, 1, 6.6),), 0.15),
-        ("mm143", ((1.43, 3), (4.32, 1)), ((0, 1, 7.7),), 0.17),
-        ("mm167", ((1.67, 2), (2.99, 2)), ((0, 1, 7.7),), 0.15),
+        ("mm091", ((0.91, 3), (2.04, 1)), ((0, 1),), 0.14),
+        ("mm121", ((1.21, 3), (4.24, 1)), ((0, 1),), 0.15),
+        ("mm143", ((1.43, 3), (4.32, 1)), ((0, 1),), 0.17),
+        ("mm167", ((1.67, 2), (2.99, 2)), ((0, 1),), 0.15),
         ("mm226", ((2.26, 1),), (), 0.20),
         ("mm321", ((3.21, 1),), (), 0.15),
         ("mm377", ((3.77, 1),), (), 0.15),
@@ -288,7 +291,8 @@ class CoupledMM(MMSource):
     #***********#
     #   lines   #
     #***********#
-    def lines(self, engine, sequence, fractions, truth, f0_mhz):
+    def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        fractions = voxel.fractions
         tissue = fractions.gm + fractions.wm
         if tissue <= 0.0:
             return None
@@ -311,6 +315,20 @@ class CoupledMM(MMSource):
                 np.concatenate(gauss))
 
     #****************#
+    #   coupling j   #
+    #****************#
+    @staticmethod
+    def _coupling_j_hz(ppm_a, ppm_b):
+        """The consensus Table 1 J of the chain whose partner positions lie nearest
+        (papers place the peaks 0.01 to 0.04 ppm apart), read from the cited
+        CONSENSUS_COUPLINGS table so it and the simulated couplings cannot drift."""
+        a, b, j_hz = min(macromolecules.CONSENSUS_COUPLINGS,
+                         key=lambda row: abs(row[0] - ppm_a) + abs(row[1] - ppm_b))
+        if abs(a - ppm_a) + abs(b - ppm_b) > 0.1:
+            raise ValueError(f"no consensus coupling near ({ppm_a}, {ppm_b}) ppm")
+        return j_hz
+
+    #****************#
     #   unit lines   #
     #****************#
     def _unit_lines(self, engine, sequence, truth, f0_mhz, name, groups, couplings):
@@ -328,7 +346,8 @@ class CoupledMM(MMSource):
         spins = len(shifts)
         j = [[0.0] * spins for _ in range(spins)]
         offsets = [sum(protons for _, protons in groups[:k]) for k in range(len(groups))]
-        for a, b, j_hz in couplings:
+        for a, b in couplings:
+            j_hz = self._coupling_j_hz(groups[a][0], groups[b][0])
             for i in range(offsets[a], offsets[a] + groups[a][1]):
                 for k in range(offsets[b], offsets[b] + groups[b][1]):
                     j[i][k] = j[k][i] = j_hz

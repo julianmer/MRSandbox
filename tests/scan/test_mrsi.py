@@ -20,8 +20,8 @@ import pytest
 
 from mrsandbox import Brain, CoilArray, Params, Press, Scanner, VirtualScan
 
-# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
-pytestmark = pytest.mark.slow
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
+pytestmark = pytest.mark.render
 
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))

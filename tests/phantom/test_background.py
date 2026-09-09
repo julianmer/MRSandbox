@@ -1,15 +1,15 @@
 ####################################################################################################
-#                                         test_nuisance.py                                         #
+#                                        test_background.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
 #                                                                                                  #
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Nuisance gate: water scales physically (unsuppressed dwarfs the metabolites, the        #
-#          suppressed residual matches the sampled residual fraction, NoWater is silent) and       #
-#          lipids follow the geometry (zero weight deep in the brain, signal at the skull,         #
-#          NoLipids kills it).                                                                     #
+# Purpose: Background-signal gate (residual water and lipids, the Kreis 2021 terminology): water   #
+#          scales physically (unsuppressed dwarfs the metabolites, the suppressed residual         #
+#          matches the sampled residual fraction, NoWater is silent) and lipids follow the         #
+#          geometry (zero weight deep in the brain, signal at the skull, NoLipids kills it).       #
 #                                                                                                  #
 ####################################################################################################
 
@@ -22,8 +22,8 @@ from keras import ops
 
 from mrsandbox import Brain, NoLipids, NoWater, Params, Press, Scanner, Unsuppressed, VirtualScan
 
-# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
-pytestmark = pytest.mark.slow
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
+pytestmark = pytest.mark.render
 
 INTERIOR = (10.0, -20.0, 5.0)
 
@@ -44,9 +44,9 @@ def height_at(scan, position, ppm_at, seed=7):
 
 
 def make_scan(brain, params=None, **kwargs):
-    # quiet the receiver-side nuisances: these gates compare component heights across
-    # scans, and a drawn frequency shift or spurious echo would move or pollute the
-    # read bins (the nuisances carry their own exact-form tests in tests/scan)
+    # quiet the receiver-side imperfections: these gates compare component heights
+    # across scans, and a drawn frequency shift or spurious echo would move or pollute
+    # the read bins (the imperfections carry their own exact-form tests in tests/scan)
     quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0))
     params = quiet | (params if params is not None else Params())
     return VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),

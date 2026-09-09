@@ -20,8 +20,8 @@ import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
 
-# full-scan integration renders: the tensorflow CI leg skips these (-m 'not slow')
-pytestmark = pytest.mark.slow
+# full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
+pytestmark = pytest.mark.render
 
 VOXEL = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 
@@ -51,6 +51,22 @@ class TestGenerator:
         column = gen.metabolites.index("NAA")
         assert all(7.5 <= value < 12.0 for value in y[:, column])
         assert len(gen.truths) == 4
+
+    #*******************#
+    #   random access   #
+    #*******************#
+    def test_batches_are_random_access_and_a_pydataset(self, scan):
+        # a keras PyDataset feeds model.fit directly; batch index keys the draws, so
+        # any batch reproduces on its own regardless of iteration order
+        import keras
+
+        gen = scan.generator(**VOXEL, batch_size=2, seed=7, npoints=256)
+        assert isinstance(gen, keras.utils.PyDataset)
+        assert gen.num_batches is None  # infinite: set steps_per_epoch when fitting
+        first, second = next(gen), next(gen)
+        np.testing.assert_array_equal(gen[1][0], second[0])
+        np.testing.assert_array_equal(gen[0][0], first[0])
+        assert not np.array_equal(first[0], second[0])
 
     #*************#
     #   seeding   #
