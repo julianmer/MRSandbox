@@ -235,3 +235,76 @@ class TestMultiAxisImport:
         under_rf.write(str(bad))
         with pytest.raises(ValueError, match="arbitrary gradient under an RF pulse"):
             read_seq(bad)
+
+
+#**************************************************************************************************#
+#                                     Class TestMultiReadout                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# Files with several ADC blocks: each readout imports on its own, earlier ADC blocks elapse.       #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestMultiReadout:
+
+    #*******************#
+    #   two readouts    #
+    #*******************#
+    def two_readout_file(self, system, tmp_path):
+        # 90 - tau - ADC(256) - 180 - tau - ADC(128): an FID readout, then a spin echo
+        d90, d180, tau = 1e-4, 2e-4, 0.020
+        seq = pypulseq.Sequence(system=system)
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=d90, system=system))
+        seq.add_block(pypulseq.make_delay(tau))
+        seq.add_block(pypulseq.make_adc(num_samples=256, dwell=2.5e-4, system=system))
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi, duration=d180,
+                                                phase_offset=np.pi / 2, system=system))
+        seq.add_block(pypulseq.make_delay(tau))
+        seq.add_block(pypulseq.make_adc(num_samples=128, dwell=2.5e-4, system=system))
+        path = tmp_path / "two_readouts.seq"
+        seq.write(str(path))
+        return path, seq
+
+    def test_every_readout_imports_with_its_own_declaration(self, system, tmp_path):
+        from mrsandbox.io import read_seq_all
+
+        path, _ = self.two_readout_file(system, tmp_path)
+        first, second = read_seq_all(path)
+        assert first.npoints == 256 and second.npoints == 128
+        assert read_seq(path).npoints == 256  # the default stays readout 0
+        assert read_seq(path, readout=1).npoints == 128
+        with pytest.raises(ValueError, match="readout 2 does not exist"):
+            read_seq(path, readout=2)
+
+    def test_later_readout_carries_the_elapsed_earlier_block(self, engine, system, tmp_path):
+        path, seq = self.two_readout_file(system, tmp_path)
+        durations = [float(seq.get_block(k).block_duration) for k in sorted(seq.block_events)]
+        # pulse centre to pulse centre across the first readout's full block, and the
+        # 180 centre to the second readout; no crushers, so no coherence filters
+        half1 = durations[0] / 2.0 + durations[1] + durations[2] + durations[3] / 2.0
+        half2 = durations[3] / 2.0 + durations[4]
+        native = Sequence(Pulse(90.0), Delay(half1), Pulse(180.0, phase_deg=90.0), Delay(half2))
+        lac = SpinSystem.from_database("Lac")
+        echo = read_seq(path, readout=1)
+        corr = correlation(spectrum(engine, echo, lac), spectrum(engine, native, lac))
+        assert corr > 0.999
+
+    #**********************#
+    #   elapsed gradients  #
+    #**********************#
+    def test_gradients_in_an_adc_block_kick_only_later_readouts(self, system, tmp_path):
+        # a spoiler sharing the first ADC block: idealized ungradiented readout, so it
+        # must not touch readout 0, and must kick before readout 1
+        seq = pypulseq.Sequence(system=system)
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=1e-4, system=system))
+        spoiler = pypulseq.make_trapezoid(channel="z", area=1000.0, duration=8e-3, system=system)
+        seq.add_block(pypulseq.make_adc(num_samples=32, dwell=2.5e-4, system=system), spoiler)
+        seq.add_block(pypulseq.make_adc(num_samples=32, dwell=2.5e-4, system=system))
+        path = tmp_path / "spoiled_readout.seq"
+        seq.write(str(path))
+
+        from mrsandbox.io import read_seq_all
+
+        first, second = read_seq_all(path)
+        assert not any(isinstance(e, Gradient) for e in first.events)
+        kicks = [e for e in second.events if isinstance(e, Gradient)]
+        assert len(kicks) == 1 and kicks[0].axis == "z"

@@ -95,26 +95,45 @@ def _shaped_pulse(rf, center_ppm, steps, traps, extent_mm):
 #****************#
 #   seq import   #
 #****************#
-def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
+def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0, readout=0):
     """Read a Pulseq .seq file into a PulseqSequence of event primitives.
 
     Blocks translate one to one: RF events become ShapedPulses (with an optional flat
     trapezoid under the pulse as the slice gradient), gradient-only blocks become a
     physical Gradient kick of the dominant axis's area between two half-duration
-    delays, empty blocks become delays, and the first ADC block ends the sequence and
-    declares the readout. The .seq frame puts the carrier at the scanner reference,
-    which `center_ppm` places on the ppm axis (water at 4.65).
+    delays, empty blocks become delays, and each ADC block declares one readout.
+    `readout` selects which ADC marks the returned sequence (0-based); every earlier
+    ADC block elapses as free evolution of its full duration, with its gradients
+    kicking. read_seq_all returns every readout at once. The .seq frame puts the
+    carrier at the scanner reference, which `center_ppm` places on the ppm axis
+    (water at 4.65).
 
-    Stated v1 idealizations: every gradient axis's area becomes its own kick
+    Stated idealizations: every gradient axis's area becomes its own kick
     (trapezoids and arbitrary waveforms alike; under an RF pulse only flat trapezoids
     play, as the slice gradient); ramp moments outside an RF pulse are not applied;
-    blocks after the first ADC are ignored (one readout per file).
+    the readout itself is ungradiented, so events sharing an ADC block act only on
+    the readouts after it.
 
     Args:
         path: The .seq file.
         center_ppm: Position of the scanner carrier on the ppm axis.
         steps: Uniform resampling steps per RF pulse.
         extent_mm: Isochromat span handed to gradient-bearing events.
+        readout: Index of the ADC block whose readout the sequence carries.
+    """
+    sequences = read_seq_all(path, center_ppm=center_ppm, steps=steps, extent_mm=extent_mm)
+    if not 0 <= readout < len(sequences):
+        raise ValueError(f"readout {readout} does not exist: the file holds "
+                         f"{len(sequences)} readout(s)")
+    return sequences[readout]
+
+
+def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
+    """Every readout of a .seq file as a tuple of PulseqSequence, one per ADC block.
+
+    Readout k carries all blocks before its ADC; see read_seq for the translation
+    and the stated idealizations. Each sequence declares its own npoints and dwell,
+    so the readouts of a file may differ freely.
     """
     try:
         import pypulseq
@@ -123,21 +142,25 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
 
     source = pypulseq.Sequence()
     source.read(str(path))
-    events = []
+    events, sequences = [], []
     for index in sorted(source.block_events):
         block = source.get_block(index)
         adc = block.adc
-        if adc is not None:
-            if getattr(adc, "phase_modulation", None) is not None and np.any(adc.phase_modulation):
-                raise ValueError("ADC phase modulation is not supported")
-            if float(adc.delay) > 0.0:
-                events.append(Delay(float(adc.delay)))
-            return PulseqSequence(events, npoints=int(adc.num_samples), dwell_s=float(adc.dwell),
-                                  adc_freq_offset_hz=float(adc.freq_offset),
-                                  adc_phase_deg=math.degrees(float(adc.phase_offset)))
         traps = {axis: grad for axis in ("gx", "gy", "gz")
                  if (grad := getattr(block, axis)) is not None}
         rf = block.rf
+        if adc is not None:
+            if getattr(adc, "phase_modulation", None) is not None and np.any(adc.phase_modulation):
+                raise ValueError("ADC phase modulation is not supported")
+            pre = list(events)
+            if float(adc.delay) > 0.0:
+                pre.append(Delay(float(adc.delay)))
+            sequences.append(PulseqSequence(pre, npoints=int(adc.num_samples),
+                                            dwell_s=float(adc.dwell),
+                                            adc_freq_offset_hz=float(adc.freq_offset),
+                                            adc_phase_deg=math.degrees(float(adc.phase_offset))))
+            # the block then elapses in full before any later readout: fall through,
+            # so its gradients kick and its duration passes as free evolution
         if rf is not None and any(grad.type != "trap" for grad in traps.values()):
             raise ValueError("an arbitrary gradient under an RF pulse is not supported; "
                              "only flat trapezoids play as slice gradients")
@@ -160,7 +183,9 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
             events.append(Delay(duration / 2.0))
         elif duration > 0.0:
             events.append(Delay(duration))
-    raise ValueError("the .seq file has no ADC block: nothing marks the readout")
+    if not sequences:
+        raise ValueError("the .seq file has no ADC block: nothing marks the readout")
+    return tuple(sequences)
 
 
 #***********************#

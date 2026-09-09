@@ -13,9 +13,11 @@ jobs:
         with:
           python-version: "3.11"
       - name: Ruff
+        # lint everything present rather than naming directories: examples/ and
+        # scripts/ are held out of the repository for now and would fail the run
         run: |
           python -m pip install --upgrade pip ruff
-          ruff check mrsandbox tests scripts
+          ruff check .
 
   test:
     runs-on: ubuntu-latest
