@@ -74,7 +74,8 @@ def _shaped_pulse(rf, center_ppm, steps, traps, extent_mm):
     sweep = np.diff(phase, prepend=phase[0]) / (2.0 * math.pi * dt) + freq_offset
     phase0_deg = math.degrees(float(phase[0]) + float(rf.phase_offset)
                               - math.pi * freq_offset * dt)
-    flat = [(channel, grad) for channel, grad in traps.items() if grad.amplitude]
+    flat = [(channel, grad) for channel, grad in traps.items()
+            if grad.type == "trap" and grad.amplitude]
     gradient = float(flat[0][1].amplitude) / 1000.0 if flat else 0.0
     axis = flat[0][0][1] if flat else "x"
     return ShapedPulse(
@@ -104,9 +105,10 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
     declares the readout. The .seq frame puts the carrier at the scanner reference,
     which `center_ppm` places on the ppm axis (water at 4.65).
 
-    Stated v1 idealizations: trapezoid gradients only (every axis's area becomes its
-    own kick); ramp moments outside an RF pulse are not applied; blocks after the
-    first ADC are ignored (one readout per file).
+    Stated v1 idealizations: every gradient axis's area becomes its own kick
+    (trapezoids and arbitrary waveforms alike; under an RF pulse only flat trapezoids
+    play, as the slice gradient); ramp moments outside an RF pulse are not applied;
+    blocks after the first ADC are ignored (one readout per file).
 
     Args:
         path: The .seq file.
@@ -135,10 +137,10 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0):
                                   adc_phase_deg=math.degrees(float(adc.phase_offset)))
         traps = {axis: grad for axis in ("gx", "gy", "gz")
                  if (grad := getattr(block, axis)) is not None}
-        for grad in traps.values():
-            if grad.type != "trap":
-                raise ValueError("only trapezoid gradients are supported")
         rf = block.rf
+        if rf is not None and any(grad.type != "trap" for grad in traps.values()):
+            raise ValueError("an arbitrary gradient under an RF pulse is not supported; "
+                             "only flat trapezoids play as slice gradients")
         duration = float(block.block_duration)
         if rf is not None:
             if float(getattr(rf, "phase_ppm", 0.0)):

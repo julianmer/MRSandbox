@@ -114,3 +114,24 @@ WATER = {
         "csf": 0.5,   # stated assumption; literature spans roughly 0.3 to 2 seconds
     },
 }
+
+#**************#
+#   boudreau   #
+#**************#
+# Source: Boudreau, M., Karakuzu, A., Cohen-Adad, J., et al. Repeat it without me:
+#         crowdsourcing the T1 mapping common ground via the ISMRM reproducibility
+#         challenge. Magnetic Resonance in Medicine 92 (2024) 1115-1127.
+# Data:   human brain water T1 at 3 T across all challenge submissions (inversion
+#         recovery per Barral 2010, 27 sites, three vendors, 56 datasets), per region
+#         of interest as (mean_s, sd_s); the sd is the intersubmission spread, a
+#         realistic site-to-site variation.
+# Units:  seconds.
+BOUDREAU = {
+    "error": "sd",
+    "t1_s": {
+        "wm_genu": (0.828, 0.038),
+        "wm_splenium": (0.852, 0.049),
+        "gm_cortex": (1.548, 0.156),
+        "gm_deep": (1.188, 0.133),
+    },
+}

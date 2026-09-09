@@ -147,9 +147,12 @@ class TestWaterRelaxation:
         t1_gm, t2_gm = WaterSource.relaxation(pure_gm, truth)
         t1_csf, _ = WaterSource.relaxation(pure_csf, truth)
         t1_mix, t2_mix = WaterSource.relaxation(mixed, truth)
-        assert t1_gm == 1.23 and t2_gm == 0.110  # the cited pure-tissue values
+        # T1 draws from the crowdsourced challenge priors (BOUDREAU), T2 stays cited
+        assert abs(t1_gm - 1.548) < 5 * 0.156 and t2_gm == 0.110
         assert t1_csf == 4.3
-        assert abs(t1_mix - (1.23 + 0.95) / 2.0) < 1e-9
+        t1_wm = truth.water.t1_s.wm
+        assert abs(t1_wm - 0.828) < 5 * 0.038
+        assert abs(t1_mix - (t1_gm + t1_wm) / 2.0) < 1e-9
         assert abs(t2_mix - (0.110 + 0.080) / 2.0) < 1e-9
 
     #****************#

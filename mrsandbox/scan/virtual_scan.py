@@ -20,9 +20,9 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.database import Database, concentrations
-from mrsandbox.database.relaxation import WATER
+from mrsandbox.database.relaxation import BOUDREAU, WATER
 from mrsandbox.engine import Engine
-from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
+from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Tissues, Uniform
 from mrsandbox.phantom.lipids import Skull
 from mrsandbox.phantom.macromolecules import CoupledMM
 from mrsandbox.phantom.water import Suppressed
@@ -68,6 +68,20 @@ class VirtualScan:
         self.field = field
         self.params = self.default_params(self.database) | (params if params is not None else Params())
         self._compiled = {}
+        self._b_value = None
+
+    #*************************#
+    #   diffusion weighting   #
+    #*************************#
+    @property
+    def b_value_ms_um2(self):
+        """The b-value the sequence's own gradient events build up, cached; see
+        sequences.diffusion for the consensus formulation."""
+        if self._b_value is None:
+            from mrsandbox.sequences.diffusion import b_value_ms_um2
+
+            self._b_value = b_value_ms_um2(self.sequence)
+        return self._b_value
 
     #************************#
     #   default parameters   #
@@ -84,10 +98,17 @@ class VirtualScan:
         t2 = Priors.gudmundson_t2(names)  # pooled where the literature has rows, Fixed fallback
         nuisance = Params(
             # residual fraction after suppression is a stated assumption; the per-tissue
-            # water relaxation comes from the cited WATER table and is weighted by each
-            # voxel's composition at render time
+            # water relaxation is weighted by each voxel's composition at render time.
+            # T1 draws from the crowdsourced 3 T reproducibility challenge (the typed
+            # BOUDREAU table: cortical GM, and the genu for WM, the challenge's
+            # cleanest ROI; the intersubmission sd is a realistic site-to-site spread,
+            # clipped at a stated 0.2 s floor); CSF T1 and the T2 values keep the
+            # cited WATER table entries
             water=dict(residual_fraction=(1e-4, 3e-3),
-                       t1_s=PerTissue(**WATER["t1_s"]),
+                       t1_s=PerTissue(
+                           gm=Clipped(Normal(*BOUDREAU["t1_s"]["gm_cortex"]), low=0.2),
+                           wm=Clipped(Normal(*BOUDREAU["t1_s"]["wm_genu"]), low=0.2),
+                           csf=WATER["t1_s"]["csf"]),
                        t2_s=PerTissue(**WATER["t2_s"])),
             # adipose proton concentration is water-like (about 60 to 70 M), which is why
             # a voxel clipping the skull drowns in fat; the range is a stated assumption
@@ -155,6 +176,19 @@ class VirtualScan:
                             mm226=0.024,
                             mm321=Clipped(Normal(0.018, 0.005), low=0.005),
                             mm377=0.030)),
+            # diffusion: every component attenuates by exp(-b ADC) with b built from
+            # the sequence's own gradient events (sequences.diffusion, the consensus
+            # Box 2 of Ligneul et al. 2024, MRM 91:860), so a standard sequence is
+            # only as diffusion weighted as its crushers make it. ADCs in um^2/ms:
+            # metabolites follow the human long-diffusion-time summary the consensus
+            # defers to (Valette et al. 2018, Front Neurosci 12:2: about 0.10 in grey
+            # and 0.15 in white matter, weighted by the voxel composition); the MM
+            # range is the consensus's own 0.005 to 0.01; water and lipids are stated
+            diffusion=dict(
+                adc={name: PerTissue(gm=0.10, wm=0.15, csf=0.10) for name in names},
+                water=0.75,
+                mm=(0.005, 0.01),
+                lipids=0.0),
         )
         relaxation = Params(t2=t2, t1=Priors.literature_t1(names))
         return Params(conc=conc) | relaxation | nuisance
@@ -265,27 +299,54 @@ class Voxel:
         gamma = self.scan.database.gamma("1H")
         engine, sequence = self.scan.engine, self.scan.sequence
         tissue = self.fractions.gm + self.fractions.wm
+        faded = self._diffusion_factor(truth)
         parts = []
         for name, concentration in truth.conc.items():
             t2 = truth.t2[name]
             freqs, amps = self._metabolite_lines(name, truth.t1[name], t2, truth.b1_scale)
-            weight = ops.convert_to_tensor(np.complex64(concentration * tissue))
+            weight = ops.convert_to_tensor(
+                np.complex64(concentration * tissue * faded(truth.diffusion.adc[name])))
             parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))
         water = self.scan.water.lines(engine, sequence, self.fractions, truth, gamma)
         if water is not None:
             _, water_t2 = self.scan.water.relaxation(self.fractions, truth)
-            parts.append((*water, 1.0 / (np.pi * water_t2), 0.0))
+            w_freqs, w_amps = water
+            parts.append((w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
+                          1.0 / (np.pi * water_t2), 0.0))
         lipid = self.scan.lipids.lines(engine, sequence, self, truth, gamma)
         if lipid is not None:
-            parts.append((*lipid, 1.0 / (np.pi * truth.lipids.t2_s), 0.0))
+            l_freqs, l_amps = lipid
+            parts.append((l_freqs, l_amps * np.complex64(faded(truth.diffusion.lipids)),
+                          1.0 / (np.pi * truth.lipids.t2_s), 0.0))
         mm = self.scan.mm.lines(engine, sequence, self.fractions, truth, self._f0_mhz())
         if mm is not None:
             # real positive amplitudes render absorptive as they are; the engine's
             # receiver factor compensates density matrix phases the MM lines never had
             freqs, amps, gauss = mm
-            parts.append((ops.convert_to_tensor(freqs), ops.convert_to_tensor(amps),
+            parts.append((ops.convert_to_tensor(freqs),
+                          ops.convert_to_tensor(amps * faded(truth.diffusion.mm)),
                           0.0, ops.convert_to_tensor(gauss)))
         return parts
+
+    #**************#
+    #   fading     #
+    #**************#
+    def _diffusion_factor(self, truth):
+        """exp(-b ADC) for this scan's b-value: per-tissue ADC leaves weighted by the
+        local composition, scalars passing through; the identity at b = 0."""
+        b = self.scan.b_value_ms_um2
+
+        def faded(adc):
+            if b == 0.0:
+                return 1.0
+            if isinstance(adc, Tissues):
+                total = self.fractions.gm + self.fractions.wm + self.fractions.csf
+                adc = adc.gm if total <= 0.0 else (
+                    self.fractions.gm * adc.gm + self.fractions.wm * adc.wm
+                    + self.fractions.csf * adc.csf) / total
+            return float(np.exp(-b * adc))
+
+        return faded
 
     #****************#
     #   renderings   #
@@ -337,7 +398,8 @@ class Voxel:
         mm_fid = self.scan.mm.fid(self.fractions, truth, self._f0_mhz(), grid,
                                   sequence=self.scan.sequence)
         if mm_fid is not None:
-            fid = fid + mm_fid
+            fid = fid + mm_fid * np.float32(
+                self._diffusion_factor(truth)(truth.diffusion.mm))
         if self.scan.field is not None:
             fid = fid * self._field_kernel(npoints, dwell_s)
         spur = truth.spurious
@@ -404,7 +466,8 @@ class Voxel:
         )
         hdr.set_user_def(
             "SimulationSequence",
-            {"name": type(self.scan.sequence).__name__, **timings},
+            {"name": type(self.scan.sequence).__name__,
+             "b_ms_um2": float(self.scan.b_value_ms_um2), **timings},
             "MRSandbox: the sequence and its timings in seconds.",
         )
         hdr.set_user_def(

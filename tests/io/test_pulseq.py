@@ -207,3 +207,31 @@ class TestMultiAxisImport:
 
         kicks = [e for e in read_seq(path).events if isinstance(e, Gradient)]
         assert {(k.axis, round(k.moment_per_mm, 3)) for k in kicks} == {("x", 1.0), ("z", -0.5)}
+
+    #**************************#
+    #   arbitrary waveforms    #
+    #**************************#
+    def test_arbitrary_gradient_waveforms_import_by_area(self, system, tmp_path):
+        waveform = np.hanning(200) * 5000.0  # Hz/m on the gradient raster
+        seq = pypulseq.Sequence(system=system)
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=1e-4,
+                                                system=system))
+        arbitrary = pypulseq.make_arbitrary_grad(channel="y", waveform=waveform, system=system)
+        seq.add_block(arbitrary)
+        seq.add_block(pypulseq.make_adc(num_samples=32, dwell=2.5e-4, system=system))
+        path = tmp_path / "arbitrary.seq"
+        seq.write(str(path))
+
+        kicks = [e for e in read_seq(path).events if isinstance(e, Gradient)]
+        assert len(kicks) == 1 and kicks[0].axis == "y"
+        assert abs(kicks[0].moment_per_mm - float(arbitrary.area) / 1000.0) < 1e-5
+
+        under_rf = pypulseq.Sequence(system=system)
+        rf = pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=2e-3, system=system)
+        under_rf.add_block(rf, pypulseq.make_arbitrary_grad(channel="z", waveform=waveform,
+                                                            system=system))
+        under_rf.add_block(pypulseq.make_adc(num_samples=32, dwell=2.5e-4, system=system))
+        bad = tmp_path / "under_rf.seq"
+        under_rf.write(str(bad))
+        with pytest.raises(ValueError, match="arbitrary gradient under an RF pulse"):
+            read_seq(bad)
