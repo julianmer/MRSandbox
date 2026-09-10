@@ -89,21 +89,26 @@ class MRSI:
 
     `trajectory` replaces the one-encode-per-excitation CSI readout with an echo
     planar traversal (EPSI): within every spectral dwell the ADC sweeps the whole kx
-    axis (one sample per kx line, dwell_s/nx apart), so each k line is sampled at its
-    own visit time inside the period. The samples are exact FID values at those times,
-    which is the whole physics: off-resonance phase accrues during the traversal,
-    T2 star decays across it, and "epsi-bidirectional" (alternating sweep direction,
-    no flyback) shows the classic odd-even ghost at half the spectral width, while
-    "epsi" idealizes an instantaneous flyback (stated). ky stays phase encoded. The
-    header records the kx visit order so reconstruction can be scored against it;
-    the standard reconstruction here ignores the visit times, as an uncorrected recon
-    would. A trajectory composes with the z profile but not with oversampling,
-    sampling, weighting, averages, or slabs (v1).
+    axis (one sample per kx line), so each k line is sampled at its own visit time
+    inside the period. The samples are exact FID values at those times, which is the
+    whole physics: off-resonance phase accrues during the traversal, T2 star decays
+    across it, and "epsi-bidirectional" (alternating sweep direction, no flyback)
+    shows the classic odd-even ghost at half the spectral width, while "epsi" flies
+    back between sweeps. `dead_time_s` is the finite flyback (or turnaround) time at
+    the end of every sweep: the nx visits then compress into dwell_s - dead, spaced
+    dwell_s / (nx + n_dead) with the dead time quantized to n_dead of those fine
+    steps (the realized value is recorded); zero idealizes it away. ky stays phase
+    encoded, and a slab additionally phase encodes its kz partitions, every partition
+    sharing the kx visit clock. The header records the kx visit order so
+    reconstruction can be scored against it; the standard reconstruction here ignores
+    the visit times, as an uncorrected recon would. A trajectory composes with the z
+    profile and with slab partitions, but not with oversampling, sampling, weighting,
+    or averages.
 
     Stated limits: oversampling and its truncation PSF are in-plane only; the z profile
     is an excitation weighting, not a per-metabolite run under the slice gradient;
-    trajectories are 2D single-slice with idealized gradients (the sweep timing is the
-    model, not the gradient waveform).
+    trajectories run idealized gradients (the sweep timing is the model, not the
+    gradient waveform).
 
     Args:
         scan: The VirtualScan to acquire with.
@@ -123,6 +128,8 @@ class MRSI:
             the k-space centre of the acquisition-weighted scheme.
         trajectory: None (conventional CSI), "epsi" (flyback), or
             "epsi-bidirectional" (alternating sweep direction).
+        dead_time_s: Flyback or turnaround time at the end of every trajectory sweep,
+            quantized to fine-grid samples; 0 idealizes it away.
     """
 
     #**********#
@@ -130,7 +137,7 @@ class MRSI:
     #**********#
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
                  thickness_mm=None, oversampling=1, weighting=None, sampling=None,
-                 profile=None, averages=None, trajectory=None):
+                 profile=None, averages=None, trajectory=None, dead_time_s=0.0):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
         if averages is not None and (not isinstance(averages, numbers.Real)
@@ -195,10 +202,16 @@ class MRSI:
                              f"epsi-bidirectional")
         self.trajectory = trajectory
         if trajectory is not None and (
-                self.oversampling != 1 or self.partitions != 1 or self.weighting is not None
+                self.oversampling != 1 or self.weighting is not None
                 or self.sampling is not None or self.averages is not None):
-            raise ValueError("a trajectory composes only with the z profile: oversampling, "
-                             "sampling, weighting, averages, and slabs stay conventional CSI")
+            raise ValueError("a trajectory composes only with the z profile and slab "
+                             "partitions: oversampling, sampling, weighting, and "
+                             "averages stay conventional CSI")
+        if dead_time_s and trajectory is None:
+            raise ValueError("dead_time_s needs a trajectory: conventional CSI has no sweep")
+        if dead_time_s < 0.0:
+            raise ValueError(f"dead_time_s must be non-negative, got {dead_time_s!r}")
+        self.dead_time_s = float(dead_time_s)
 
     #**************#
     #   geometry   #
@@ -262,9 +275,12 @@ class MRSI:
         nz = self.partitions
         sx, sy = self.source_matrix
         # a trajectory samples every kx line once per spectral dwell, so the sources
-        # render on the fine ADC grid and the sampler picks each line's visit times
-        fine = npoints if self.trajectory is None else npoints * nx
-        step = dwell_s if self.trajectory is None else dwell_s / nx
+        # render on the fine ADC grid and the sampler picks each line's visit times;
+        # a finite dead time appends n_dead unread fine samples to every period
+        n_dead = self._dead_points(dwell_s) if self.trajectory is not None else 0
+        period = nx + n_dead
+        fine = npoints if self.trajectory is None else npoints * period
+        step = dwell_s if self.trajectory is None else dwell_s / period
         tail = (npoints,) + ((len(coils),) if coils is not None else ())
         source = np.zeros((sx, sy) + ((nz,) if nz > 1 else ())
                           + (fine,) + tail[1:], dtype=np.complex64)
@@ -292,7 +308,7 @@ class MRSI:
         if self.trajectory is None:
             encoded = self._encode(source)
         else:
-            encoded = self._sample_trajectory(source, npoints)
+            encoded = self._sample_trajectory(source, npoints, n_dead)
         data = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
         if nz == 1:
             data[:, :, 0] = encoded
@@ -347,7 +363,8 @@ class MRSI:
              "profile": self.profile.tolist() if self.profile is not None else None,
              "averages": self.averages, "trajectory": self.trajectory,
              **({"visit_order": self._visit_order(0).tolist(),
-                 "visit_order_odd": self._visit_order(1).tolist()}
+                 "visit_order_odd": self._visit_order(1).tolist(),
+                 "dead_time_s": n_dead * dwell_s / (nx + n_dead)}
                 if self.trajectory is not None else {}),
              **({"transients": int(self._averages_map().sum()),
                  "averages_map": self._averages_map().tolist()}
@@ -437,6 +454,16 @@ class MRSI:
     #****************#
     #   trajectory   #
     #****************#
+    def _dead_points(self, dwell_s):
+        """The dead time quantized to fine-grid samples: the nx visits occupy
+        dwell - dead, so the fine step is dwell / (nx + n_dead) and the realized dead
+        time is n_dead of those steps (recorded in the header)."""
+        if not self.dead_time_s < dwell_s:
+            raise ValueError(f"dead_time_s must stay below the spectral dwell: got "
+                             f"{self.dead_time_s} at dwell {dwell_s}")
+        nx = self.matrix[0]
+        return int(round(self.dead_time_s * nx / (dwell_s - self.dead_time_s)))
+
     def _visit_order(self, parity):
         """Sample slot of every centred kx index inside one spectral period: the sweep
         runs from low to high kx; bidirectional periods of odd parity reverse it."""
@@ -445,20 +472,31 @@ class MRSI:
             return order[::-1].copy()
         return order
 
-    def _sample_trajectory(self, source, npoints):
+    def _sample_trajectory(self, source, npoints, n_dead=0):
         """Sample the EPSI readout and decode it the standard way.
 
         The fine-grid sources are spatially Fourier transformed, every kx line is
         taken at its visit time inside each spectral period (exact FID values, no
-        interpolation), and the k data is decoded ignoring the visit times, exactly
-        as an uncorrected reconstruction would."""
+        interpolation; a finite dead time occupies the last n_dead fine samples of
+        every period, so the visits compress into its front), and the k data is
+        decoded ignoring the visit times, exactly as an uncorrected reconstruction
+        would. A slab phase encodes ky and kz per excitation, so every partition
+        shares the kx visit clock."""
         nx, ny = self.matrix[0], self.matrix[1]
-        k = np.fft.fftshift(np.fft.fft2(source, axes=(0, 1)), axes=(0, 1))
-        kdata = np.empty((nx, ny, npoints) + source.shape[3:], dtype=np.complex64)
-        rows = np.arange(nx)[:, None]
-        cols = np.arange(ny)[None, :]
+        nz = self.partitions
+        axes = tuple(range(len(self.dims)))
+        k = np.fft.fftshift(np.fft.fftn(source, axes=axes), axes=axes)
+        period = nx + n_dead
+        kdata = np.empty(self.dims + (npoints,) + source.shape[len(axes) + 1:],
+                         dtype=np.complex64)
+        rows = np.arange(nx)
+        cols = np.arange(ny)
         for n in range(npoints):
-            slots = n * nx + self._visit_order(n % 2)
-            kdata[:, :, n] = k[rows, cols, slots[:, None]]
-        decoded = np.fft.ifft2(np.fft.ifftshift(kdata, axes=(0, 1)), axes=(0, 1))
+            slots = n * period + self._visit_order(n % 2)
+            if nz == 1:
+                kdata[:, :, n] = k[rows[:, None], cols[None, :], slots[:, None]]
+            else:
+                kdata[:, :, :, n] = k[rows[:, None, None], cols[None, :, None],
+                                      np.arange(nz)[None, None, :], slots[:, None, None]]
+        decoded = np.fft.ifftn(np.fft.ifftshift(kdata, axes=axes), axes=axes)
         return decoded.astype(np.complex64)

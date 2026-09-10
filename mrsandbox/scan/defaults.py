@@ -24,6 +24,21 @@ from mrsandbox.database.relaxation import BOUDREAU, WATER
 from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
 
 
+#********************#
+#   gm to wm ratio   #
+#********************#
+# constituents inherit their compound total's ratio, the documented approximation
+_TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
+               "GPC": "tCho", "PCho": "tCho"}
+
+
+def _gm_wm_ratio(name):
+    """The challenge GM to WM concentration ratio of a metabolite; 1.0 where the
+    table has no entry or a zero tissue value (stated fallback)."""
+    gm, wm = concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0))
+    return gm / wm if gm > 0.0 and wm > 0.0 else 1.0
+
+
 #**********************#
 #   default catalogue  #
 #**********************#
@@ -157,5 +172,12 @@ def default_params(database=None):
         water=0.75,
         mm=(0.005, 0.01),
         lipids=0.0))
+    # contrast: the GM to WM concentration ratio per metabolite, typed from the
+    # challenge Table 1 per-tissue values (database.concentrations MRSI_CHALLENGE;
+    # compound totals lend their ratio to their constituents, metabolites without a
+    # row stay at 1.0, both stated). The render splits the drawn concentration as
+    # gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn value
+    # and pure tissues realize the published contrast.
+    contrast = Params(contrast={name: _gm_wm_ratio(name) for name in names})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names))
-    return Params(conc=conc) | relaxation | diffusion | background | imperfections
+    return Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections

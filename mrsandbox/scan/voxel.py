@@ -56,8 +56,10 @@ def receiver_noise(rng, sigma, npoints):
 class Voxel:
     """One placed voxel: realized parameters, weighted lines, renderings, and NIfTI-MRS out.
 
-    Metabolite amplitudes scale with the sampled concentration times the tissue presence
-    (gm + wm) of the voxel; the linewidth follows the sampled T2 as 1 / (pi T2).
+    Metabolite amplitudes scale with the sampled concentration split per tissue by the
+    drawn GM to WM contrast r: gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel carries
+    exactly the drawn value and pure tissues realize the published contrast; the
+    linewidth follows the sampled T2 as 1 / (pi T2).
     """
 
     #**********#
@@ -92,7 +94,6 @@ class Voxel:
         """
         engine, sequence = self.scan.engine, self.scan.sequence
         f0_mhz = self._f0_mhz()
-        tissue = self.fractions.gm + self.fractions.wm
         faded = self._diffusion_factor(truth)
         # an empirical downfield source carries everything above its cutoff, so the
         # spin systems' exchangeable NH lines up there leave the render (see
@@ -104,6 +105,10 @@ class Voxel:
             freqs, amps = self._metabolite_lines(name, truth)
             if cutoff is not None:
                 amps = ops.where(freqs > cutoff * f0_mhz, ops.zeros_like(amps), amps)
+            # the drawn concentration is the equal-mix value; the GM to WM contrast
+            # ratio r splits it per tissue, keeping gm + wm at r = 1 exactly
+            r = truth.contrast[name]
+            tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
             weight = ops.convert_to_tensor(
                 np.complex64(concentration * tissue * faded(truth.diffusion.adc[name])))
             parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))

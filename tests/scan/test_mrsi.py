@@ -536,6 +536,52 @@ class TestTrajectory:
         assert bid[peak] > bid[ghost]  # the main line still dominates
         assert bid[ghost] > 10.0 * fly[ghost]  # the odd-even ghost is bidirectional only
 
+    #*******************#
+    #   finite flyback  #
+    #*******************#
+    def test_finite_flyback_keeps_the_clock_identity(self):
+        # the visits compress into dwell - dead: the uniform singlet still lives at
+        # kx DC with one constant advance, and the realized dead time is quantized
+        # to fine samples and recorded
+        scan = self.singlet_scan()
+        _, csi = self.acquired(scan)
+        mrsi, epsi = self.acquired(scan, trajectory="epsi", dead_time_s=0.5e-4)
+        ratio = epsi[2, 2] / csi[2, 2]
+        assert np.std(ratio) < 1e-3 * np.abs(np.mean(ratio))
+        grid = mrsi.acquire(seed=3, npoints=8).hdr_ext.to_dict()["SimulationGrid"]
+        # dwell 2.5e-4, nx 4: n_dead = round(0.5e-4 * 4 / 2e-4) = 1 fine sample
+        assert abs(grid["dead_time_s"] - 2.5e-4 / 5.0) < 1e-12
+
+    def test_dead_time_compresses_the_sweep_and_shrinks_the_ghost(self):
+        # the spectral dwell is fixed, so a turnaround dead time compresses the nx
+        # visits into dwell - dead: the odd-even visit offsets and with them the
+        # ghost shrink, while the ghost still dwarfs the flyback residue
+        scan = self.singlet_scan()
+        _, flyback = self.acquired(scan, trajectory="epsi")
+        _, tight = self.acquired(scan, trajectory="epsi-bidirectional")
+        _, loose = self.acquired(scan, trajectory="epsi-bidirectional", dead_time_s=0.5e-4)
+        peak = int(np.argmax(np.abs(np.fft.fft(tight[2, 2]))))
+        ghost = (peak + 32) % 64
+        assert np.abs(np.fft.fft(loose[2, 2]))[ghost] < np.abs(np.fft.fft(tight[2, 2]))[ghost]
+        assert np.abs(np.fft.fft(loose[2, 2]))[ghost] > 5.0 * np.abs(np.fft.fft(flyback[2, 2]))[ghost]
+
+    #*****************#
+    #   slab sweeps   #
+    #*****************#
+    def test_slab_partitions_resolve_under_epsi(self):
+        gm = np.zeros((16, 16, 9), dtype=np.float32)
+        gm[:, :, 6:] = 1.0  # tissue only in the upper third of the maps
+        scan = TestSliceProfile.synthetic_scan(gm)
+        mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 3), voxel_mm=4.0,
+                         thickness_mm=2.0, trajectory="epsi")
+        data = mrsi.acquire(seed=3, npoints=16)
+        assert data.shape == (2, 2, 3, 16)
+        power = np.abs(np.asarray(data[:])).sum(axis=(0, 1, 3))
+        assert power[2] > 0.0  # the top partition reaches the tissue
+        # kz still resolves under EPSI: only float32 FFT round-trip noise leaks (the
+        # CSI slab takes its identity shortcut and lands at exactly zero instead)
+        assert power[0] < 1e-6 * power[2]
+
     #******************#
     #   composition    #
     #******************#
@@ -546,6 +592,7 @@ class TestTrajectory:
                     dict(sampling="elliptical")):
             with pytest.raises(ValueError, match="conventional CSI"):
                 scan.mrsi(**kw, trajectory="epsi", **bad)
-        with pytest.raises(ValueError, match="conventional CSI"):
-            scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4, 2), voxel_mm=4.0,
-                      trajectory="epsi")
+        with pytest.raises(ValueError, match="needs a trajectory"):
+            scan.mrsi(**kw, dead_time_s=1e-5)
+        with pytest.raises(ValueError, match="below the spectral dwell"):
+            scan.mrsi(**kw, trajectory="epsi", dead_time_s=1.0).acquire(seed=3, npoints=8)

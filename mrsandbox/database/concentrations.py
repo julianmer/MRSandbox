@@ -50,3 +50,31 @@ DE_GRAAF = {
     "Tau": (3.0, 6.0),        # Taurine
     "Thr": (0.0, 0.5),        # Threonine
 }
+
+#*******************************#
+#   mrsi challenge per tissue   #
+#*******************************#
+# Source: the 2024 MRSI reconstruction challenge dataset paper (LaMaster, Merkofer, et al.,
+#         arXiv:2609.02637), Table 1: the fixed simulation concentrations per tissue.
+# Data:   per basis function: (gm_mm, wm_mm) at 3 T. The paper chose the values with
+#         reference to the Gudmundson 2023 meta-analysis compilation and the in vivo
+#         studies it cites, settled pragmatically since no single reference covers every
+#         basis in both tissues, and reports them in full for traceability.
+# Units:  mM.
+# Notes:  the split rows tCr39, PE40, and Lac41 repeat their parents' values (basis
+#         bookkeeping) and are not retyped; Lac carries zero by design.
+MRSI_CHALLENGE = {
+    "Asp": (3.70, 2.07),
+    "GABA": (1.86, 0.88),
+    "Gln": (3.90, 2.20),
+    "Glu": (8.60, 6.00),
+    "Lac": (0.0, 0.0),
+    "NAA": (10.98, 7.49),
+    "NAAG": (1.40, 2.60),
+    "PE": (2.12, 2.12),
+    "Tau": (1.93, 1.74),
+    "mIns": (4.30, 3.10),
+    "sIno": (0.50, 0.57),
+    "tCho": (1.38, 1.78),
+    "tCr": (6.90, 5.50),
+}

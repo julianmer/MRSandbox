@@ -106,6 +106,39 @@ class TestVirtualScan:
         assert data.hdr_ext["SimulationSequence"]["te1_s"] == 0.011
         assert data.hdr_ext["SimulationPhantom"]["brain"] == "icbm152"
 
+    #********************#
+    #   gm wm contrast   #
+    #********************#
+    def test_concentrations_split_by_the_challenge_contrast(self, scan):
+        from mrsandbox import Brain
+
+        shape = (8, 8, 8)
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        zeros = np.zeros(shape, dtype=np.float32)
+
+        def amplitudes(gm, wm):
+            brain = Brain.from_maps(gm=gm, wm=wm, csf=zeros, affine=affine)
+            source = VirtualScan(brain, scan.scanner, scan.sequence)
+            voxel = source.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=4.0)
+            truth = voxel.sample(seed=7)
+            parts = voxel.components(truth)
+            return truth, {name: float(np.abs(ops.convert_to_numpy(parts[i][1])).sum())
+                           for i, name in enumerate(truth.conc)}
+
+        ones = np.ones(shape, dtype=np.float32)
+        truth, in_gm = amplitudes(ones, zeros)
+        _, in_wm = amplitudes(zeros, ones)
+        _, mixed = amplitudes(ones * 0.5, ones * 0.5)
+        # pure tissues realize exactly the drawn ratio, published as 10.98/7.49 mM
+        assert abs(truth.contrast.NAA - 10.98 / 7.49) < 1e-12
+        assert abs(in_gm["NAA"] / in_wm["NAA"] - truth.contrast.NAA) < 1e-4
+        assert abs(in_gm["NAAG"] / in_wm["NAAG"] - 1.40 / 2.60) < 1e-4  # WM-dominant
+        assert abs(in_gm["Ser"] / in_wm["Ser"] - 1.0) < 1e-4  # no table row: flat
+        # an equal mix keeps exactly the drawn value, the mean of the pure tissues
+        for name in ("NAA", "Ser", "GABA"):
+            assert abs(mixed[name] - (in_gm[name] + in_wm[name]) / 2.0) < 1e-4 * mixed[name]
+
     #*******************************#
     #   physics through the stack   #
     #*******************************#
