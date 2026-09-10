@@ -175,9 +175,15 @@ class TestAcquisitionImperfections:
     #   exact modulation   #
     #**********************#
     def test_shift_and_phase_modulate_the_fid_exactly(self, scan):
+        # the frequency error also runs the sequence off resonance; with exact 180s
+        # the spin echo refocuses it and the readout is a pure modulation (an
+        # imperfect 180 tips T1-recovered magnetization the echo never refocuses,
+        # a physical offset-dependent residue the coherence filters let through)
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
-        clean = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0))
-        bent = Params(noise=dict(sigma=0.0), acquisition=dict(shift_hz=5.0, phase_deg=90.0))
+        clean = Params(noise=dict(sigma=0.0), b1_scale=1.0,
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0))
+        bent = Params(noise=dict(sigma=0.0), b1_scale=1.0,
+                      acquisition=dict(shift_hz=5.0, phase_deg=90.0))
         base = VirtualScan(brain, *pieces, params=clean).voxel(position_mm=(10, -20, 5), size_mm=20)
         warp = VirtualScan(brain, *pieces, params=bent).voxel(position_mm=(10, -20, 5), size_mm=20)
         _, fid0 = base.fid(seed=7, npoints=512)
@@ -235,7 +241,7 @@ class TestMaps:
     #   helpers   #
     #*************#
     @staticmethod
-    def uniform_scan(scan, params):
+    def uniform_scan(scan, params, **kwargs):
         from mrsandbox import Brain
 
         shape = (8, 8, 8)
@@ -243,7 +249,7 @@ class TestMaps:
         affine[:3, 3] = -3.5
         ones, zeros = np.ones(shape, dtype=np.float32), np.zeros(shape, dtype=np.float32)
         brain = Brain.from_maps(gm=ones, wm=zeros, csf=zeros, affine=affine)
-        return VirtualScan(brain, scan.scanner, scan.sequence, params=params)
+        return VirtualScan(brain, scan.scanner, scan.sequence, params=params, **kwargs)
 
     @staticmethod
     def naa_amplitude(voxel, truth):
@@ -307,3 +313,35 @@ class TestMaps:
         truth = data.hdr_ext["SimulationGroundTruth"]
         assert truth["params"]["water"]["t1_s"] == "t1_synthetic"
         assert truth["local"] == {"conc.NAA": 1.3, "water.t1_s": 1.3}
+
+    #****************#
+    #   transmit     #
+    #****************#
+    def test_transmit_map_scales_the_pulses_like_b1_scale(self, scan):
+        from mrsandbox import Volume
+
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        # the relative B1+ ramps along x: 0.9 at the centre box (index mean 3.5),
+        # 1.1 two millimetres over (index mean 5.5)
+        ramp = Volume(0.55 + 0.1 * np.broadcast_to(np.arange(8, dtype=np.float64)[:, None, None],
+                                                    (8, 8, 8)).copy(), affine, name="b1_ramp")
+        nominal = Params(b1_scale=1.0)
+
+        def fid(params, position, **kwargs):
+            voxel = self.uniform_scan(scan, params, **kwargs).voxel(position_mm=position,
+                                                                     size_mm=2.0)
+            return voxel.fid(seed=7, npoints=256)[1]
+
+        mapped_centre = fid(nominal, (0.0, 0.0, 0.0), transmit=ramp)
+        mapped_over = fid(nominal, (2.0, 0.0, 0.0), transmit=ramp)
+        np.testing.assert_allclose(mapped_centre, fid(Params(b1_scale=0.9), (0.0, 0.0, 0.0)),
+                                   atol=1e-6 * np.abs(mapped_centre).max())
+        np.testing.assert_allclose(mapped_over, fid(Params(b1_scale=1.1), (2.0, 0.0, 0.0)),
+                                   atol=1e-6 * np.abs(mapped_over).max())
+        # the header records the map and the scale the pulses ran at
+        voxel = self.uniform_scan(scan, nominal, transmit=ramp).voxel(position_mm=(0.0, 0.0, 0.0),
+                                                                      size_mm=2.0)
+        data = voxel.acquire(seed=7, npoints=64)
+        assert abs(data.hdr_ext["SimulationGroundTruth"]["local"]["b1_scale"] - 0.9) < 1e-12
+        assert data.hdr_ext["SimulationPhantom"]["transmit"] == "b1_ramp"

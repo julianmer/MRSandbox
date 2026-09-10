@@ -140,7 +140,7 @@ class TestGradient:
         # replays jitted with exactly the eager physics
         system = SpinSystem.from_database("Lac")[0]
         fn = engine.compiled(crushed_echo(3.7), system)
-        args = [ops.convert_to_tensor(np.float32(v)) for v in (1.4, 0.28, 1.0)]
+        args = [ops.convert_to_tensor(np.float32(v)) for v in (1.4, 0.28, 1.0, 0.0)]
         _, compiled = fn(*args)
         _, eager = engine.lines(crushed_echo(3.7), system.with_relaxation(t1_s=1.4, t2_s=0.28))
         np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(compiled)),

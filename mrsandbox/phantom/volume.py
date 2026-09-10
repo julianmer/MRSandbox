@@ -97,17 +97,11 @@ class Volume:
             weights (nx', ny', nz'), which sum to the box volume in cells where the
             box lies inside the grid; both empty when it lies outside.
         """
-        centre = np.asarray(position_mm, dtype=np.float64)
-        half = np.asarray(size_mm, dtype=np.float64) * np.ones(3) / 2.0
-        signs = np.array([(sx, sy, sz) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
-        corners = (self._inverse @ np.c_[centre + signs * half, np.ones(8)].T)[:3]
-        lo, hi = corners.min(axis=1), corners.max(axis=1)
-        # cell i overlaps [lo, hi] with positive measure iff lo - 1/2 < i < hi + 1/2
-        first = np.maximum(np.floor(lo - 0.5).astype(int) + 1, 0)
-        last = np.minimum(np.ceil(hi + 0.5).astype(int) - 1, np.asarray(self.shape) - 1)
-        if np.any(first > last):
+        span = self._span(position_mm, size_mm)
+        if span is None:
             return (np.empty((0, 0, 0) + self.data.shape[3:], dtype=self.data.dtype),
                     np.empty((0, 0, 0)))
+        first, last, lo, hi = span
         overlaps = []
         for axis in range(3):
             cells = np.arange(first[axis], last[axis] + 1)
@@ -117,6 +111,32 @@ class Volume:
                    * overlaps[2][None, None, :])
         values = self.data[tuple(slice(f, l + 1) for f, l in zip(first, last))]
         return values, weights
+
+    def centres(self, position_mm, size_mm):
+        """World centres (nx', ny', nz', 3) of the cells `box` returns; empty outside."""
+        span = self._span(position_mm, size_mm)
+        if span is None:
+            return np.empty((0, 0, 0, 3))
+        first, last, _, _ = span
+        grids = np.meshgrid(*(np.arange(f, l + 1) for f, l in zip(first, last)), indexing="ij")
+        index = np.stack(grids, axis=-1).astype(np.float64)
+        return index @ self.affine[:3, :3].T + self.affine[:3, 3]
+
+    def _span(self, position_mm, size_mm):
+        """The index range a box overlaps: (first, last, lo, hi) per axis, with first
+        and last the inclusive cell indices and lo and hi the box edges in index
+        space; None when the box lies outside the grid."""
+        centre = np.asarray(position_mm, dtype=np.float64)
+        half = np.asarray(size_mm, dtype=np.float64) * np.ones(3) / 2.0
+        signs = np.array([(sx, sy, sz) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
+        corners = (self._inverse @ np.c_[centre + signs * half, np.ones(8)].T)[:3]
+        lo, hi = corners.min(axis=1), corners.max(axis=1)
+        # cell i overlaps [lo, hi] with positive measure iff lo - 1/2 < i < hi + 1/2
+        first = np.maximum(np.floor(lo - 0.5).astype(int) + 1, 0)
+        last = np.minimum(np.ceil(hi + 0.5).astype(int) - 1, np.asarray(self.shape) - 1)
+        if np.any(first > last):
+            return None
+        return first, last, lo, hi
 
     #**********#
     #   mean   #

@@ -46,6 +46,9 @@ class VirtualScan:
         coils: A hardware.CoilArray for multi-channel reception; None gives one ideal
             channel.
         field: A phantom.FieldMap for B0 inhomogeneity; None gives a uniform field.
+        transmit: A phantom.Volume of the relative transmit field B1+ (1.0 nominal);
+            every voxel runs its pulses at the drawn b1_scale times its local value.
+            None gives the nominal field everywhere.
         mm: A phantom.MMSource; defaults to the LCModel-convention parameterization.
         downfield: A phantom.DownfieldSource; defaults to the nine-peak
             parameterization, presaturated along with the default suppressed water.
@@ -57,7 +60,8 @@ class VirtualScan:
     #   init   #
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
-                 lipids=None, coils=None, field=None, mm=None, downfield=None, isochromats=32):
+                 lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
+                 isochromats=32):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -69,6 +73,7 @@ class VirtualScan:
         self.downfield = downfield if downfield is not None else ParameterizedDownfield()
         self.coils = coils
         self.field = field
+        self.transmit = transmit
         self.params = default_params(self.database) | (params if params is not None else Params())
         self._lines = None
         self._systems = {}

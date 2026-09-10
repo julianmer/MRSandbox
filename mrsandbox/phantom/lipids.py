@@ -100,12 +100,12 @@ class Skull(LipidSource):
         if weight == 0.0:
             return None
         amplitude = truth.lipids.amplitude_mm * weight
-        t1 = ops.convert_to_tensor(np.float32(truth.lipids.t1_s))
-        t2 = ops.convert_to_tensor(np.float32(truth.lipids.t2_s))
-        b1 = ops.convert_to_tensor(np.float32(truth.b1_scale))
+        args = [ops.convert_to_tensor(np.float32(v)) for v in
+                (truth.lipids.t1_s, truth.lipids.t2_s, voxel.b1_scale(truth),
+                 voxel.offset_hz(truth))]
         freqs_all, amps_all = [], []
         for system in self.systems(f0_mhz / engine.b0_t):
-            freqs, amps = engine.compiled(sequence, system)(t1, t2, b1)
+            freqs, amps = engine.compiled(sequence, system)(*args)
             freqs_all.append(freqs)
             amps_all.append(amps * complex(amplitude))
         return ops.concatenate(freqs_all), ops.concatenate(amps_all)

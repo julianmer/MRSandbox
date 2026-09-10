@@ -77,6 +77,24 @@ class TestKernel:
         # its residual after the linear fit about 0.3 of that
         assert field.offsets(**BOX, shim="linear").std() > 0.4
 
+    #**********************#
+    #   second order shim  #
+    #**********************#
+    def test_quadratic_shim_nulls_the_second_order_harmonics(self):
+        x = np.linspace(-1.0, 1.0, 50)
+        harmonic = 10.0 * (x[:, None, None] ** 2 - x[None, :, None] ** 2 + 0.0 * x[None, None, :])
+        field = centred_map(harmonic)
+        assert field.offsets(**BOX, shim="linear").std() > 0.3  # a first-order shim leaves it
+        assert np.abs(field.offsets(**BOX, shim="quadratic")).max() < 1e-6
+        # a non-harmonic r^2 field is beyond any shim set, on a scanner as here
+        r2 = 10.0 * (x[:, None, None] ** 2 + x[None, :, None] ** 2 + x[None, None, :] ** 2)
+        assert centred_map(r2).offsets(**BOX, shim="quadratic").std() > 0.3
+        # the order is the map's own default: the kernel follows it
+        quad = FieldMap.from_map(harmonic.astype(np.float32), field.affine, shim="quadratic")
+        assert np.abs(quad.kernel(**BOX, t_s=T) - 1.0).max() < 1e-4
+        with pytest.raises(ValueError, match="known:"):
+            FieldMap.from_map(harmonic.astype(np.float32), field.affine, shim="cubic")
+
     #***************#
     #   outside     #
     #***************#

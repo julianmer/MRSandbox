@@ -20,7 +20,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Chess, Engine, PulseAcquire, Sequence, ShapedPulse, SpinSystem
+from mrsandbox import (Chess, Engine, Press, PulseAcquire, SelectivePulse, Sequence, ShapedPulse,
+                       SpinSystem)
 from mrsandbox.sequences.events import CoherenceFilter
 
 F0_MHZ = 42.5774785 * 3.0
@@ -153,6 +154,71 @@ class TestB1Scale:
         full = self.water_amplitude(sim, acquire, 1.0)
         ratio = self.water_amplitude(sim, acquire, 0.8) / full
         assert abs(ratio - np.sin(np.radians(0.8 * 90.0))) < 1e-2
+
+
+#**************************************************************************************************#
+#                                         Class TestOffset                                         #
+#**************************************************************************************************#
+#                                                                                                  #
+# The frame offset: refocused by spin echoes, seen by selective and shaped pulses.                  #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestOffset:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def water():
+        from mrsandbox.phantom.water import WaterSource
+
+        return WaterSource.system(gamma_mhz_t=42.5774785)
+
+    @staticmethod
+    def magnitudes(lines):
+        return np.abs(np.asarray(ops.convert_to_numpy(lines[1])))
+
+    #******************#
+    #   spin echoes    #
+    #******************#
+    def test_spin_echoes_refocus_the_offset(self, sim):
+        # hard pulses are offset blind and the echo refocuses the offset phase, so
+        # a PRESS spectrum is exactly the on-resonance one
+        lac = SpinSystem.from_database("Lac")
+        press = Press(te1_s=0.011, te2_s=0.019)
+        on = sim.lines(press, *lac, offset_hz=40.0)
+        off = sim.lines(press, *lac)
+        np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(on[1])),
+                                   np.asarray(ops.convert_to_numpy(off[1])), atol=1e-5)
+
+    #***********************#
+    #   selective pulses    #
+    #***********************#
+    def test_selective_pulse_misses_an_offset_spin(self, sim):
+        water = self.water()
+        excite = Sequence(SelectivePulse(90.0, offset_ppm=4.65, bandwidth_hz=40.0))
+        full = self.magnitudes(sim.lines(excite, water)).sum()
+        assert full > 0.1
+        assert self.magnitudes(sim.lines(excite, water, offset_hz=15.0)).sum() == full  # inside
+        assert self.magnitudes(sim.lines(excite, water, offset_hz=30.0)).sum() < 1e-9  # outside
+
+    #********************#
+    #   shaped pulses    #
+    #********************#
+    def test_shaped_pulse_offset_equals_a_shifted_carrier(self, sim):
+        # spins offset by delta under a carrier at c see what on-resonance spins see
+        # under a carrier at c + delta; the carrier ramp is sampled at the step
+        # midpoints while the frame term is exact, so the identity holds to the step
+        # discretization (6e-5 at 64 steps, 1.4e-5 at 512, the float32 floor)
+        water = self.water()
+        delta_hz = 200.0
+        on_water = Sequence(ShapedPulse.gaussian(90.0, 0.002, offset_ppm=4.65))
+        shifted = Sequence(ShapedPulse.gaussian(90.0, 0.002, offset_ppm=4.65 + delta_hz / F0_MHZ))
+        offset = self.magnitudes(sim.lines(on_water, water, offset_hz=delta_hz))
+        carrier = self.magnitudes(sim.lines(shifted, water))
+        assert offset.sum() > 0.1
+        np.testing.assert_allclose(offset, carrier, atol=1e-4)
+        assert np.abs(offset - self.magnitudes(sim.lines(on_water, water))).max() > 1e-2
 
 
 #**************************************************************************************************#

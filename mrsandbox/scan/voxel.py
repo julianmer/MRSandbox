@@ -82,6 +82,7 @@ class Voxel:
         self.compiled = compiled
         self._kernels = {}
         self._locals = {}
+        self._transmit = 1.0 if scan.transmit is None else self.resolve(scan.transmit)
 
     #*************#
     #   resolve   #
@@ -101,14 +102,32 @@ class Voxel:
 
     def local(self, truth, path=()):
         """Every map-valued leaf of a realized tree resolved at this voxel, keyed by
-        its dotted path: the per-voxel truth the acquisition header records."""
+        its dotted path, plus the transmit scale the pulses ran at when the scan
+        carries a transmit map: the per-voxel truth the acquisition header records."""
         found = {}
         for key, value in truth.items():
             if isinstance(value, Params):
                 found.update(self.local(value, path + (key,)))
             elif isinstance(value, Volume):
                 found[".".join(path + (key,))] = self.resolve(value)
+        if not path and self.scan.transmit is not None:
+            found["b1_scale"] = self.b1_scale(truth)
         return found
+
+    #*******************#
+    #   transmit frame  #
+    #*******************#
+    def b1_scale(self, truth):
+        """The transmit scale the pulses run at in this voxel: the drawn calibration
+        scatter times the local relative B1+ of the scan's transmit map (1.0 without
+        one, 0.0 outside it)."""
+        return self.resolve(truth.b1_scale) * self._transmit
+
+    def offset_hz(self, truth):
+        """The frequency offset the sequence runs at in this voxel: the drawn scanner
+        frequency error, which the selective, shaped, and suppression pulses see; the
+        readout shifts by the same value afterwards (the acquisition modulation)."""
+        return self.resolve(truth.acquisition.shift_hz)
 
     #*****************#
     #   realization   #
@@ -316,8 +335,9 @@ class Voxel:
         hdr.set_user_def(
             "SimulationPhantom",
             {"brain": self.scan.brain.name, "position_mm": list(self.position_mm),
-             "size_mm": list(self.size_mm) if isinstance(self.size_mm, tuple) else self.size_mm},
-            "MRSandbox: the virtual brain and the voxel placement.",
+             "size_mm": list(self.size_mm) if isinstance(self.size_mm, tuple) else self.size_mm,
+             "transmit": None if self.scan.transmit is None else self.scan.transmit.name},
+            "MRSandbox: the virtual brain, the transmit map, and the voxel placement.",
         )
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
 
@@ -366,20 +386,20 @@ class Voxel:
         cached = self.scan._lines
         if cached is None or cached[0] is not truth:
             cached = self.scan._lines = (truth, {})
-        key = (name, self.compiled, t1_s, t2_s)
+        b1_scale, offset_hz = self.b1_scale(truth), self.offset_hz(truth)
+        key = (name, self.compiled, t1_s, t2_s, b1_scale, offset_hz)
         if key in cached[1]:
             return cached[1][key]
         systems = self.scan.systems(name)
         if self.compiled:
-            t1 = ops.convert_to_tensor(np.float32(t1_s))
-            t2 = ops.convert_to_tensor(np.float32(t2_s))
-            b1 = ops.convert_to_tensor(np.float32(truth.b1_scale))
-            parts = [self.scan.engine.compiled(self.scan.sequence, s)(t1, t2, b1) for s in systems]
+            args = [ops.convert_to_tensor(np.float32(v)) for v in (t1_s, t2_s, b1_scale, offset_hz)]
+            parts = [self.scan.engine.compiled(self.scan.sequence, s)(*args) for s in systems]
             lines = (ops.concatenate([f for f, _ in parts]),
                      ops.concatenate([a for _, a in parts]))
         else:
             relaxed = tuple(s.with_relaxation(t1_s=t1_s, t2_s=t2_s) for s in systems)
-            lines = self.scan.engine.lines(self.scan.sequence, *relaxed, b1_scale=truth.b1_scale)
+            lines = self.scan.engine.lines(self.scan.sequence, *relaxed, b1_scale=b1_scale,
+                                           offset_hz=offset_hz)
         cached[1][key] = lines
         return lines
 

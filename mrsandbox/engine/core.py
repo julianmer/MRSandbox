@@ -64,6 +64,10 @@ class Context:
         fplus: The detection operator F+.
         t1_s, t2_s: The system's relaxation times, or None for coherent-only delays.
         b1_scale: Transmit field scale; every pulse flip is multiplied by it.
+        offset_hz: The frequency offset the sequence runs at (the scanner's frequency
+            error): every spin appears at its resonance minus this in the pulse and
+            delay frame, so selective bands, shaped profiles, and suppression respond
+            to it. The readout stays in the nominal frame (the scan shifts it).
         gradient_x, gradient_y, gradient_z: Isochromat positions along the three
             gradient axes in millimetres (scalars, or vectors batching the ensemble).
         fz: The longitudinal total-spin operator (gradient offsets act through it).
@@ -90,6 +94,7 @@ class Context:
     fz: object = None
     mz: object = None
     hadamard: object = None
+    offset_hz: object = 0.0
     gradient_x: object = 0.0
     gradient_y: object = 0.0
     gradient_z: object = 0.0
@@ -129,7 +134,7 @@ class Engine:
     #*************#
     #   context   #
     #*************#
-    def context(self, system, b1_scale=1.0):
+    def context(self, system, b1_scale=1.0, offset_hz=0.0):
         """Build the tensor Context of one system at this field."""
         op = system.operators()
         lam, v = Backend.eigh_herm(ops.convert_to_tensor(system.hamiltonian(self.b0_t)))
@@ -154,12 +159,13 @@ class Engine:
             t1_s=system.t1_s,
             t2_s=system.t2_s,
             b1_scale=b1_scale,
+            offset_hz=offset_hz,
         )
 
     #***********#
     #   lines   #
     #***********#
-    def lines(self, sequence, *systems, b1_scale=1.0, isochromats=None):
+    def lines(self, sequence, *systems, b1_scale=1.0, offset_hz=0.0, isochromats=None):
         """Transition lines of `sequence` run on each system, concatenated.
 
         The pre-readout density matrix is projected onto the Hamiltonian eigenbasis, where
@@ -167,7 +173,8 @@ class Engine:
         When the sequence contains Gradient events the lines are averaged over an
         isochromat ensemble of `isochromats` positions (the engine default when None)
         spanning the gradient extent, so crusher pairs rephase coherently and
-        unbalanced moments dephase physically.
+        unbalanced moments dephase physically. `offset_hz` runs the sequence off
+        resonance (see Context); the returned frequencies stay in the nominal frame.
 
         Returns:
             (freqs_hz, amps): flat complex64-compatible tensors over all d*d elements of
@@ -176,8 +183,9 @@ class Engine:
         isochromats = isochromats if isochromats is not None else self.isochromats
         all_freqs, all_amps = [], []
         for system in systems:
-            ctx = self._ensemble_context(sequence, self.context(system, b1_scale=b1_scale),
-                                         isochromats)
+            ctx = self._ensemble_context(
+                sequence, self.context(system, b1_scale=b1_scale, offset_hz=offset_hz),
+                isochromats)
             freqs, amps = self._system_lines(sequence, ctx)
             all_freqs.append(freqs)
             all_amps.append(amps)
@@ -236,14 +244,16 @@ class Engine:
     #   compiled     #
     #****************#
     def compiled(self, sequence, system, isochromats=None):
-        """A jit-compiled (t1_s, t2_s, b1_scale) -> (freqs, amps) for one system and sequence.
+        """A jit-compiled (t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for one
+        system and sequence.
 
         The context (eigendecomposition, operators) is built once and closed over; only
-        the relaxation times remain inputs, passed as backend tensors so the trace is
-        reused across draws. This is what makes per-draw relaxation sampling cheap: the
-        first call compiles, every further call replays the compiled graph. A gradient-
-        bearing sequence compiles with its isochromat ensemble as a batch axis, so
-        crushers and slice selection run at replay speed too.
+        the relaxation times, the transmit scale, and the frequency offset remain
+        inputs, passed as backend tensors so the trace is reused across draws. This is
+        what makes per-draw sampling cheap: the first call compiles, every further
+        call replays the compiled graph. A gradient-bearing sequence compiles with its
+        isochromat ensemble as a batch axis, so crushers and slice selection run at
+        replay speed too.
 
         Compiled functions are cached on the engine, keyed by the sequence and the
         structural system (relaxation stays an input), so every consumer - metabolites,
@@ -256,8 +266,9 @@ class Engine:
         if key not in self._compiled:
             ctx0 = self._ensemble_context(sequence, self.context(system), isochromats)
 
-            def fn(t1_s, t2_s, b1_scale):
-                ctx = dataclasses.replace(ctx0, t1_s=t1_s, t2_s=t2_s, b1_scale=b1_scale)
+            def fn(t1_s, t2_s, b1_scale, offset_hz):
+                ctx = dataclasses.replace(ctx0, t1_s=t1_s, t2_s=t2_s, b1_scale=b1_scale,
+                                          offset_hz=offset_hz)
                 return self._system_lines(sequence, ctx)
 
             self._compiled[key] = jit(fn)

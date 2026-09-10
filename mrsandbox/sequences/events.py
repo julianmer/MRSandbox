@@ -146,10 +146,12 @@ class SelectivePulse(Event):
     #*************#
     def apply(self, rho, ctx):
         half_width = ops.convert_to_tensor(self.bandwidth_hz) / 2.0
+        # every spin appears at its resonance minus the frame offset
+        seen_hz = ctx.nu_hz - ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
         inside = None
         for offset in self.offset_ppm:
             offset_hz = ops.convert_to_tensor(offset) * ctx.f0_mhz
-            band = ops.abs(ctx.nu_hz - offset_hz) <= half_width
+            band = ops.abs(seen_hz - offset_hz) <= half_width
             inside = band if inside is None else ops.logical_or(inside, band)
         inside = ops.cast(inside, "float32")
         # the axis is the in-band sum of per-spin Ix, whose eigenvalues in the Hadamard
@@ -315,6 +317,9 @@ class ShapedPulse(Event):
             flip = ops.convert_to_tensor(ctx.b1_scale * self.flip_deg, dtype="float32")
             f1 = env * (flip / 360.0) / (ops.sum(env) * dt)
         h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, "complex64"), ops.conj(ctx.v))
+        # the frame offset shifts every resonance: H - offset Fz
+        h_free = h_free - nops.cast(
+            ops.convert_to_tensor(ctx.offset_hz, dtype="float32"), "complex64") * ctx.fz
         if self.gradient_hz_per_mm:
             slice_hz = self.gradient_hz_per_mm * ops.convert_to_tensor(
                 getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
@@ -362,6 +367,11 @@ class Delay(Event):
     T1-only system still recovers and a T2-only system still dephases. Without any
     relaxation times the delay stays purely coherent, exactly as before.
 
+    The frame offset of the context evolves alongside: a uniform offset commutes with
+    the Hamiltonian, so its evolution exp(+i 2 pi offset Fz t) is a phase per
+    coherence order, applied like a gradient kick; refocused by spin echoes, seen by
+    the selective and shaped pulses in between.
+
     Args:
         t_s: Duration in seconds - may be a traced tensor, so sequence timings stay
             free, sweepable, and differentiable.
@@ -379,6 +389,9 @@ class Delay(Event):
     def apply(self, rho, ctx):
         u = Backend.propagator_from_eigh(ctx.lam, ctx.v, self.t_s)
         rho = self._sandwich(u, rho)
+        angle = (2.0 * math.pi * ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
+                 * ops.convert_to_tensor(self.t_s, dtype="float32") * ops.cast(ctx.q, "float32"))
+        rho = rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         if ctx.t1_s is None and ctx.t2_s is None:
             return rho
         t = ops.convert_to_tensor(self.t_s)
