@@ -175,11 +175,14 @@ class TestEncoding:
     #*************#
     @staticmethod
     def point_brain(n=64, hot=(33, 33)):
-        """A synthetic brain with tissue in exactly one 1 mm voxel, centred coordinates."""
+        """A synthetic brain with tissue in exactly one 1 mm voxel, placed so it straddles
+        two 2 mm source cells (its centre at 2.0 mm, spanning 1.5 to 2.5): an object off
+        the acquired grid, which the k-space truncation therefore rings around. A cell
+        aligned with the acquired grid would be its own point spread function."""
         gm = np.zeros((n, n, 3), dtype=np.float32)
         gm[hot[0], hot[1], 1] = 1.0
         affine = np.eye(4)
-        affine[:3, 3] = (-(n - 1) / 2.0, -(n - 1) / 2.0, -1.0)
+        affine[:3, 3] = (-(n / 2.0 - 1.0), -(n / 2.0 - 1.0), -1.0)
         return Brain.from_maps(gm=gm, wm=np.zeros_like(gm), csf=np.zeros_like(gm), affine=affine)
 
     def acquire_point(self, weighting):

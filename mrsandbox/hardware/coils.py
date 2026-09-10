@@ -22,6 +22,8 @@ import dataclasses
 import numpy as np
 import scipy.special
 
+from mrsandbox.phantom.volume import Volume
+
 
 #**************************************************************************************************#
 #                                            Class Loop                                            #
@@ -131,14 +133,18 @@ class CoilArray:
     #********************#
     #   sensitivities    #
     #********************#
-    def sensitivities(self, position_mm):
-        """Complex sensitivity vector b at a position (Roemer's transverse field vector)."""
-        return np.asarray([loop.sensitivity(position_mm) for loop in self.loops], dtype=np.complex64)
+    def sensitivities(self, position_mm, size_mm=None):
+        """Complex sensitivity vector b at a position (Roemer's transverse field vector).
+
+        The loop fields are analytic point samples at the position; `size_mm` is the
+        shared signature of the mapped arrays and is ignored here (stated)."""
+        return np.asarray([loop.sensitivity(position_mm) for loop in self.loops],
+                          dtype=np.complex64)
 
     #*****************#
     #   combination   #
     #*****************#
-    def combine(self, channels, position_mm):
+    def combine(self, channels, position_mm, size_mm=None):
         """Optimum combination P = lambda p^T R^-1 b (Roemer Eq. [20]).
 
         lambda is chosen as 1 / (b^H R^-1 b) so a noise-free input b s returns exactly s:
@@ -148,8 +154,10 @@ class CoilArray:
         Args:
             channels: Complex array (n_coils, npoints).
             position_mm: Where the voxel sits; sets the weights.
+            size_mm: Its size; a mapped array then weights with the same box-averaged
+                sensitivities the voxel received with.
         """
-        b = self.sensitivities(position_mm).astype(np.complex128)
+        b = self.sensitivities(position_mm, size_mm).astype(np.complex128)
         rinv_b = np.linalg.solve(self.noise_resistance, b)
         weights = rinv_b.conj() / np.real(np.vdot(b, rinv_b))
         return weights @ np.asarray(channels, dtype=np.complex128)
@@ -185,9 +193,10 @@ class MappedCoilArray(CoilArray):
 
     The bigbrain_mr preset derives its maps once from the BigBrain-MR 400 um ESPIRiT
     magnitude and phase volumes (32-channel Nova head coil at 7 T) into a strided
-    complex cache, then serves positions by nearest-voxel lookup. The shipped files
-    carry no world origin, so the volume-centre convention of the other BigBrain-MR
-    resources applies. Positions outside the mapped volume have zero sensitivity.
+    complex cache, then serves positions by nearest-cell lookup and voxel boxes by the
+    overlap-weighted mean (see phantom.Volume). The shipped files carry no world
+    origin, so the volume-centre convention of the other BigBrain-MR resources
+    applies. Positions outside the mapped volume have zero sensitivity.
 
     Args:
         sensitivities_map: Complex volume (nx, ny, nz, n_coils).
@@ -200,8 +209,9 @@ class MappedCoilArray(CoilArray):
     #   init   #
     #**********#
     def __init__(self, sensitivities_map, affine, noise_resistance=None, name="custom"):
-        self.map = np.asarray(sensitivities_map, dtype=np.complex64)
-        self.affine = np.asarray(affine, dtype=np.float64)
+        self.volume = Volume(np.asarray(sensitivities_map, dtype=np.complex64), affine, name=name)
+        self.map = self.volume.data
+        self.affine = self.volume.affine
         self.name = name
         self.loops = ()
         n = self.map.shape[-1]
@@ -253,10 +263,12 @@ class MappedCoilArray(CoilArray):
     #********************#
     #   sensitivities    #
     #********************#
-    def sensitivities(self, position_mm):
-        """Complex sensitivity vector at a position, nearest mapped voxel."""
-        index = np.linalg.inv(self.affine) @ np.array([*position_mm, 1.0])
-        index = np.round(index[:3]).astype(int)
-        if np.any(index < 0) or np.any(index >= self.map.shape[:3]):
+    def sensitivities(self, position_mm, size_mm=None):
+        """Complex sensitivity vector at a position: the nearest mapped cell, or with
+        `size_mm` the overlap-weighted mean over that voxel box, what a voxel of that
+        size receives with; zero outside the mapped volume."""
+        value = (self.volume.nearest(position_mm) if size_mm is None
+                 else self.volume.mean(position_mm, size_mm))
+        if value is None:
             return np.zeros(len(self), dtype=np.complex64)
-        return self.map[index[0], index[1], index[2]]
+        return np.asarray(value, dtype=np.complex64)

@@ -19,7 +19,6 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.params import Tissues
-from mrsandbox.spins import SpinSystem
 
 
 #**********************#
@@ -28,12 +27,15 @@ from mrsandbox.spins import SpinSystem
 def acquisition_seed(seed):
     """A serializable seed for an acquisition header: an int passes through, None draws
     a fresh one, so the recorded value always regenerates the file. A Generator is
-    refused because its state cannot be recorded; use fid() for generator-driven draws."""
+    refused because its state cannot be recorded; use fid() for generator-driven draws.
+
+    A fresh seed stays below 2**53 so every JSON reader keeps it exact (readers that
+    parse integers as doubles round anything above), not only Python's."""
     if isinstance(seed, np.random.Generator):
         raise TypeError("acquire needs a serializable seed (an int, or None for a fresh "
                         "one) so the file can regenerate itself; use fid() for "
                         "generator-driven draws")
-    return int(np.random.SeedSequence().entropy) if seed is None else seed
+    return int(np.random.SeedSequence().entropy) % 2 ** 53 if seed is None else seed
 
 
 #**********************#
@@ -255,7 +257,7 @@ class Voxel:
             data = fid.reshape(1, 1, 1, npoints)
         else:
             _, fid = self._clean_fid(truth, npoints, dwell_s)
-            channels = coils.sensitivities(self.position_mm)[:, None] * fid[None, :]
+            channels = coils.sensitivities(self.position_mm, self.size_mm)[:, None] * fid[None, :]
             if truth.noise.sigma > 0.0:
                 channels = channels + coils.noise(rng, truth.noise.sigma, npoints)
             data = np.transpose(channels.astype(np.complex64)).reshape(1, 1, 1, npoints, len(coils))
@@ -331,7 +333,7 @@ class Voxel:
         key = (name, self.compiled)
         if key in cached[1]:
             return cached[1][key]
-        systems = SpinSystem.from_database(name, database=self.scan.database)
+        systems = self.scan.systems(name)
         if self.compiled:
             t1 = ops.convert_to_tensor(np.float32(truth.t1[name]))
             t2 = ops.convert_to_tensor(np.float32(truth.t2[name]))

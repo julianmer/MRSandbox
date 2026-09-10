@@ -44,15 +44,21 @@ class Multiplex:
         sequences: Mapping of condition name to Sequence (e.g. MegaPress.pair()).
         combinations: Optional mapping of combination name to per-condition weights
             (e.g. Hermes.combinations); recorded in the header and applied by combine().
+        compiled: Run the conditions through the engine's jitted per-system graphs, as
+            VirtualScan.voxel does: the first acquisition compiles every system of every
+            condition (seconds), every further one replays. Worth it for a closed loop
+            acquiring many times from one Multiplex; a one-shot acquisition is faster
+            plain.
         **kwargs: Forwarded to every condition's VirtualScan (params, water, coils...).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, brain, scanner, sequences, combinations=None, **kwargs):
+    def __init__(self, brain, scanner, sequences, combinations=None, compiled=False, **kwargs):
         self.conditions = tuple(sequences)
         self.combinations = dict(combinations) if combinations else {}
+        self.compiled = compiled
         self.scans = {
             name: VirtualScan(brain, scanner, sequence, **kwargs)
             for name, sequence in sequences.items()
@@ -78,7 +84,7 @@ class Multiplex:
         truth = self.params.sample(rng)
         stack = []
         for name in self.conditions:
-            voxel = self.scans[name].voxel(position_mm, size_mm)
+            voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             _, fid = voxel._clean_fid(truth, npoints, dwell_s)
             if truth.noise.sigma > 0.0:
                 fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
@@ -151,7 +157,7 @@ class Multiplex:
 
         clean = {}
         for name in set(schedule):
-            voxel = self.scans[name].voxel(position_mm, size_mm)
+            voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             _, clean[name] = voxel._clean_fid(truth, npoints, dwell_s)
 
         n = len(schedule)

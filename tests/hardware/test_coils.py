@@ -193,5 +193,45 @@ class TestMappedArray:
         data = coiled.voxel(**VOXEL).acquire(seed=7, npoints=256)
         assert data.shape == (1, 1, 1, 256, 32)
         channels = np.asarray(data[:])[0, 0, 0].T
-        combined = array.combine(channels, VOXEL["position_mm"])
+        combined = array.combine(channels, **VOXEL)
         assert np.abs(combined - reference).max() < 1e-3 * np.abs(reference).max()
+
+
+#**************************************************************************************************#
+#                                        Class TestMappedBox                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# A synthetic mapped array: nearest cell at a point, overlap-weighted mean over a voxel box.        #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestMappedBox:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def ramp_array():
+        from mrsandbox import MappedCoilArray
+
+        maps = np.zeros((8, 8, 8, 2), dtype=np.complex64)
+        maps[..., 0] = np.arange(8)[:, None, None]  # channel 0 ramps along x
+        maps[..., 1] = 1.0 + 1.0j  # channel 1 is flat
+        return MappedCoilArray(maps, np.eye(4))
+
+    #*****************#
+    #   box average   #
+    #*****************#
+    def test_box_average_weighs_the_edge_cells(self):
+        array = self.ramp_array()
+        assert np.allclose(array.sensitivities((3.4, 3.0, 3.0)), (3.0, 1.0 + 1.0j))
+        # x in [2, 5]: cells 2 and 5 half, 3 and 4 whole, mean x of 3.5
+        assert np.allclose(array.sensitivities((3.5, 3.0, 3.0), 3.0), (3.5, 1.0 + 1.0j))
+        assert np.abs(array.sensitivities((50.0, 3.0, 3.0), 3.0)).max() == 0.0
+
+    #*****************#
+    #   combination   #
+    #*****************#
+    def test_box_combination_has_unit_gain(self):
+        array = self.ramp_array()
+        s, clean = synthetic_signal(array.sensitivities((3.5, 3.0, 3.0), 3.0))
+        assert np.abs(array.combine(clean, (3.5, 3.0, 3.0), 3.0) - s).max() < 1e-5

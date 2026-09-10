@@ -236,6 +236,20 @@ class TestMultiplex:
         np.testing.assert_allclose(multiplex.combine(data, "gaba"), manual,
                                    atol=1e-5 * np.abs(volume).max())
 
+    #*****************#
+    #   replay path   #
+    #*****************#
+    def test_compiled_multiplex_reproduces_the_plain_acquisition(self, acquisition):
+        # the opt-in replay path (a loop acquiring many times from one Multiplex) must
+        # give the plain path's data for the same seed
+        multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                              MegaPress.pair(), params=QUIET, compiled=True)
+        again = multiplex.acquire(position_mm=(10.0, -20.0, 5.0), size_mm=20.0,
+                                  seed=7, npoints=2048)
+        reference = np.asarray(acquisition[:])
+        np.testing.assert_allclose(np.asarray(again[:]), reference,
+                                   atol=1e-5 * np.abs(reference).max())
+
 
 #**************************************************************************************************#
 #                                      Class TestTransients                                        #

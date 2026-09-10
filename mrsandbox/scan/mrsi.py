@@ -295,14 +295,16 @@ class MRSI:
                         source[i, j] = sum(w * fid for w, fid in zip(weights, fids)) / weights.size
                     else:
                         channels = sum(
-                            w * coils.sensitivities(voxel.position_mm)[:, None] * fid[None, :]
+                            w * coils.sensitivities(voxel.position_mm, voxel.size_mm)[:, None]
+                            * fid[None, :]
                             for w, voxel, fid in zip(weights, cell, fids)
                         ) / weights.size
                         source[i, j] = np.transpose(channels)
                 else:
                     for l, (w, voxel, fid) in enumerate(zip(weights, cell, fids)):
                         channel = w * fid if coils is None else np.transpose(
-                            w * coils.sensitivities(voxel.position_mm)[:, None] * fid[None, :])
+                            w * coils.sensitivities(voxel.position_mm, voxel.size_mm)[:, None]
+                            * fid[None, :])
                         source[i, j, l] = channel
 
         if self.trajectory is None:

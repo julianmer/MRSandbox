@@ -20,6 +20,7 @@
 import numpy as np
 
 from mrsandbox.params import Tissues
+from mrsandbox.phantom.volume import Volume
 
 
 #**************************************************************************************************#
@@ -53,12 +54,12 @@ class Brain:
     #   init   #
     #**********#
     def __init__(self, gm, wm, csf, affine, name="custom"):
-        self.gm = np.asarray(gm, dtype=np.float32)
-        self.wm = np.asarray(wm, dtype=np.float32)
-        self.csf = np.asarray(csf, dtype=np.float32)
-        if not (self.gm.shape == self.wm.shape == self.csf.shape):
+        maps = tuple(np.asarray(m, dtype=np.float32) for m in (gm, wm, csf))
+        if not (maps[0].shape == maps[1].shape == maps[2].shape):
             raise ValueError("gm, wm, and csf maps must share one shape")
-        self.affine = np.asarray(affine, dtype=np.float64)
+        self.maps = Volume(np.stack(maps, axis=-1), affine, name=name)
+        self.gm, self.wm, self.csf = (self.maps.data[..., i] for i in range(3))
+        self.affine = self.maps.affine
         self.name = name
 
     #*************#
@@ -128,7 +129,8 @@ class Brain:
     #   tissue fractions   #
     #**********************#
     def fractions(self, position_mm, size_mm):
-        """Mean tissue fractions inside a voxel box.
+        """Mean tissue fractions inside a voxel box, the map cells weighted by their
+        overlap with the box (see phantom.Volume).
 
         Args:
             position_mm: Voxel centre in world millimetres (x, y, z).
@@ -139,14 +141,10 @@ class Brain:
             Tissues(gm, wm, csf) mean probabilities; all zero when the box lies
             outside the maps.
         """
-        box = self._box(position_mm, size_mm)
-        if box is None:
+        mean = self.maps.mean(position_mm, size_mm)
+        if mean is None:
             return Tissues(gm=0.0, wm=0.0, csf=0.0)
-        return Tissues(
-            gm=float(self.gm[box].mean()),
-            wm=float(self.wm[box].mean()),
-            csf=float(self.csf[box].mean()),
-        )
+        return Tissues(gm=float(mean[0]), wm=float(mean[1]), csf=float(mean[2]))
 
     #*******************#
     #   lipid weight    #
@@ -161,29 +159,10 @@ class Brain:
         fraction. The tissue probability maps carry no scalp, so the boundary stands in
         for the fat layer until segmented skull maps arrive.
         """
-        box = self._box(position_mm, size_mm)
-        if box is None:
+        values, weights = self.maps.box(position_mm, size_mm)
+        if weights.sum() <= 0.0:
             return 0.0
-        total = self.gm[box] + self.wm[box] + self.csf[box]
-        if not bool((total > 0.5).any()):
+        total = values.sum(axis=-1)
+        if not bool((total[weights > 0.0] > 0.5).any()):
             return 0.0
-        return float((total < 0.1).mean())
-
-    #*****************#
-    #   box lookup    #
-    #*****************#
-    def _box(self, position_mm, size_mm):
-        """Voxel-index slices of the box (cubic, or per-axis edges), or None when it
-        lies outside the maps."""
-        centre = np.asarray(position_mm, dtype=np.float64)
-        half = np.asarray(size_mm, dtype=np.float64) * np.ones(3) / 2.0
-        corners = np.array([centre + half * np.array(s) for s in
-                            [(-1, -1, -1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1),
-                             (1, 1, -1), (1, -1, 1), (-1, 1, 1), (1, 1, 1)]])
-        inverse = np.linalg.inv(self.affine)
-        voxels = (inverse @ np.c_[corners, np.ones(8)].T)[:3].T
-        low = np.maximum(np.floor(voxels.min(axis=0)).astype(int), 0)
-        high = np.minimum(np.ceil(voxels.max(axis=0)).astype(int) + 1, self.shape)
-        if np.any(low >= high):
-            return None
-        return tuple(slice(int(l), int(h)) for l, h in zip(low, high))
+        return float((weights * (total < 0.1)).sum() / weights.sum())

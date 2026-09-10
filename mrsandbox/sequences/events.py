@@ -58,6 +58,24 @@ class Event(abc.ABC):
         """U rho U^H."""
         return ops.einsum("...ij,...jk,...lk->...il", u, rho, ops.conj(u))
 
+    #**************************#
+    #   transverse rotation    #
+    #**************************#
+    @staticmethod
+    def _transverse_rotation(ctx, lam, phase_deg, turns):
+        """exp(-i 2 pi turns A) for a transverse axis A = cos(phase) Ax + sin(phase) Ay,
+        where Ax is any sum of per-spin Ix and `lam` the matching sum of mz rows.
+
+        Ax = H Az H with H the Hadamard basis and Az diagonal with eigenvalues `lam`, and
+        the phase is the z rotation D = exp(-i phase Fz), diagonal on the product basis,
+        so U = (D H) exp(-i 2 pi turns Az) (D H)^H: two matmuls and no eigendecomposition
+        in the graph. `turns` may be a traced tensor (the transmit scale times the flip).
+        """
+        angle = -math.radians(phase_deg) * ops.sum(ctx.mz, axis=0)
+        d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
+        v = ops.expand_dims(d, 1) * ctx.hadamard
+        return Backend.propagator_from_eigh(lam, v, turns)
+
 
 #**************************************************************************************************#
 #                                           Class Pulse                                            #
@@ -85,9 +103,8 @@ class Pulse(Event):
     #   apply   #
     #***********#
     def apply(self, rho, ctx):
-        phase = math.radians(self.phase_deg)
-        axis = math.cos(phase) * ctx.fx + math.sin(phase) * ctx.fy
-        u = Backend.expm_herm(axis, ctx.b1_scale * self.flip_deg / 360.0)
+        u = self._transverse_rotation(ctx, ops.sum(ctx.mz, axis=0), self.phase_deg,
+                                      ctx.b1_scale * self.flip_deg / 360.0)
         return self._sandwich(u, rho)
 
 
@@ -135,11 +152,10 @@ class SelectivePulse(Event):
             band = ops.abs(ctx.nu_hz - offset_hz) <= half_width
             inside = band if inside is None else ops.logical_or(inside, band)
         inside = ops.cast(inside, "float32")
-        phase = math.radians(self.phase_deg)
-        wx = nops.cast(inside * math.cos(phase), "complex64")
-        wy = nops.cast(inside * math.sin(phase), "complex64")
-        axis = ops.einsum("i,ijk->jk", wx, ctx.ix) + ops.einsum("i,ijk->jk", wy, ctx.iy)
-        u = Backend.expm_herm(axis, ctx.b1_scale * self.flip_deg / 360.0)
+        # the axis is the in-band sum of per-spin Ix, whose eigenvalues in the Hadamard
+        # basis are the same sum of the per-spin magnetic quantum numbers
+        u = self._transverse_rotation(ctx, ops.einsum("i,ij->j", inside, ctx.mz),
+                                      self.phase_deg, ctx.b1_scale * self.flip_deg / 360.0)
         return self._sandwich(u, rho)
 
 

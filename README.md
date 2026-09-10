@@ -49,7 +49,7 @@ flowchart LR
 
 This repository consists of the following main structures:
 * The `mrsandbox/params/` folder holds the parameter system: `Value` providers (fixed, uniform,
-  normal, per tissue, spatial map, posterior) inside composable `Params` trees. Sampling a tree
+  normal, clipped, per tissue) inside composable `Params` trees. Sampling a tree
   realizes every leaf with one seed and records the ground truth.
 * The `mrsandbox/database/` folder stores literature values as source named Python dicts with the
   citation beside each dict, including the de Graaf concentration ranges, per metabolite T2 pooled

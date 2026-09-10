@@ -24,6 +24,7 @@ from mrsandbox.phantom.macromolecules import CoupledMM
 from mrsandbox.phantom.water import Suppressed
 from mrsandbox.scan.defaults import default_params
 from mrsandbox.scan.voxel import Voxel
+from mrsandbox.spins import SpinSystem
 
 
 #**************************************************************************************************#
@@ -70,7 +71,18 @@ class VirtualScan:
         self.field = field
         self.params = default_params(self.database) | (params if params is not None else Params())
         self._lines = None
+        self._systems = {}
         self._b_value = None
+
+    #********************#
+    #   spin systems     #
+    #********************#
+    def systems(self, metabolite):
+        """The spin systems of a metabolite from this scan's database, built once and
+        cached: every draw and every voxel reuses the same structural systems."""
+        if metabolite not in self._systems:
+            self._systems[metabolite] = SpinSystem.from_database(metabolite, database=self.database)
+        return self._systems[metabolite]
 
     #*************************#
     #   diffusion weighting   #

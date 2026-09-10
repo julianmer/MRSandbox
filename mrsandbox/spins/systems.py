@@ -165,6 +165,12 @@ class Operators:
             coherence order +1, so Tr(F+ rho) reads out the -1 coherences of rho.
         coherence_order: Integer matrix q[a, b] = m_a - m_b, (d, d) - a coherence filter
             is a boolean mask on it.
+        mz: Per-spin magnetic quantum numbers on the product basis, (n, d) float32: the
+            diagonals of iz, which are also the eigenvalues of ix in the hadamard basis.
+        hadamard: The transverse eigenbasis H (the n-fold Kronecker Hadamard, real and
+            unitary), (d, d) complex64: H Iz_i H = Ix_i for every spin, so any sum of
+            Ix_i is diagonalized by H with the matching sum of mz rows as eigenvalues,
+            and transverse rotations need no eigendecomposition.
     """
 
     ix: np.ndarray
@@ -175,6 +181,8 @@ class Operators:
     fz: np.ndarray
     fplus: np.ndarray
     coherence_order: np.ndarray
+    mz: np.ndarray
+    hadamard: np.ndarray
 
     #***********#
     #   build   #
@@ -196,7 +204,13 @@ class Operators:
         fx, fy, fz = ix.sum(axis=0), iy.sum(axis=0), iz.sum(axis=0)
         m = np.real(np.diag(fz))
         order = np.rint(m[:, None] - m[None, :]).astype(np.int32)
-        return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy, coherence_order=order)
+        mz = np.real(np.diagonal(iz, axis1=1, axis2=2)).astype(np.float32)
+        hadamard = np.array([[1.0]], dtype=np.complex64)
+        for _ in range(system.n):
+            hadamard = np.kron(hadamard, np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex64)
+                               / np.sqrt(np.float32(2.0)))
+        return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy, coherence_order=order,
+                   mz=mz, hadamard=hadamard)
 
     #***************#
     #   embedding   #

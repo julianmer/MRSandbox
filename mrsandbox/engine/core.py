@@ -67,6 +67,9 @@ class Context:
         gradient_x, gradient_y, gradient_z: Isochromat positions along the three
             gradient axes in millimetres (scalars, or vectors batching the ensemble).
         fz: The longitudinal total-spin operator (gradient offsets act through it).
+        mz, hadamard: Per-spin magnetic quantum numbers (n, d) and the transverse
+            eigenbasis H (d, d) of spins.Operators, so ideal pulses rotate without an
+            eigendecomposition in the graph.
     """
 
     lam: object
@@ -85,6 +88,8 @@ class Context:
     t2_s: object
     b1_scale: object
     fz: object = None
+    mz: object = None
+    hadamard: object = None
     gradient_x: object = 0.0
     gradient_y: object = 0.0
     gradient_z: object = 0.0
@@ -144,6 +149,8 @@ class Engine:
             eye=ops.convert_to_tensor(np.eye(system.dim, dtype=np.complex64)),
             fplus=ops.convert_to_tensor(op.fplus),
             fz=ops.convert_to_tensor(op.fz),
+            mz=ops.convert_to_tensor(op.mz),
+            hadamard=ops.convert_to_tensor(op.hadamard),
             t1_s=system.t1_s,
             t2_s=system.t2_s,
             b1_scale=b1_scale,

@@ -61,6 +61,20 @@ class TestOperators:
         support = np.abs(op.fplus) > 1e-9
         assert np.all(op.coherence_order[support] == +1)  # F+ pairs with (detects) the -1 coherences
 
+    #**********************#
+    #   transverse basis   #
+    #**********************#
+    def test_hadamard_diagonalizes_the_transverse_operators(self, lac):
+        # H Iz_i H = Ix_i for every spin (H unitary), so ideal pulses rotate about any
+        # transverse axis with the per-spin mz rows as eigenvalues and no
+        # eigendecomposition in the graph
+        op = lac.operators()
+        h = op.hadamard
+        np.testing.assert_allclose(h @ h.conj().T, np.eye(lac.dim), atol=1e-6)
+        for i in range(lac.n):
+            np.testing.assert_allclose(op.mz[i], np.real(np.diag(op.iz[i])), atol=1e-6)
+            np.testing.assert_allclose(h @ np.diag(op.mz[i]) @ h.conj().T, op.ix[i], atol=1e-6)
+
     #*************#
     #   caching   #
     #*************#

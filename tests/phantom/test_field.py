@@ -73,7 +73,9 @@ class TestKernel:
         field = centred_map(quadratic_field())
         shimmed = field.kernel(**BOX, t_s=T, shim="linear")
         assert np.abs(shimmed[-1]) < 0.9  # residual dephasing remains
-        assert field.offsets(**BOX, shim="linear").std() > 0.5
+        # the box spans 0.4 of the map, so the 10 Hz parabola is 1.6 Hz across it and
+        # its residual after the linear fit about 0.3 of that
+        assert field.offsets(**BOX, shim="linear").std() > 0.4
 
     #***************#
     #   outside     #
