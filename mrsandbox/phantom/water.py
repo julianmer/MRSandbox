@@ -23,7 +23,6 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.database import tissue
-from mrsandbox.params import Tissues
 from mrsandbox.spins import SpinSystem
 
 
@@ -46,19 +45,6 @@ class WaterSource(abc.ABC):
 
         The shared source signature: the placed scan.Voxel (fractions and geometry),
         the realized truth, and the spectrometer frequency in MHz."""
-
-    #******************#
-    #   relaxation     #
-    #******************#
-    @staticmethod
-    def relaxation(fractions, truth):
-        """The voxel's water T1 and T2: per-tissue leaves weighted by the local
-        composition; scalar overrides pass through unchanged."""
-
-        def weigh(value):
-            return value.weighted(fractions) if isinstance(value, Tissues) else value
-
-        return weigh(truth.water.t1_s), weigh(truth.water.t2_s)
 
     #********************#
     #   full amplitude   #
@@ -87,8 +73,10 @@ class WaterSource(abc.ABC):
     #******************#
     def _engine_lines(self, engine, sequence, voxel, truth, f0_mhz):
         """The water lines of this draw through the engine's compiled path: relaxation
-        and b1 stay inputs, so the first call compiles and every voxel replays."""
-        t1_s, t2_s = self.relaxation(voxel.fractions, truth)
+        and b1 stay inputs, so the first call compiles and every voxel replays. The
+        relaxation leaves resolve at the voxel (per-tissue values weighted by its
+        composition, maps read over its box)."""
+        t1_s, t2_s = voxel.resolve(truth.water.t1_s), voxel.resolve(truth.water.t2_s)
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t))
         return fn(ops.convert_to_tensor(np.float32(t1_s)),
                   ops.convert_to_tensor(np.float32(t2_s)),

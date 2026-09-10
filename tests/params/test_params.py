@@ -18,7 +18,8 @@
 import numpy as np
 import pytest
 
-from mrsandbox import Clipped, Fixed, Normal, Params, PerTissue, Tissues, Uniform, Value
+from mrsandbox import (Clipped, Fixed, Mapped, Normal, Params, PerTissue, Tissues, Uniform, Value,
+                       Volume)
 
 
 #**************************************************************************************************#
@@ -68,6 +69,17 @@ class TestValues:
         concrete = value.sample(np.random.default_rng(1))
         assert isinstance(concrete, Tissues)
         assert 6.0 <= concrete.gm < 12.0 and 4.0 <= concrete.wm < 9.0 and concrete.csf == 0.0
+
+    #************#
+    #   mapped   #
+    #************#
+    def test_mapped_samples_to_its_map_and_records_its_name(self):
+        # a map is not drawn: the realization carries the map itself for the voxel to
+        # resolve, and the serialized truth carries its name
+        volume = Volume(np.full((4, 4, 4), 1.3), np.eye(4), name="t1_synthetic")
+        truth = Params(water=dict(t1_s=Mapped(volume), t2_s=0.08)).sample(seed=1)
+        assert truth.water.t1_s is volume
+        assert truth.to_dict() == {"water": {"t1_s": "t1_synthetic", "t2_s": 0.08}}
 
 
 #**************************************************************************************************#

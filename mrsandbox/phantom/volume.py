@@ -53,6 +53,27 @@ class Volume:
         self._inverse = np.linalg.inv(self.affine)
         self.name = name
 
+    #*************#
+    #   loading   #
+    #*************#
+    @classmethod
+    def load(cls, name):
+        """A registered NIfTI resource as a Volume, fetched on first use: values scaled
+        to the registry's stated units where the entry carries a scale, and for the
+        bigbrain_mr entries the volume-centre origin convention of the other
+        BigBrain-MR loaders (the shipped files carry no world origin)."""
+        import nibabel as nib
+
+        from mrsandbox.resources import Resources
+
+        entry = Resources.REGISTRY[name]
+        image = nib.load(str(Resources.path(name)))
+        data = np.asarray(image.get_fdata(), dtype=np.float32) * np.float32(entry.get("scale", 1.0))
+        affine = np.array(image.affine, dtype=np.float64)
+        if name.startswith("bigbrain_mr/"):
+            affine[:3, 3] = -affine[:3, :3] @ ((np.asarray(data.shape[:3]) - 1) / 2.0)
+        return cls(data, affine, name=name)
+
     #**************#
     #   geometry   #
     #**************#

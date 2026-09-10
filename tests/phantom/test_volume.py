@@ -16,8 +16,10 @@
 #   imports   #
 #*************#
 import numpy as np
+import pytest
 
 from mrsandbox import Volume
+from mrsandbox.resources import Resources
 
 
 #*************#
@@ -102,3 +104,34 @@ class TestVolume:
         # cells 0 and 1 whole, y and z in [3.5, 6.5] three whole cells each
         _, edge = volume.box((0.0, 5.0, 5.0), 3.0)
         assert abs(edge.sum() - 2.0 * 9.0) < 1e-12
+
+
+#**************************************************************************************************#
+#                                      Class TestBigBrainMaps                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The registered BigBrain-MR quantitative maps load as Volumes on the brain's own grid.             #
+#                                                                                                  #
+#**************************************************************************************************#
+@pytest.mark.skipif(not Resources.cached("bigbrain_mr/t1map_800um")
+                    or not Resources.cached("bigbrain_mr/labels_800um"),
+                    reason="bigbrain_mr maps not cached; Volume.load fetches them once")
+class TestBigBrainMaps:
+
+    #**************#
+    #   t1 map     #
+    #**************#
+    def test_t1_map_shares_the_brain_grid_and_reads_in_seconds(self):
+        from mrsandbox import Brain, Mapped, Params, Press, Scanner, VirtualScan
+
+        t1 = Volume.load("bigbrain_mr/t1map_800um")
+        brain = Brain.load("bigbrain_mr")
+        assert t1.shape == brain.shape and np.allclose(t1.affine, brain.affine)
+        box = dict(position_mm=(-30.0, 10.0, 10.0), size_mm=20.0)
+        local = t1.mean(**box)
+        assert 0.8 < local < 2.5  # 7 T MP2RAGE brain tissue, seconds
+        # through the scan: the water T1 of that voxel is the map's box mean
+        scan = VirtualScan(brain, Scanner.preset("generic_7t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=Params(water=dict(t1_s=Mapped(t1))))
+        voxel = scan.voxel(**box)
+        assert voxel.resolve(voxel.sample(seed=7).water.t1_s) == float(local)

@@ -16,6 +16,7 @@
 #*************#
 #   imports   #
 #*************#
-from mrsandbox.params.values import Clipped, Fixed, Normal, PerTissue, Tissues, Uniform, Value
+from mrsandbox.params.values import (Clipped, Fixed, Mapped, Normal, PerTissue, Tissues, Uniform,
+                                     Value)
 from mrsandbox.params.trees import Params
 from mrsandbox.params.priors import Priors

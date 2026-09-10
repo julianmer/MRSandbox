@@ -220,3 +220,90 @@ class TestAcquisitionImperfections:
         echo = 0.1 * np.abs(fid0).max() * np.exp(-2000.0 * (t - 0.1) ** 2) * np.exp(
             1j * 2.0 * np.pi * 2.5 * f0_mhz * t)
         assert np.abs((fid1 - fid0) - echo).max() < 1e-4 * np.abs(fid0).max()
+
+
+#**************************************************************************************************#
+#                                          Class TestMaps                                          #
+#**************************************************************************************************#
+#                                                                                                  #
+# Map-valued leaves: the voxel resolves them over its box, and the header records the result.       #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestMaps:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def uniform_scan(scan, params):
+        from mrsandbox import Brain
+
+        shape = (8, 8, 8)
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        ones, zeros = np.ones(shape, dtype=np.float32), np.zeros(shape, dtype=np.float32)
+        brain = Brain.from_maps(gm=ones, wm=zeros, csf=zeros, affine=affine)
+        return VirtualScan(brain, scan.scanner, scan.sequence, params=params)
+
+    @staticmethod
+    def naa_amplitude(voxel, truth):
+        parts = voxel.components(truth)
+        index = list(truth.conc).index("NAA")
+        return float(np.abs(ops.convert_to_numpy(parts[index][1])).sum())
+
+    #*************#
+    #   resolve   #
+    #*************#
+    def test_resolve_weighs_tissues_reads_maps_and_passes_scalars(self, scan):
+        from mrsandbox import Tissues, Volume
+
+        voxel = self.uniform_scan(scan, None).voxel(position_mm=(0.0, 0.0, 0.0), size_mm=4.0)
+        assert voxel.resolve(2.5) == 2.5
+        assert voxel.resolve(Tissues(gm=1.0, wm=3.0, csf=5.0)) == 1.0  # a pure GM voxel
+        ramp = np.broadcast_to(np.arange(8, dtype=np.float64)[:, None, None], (8, 8, 8))
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        volume = Volume(ramp.copy(), affine)
+        assert abs(voxel.resolve(volume) - 3.5) < 1e-12  # the box mean of the ramp
+        assert voxel.resolve(Volume(ramp.copy(), np.eye(4) * 100.0)) == 0.0  # outside
+
+    #*************************#
+    #   mapped concentration  #
+    #*************************#
+    def test_mapped_concentration_reads_the_box_mean(self, scan):
+        from mrsandbox import Mapped, Volume
+
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        flat = Volume(np.full((8, 8, 8), 10.0), affine, name="naa_flat")
+        ramp = Volume(np.broadcast_to(np.arange(8, dtype=np.float64)[:, None, None],
+                                      (8, 8, 8)).copy() * 2.0, affine, name="naa_ramp")
+
+        def amplitude(params, position):
+            voxel = self.uniform_scan(scan, params).voxel(position_mm=position, size_mm=2.0)
+            return self.naa_amplitude(voxel, voxel.sample(seed=7))
+
+        fixed = amplitude(Params(conc=dict(NAA=10.0)), (0.0, 0.0, 0.0))
+        mapped = amplitude(Params(conc=dict(NAA=Mapped(flat))), (0.0, 0.0, 0.0))
+        assert abs(mapped - fixed) < 1e-6 * fixed  # a flat 10 mM map is a fixed 10 mM
+        assert abs(amplitude(Params(conc=dict(NAA=5.0)), (0.0, 0.0, 0.0)) - fixed / 2.0) < 1e-6 * fixed
+        # the ramp reads 2 x (box mean of the index): 2 x 3.5 at the centre, 2 x 5.5 at +2
+        centre = amplitude(Params(conc=dict(NAA=Mapped(ramp))), (0.0, 0.0, 0.0))
+        shifted = amplitude(Params(conc=dict(NAA=Mapped(ramp))), (2.0, 0.0, 0.0))
+        assert abs(centre / fixed - 0.7) < 1e-6 and abs(shifted / fixed - 1.1) < 1e-6
+
+    #*************#
+    #   header    #
+    #*************#
+    def test_header_records_the_resolved_local_values(self, scan):
+        from mrsandbox import Mapped, Volume
+
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        t1 = Volume(np.full((8, 8, 8), 1.3), affine, name="t1_synthetic")
+        params = Params(water=dict(t1_s=Mapped(t1)), conc=dict(NAA=Mapped(t1)))
+        voxel = self.uniform_scan(scan, params).voxel(position_mm=(0.0, 0.0, 0.0), size_mm=4.0)
+        data = voxel.acquire(seed=7, npoints=64)
+        truth = data.hdr_ext["SimulationGroundTruth"]
+        assert truth["params"]["water"]["t1_s"] == "t1_synthetic"
+        assert truth["local"] == {"conc.NAA": 1.3, "water.t1_s": 1.3}

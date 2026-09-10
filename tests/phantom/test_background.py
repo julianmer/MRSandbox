@@ -140,7 +140,6 @@ class TestWaterRelaxation:
     #****************#
     def test_water_relaxation_weighs_the_local_tissue(self, brain):
         from mrsandbox import Tissues, VirtualScan, Scanner, Press
-        from mrsandbox.phantom.water import WaterSource
 
         scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         truth = scan.params.sample(seed=7)
@@ -148,9 +147,10 @@ class TestWaterRelaxation:
         pure_gm = Tissues(gm=1.0, wm=0.0, csf=0.0)
         pure_csf = Tissues(gm=0.0, wm=0.0, csf=1.0)
         mixed = Tissues(gm=0.5, wm=0.5, csf=0.0)
-        t1_gm, t2_gm = WaterSource.relaxation(pure_gm, truth)
-        t1_csf, _ = WaterSource.relaxation(pure_csf, truth)
-        t1_mix, t2_mix = WaterSource.relaxation(mixed, truth)
+        # the voxel resolves the realized leaves by weighing them with its fractions
+        t1_gm, t2_gm = truth.water.t1_s.weighted(pure_gm), truth.water.t2_s.weighted(pure_gm)
+        t1_csf = truth.water.t1_s.weighted(pure_csf)
+        t1_mix, t2_mix = truth.water.t1_s.weighted(mixed), truth.water.t2_s.weighted(mixed)
         # T1 draws from the crowdsourced challenge priors (BOUDREAU), T2 stays cited
         assert abs(t1_gm - 1.548) < 5 * 0.156 and t2_gm == 0.110
         assert t1_csf == 4.3
@@ -163,14 +163,13 @@ class TestWaterRelaxation:
     #   overrides    #
     #****************#
     def test_scalar_override_passes_through(self, brain):
-        from mrsandbox import Params, Press, Scanner, Tissues, VirtualScan
-        from mrsandbox.phantom.water import WaterSource
+        from mrsandbox import Params, Press, Scanner, VirtualScan
 
         scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
                            params=Params(water=dict(t1_s=1.1, t2_s=0.05)))
         truth = scan.params.sample(seed=7)
-        t1, t2 = WaterSource.relaxation(Tissues(gm=1.0, wm=0.0, csf=0.0), truth)
-        assert t1 == 1.1 and t2 == 0.05
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        assert voxel.resolve(truth.water.t1_s) == 1.1 and voxel.resolve(truth.water.t2_s) == 0.05
 
 
 #**************************************************************************************************#

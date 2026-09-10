@@ -18,7 +18,8 @@
 import numpy as np
 from keras import ops
 
-from mrsandbox.params import Tissues
+from mrsandbox.params import Params, Tissues
+from mrsandbox.phantom.volume import Volume
 
 
 #**********************#
@@ -62,6 +63,11 @@ class Voxel:
     drawn GM to WM contrast r: gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel carries
     exactly the drawn value and pure tissues realize the published contrast; the
     linewidth follows the sampled T2 as 1 / (pi T2).
+
+    Every realized leaf the render reads (concentrations, metabolite and water
+    relaxation, diffusion) resolves at this voxel through `resolve`: scalars pass,
+    per-tissue values weigh by the local composition, and spatial maps read their
+    overlap-weighted mean over the box, so one truth serves every position.
     """
 
     #**********#
@@ -75,6 +81,34 @@ class Voxel:
         self.fractions = scan.brain.fractions(position_mm, self.size_mm)
         self.compiled = compiled
         self._kernels = {}
+        self._locals = {}
+
+    #*************#
+    #   resolve   #
+    #*************#
+    def resolve(self, value):
+        """A realized leaf at this voxel: a Tissues weighted by the local fractions, a
+        phantom.Volume read as its overlap-weighted mean over the box (cached; None
+        outside the map resolves to 0.0), anything else unchanged."""
+        if isinstance(value, Tissues):
+            return value.weighted(self.fractions)
+        if isinstance(value, Volume):
+            if value not in self._locals:
+                mean = value.mean(self.position_mm, self.size_mm)
+                self._locals[value] = 0.0 if mean is None else float(mean)
+            return self._locals[value]
+        return value
+
+    def local(self, truth, path=()):
+        """Every map-valued leaf of a realized tree resolved at this voxel, keyed by
+        its dotted path: the per-voxel truth the acquisition header records."""
+        found = {}
+        for key, value in truth.items():
+            if isinstance(value, Params):
+                found.update(self.local(value, path + (key,)))
+            elif isinstance(value, Volume):
+                found[".".join(path + (key,))] = self.resolve(value)
+        return found
 
     #*****************#
     #   realization   #
@@ -103,8 +137,9 @@ class Voxel:
         cutoff = self.scan.downfield.replaces_above_ppm
         parts = []
         for name, concentration in truth.conc.items():
-            t2 = truth.t2[name]
-            freqs, amps = self._metabolite_lines(name, truth)
+            concentration = self.resolve(concentration)
+            t1, t2 = self.resolve(truth.t1[name]), self.resolve(truth.t2[name])
+            freqs, amps = self._metabolite_lines(name, truth, t1, t2)
             if cutoff is not None:
                 amps = ops.where(freqs > cutoff * f0_mhz, ops.zeros_like(amps), amps)
             # the drawn concentration is the equal-mix value; the GM to WM contrast
@@ -116,7 +151,7 @@ class Voxel:
             parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))
         water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
         if water is not None:
-            _, water_t2 = self.scan.water.relaxation(self.fractions, truth)
+            water_t2 = self.resolve(truth.water.t2_s)
             w_freqs, w_amps = water
             parts.append((w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
                           1.0 / (np.pi * water_t2), 0.0))
@@ -151,9 +186,7 @@ class Voxel:
         def faded(adc):
             if b == 0.0:
                 return 1.0
-            if isinstance(adc, Tissues):
-                adc = adc.weighted(self.fractions)
-            return float(np.exp(-b * adc))
+            return float(np.exp(-b * self.resolve(adc)))
 
         return faded
 
@@ -269,8 +302,10 @@ class Voxel:
                    if k.endswith("_s") and isinstance(v, (int, float))}
         hdr.set_user_def(
             "SimulationGroundTruth",
-            {"seed": seed, "params": truth.to_dict(), "tissue_fractions": dict(self.fractions._asdict())},
-            "MRSandbox: the realized parameter tree of this acquisition.",
+            {"seed": seed, "params": truth.to_dict(), "tissue_fractions": dict(self.fractions._asdict()),
+             "local": self.local(truth)},
+            "MRSandbox: the realized parameter tree of this acquisition, with every "
+            "map-valued leaf resolved at the voxel under local.",
         )
         hdr.set_user_def(
             "SimulationSequence",
@@ -316,34 +351,34 @@ class Voxel:
                 ops.convert_to_tensor(np.pad(lw, (0, pad), constant_values=1.0)),
                 ops.convert_to_tensor(np.pad(gauss, (0, pad))))
 
-    def _metabolite_lines(self, name, truth):
-        """Unweighted lines of one metabolite for one truth, plain or through the
-        compiled per-system path.
+    def _metabolite_lines(self, name, truth, t1_s, t2_s):
+        """Unweighted lines of one metabolite for one truth and its resolved relaxation
+        times, plain or through the compiled per-system path.
 
-        The lines depend on the draw (relaxation, b1) but not on the voxel position,
-        so they are cached per truth on the scan: one truth serving many voxels (MRSI,
-        multiplex) simulates each metabolite once, and every voxel applies only its own
-        weights. Compiled, the jitted (t1_s, t2_s, b1_scale) -> (freqs, amps) functions
-        are cached on the engine, so drawing fresh values per sample replays compiled
-        graphs instead of re-tracing the whole simulation.
+        The lines depend on the draw (relaxation, b1) but not on the voxel position
+        beyond the resolved times, so they are cached per truth on the scan keyed by
+        those times: one truth serving many voxels (MRSI, multiplex) simulates each
+        metabolite once, and every voxel applies only its own weights. Compiled, the
+        jitted (t1_s, t2_s, b1_scale) -> (freqs, amps) functions are cached on the
+        engine, so drawing fresh values per sample replays compiled graphs instead of
+        re-tracing the whole simulation.
         """
         cached = self.scan._lines
         if cached is None or cached[0] is not truth:
             cached = self.scan._lines = (truth, {})
-        key = (name, self.compiled)
+        key = (name, self.compiled, t1_s, t2_s)
         if key in cached[1]:
             return cached[1][key]
         systems = self.scan.systems(name)
         if self.compiled:
-            t1 = ops.convert_to_tensor(np.float32(truth.t1[name]))
-            t2 = ops.convert_to_tensor(np.float32(truth.t2[name]))
+            t1 = ops.convert_to_tensor(np.float32(t1_s))
+            t2 = ops.convert_to_tensor(np.float32(t2_s))
             b1 = ops.convert_to_tensor(np.float32(truth.b1_scale))
             parts = [self.scan.engine.compiled(self.scan.sequence, s)(t1, t2, b1) for s in systems]
             lines = (ops.concatenate([f for f, _ in parts]),
                      ops.concatenate([a for _, a in parts]))
         else:
-            relaxed = tuple(s.with_relaxation(t1_s=truth.t1[name], t2_s=truth.t2[name])
-                            for s in systems)
+            relaxed = tuple(s.with_relaxation(t1_s=t1_s, t2_s=t2_s) for s in systems)
             lines = self.scan.engine.lines(self.scan.sequence, *relaxed, b1_scale=truth.b1_scale)
         cached[1][key] = lines
         return lines

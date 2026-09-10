@@ -148,11 +148,15 @@ class Params(dict):
     #   serialization   #
     #*******************#
     def to_dict(self):
-        """Plain nested dict view, with dataclass leaves flattened to dicts."""
+        """Plain nested dict view, with dataclass leaves flattened to dicts and map
+        leaves reduced to their names."""
+        from mrsandbox.phantom.volume import Volume
 
         def plain(value):
             if isinstance(value, Params):
                 return value.to_dict()
+            if isinstance(value, Volume):
+                return value.name
             if hasattr(value, "_asdict"):
                 return dict(value._asdict())
             if dataclasses.is_dataclass(value) and not isinstance(value, type):

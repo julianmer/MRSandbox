@@ -82,7 +82,7 @@ class Generator(keras.utils.PyDataset):
             truth = self.voxel.scan.params.sample(rng)
             _, fid = self.voxel._render(truth, rng, self.npoints, self.dwell_s)
             x[i, 0], x[i, 1] = fid.real, fid.imag
-            y[i] = [truth.conc[name] for name in self.metabolites]
+            y[i] = [self.voxel.resolve(truth.conc[name]) for name in self.metabolites]
             truths.append(truth)
         self.truths = tuple(truths)
         return x, y

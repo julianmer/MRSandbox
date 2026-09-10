@@ -163,6 +163,34 @@ class Clipped(Value):
 
 
 #**************************************************************************************************#
+#                                           Class Mapped                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# A quantity read from a spatial map, resolved by the placed voxel at render time.                 #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class Mapped(Value):
+    """A quantity read from a spatial map (a phantom.Volume) instead of drawn: sampling
+    returns the map itself, and the placed voxel resolves it to the overlap-weighted
+    mean over its box at render time (scan.Voxel.resolve), so one truth serves every
+    position while each voxel reads its own local value. The ground truth records the
+    map's name, the acquisition header the resolved value.
+
+    Args:
+        volume: A phantom.Volume in the quantity's own units (T1 in seconds, mM, ...).
+    """
+
+    volume: object
+
+    #************#
+    #   sample   #
+    #************#
+    def sample(self, rng):
+        return self.volume
+
+
+#**************************************************************************************************#
 #                                          Class Tissues                                           #
 #**************************************************************************************************#
 #                                                                                                  #
