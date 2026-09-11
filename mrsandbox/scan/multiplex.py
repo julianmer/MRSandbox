@@ -183,9 +183,8 @@ class Multiplex:
         synth_seed = int(rng.integers(2 ** 31))
         synth = TransientSynthesizer(n_transients=n, tr_s=float(tr_s), seed=synth_seed,
                                      **synthesis)
-        # the realized tracks; Augmentrum applies them through the same factor in
-        # its process_tensor, which does not hand them back (its private method today)
-        freq_hz, phase_rad, amplitude, broaden_hz = synth._transient_tracks(synth.rng.numpy_rng())
+        # the realized tracks, which Augmentrum applies through the same factor
+        freq_hz, phase_rad, amplitude, broaden_hz = synth.tracks(synth.rng.numpy_rng())
 
         grid = np.arange(npoints) * dwell_s
         data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
