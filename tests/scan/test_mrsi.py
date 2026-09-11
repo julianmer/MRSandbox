@@ -15,6 +15,8 @@
 #*************#
 #   imports   #
 #*************#
+import importlib.util
+
 import numpy as np
 import pytest
 
@@ -599,3 +601,68 @@ class TestTrajectory:
             scan.mrsi(**kw, dead_time_s=1e-5)
         with pytest.raises(ValueError, match="below the spectral dwell"):
             scan.mrsi(**kw, trajectory="epsi", dead_time_s=1.0).acquire(seed=3, npoints=8)
+
+
+#**************************************************************************************************#
+#                                       Class TestNonuniform                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# Augmentrum trajectories: rosettes and rings read the sources at their visit times through the    #
+# gridding NUFFT, the reconstruction keeps a uniform object and places a point source.             #
+#                                                                                                  #
+#**************************************************************************************************#
+@pytest.mark.skipif(importlib.util.find_spec("augmentrum") is None,
+                    reason="Augmentrum not installed (mrsandbox[augment])")
+class TestNonuniform:
+
+    #*****************#
+    #   uniform gate  #
+    #*****************#
+    def test_rosette_keeps_a_uniform_singlet_object(self):
+        # every rosette shot starts at DC, so a uniform single-line object is read at
+        # slot zero of every period: the reconstruction is the CSI slice up to the
+        # gridding of the padded field of view, uniform across the grid
+        scan = TestTrajectory.singlet_scan()
+        _, csi = TestTrajectory().acquired(scan)
+        mrsi, rosette = TestTrajectory().acquired(
+            scan, trajectory="rosette_2d",
+            trajectory_params=dict(n_shots=4, samples_per_shot=64))
+        ratio = np.abs(rosette).sum(axis=-1) / np.abs(csi).sum(axis=-1)
+        assert abs(ratio.mean() - 1.0) < 0.1  # the stated scalar gain normalization
+        assert ratio.std() < 0.1 * ratio.mean()
+        # the line sits where CSI puts it
+        for spectrum in (np.abs(np.fft.fft(csi[2, 2])), np.abs(np.fft.fft(rosette[2, 2]))):
+            assert np.argmax(spectrum) == np.argmax(np.abs(np.fft.fft(csi[1, 1])))
+        grid = mrsi.acquire(seed=3, npoints=8).hdr_ext.to_dict()["SimulationGrid"]
+        assert grid["trajectory"] == "rosette_2d" and grid["shots"] == 4
+        assert grid["samples_per_shot"] == 64 and "visit_order" not in grid
+        assert grid["trajectory_params"] == {"n_shots": 4, "samples_per_shot": 64}
+
+    #*******************#
+    #   point source    #
+    #*******************#
+    def test_rings_place_a_point_source(self):
+        from mrsandbox import NoLipids, NoMM, NoWater
+
+        brain = TestEncoding.point_brain()  # the hot cell lies in source cell (4, 4)
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=QUIET, water=NoWater(), lipids=NoLipids(), mm=NoMM())
+        mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=4.0,
+                         trajectory="concentric_rings_2d",
+                         trajectory_params=dict(n_rings=4, samples_per_ring=48))
+        power = np.abs(np.asarray(mrsi.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
+        assert np.unravel_index(np.argmax(power), power.shape) == (4, 4)
+        assert power[4, 4] > 3.0 * np.sort(power.ravel())[-2]  # the peak stands clear
+
+    #*****************#
+    #   the guards    #
+    #*****************#
+    def test_unequal_shots_are_refused(self):
+        scan = TestTrajectory.singlet_scan()
+        with pytest.raises(ValueError, match="same sample count"):
+            scan.mrsi(matrix=(4, 4), voxel_mm=4.0, trajectory="concentric_rings_2d")
+        with pytest.raises(ValueError, match="trajectory_params"):
+            scan.mrsi(matrix=(4, 4), voxel_mm=4.0, trajectory="epsi",
+                      trajectory_params=dict(n_shots=2))
+        with pytest.raises(ValueError, match="Unknown trajectory"):
+            scan.mrsi(matrix=(4, 4), voxel_mm=4.0, trajectory="helix_2d")

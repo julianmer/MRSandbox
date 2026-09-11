@@ -101,9 +101,18 @@ class MRSI:
     encoded, and a slab additionally phase encodes its kz partitions, every partition
     sharing the kx visit clock. The header records the kx visit order so
     reconstruction can be scored against it; the standard reconstruction here ignores
-    the visit times, as an uncorrected recon would. A trajectory composes with the z
-    profile and with slab partitions, but not with oversampling, sampling, weighting,
-    or averages.
+    the visit times, as an uncorrected recon would. Any 2-D trajectory of Augmentrum's
+    registry (rosette_2d, concentric_rings_2d, spiral_2d, ...) plays the same way:
+    Augmentrum generates the shots for this lattice's geometry (`trajectory_params`
+    are its parameters, e.g. n_shots or samples_per_ring), every shot traverses its
+    samples once per spectral dwell (so every shot must carry the same sample count,
+    the visit clock being shared), each sample reads the source at its visit time
+    through Augmentrum's gridding NUFFT (the forward transform of the fine-grid
+    image at that slot, Kaiser-Bessel), and the acquired grid is the density
+    compensated adjoint of all samples, ignoring the visit times, scaled so a uniform
+    object keeps its amplitude (one scalar gridding gain, stated). A trajectory
+    composes with the z profile and with slab partitions, but not with oversampling,
+    sampling, weighting, or averages.
 
     Stated limits: oversampling and its truncation PSF are in-plane only; the z profile
     is an excitation weighting, not a per-metabolite run under the slice gradient;
@@ -126,8 +135,9 @@ class MRSI:
             along z (per sub-slab for a slice, per partition for a slab).
         averages: None (one ideal acquisition per encode), or the transient count at
             the k-space centre of the acquisition-weighted scheme.
-        trajectory: None (conventional CSI), "epsi" (flyback), or
-            "epsi-bidirectional" (alternating sweep direction).
+        trajectory: None (conventional CSI), "epsi" (flyback), "epsi-bidirectional"
+            (alternating sweep direction), or the name of a 2-D Augmentrum trajectory.
+        trajectory_params: Parameters of the Augmentrum trajectory.
         dead_time_s: Flyback or turnaround time at the end of every trajectory sweep,
             quantized to fine-grid samples; 0 idealizes it away.
     """
@@ -137,7 +147,8 @@ class MRSI:
     #**********#
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
                  thickness_mm=None, oversampling=1, weighting=None, sampling=None,
-                 profile=None, averages=None, trajectory=None, dead_time_s=0.0):
+                 profile=None, averages=None, trajectory=None, trajectory_params=None,
+                 dead_time_s=0.0):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
         if averages is not None and (not isinstance(averages, numbers.Real)
@@ -197,9 +208,16 @@ class MRSI:
             return [scan.voxel((x, y, float(z)), sub, compiled=True) for z in centres]
 
         self.voxels = [[cell(i, j) for j in range(ny)] for i in range(nx)]
-        if trajectory not in (None, "epsi", "epsi-bidirectional"):
+        self.trajectory_params = dict(trajectory_params or {})
+        self.shots, self.trajectory_meta = None, None
+        if trajectory in (None, "epsi", "epsi-bidirectional"):
+            if self.trajectory_params:
+                raise ValueError("trajectory_params belong to an Augmentrum trajectory")
+        elif isinstance(trajectory, str):
+            self.shots, self.trajectory_meta = self._augmentrum_shots(trajectory)
+        else:
             raise ValueError(f"unknown trajectory {trajectory!r}; known: None, epsi, "
-                             f"epsi-bidirectional")
+                             f"epsi-bidirectional, or an Augmentrum trajectory name")
         self.trajectory = trajectory
         if trajectory is not None and (
                 self.oversampling != 1 or self.weighting is not None
@@ -226,6 +244,34 @@ class MRSI:
         """The simulated in-plane source grid, `oversampling` times finer than the
         acquisition."""
         return (self.matrix[0] * self.oversampling, self.matrix[1] * self.oversampling)
+
+    @property
+    def samples_per_period(self):
+        """Readout samples inside one spectral dwell: the kx lines of an EPSI sweep,
+        or the samples of every shot of an Augmentrum trajectory."""
+        return self.matrix[0] if self.shots is None else self.shots.shape[1]
+
+    def _augmentrum_shots(self, name):
+        """The shots of a named Augmentrum trajectory for this lattice, as normalized
+        coordinates (n_shots, samples, 2) in [-0.5, 0.5) per axis, and its metadata."""
+        try:
+            from augmentrum.sampling.kspace_sampling import TrajectoryRegistry
+        except ImportError as error:
+            raise ImportError("non-Cartesian trajectories need Augmentrum (the "
+                              "mrsandbox[augment] extra)") from error
+        nx, ny = self.matrix[0], self.matrix[1]
+        geometry = {"matrix": (nx, ny, self.partitions),
+                    "fov_mm": (nx * self.voxel_mm, ny * self.voxel_mm,
+                               self.partitions * self.thickness_mm)}
+        shots, meta = TrajectoryRegistry.create(name, **self.trajectory_params).generate(geometry)
+        counts = {int(np.asarray(shot).shape[0]) for shot in shots}
+        if len(counts) != 1:
+            raise ValueError(f"every shot must carry the same sample count per spectral dwell "
+                             f"(the shared visit clock); {name!r} gave {sorted(counts)}: set "
+                             f"its per-shot sample parameter in trajectory_params")
+        kmax = np.asarray(meta["kmax"], dtype=np.float64)[:2]
+        stacked = np.stack([np.asarray(shot, dtype=np.float64)[:, :2] for shot in shots])
+        return (stacked / (2.0 * kmax)).astype(np.float32), meta
 
     def position(self, i, j, l=0):
         """World position of acquired grid point (i, j, l), the lattice centred on
@@ -278,7 +324,7 @@ class MRSI:
         # render on the fine ADC grid and the sampler picks each line's visit times;
         # a finite dead time appends n_dead unread fine samples to every period
         n_dead = self._dead_points(dwell_s) if self.trajectory is not None else 0
-        period = nx + n_dead
+        period = self.samples_per_period + n_dead
         fine = npoints if self.trajectory is None else npoints * period
         step = dwell_s if self.trajectory is None else dwell_s / period
         tail = (npoints,) + ((len(coils),) if coils is not None else ())
@@ -309,8 +355,10 @@ class MRSI:
 
         if self.trajectory is None:
             encoded = self._encode(source)
-        else:
+        elif self.shots is None:
             encoded = self._sample_trajectory(source, npoints, n_dead)
+        else:
+            encoded = self._sample_nonuniform(source, npoints, n_dead)
         data = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
         if nz == 1:
             data[:, :, 0] = encoded
@@ -364,10 +412,16 @@ class MRSI:
              else self.sampling,
              "profile": self.profile.tolist() if self.profile is not None else None,
              "averages": self.averages, "trajectory": self.trajectory,
-             **({"visit_order": self._visit_order(0).tolist(),
-                 "visit_order_odd": self._visit_order(1).tolist(),
-                 "dead_time_s": n_dead * dwell_s / (nx + n_dead)}
+             **({"dead_time_s": n_dead * dwell_s / period}
                 if self.trajectory is not None else {}),
+             **({"visit_order": self._visit_order(0).tolist(),
+                 "visit_order_odd": self._visit_order(1).tolist()}
+                if self.trajectory is not None and self.shots is None else {}),
+             **({"trajectory_params": self.trajectory_params,
+                 "shots": int(self.shots.shape[0]),
+                 "samples_per_shot": int(self.shots.shape[1]),
+                 "kmax_per_m": [float(k) for k in self.trajectory_meta["kmax"][:2]]}
+                if self.shots is not None else {}),
              **({"transients": int(self._averages_map().sum()),
                  "averages_map": self._averages_map().tolist()}
                 if self.averages is not None else {})},
@@ -463,8 +517,8 @@ class MRSI:
         if not self.dead_time_s < dwell_s:
             raise ValueError(f"dead_time_s must stay below the spectral dwell: got "
                              f"{self.dead_time_s} at dwell {dwell_s}")
-        nx = self.matrix[0]
-        return int(round(self.dead_time_s * nx / (dwell_s - self.dead_time_s)))
+        samples = self.samples_per_period
+        return int(round(self.dead_time_s * samples / (dwell_s - self.dead_time_s)))
 
     def _visit_order(self, parity):
         """Sample slot of every centred kx index inside one spectral period: the sweep
@@ -501,4 +555,42 @@ class MRSI:
                 kdata[:, :, :, n] = k[rows[:, None, None], cols[None, :, None],
                                       np.arange(nz)[None, None, :], slots[:, None, None]]
         decoded = np.fft.ifftn(np.fft.ifftshift(kdata, axes=axes), axes=axes)
+        return decoded.astype(np.complex64)
+
+    def _sample_nonuniform(self, source, npoints, n_dead=0):
+        """Sample an Augmentrum trajectory and reconstruct it the standard way.
+
+        Slot s of every spectral period is the fine sample every shot reads at its
+        s-th coordinate: the fine-grid sources at those times form one image whose
+        channels are the spectral points (and partitions, and coils), read off at
+        the shots' s-th coordinates by the gridding NUFFT's forward transform, so
+        every sample is the exact FID value at its visit time. The acquired grid is
+        the density compensated (Pipe) adjoint of all samples, decoded ignoring the
+        visit times as an uncorrected reconstruction would, and divided by the
+        gridding gain of a uniform object (one scalar, stated)."""
+        from augmentrum.sampling.kspace_reconstructor import GriddingNUFFT
+
+        nx, ny = self.matrix[0], self.matrix[1]
+        n_shots, samples = self.shots.shape[0], self.shots.shape[1]
+        period = samples + n_dead
+        nufft = GriddingNUFFT((nx, ny))
+        # the fine time axis is the third (slice) or fourth (slab) axis of the source
+        time_axis = 2 if self.partitions == 1 else 3
+        kdata = None
+        for s in range(samples):
+            slot = np.take(source, np.arange(npoints) * period + s, axis=time_axis)
+            image = np.moveaxis(slot, (0, 1), (-2, -1))  # (..., nx, ny)
+            lead = image.shape[:-2]
+            read = nufft.forward(image.reshape((-1, nx, ny)), self.shots[:, s, :])  # (C, shots)
+            if kdata is None:
+                kdata = np.empty((read.shape[0], n_shots, samples), dtype=np.complex64)
+            kdata[:, :, s] = np.asarray(read)
+        coords = self.shots.reshape(-1, 2)
+        weights = nufft.density_weights(coords)[None, :]
+        image = np.asarray(nufft.adjoint(kdata.reshape(kdata.shape[0], -1) * weights, coords))
+        # the gain of a uniform unit object through the same sampling and reconstruction
+        ones = np.ones((1, nx, ny), dtype=np.complex64)
+        gain = np.asarray(nufft.adjoint(np.asarray(nufft.forward(ones, coords)) * weights, coords))
+        image = image / np.abs(gain).mean()
+        decoded = np.moveaxis(image.reshape(lead + (nx, ny)), (-2, -1), (0, 1))
         return decoded.astype(np.complex64)
