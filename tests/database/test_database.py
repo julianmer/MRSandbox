@@ -173,3 +173,13 @@ class TestFieldPriors:
         # any other field takes the nearest typed one
         assert default_params(b0_t=4.0).t1.NAA == default_params(b0_t=3.0).t1.NAA
         assert default_params(b0_t=9.4).t1.NAA == default_params(b0_t=7.0).t1.NAA
+
+    #*******************#
+    #   lineshape       #
+    #*******************#
+    def test_the_microscopic_width_scales_with_the_field(self):
+        from mrsandbox import Uniform
+        from mrsandbox.scan.defaults import default_params
+
+        assert default_params(b0_t=3.0).lineshape.gauss_hz == Uniform(2.0, 6.0)
+        assert default_params(b0_t=7.0).lineshape.gauss_hz == Uniform(2.0 * 7.0 / 3.0, 6.0 * 7.0 / 3.0)

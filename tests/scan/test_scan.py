@@ -361,3 +361,53 @@ class TestMaps:
         data = voxel.acquire(seed=7, npoints=64)
         assert abs(data.hdr_ext["SimulationGroundTruth"]["local"]["b1_scale"] - 0.9) < 1e-12
         assert data.hdr_ext["SimulationPhantom"]["transmit"] == "b1_ramp"
+
+
+#**************************************************************************************************#
+#                                       Class TestLineshape                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# The microscopic field term: an exact Gaussian envelope on the spin-system components, and none   #
+# on the parameterized background whose widths already carry it.                                   #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestLineshape:
+    STILL = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                 acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+
+    #*********************#
+    #   exact envelope    #
+    #*********************#
+    def test_gaussian_width_is_an_exact_envelope_on_the_spin_systems(self, scan):
+        from mrsandbox import NoDownfield, NoMM
+
+        def fid(gauss_hz):
+            params = Params(**self.STILL, lineshape=dict(gauss_hz=gauss_hz))
+            voxel = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=params,
+                                mm=NoMM(), downfield=NoDownfield()).voxel(
+                position_mm=(10, -20, 5), size_mm=20)
+            return voxel.fid(seed=7, npoints=512)[1]
+
+        sharp, broad = fid(0.0), fid(4.0)
+        t = np.arange(512) / 4000.0
+        envelope = np.exp(-(np.pi * 4.0) ** 2 / (4.0 * np.log(2.0)) * t * t)
+        np.testing.assert_allclose(broad, sharp * envelope, atol=1e-5 * np.abs(sharp).max())
+        assert np.abs(broad[-1]) < 0.5 * np.abs(sharp[-1])  # the tail is damped
+
+    #***********************#
+    #   background exempt   #
+    #***********************#
+    def test_parameterized_background_keeps_its_own_widths(self, scan):
+        from mrsandbox import NoLipids, NoWater, ParameterizedMM
+
+        def fid(gauss_hz):
+            params = Params(**self.STILL, lineshape=dict(gauss_hz=gauss_hz),
+                            conc={name: 0.0 for name in scan.params.conc})
+            voxel = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=params,
+                                water=NoWater(), lipids=NoLipids(),
+                                mm=ParameterizedMM()).voxel(position_mm=(10, -20, 5), size_mm=20)
+            return voxel.fid(seed=7, npoints=512)[1]
+
+        only_background = fid(0.0)
+        assert np.abs(only_background).max() > 0.0
+        np.testing.assert_array_equal(fid(6.0), only_background)

@@ -97,16 +97,22 @@ class TestInSequenceRelaxation:
         brain = Brain.load("icbm152")
         # quiet receiver: the real-part peak reads an absorption line only without the
         # drawn shift, phase, eddy, and spurious content (each gated by its own test)
+        from mrsandbox import NoDownfield, NoMM, NoWater
+
+        # NAA alone: every neighbour (NAAG at 2.04, the glutamate multiplets, the
+        # macromolecule at 2.04, the water tail) decays on its own T2 and would drift
+        # the 2.008 ppm bin, so the gate on the NAA law reads NAA by itself
+        alone = {name: 0.0 for name in VirtualScan.default_params().conc if name != "NAA"}
         quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
-                       spurious=dict(amplitude=0.0))
+                       spurious=dict(amplitude=0.0), conc=alone)
         heights, truth = [], None
         for te in (0.03, 0.06):
             scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te / 2, te / 2),
-                               params=quiet)
+                               params=quiet, water=NoWater(), mm=NoMM(), downfield=NoDownfield())
             voxel = scan.voxel(position_mm=(10, -20, 5), size_mm=20)
             truth = voxel.sample(seed=7)  # same seed, same draw for both scans
             ppm, spec = voxel.spectrum(seed=7, npoints=8192)
             ppm, spec = np.asarray(ops.convert_to_numpy(ppm)), ops.convert_to_numpy(spec)
             heights.append(float(spec.real[np.argmin(np.abs(ppm - 2.008))]))
         expected = math.exp(-0.03 / truth.t2.NAA)  # the drawn Gudmundson-pooled NAA T2
-        assert abs(heights[1] / heights[0] - expected) < 0.05
+        assert abs(heights[1] / heights[0] - expected) < 1e-2

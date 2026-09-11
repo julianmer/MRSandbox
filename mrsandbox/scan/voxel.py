@@ -337,9 +337,16 @@ class Voxel:
         if basis is not None:
             fid = fid + (self.metabolite_weights(truth) @ basis).astype(np.complex64)
         lorentzian, voigt = self._flat_lines(truth, metabolites=basis is None)
-        for bucket in (lorentzian, voigt):
-            if bucket is not None:
-                fid = fid + self._render_lines(bucket, npoints, dwell_s)
+        if lorentzian is not None:
+            fid = fid + self._render_lines(lorentzian, npoints, dwell_s)
+        # the microscopic field distribution: a Gaussian envelope on the spin-system
+        # components (the measured MM and downfield widths already carry theirs)
+        gauss_hz = self.resolve(truth.lineshape.gauss_hz)
+        if gauss_hz > 0.0:
+            damping = (np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
+            fid = fid * np.exp(-damping * grid * grid).astype(np.float32)
+        if voigt is not None:
+            fid = fid + self._render_lines(voigt, npoints, dwell_s)
         mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
                                   sequence=self.scan.sequence)
         if mm_fid is not None:

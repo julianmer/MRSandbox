@@ -141,6 +141,16 @@ def default_params(database=None, b0_t=3.0):
         downfield=dict(level={name: peak["level_iu"] for name, peak in OZDEMIR.items()},
                        width_scale=Clipped(Normal(1.0, 0.2), low=0.5),
                        presaturated=True),
+        # lineshape: the microscopic field distribution below the field map's
+        #   resolution (the map's own spread dephases the voxel through its kernel),
+        #   a Gaussian envelope exp(-t^2 / TG^2) on every spin-system component
+        #   (metabolites, water, lipids; the measured MM and downfield widths already
+        #   contain it), the T2' term every synthesis peer carries.
+        #   gauss_hz: its FWHM, a stated range that lands the default 3 T water
+        #     linewidth in the excellent-to-good grades of Oz et al. 2021 (5 to 10 Hz,
+        #     16 to 19 at 7 T) on top of the Lorentzian 1 / (pi T2); susceptibility
+        #     broadening scales with the field, so the range scales by B0 / 3 T.
+        lineshape=dict(gauss_hz=(2.0 * tesla / 3.0, 6.0 * tesla / 3.0)),
     )
     # instrumental and physiological imperfections and artifact signals
     imperfections = Params(
