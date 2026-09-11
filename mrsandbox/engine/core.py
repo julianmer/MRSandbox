@@ -18,6 +18,7 @@
 #*************#
 import dataclasses
 import math
+import numbers
 
 import numpy as np
 
@@ -325,21 +326,53 @@ class Engine:
         an additional Gaussian FWHM (g = (pi gauss_hz)^2 / (4 ln 2)), together a Voigt
         line, the shape macromolecule parameterizations are stated in.
 
-        The render replays a jitted graph cached per (npoints, dwell); the callers'
-        stable line-bucket shapes keep retracing rare, so training draws render at
-        replay speed.
+        Lorentzian lines (`gauss_hz` the scalar 0) render through the factorized
+        graph: with the point index split as n = P p + q, the sum s(n) = sum_k a_k z_k^n
+        is one complex matmul of the two small power tables a_k z_k^q and (z_k^P)^p,
+        built by cumulative products, so the cost is a BLAS product instead of L x N
+        exponentials and the phase error stays at a few hundred float32 roundings
+        rather than the product floor of f t. Voigt lines take the dense graph. Both
+        replay jitted graphs cached per (npoints, dwell); the callers' stable
+        line-bucket shapes keep retracing rare, so training draws render at replay
+        speed.
         """
-        key = (npoints, float(dwell_s))
+        voigt = not (isinstance(gauss_hz, numbers.Real) and gauss_hz == 0.0)
+        key = (npoints, float(dwell_s), voigt)
         if key not in self._renderers:
-            self._renderers[key] = self._fid_renderer(npoints, dwell_s)
+            self._renderers[key] = self._fid_renderer(npoints, dwell_s, voigt)
         dtype = ops.dtype(freqs)
         lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * ops.ones_like(freqs)
+        if not voigt:
+            return self._renderers[key](freqs, amps, lw)
         gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
         return self._renderers[key](freqs, amps, lw, gauss)
 
-    def _fid_renderer(self, npoints, dwell_s):
-        """A jitted (freqs, amps, lw_hz, gauss_hz) -> (t, fid) for one time grid."""
+    def _fid_renderer(self, npoints, dwell_s, voigt):
+        """A jitted (freqs, amps, lw_hz[, gauss_hz]) -> (t, fid) for one time grid: the
+        factorized Lorentzian graph, or the dense Voigt one."""
         from nifti_mrs_plus.backend import jit
+
+        if not voigt:
+            block = 1 << int(math.log2(math.sqrt(npoints)))  # the largest power of two <= sqrt(N)
+            blocks = -(-npoints // block)
+
+            def powers(base, count):
+                """base^0 .. base^(count - 1) per line, (L, count), by cumulative product."""
+                steps = ops.concatenate(
+                    [ops.expand_dims(ops.ones_like(base), 1),
+                     ops.tile(ops.expand_dims(base, 1), (1, count - 1))], axis=1)
+                return ops.cumprod(steps, axis=1)
+
+            def lorentzian(freqs, amps, lw_hz):
+                t = ops.arange(0, npoints, dtype=ops.dtype(freqs)) * dwell_s
+                z = ops.exp(nops.complex_from(-math.pi * lw_hz * dwell_s,
+                                              2.0 * math.pi * freqs * dwell_s))
+                within = powers(z, block)  # z^q, q inside a block
+                across = powers(within[:, -1] * z, blocks)  # (z^P)^p, block by block
+                table = ops.matmul(ops.transpose(across), ops.expand_dims(amps, 1) * within)
+                return t, ops.reshape(table, (-1,))[:npoints]
+
+            return jit(lorentzian)
 
         def fn(freqs, amps, lw_hz, gauss_hz):
             n = ops.arange(0, npoints, dtype=ops.dtype(freqs))

@@ -231,9 +231,10 @@ class TestRenderPrecision:
     #********************#
     def test_long_fid_tail_phase_stays_folded(self, sim):
         # the rendered oscillation must track exp(i 2 pi f t) against a float64 oracle
-        # on long FIDs: folding the cycles before the 2 pi scaling keeps the worst
-        # tail phase error at the single-product float32 floor (the unfolded form
-        # reaches 4e-3 rad at 8192 points and this gate catches a regression to it)
+        # on long FIDs: the factorized render builds its power tables by cumulative
+        # products, so the tail phase error is a few hundred float32 roundings (the
+        # dense unfolded form reaches 4e-3 rad at 8192 points, the folded dense form
+        # 2.6e-3; this gate catches a regression to either)
         npoints, dwell = 8192, 1.0 / 4000.0
         t64 = np.arange(npoints, dtype=np.float64) * dwell
         for f0 in (-1907.3, 433.1, 1990.7):
@@ -244,3 +245,38 @@ class TestRenderPrecision:
             fid = np.asarray(ops.convert_to_numpy(fid), dtype=np.complex128)
             oracle = np.exp(1j * 2.0 * np.pi * np.float64(f[0]) * t64)
             assert np.abs(np.angle(fid / oracle)).max() < 3.4e-3
+
+    #**********************#
+    #   factorized render  #
+    #**********************#
+    def test_factorized_render_matches_the_dense_oracle(self, sim):
+        # many Lorentzian lines with per-line widths against a float64 dense sum, at a
+        # point count that is not a multiple of the block (the table is cropped), and
+        # the Voigt path against its own oracle
+        rng = np.random.default_rng(0)
+        L, npoints, dwell = 700, 1000, 1.0 / 4000.0
+        f = rng.uniform(-1900.0, 1900.0, L).astype(np.float32)
+        a = (rng.normal(size=L) + 1j * rng.normal(size=L)).astype(np.complex64)
+        lw = rng.uniform(1.0, 30.0, L).astype(np.float32)
+        t64 = np.arange(npoints, dtype=np.float64) * dwell
+        oracle = np.sum(a[:, None].astype(np.complex128)
+                        * np.exp((1j * 2.0 * np.pi * f[:, None].astype(np.float64)
+                                  - np.pi * lw[:, None].astype(np.float64)) * t64[None, :]),
+                        axis=0)
+        _, fid = sim.render_fid(ops.convert_to_tensor(f), ops.convert_to_tensor(a),
+                                npoints=npoints, dwell_s=dwell, lw_hz=ops.convert_to_tensor(lw))
+        fid = np.asarray(ops.convert_to_numpy(fid), dtype=np.complex128)
+        # the float32 accumulation floor over hundreds of lines: 2e-5 measured for the
+        # factorized graph, 1e-5 for the dense one
+        assert np.abs(fid - oracle).max() < 5e-5 * np.abs(oracle).max()
+        gauss = rng.uniform(5.0, 40.0, L).astype(np.float32)
+        g = (np.pi * gauss[:, None].astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
+        voigt_oracle = np.sum(a[:, None].astype(np.complex128)
+                              * np.exp((1j * 2.0 * np.pi * f[:, None].astype(np.float64)
+                                        - np.pi * lw[:, None].astype(np.float64)) * t64[None, :]
+                                       - g * t64[None, :] ** 2), axis=0)
+        _, voigt = sim.render_fid(ops.convert_to_tensor(f), ops.convert_to_tensor(a),
+                                  npoints=npoints, dwell_s=dwell, lw_hz=ops.convert_to_tensor(lw),
+                                  gauss_hz=ops.convert_to_tensor(gauss))
+        voigt = np.asarray(ops.convert_to_numpy(voigt), dtype=np.complex128)
+        assert np.abs(voigt - voigt_oracle).max() < 1e-4 * np.abs(voigt_oracle).max()

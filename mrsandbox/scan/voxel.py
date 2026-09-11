@@ -263,10 +263,15 @@ class Voxel:
             raise ImportError("acquisitions need Augmentrum for the spurious echo and eddy "
                               "phase (the mrsandbox[augment] extra; see pyproject.toml "
                               "for the install recipe)") from error
-        freqs, amps, lw, gauss = self._flat_lines(truth)
-        t, total = self.scan.engine.render_fid(freqs, amps, npoints=npoints, dwell_s=dwell_s,
-                                               lw_hz=lw, gauss_hz=gauss)
+        lorentzian, voigt = self._flat_lines(truth)
+        t, total = self.scan.engine.render_fid(lorentzian[0], lorentzian[1], npoints=npoints,
+                                               dwell_s=dwell_s, lw_hz=lorentzian[2])
         fid = np.asarray(ops.convert_to_numpy(total), dtype=np.complex64)
+        if voigt is not None:
+            _, extra = self.scan.engine.render_fid(voigt[0], voigt[1], npoints=npoints,
+                                                   dwell_s=dwell_s, lw_hz=voigt[2],
+                                                   gauss_hz=voigt[3])
+            fid = fid + np.asarray(ops.convert_to_numpy(extra), dtype=np.complex64)
         grid = np.arange(npoints) * dwell_s
         mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
                                   sequence=self.scan.sequence)
@@ -364,7 +369,12 @@ class Voxel:
     #   helpers   #
     #*************#
     def _flat_lines(self, truth):
-        """All components as one pruned line list with per-line linewidths.
+        """All components as two pruned line lists with per-line widths: the
+        Lorentzian lines (metabolites, water, lipids) as (freqs, amps, lw_hz), and
+        the Voigt lines carrying a Gaussian width (macromolecules, downfield) as
+        (freqs, amps, lw_hz, gauss_hz), or None when there are none. The split lets
+        the engine render the many Lorentzian lines through its factorized graph and
+        the few Voigt ones densely.
 
         Most of the d*d transition elements are silent (the coherence filters zero
         them), so dropping them before rendering cuts the render cost by orders of
@@ -379,16 +389,20 @@ class Voxel:
             for f, _, _, g in parts
         ])
         keep = np.abs(amps) > 1e-7 * np.abs(amps).max()
-        # pad to a stable bucket size so every draw renders at the same shapes (the jax
-        # op cache is keyed by shape; a fresh shape per draw would recompile every time)
-        count = int(keep.sum())
-        bucket = -(-count // 512) * 512
-        freqs, amps, lw, gauss = freqs[keep], amps[keep], lw[keep], gauss[keep]
-        pad = bucket - count
-        return (ops.convert_to_tensor(np.pad(freqs, (0, pad))),
-                ops.convert_to_tensor(np.pad(amps, (0, pad))),
-                ops.convert_to_tensor(np.pad(lw, (0, pad), constant_values=1.0)),
-                ops.convert_to_tensor(np.pad(gauss, (0, pad))))
+        voigt = keep & (gauss > 0.0)
+
+        def bucket(mask, *columns):
+            # pad to a stable bucket size so every draw renders at the same shapes (the
+            # jax op cache is keyed by shape; a fresh shape per draw would recompile)
+            count = int(mask.sum())
+            pad = -(-count // 512) * 512 - count
+            return tuple(ops.convert_to_tensor(np.pad(values[mask], (0, pad), constant_values=fill))
+                         for values, fill in columns)
+
+        lorentzian = bucket(keep & ~voigt, (freqs, 0.0), (amps, 0.0), (lw, 1.0))
+        if not voigt.any():
+            return lorentzian, None
+        return lorentzian, bucket(voigt, (freqs, 0.0), (amps, 0.0), (lw, 1.0), (gauss, 0.0))
 
     def _metabolite_lines(self, name, truth, t1_s, t2_s):
         """Unweighted lines of one metabolite for one truth and its resolved relaxation
