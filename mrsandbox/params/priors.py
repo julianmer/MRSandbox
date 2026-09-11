@@ -56,8 +56,9 @@ class Priors:
     def gudmundson_t2(metabolites, fallback_s=0.160, tesla=3):
         """Per-metabolite T2 priors pooled from the Gudmundson database, in seconds.
 
-        Metabolites with pooled rows get Normal(mean, between-study spread); the rest
-        fall back to a Fixed stated assumption. Requires the externals/mrs-database
+        Metabolites with pooled rows at `tesla` get Normal(mean, between-study spread);
+        without rows at that field they take the 3 T pool (stated), and without any
+        rows the Fixed stated assumption. Requires the externals/mrs-database
         submodule; without it, everything falls back.
 
         Args:
@@ -72,6 +73,8 @@ class Priors:
         leaves = {}
         for name in metabolites:
             pooled = source.pooled_t2(name, tesla=tesla) if source else None
+            if pooled is None and source is not None and tesla != 3:
+                pooled = source.pooled_t2(name, tesla=3)
             leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
         return Params(leaves)
 
@@ -102,17 +105,19 @@ class Priors:
     #   literature t1   #
     #*******************#
     @staticmethod
-    def literature_t1(metabolites, fallback_s=1.300, database=None):
-        """Per-metabolite T1 priors pooled from the typed 3 T literature tables, in seconds.
+    def literature_t1(metabolites, fallback_s=1.300, database=None, tesla=3.0):
+        """Per-metabolite T1 priors pooled from the typed literature tables, in seconds.
 
-        Metabolites with pooled rows (Mlynarik 2001, Ethofer 2003, Traber 2004, gathered
-        under Database.T1_ALIASES) get Normal(mean, between-study spread); the rest fall
-        back to a Fixed stated assumption.
+        Metabolites with pooled rows at `tesla` (the tables Database.T1_SOURCES lists
+        per field, gathered under Database.T1_ALIASES) get Normal(mean, between-study
+        spread); without rows at that field they take the 3 T pool (stated), and
+        without any rows the Fixed stated assumption.
 
         Args:
             metabolites: Names to include.
             fallback_s: T1 for metabolites without pooled data.
             database: Database instance; defaults to the packaged one.
+            tesla: The field whose tables to pool.
 
         Returns:
             Params mapping each metabolite to its T1 leaf.
@@ -120,7 +125,9 @@ class Priors:
         db = database if database is not None else Database()
         leaves = {}
         for name in metabolites:
-            pooled = db.pooled_t1(name)
+            pooled = db.pooled_t1(name, tesla=tesla)
+            if pooled is None and float(tesla) != 3.0:
+                pooled = db.pooled_t1(name, tesla=3.0)
             leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
         return Params(leaves)
 

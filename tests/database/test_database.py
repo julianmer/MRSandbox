@@ -112,3 +112,64 @@ class TestPriors:
         assert sorted(priors) == ["Cr", "NAA"]
         relax = Priors.simple_relaxation()
         assert relax.t2_s == Fixed(0.160) and relax.t1_s == Fixed(1.300)
+
+
+#**************************************************************************************************#
+#                                      Class TestFieldPriors                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The default relaxation priors follow the scanner field, falling back to 3 T where a field has    #
+# no rows.                                                                                         #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestFieldPriors:
+
+    #***************#
+    #   7 tesla     #
+    #***************#
+    def test_seven_tesla_priors_follow_the_typed_sources(self):
+        from mrsandbox.scan.defaults import default_params
+
+        p3, p7 = default_params(b0_t=3.0), default_params(b0_t=7.0)
+        assert p7.t2.NAA.mean < p3.t2.NAA.mean  # the Gudmundson 7 T pool: shorter T2
+        assert p7.t1.NAA.mean > p3.t1.NAA.mean  # Xin 2013: longer T1
+        assert abs(p7.t1.Tau.mean - 2.11) < 0.05  # Xin: 2.09 WM and 2.15 GM pooled
+        assert p7.water.t1_s.gm.value.mean == 2.00 and p7.water.t1_s.wm.value.mean == 1.55
+        assert p7.water.t2_s.gm.value == 0.047 and p7.water.t2_s.csf == p3.water.t2_s.csf
+        assert p7.mm.t1.mm091.value == 0.420  # the one component with a 7 T human row
+        assert p7.mm.t1.mm121 == p3.mm.t1.mm121 and p7.mm.t2 == p3.mm.t2
+        assert p7.t2.GPC == p3.t2.GPC  # no rows at any field: the fixed fallback
+
+    #*****************#
+    #   1.5 tesla     #
+    #*****************#
+    def test_one_and_a_half_tesla_priors_and_the_three_tesla_fallback(self):
+        from mrsandbox.scan.defaults import default_params
+
+        p3, p15 = default_params(b0_t=3.0), default_params(b0_t=1.5)
+        assert p15.t1.NAA.mean < p3.t1.NAA.mean  # Ethofer 1.5 T rows and Rutgers 2003
+        assert p15.water.t1_s.wm.value.mean == 0.68 and p15.water.t1_s.gm.value.mean == 1.04
+        assert p15.water.t2_s == p3.water.t2_s  # no 1.5 T water T2 typed: 3 T reused, stated
+        assert p15.t2.Gln == p3.t2.Gln  # no 1.5 T rows for Gln: the 3 T pool
+        assert p15.t2.NAA.mean != p3.t2.NAA.mean  # NAA has 1.5 T rows of its own
+        assert p15.mm.t1.mm091.value == 0.220 and p15.mm.t1.mm121.value == 0.200  # Kreis 2005
+
+    #*********************#
+    #   scanner drives    #
+    #*********************#
+    def test_scans_take_the_field_from_the_scanner(self):
+        import numpy as np
+
+        from mrsandbox import Brain, Press, Scanner, VirtualScan
+        from mrsandbox.scan.defaults import default_params
+
+        shape = (4, 4, 4)
+        brain = Brain.from_maps(gm=np.ones(shape), wm=np.zeros(shape), csf=np.zeros(shape),
+                                affine=np.eye(4))
+        press = Press(te1_s=0.011, te2_s=0.019)
+        at_7t = VirtualScan(brain, Scanner.preset("generic_7t"), press)
+        assert at_7t.params.t1.NAA == default_params(b0_t=7.0).t1.NAA
+        assert VirtualScan.default_params().t1.NAA == default_params(b0_t=3.0).t1.NAA
+        # any other field takes the nearest typed one
+        assert default_params(b0_t=4.0).t1.NAA == default_params(b0_t=3.0).t1.NAA
+        assert default_params(b0_t=9.4).t1.NAA == default_params(b0_t=7.0).t1.NAA

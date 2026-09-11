@@ -56,7 +56,10 @@ class TestDownfieldLines:
         expected = sorted(peak["ppm"] * F0_MHZ for peak in downfield.OZDEMIR.values())
         np.testing.assert_allclose(sorted(freqs), expected, rtol=1e-6)
         assert amps.size == 9 and np.all(amps.real > 0.0)
-        np.testing.assert_allclose(gauss, truth.downfield.gauss_hz, rtol=1e-6)
+        # every peak carries its digitized 3 T basis width times the drawn scale
+        widths = [downfield.POVAZAN_WIDTHS[name]["fwhm_hz"] for name in downfield.OZDEMIR]
+        np.testing.assert_allclose(gauss, np.array(widths) * truth.downfield.width_scale, rtol=1e-6)
+        assert 14.0 <= min(widths) and max(widths) <= 32.0
 
     #*****************#
     #   presaturation #

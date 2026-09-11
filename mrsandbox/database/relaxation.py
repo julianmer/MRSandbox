@@ -97,6 +97,79 @@ TRABER = {
     },
 }
 
+#*********#
+#   xin   #
+#*********#
+# Source: Xin, L., Schaller, B., Mlynarik, V., Lu, H., Gruetter, R. Proton T1 relaxation
+#         times of metabolites in human occipital white and gray matter at 7 T. Magnetic
+#         Resonance in Medicine 69 (2013) 931-936. Table 2.
+# Units:  T1 in seconds with standard deviations, n = 6 per tissue; 7 T.
+# Notes:  inversion recovery semi-adiabatic SPECIAL (TE 12 ms), occipital lobe. tCr_CH3
+#         is the 3.03 ppm methyl, tCr_CH2 the 3.92 ppm methylene, NAA the 2.01 ppm methyl
+#         and NAA_CH2 its aspartate methylene; tCho and Glu are entire-molecule means.
+#         The same table's water rows feed WATER_FIELDS, its macromolecule row the
+#         consensus MM table (xin_2013 in database.macromolecules).
+XIN = {
+    "error": "sd",
+    "b0_t": 7.0,
+    "t1_s": {
+        "occipital_wm": {
+            "tCr_CH3": (1.78, 0.04, 6), "tCr_CH2": (1.10, 0.06, 6), "NAA": (1.90, 0.06, 6),
+            "Cho": (1.32, 0.06, 6), "Ins": (1.19, 0.07, 6), "Glu": (1.75, 0.04, 6),
+            "NAA_CH2": (1.19, 0.05, 6), "GSH": (1.06, 0.06, 6), "Gln": (1.74, 0.23, 6),
+            "sIns": (1.23, 0.07, 6), "Tau": (2.09, 0.04, 6), "PE": (1.32, 0.30, 6),
+            "NAAG": (0.94, 0.08, 6),
+        },
+        "occipital_gm": {
+            "tCr_CH3": (1.74, 0.06, 6), "tCr_CH2": (1.13, 0.04, 6), "NAA": (1.83, 0.05, 6),
+            "Cho": (1.51, 0.11, 6), "Ins": (1.28, 0.08, 6), "Glu": (1.61, 0.09, 6),
+            "NAA_CH2": (1.24, 0.05, 6), "GSH": (1.14, 0.18, 6), "Gln": (1.64, 0.07, 6),
+            "sIns": (1.31, 0.20, 6), "Tau": (2.15, 0.11, 6), "PE": (1.31, 0.18, 6),
+            "NAAG": (1.21, 0.22, 6),
+        },
+    },
+}
+
+#*************************#
+#   ethofer at 1.5 tesla  #
+#*************************#
+# Source: Ethofer et al. 2003 (the ETHOFER card above), Table 2, the 1.5 T rows.
+# Units:  T1 in seconds with standard deviations, N = 8; 1.5 T.
+# Notes:  progressive saturation PRESS, the same six regions and the same subjects as the
+#         3 T rows; the paper's pure-tissue water extrapolation at 1.5 T feeds WATER_FIELDS.
+ETHOFER_1P5 = {
+    "error": "sd",
+    "b0_t": 1.5,
+    "t1_s": {
+        "occipital_gm": {"NA": (1.27, 0.05, 8), "Cho": (1.15, 0.12, 8), "tCr": (1.24, 0.06, 8), "Ins": (1.00, 0.15, 8)},
+        "occipital_wm": {"NA": (1.36, 0.06, 8), "Cho": (1.03, 0.15, 8), "tCr": (1.24, 0.10, 8), "Ins": (0.97, 0.04, 8)},
+        "motor_cortex": {"NA": (1.17, 0.07, 8), "Cho": (1.08, 0.16, 8), "tCr": (1.16, 0.10, 8), "Ins": (1.04, 0.14, 8)},
+        "frontoparietal_wm": {"NA": (1.19, 0.09, 8), "Cho": (1.04, 0.12, 8), "tCr": (1.15, 0.08, 8), "Ins": (0.93, 0.07, 8)},
+        "thalamus": {"NA": (1.41, 0.09, 8), "Cho": (1.10, 0.17, 8), "tCr": (1.27, 0.11, 8), "Ins": (1.04, 0.21, 8)},
+        "cerebellum": {"NA": (1.42, 0.15, 8), "Cho": (1.22, 0.16, 8), "tCr": (1.33, 0.18, 8), "Ins": (1.25, 0.18, 8)},
+    },
+}
+
+#*************#
+#   rutgers   #
+#*************#
+# Source: Rutgers, D. R., Kingsley, P. B., van der Grond, J. Saturation-corrected T1 and
+#         T2 relaxation times of choline, creatine and N-acetyl aspartate in human
+#         cerebral white matter at 1.5 T. NMR in Biomedicine 16 (2003) 286-288 (a Letter
+#         to the Editor). Table 1, the revised two-parameter fit.
+# Units:  T1 in seconds with standard deviations, 15 volunteers; 1.5 T.
+# Notes:  PRESS, cerebral white matter; the revision corrects the original values for
+#         partial saturation (1 to 3 percent longer). Table 2 gives the matching
+#         saturation-corrected T2 (Cho 375, Cr 239, NAA 436 ms over 60 to 864 ms TE);
+#         T2 is pooled from the Gudmundson database instead, so it is not typed here.
+RUTGERS = {
+    "error": "sd",
+    "b0_t": 1.5,
+    "t1_s": {
+        "cerebral_wm": {"Cho": (1.102, 0.137, 15), "tCr": (1.402, 0.157, 15), "NAA": (1.304, 0.145, 15)},
+    },
+}
+
 #***********#
 #   water   #
 #***********#
@@ -112,6 +185,33 @@ WATER = {
         "gm": 0.110,  # Wansapura et al., JMRI 9 (1999) 531 (pair printed unlabeled;
         "wm": 0.080,  # assigned GM-high, consistent with the same abstract's T1 order)
         "csf": 0.5,   # stated assumption; literature spans roughly 0.3 to 2 seconds
+    },
+}
+
+#*************************#
+#   water at other fields #
+#*************************#
+# Source: per entry, beside each value.
+# Data:   water relaxation per tissue where a field differs from the 3 T table above;
+#         a missing entry means the 3 T value is reused (stated: no 1.5 T water T2
+#         source is typed yet). CSF stays the field-independent Rooney value.
+# Units:  seconds; t1_s entries as (mean, sd) where the source prints a spread.
+WATER_FIELDS = {
+    1.5: {
+        "t1_s": {
+            "gm": (1.04, 0.02),  # Ethofer et al. 2003 (the ETHOFER card): pure-tissue
+            "wm": (0.68, 0.02),  # extrapolation of the 1.5 T regional values, N = 8
+        },
+    },
+    7.0: {
+        "t1_s": {
+            "gm": (2.00, 0.12),  # Xin et al. 2013 (the XIN card), Table 2, occipital GM
+            "wm": (1.55, 0.07),  # and WM, n = 6, sd
+        },
+        "t2_s": {
+            "gm": 0.047,  # Marjanska et al., NMR Biomed 25 (2012) 332, Table 1: 47 +- 1 ms
+            "wm": 0.047,  # in the occipital (GM rich) and motor (WM rich) voxels alike
+        },
     },
 }
 

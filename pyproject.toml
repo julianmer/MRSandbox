@@ -23,6 +23,11 @@ dependencies = [
 jax = ["jax"]
 torch = ["torch"]
 tensorflow = ["tensorflow"]
+# Augmentrum drives the transient instabilities (scan.Multiplex.transients) and, as it
+# grows, the other signal-level augmentations; it requires fsl-mrs, which is not on
+# PyPI, so install it as the CI does: fsl-mrs from its git clone without dependencies,
+# its dependencies under their pip names, then augmentrum without dependencies.
+augment = ["augmentrum>=0.0.2"]
 dev = ["pytest", "pypulseq", "ruff", "mrsandbox[jax]"]
 
 [tool.setuptools.packages.find]

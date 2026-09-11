@@ -32,3 +32,6 @@ dist/
 #   os and editor droppings                                                                        #
 # ---------------------------------------------------------------------------------------------- #
 .DS_Store
+
+# personal agent instructions; never enters the repo
+CLAUDE.md

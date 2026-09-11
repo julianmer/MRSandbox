@@ -74,7 +74,8 @@ class VirtualScan:
         self.coils = coils
         self.field = field
         self.transmit = transmit
-        self.params = default_params(self.database) | (params if params is not None else Params())
+        self.params = (default_params(self.database, b0_t=self.engine.b0_t)
+                       | (params if params is not None else Params()))
         self._lines = None
         self._systems = {}
         self._b_value = None

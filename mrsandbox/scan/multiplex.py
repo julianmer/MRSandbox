@@ -131,19 +131,38 @@ class Multiplex:
     #   transients   #
     #****************#
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
-                   npoints=2048, dwell_s=1.0 / 4000.0):
+                   npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
         them arbitrarily); an integer repeats the first condition. One truth serves the
-        whole run, while the scanner and the subject evolve across it: the drawn drift
-        rate accumulates over the acquisition clock (transient k starts at k times TR),
-        shot-to-shot frequency and phase jitter and amplitude instability perturb every
-        transient, and motion events (a Poisson process with the drawn rate) add step
-        changes in frequency and phase from their transient onward. Receiver noise is
-        drawn per transient. Every realized instability is recorded in the header, so
+        whole run, while the scanner and the subject evolve across it through
+        Augmentrum's TransientSynthesizer: frequency drift, autoregressive wander and
+        breathing, a phase coupled to the frequency plus receiver jitter, amplitude
+        wander, growing broadening, and sparse motion events, its 3 T envelope by
+        default. Its four per-transient tracks (frequency, phase, amplitude, extra
+        Lorentzian broadening) multiply every transient's clean FID as Augmentrum's own
+        train factor does, a exp(-pi L t) exp(i (2 pi f t + phi)), and receiver noise is
+        drawn per transient. The realized tracks are recorded in the header, so
         alignment algorithms can be scored against the truth.
+
+        Args:
+            position_mm, size_mm: The voxel placement.
+            schedule: Condition names per transient, or a transient count.
+            tr_s: Repetition time, the acquisition clock of the tracks.
+            seed: As for acquire; the synthesizer's own seed derives from it.
+            npoints, dwell_s: The readout grid.
+            synthesis: Keyword arguments for Augmentrum's TransientSynthesizer (its
+                ranges, e.g. drift_hz_per_min=0.0 and events_per_min=0.0 for a still
+                scanner and subject); the transient count, TR, and seed are set here.
         """
+        try:
+            import augmentrum
+            from augmentrum.augmentation import TransientSynthesizer
+        except ImportError as error:
+            raise ImportError("transients need Augmentrum (the mrsandbox[augment] extra; "
+                              "its fsl-mrs dependency is not on PyPI, see pyproject.toml "
+                              "for the install recipe)") from error
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
@@ -153,7 +172,6 @@ class Multiplex:
         seed = acquisition_seed(seed)
         rng = np.random.default_rng(seed)
         truth = self.params.sample(rng)
-        knobs = truth.transients
 
         clean = {}
         for name in set(schedule):
@@ -161,27 +179,19 @@ class Multiplex:
             _, clean[name] = voxel._clean_fid(truth, npoints, dwell_s)
 
         n = len(schedule)
-        times_s = np.arange(n) * float(tr_s)
-        drift_hz = knobs.drift_hz_per_min * times_s / 60.0
-        jitter_hz = knobs.jitter_hz * rng.standard_normal(n)
-        phase_rad = np.radians(knobs.phase_jitter_deg) * rng.standard_normal(n)
-        amplitude = 1.0 + knobs.amplitude_sd * rng.standard_normal(n)
-        n_events = rng.poisson(knobs.motion_rate_per_min * times_s[-1] / 60.0) if n > 1 else 0
-        events = []
-        for _ in range(n_events):
-            at = int(rng.integers(1, n))
-            shift = float(knobs.motion_shift_hz) * float(rng.choice((-1.0, 1.0)))
-            phase = float(rng.uniform(-abs(knobs.motion_phase_deg), abs(knobs.motion_phase_deg)))
-            events.append({"transient": at, "shift_hz": shift, "phase_deg": phase})
-            drift_hz[at:] += shift
-            phase_rad[at:] += np.radians(phase)
+        synthesis = dict(synthesis or {})
+        synth_seed = int(rng.integers(2 ** 31))
+        synth = TransientSynthesizer(n_transients=n, tr_s=float(tr_s), seed=synth_seed,
+                                     **synthesis)
+        # the realized tracks; Augmentrum applies them through the same factor in
+        # its process_tensor, which does not hand them back (its private method today)
+        freq_hz, phase_rad, amplitude, broaden_hz = synth._transient_tracks(synth.rng.numpy_rng())
 
         grid = np.arange(npoints) * dwell_s
         data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
         for k, name in enumerate(schedule):
-            modulation = amplitude[k] * np.exp(
-                1j * (2.0 * np.pi * (drift_hz[k] + jitter_hz[k]) * grid + phase_rad[k])
-            )
+            modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
+                1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
             fid = clean[name] * modulation
             if truth.noise.sigma > 0.0:
                 fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
@@ -199,12 +209,16 @@ class Multiplex:
         hdr.set_user_def(
             "SimulationSchedule",
             {"conditions": schedule, "tr_s": float(tr_s),
-             "drift_hz": [float(x) for x in drift_hz],
-             "jitter_hz": [float(x) for x in jitter_hz],
+             "synthesis": {"module": "augmentrum.augmentation.TransientSynthesizer",
+                           "version": augmentrum.__version__, "seed": synth_seed,
+                           **{key: (list(value) if isinstance(value, tuple) else value)
+                              for key, value in synthesis.items()}},
+             "frequency_hz": [float(x) for x in freq_hz],
              "phase_deg": [float(np.degrees(x)) for x in phase_rad],
              "amplitude": [float(x) for x in amplitude],
-             "motion_events": events},
-            "MRSandbox: per transient condition and realized instability tracks.",
+             "broadening_hz": [float(x) for x in broaden_hz]},
+            "MRSandbox: per transient condition and the realized Augmentrum instability "
+            "tracks.",
         )
         hdr.set_user_def(
             "SimulationPhantom",

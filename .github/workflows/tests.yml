@@ -55,6 +55,15 @@ jobs:
           if [ "${{ matrix.backend }}" = "jax" ]; then pip install jax; fi
           if [ "${{ matrix.backend }}" = "tensorflow" ]; then pip install tensorflow-cpu; fi
           if [ "${{ matrix.backend }}" = "torch" ]; then pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
+      # Augmentrum (the transient instabilities) needs fsl-mrs, which is not on PyPI
+      # and names conda packages (dask-core): fsl-mrs from its clone without
+      # dependencies, its dependencies under their pip names, then Augmentrum
+      # without dependencies (the same recipe pyproject.toml states)
+      - name: Install Augmentrum
+        run: |
+          pip install --no-deps "git+https://github.com/wtclarke/fsl_mrs"
+          pip install plotly pandas beautifulsoup4 hlsvdpropy spec2nii dill dash flask "dask>=2025,<2026" dask-jobqueue tqdm shutup "nifti-mrs-plus[ops]"
+          pip install --no-deps "git+https://github.com/julianmer/Augmentrum"
       # the resource-gated tests (MeasuredMM, BigBrain fields) would silently skip
       # without their data; one leg fetches it so they actually run in CI. The
       # 6.4 GB coil volumes stay out: MappedCoilArray remains a local-only gate.

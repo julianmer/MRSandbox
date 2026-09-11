@@ -43,6 +43,35 @@ OZDEMIR = {
     "df849": {"ppm": 8.49, "level_iu": (1.0, 2.0)},  # ATP
 }
 
+#*************************#
+#   basis widths at 3 t   #
+#*************************#
+# Source: Povazan 2022 (above), Supporting Information Figure S1 A: the nine AMARES
+#         Gaussians of the 1331-selref downfield spectrum at 3 T. The supporting
+#         information tabulates no widths, so the drawn curves were digitized here
+#         (11/09/26): nine Gaussians fitted to the curve pixels with the ppm axis
+#         calibrated from the tick marks and the centres free within 0.06 ppm of the
+#         nominal positions; residual 1.2 pixels, one pixel being 1.1 Hz, so the widths
+#         carry about 2 Hz of digitizing uncertainty. Table S2 of the same document
+#         reports the LCModel linewidth of the quantified resonances as 12.0 +- 2.4 Hz
+#         across subjects (the resolved, narrower peaks; the amides near 7 ppm are broader).
+# Data:   per peak: the fitted centre and the full width at half maximum of the basis
+#         Gaussian, the observed 3 T width (intrinsic plus field).
+# Units:  ppm; Hz FWHM at 127.76 MHz.
+# Notes:  a digitized estimate, stated as such; the positions used for rendering stay
+#         the published OZDEMIR values.
+POVAZAN_WIDTHS = {
+    "df683": {"ppm": 6.80, "fwhm_hz": 28.0},
+    "df709": {"ppm": 7.07, "fwhm_hz": 30.0},
+    "df730": {"ppm": 7.30, "fwhm_hz": 23.0},
+    "df748": {"ppm": 7.50, "fwhm_hz": 18.0},
+    "df790": {"ppm": 7.91, "fwhm_hz": 32.0},
+    "df818": {"ppm": 8.16, "fwhm_hz": 18.0},
+    "df824": {"ppm": 8.26, "fwhm_hz": 14.0},
+    "df837": {"ppm": 8.35, "fwhm_hz": 16.0},
+    "df849": {"ppm": 8.50, "fwhm_hz": 28.0},
+}
+
 #**********************************#
 #   df t1 and exchange with water  #
 #**********************************#

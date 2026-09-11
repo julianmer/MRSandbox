@@ -40,7 +40,7 @@ class Database:
     # to its constituents is the community approximation, made explicit here.
     T1_ALIASES = {
         "NAA": ("NAA", "NA"),
-        "NAAG": ("NA",),
+        "NAAG": ("NAAG", "NA"),
         "Cr": ("tCr", "tCr_CH3", "tCr_CH2"),
         "PCr": ("tCr", "tCr_CH3", "tCr_CH2"),
         "GPC": ("Cho",),
@@ -48,7 +48,15 @@ class Database:
         "Cho": ("Cho",),
         "Ins": ("Ins", "Ins_3.57", "Ins_3.66"),
         "Glu": ("Glu",),
-        "Gln": ("Glx",),
+        "Gln": ("Gln", "Glx"),
+    }
+
+    # the typed T1 tables per field; a metabolite absent from a field's tables falls
+    # back to the 3 T pool in the priors (stated)
+    T1_SOURCES = {
+        1.5: (relaxation.ETHOFER_1P5, relaxation.RUTGERS),
+        3.0: (relaxation.MLYNARIK, relaxation.ETHOFER, relaxation.TRABER),
+        7.0: (relaxation.XIN,),
     }
 
     #**************#
@@ -94,19 +102,22 @@ class Database:
             return table["t1_s"]
         return self._lookup(table, metabolite, f"metabolite in relaxation.{source.upper()}")
 
-    def pooled_t1(self, metabolite):
-        """DerSimonian and Laird random-effects pool of the typed 3 T literature T1 rows.
+    def pooled_t1(self, metabolite, tesla=3.0):
+        """DerSimonian and Laird random-effects pool of the typed literature T1 rows at
+        one field.
 
-        Rows come from the Mlynarik 2001, Ethofer 2003, and Traber 2004 tables in
-        relaxation.py, gathered under T1_ALIASES; a printed standard deviation becomes a
-        standard error through sqrt(n). The returned sd is the between-study spread.
+        Rows come from the tables T1_SOURCES lists for `tesla` (Mlynarik 2001, Ethofer
+        2003, and Traber 2004 at 3 T; Ethofer's 1.5 T rows and Rutgers 2003 at 1.5 T;
+        Xin 2013 at 7 T), gathered under T1_ALIASES; a printed standard deviation
+        becomes a standard error through sqrt(n). The returned sd is the between-study
+        spread.
 
         Returns:
             PooledValue(mean_s, sd_s, n_studies), or None when no rows match.
         """
         names = self.T1_ALIASES.get(metabolite, (metabolite,))
         y, v = [], []
-        for source in (relaxation.MLYNARIK, relaxation.ETHOFER, relaxation.TRABER):
+        for source in self.T1_SOURCES.get(float(tesla), ()):
             for rows in source["t1_s"].values():
                 for name in names:
                     if name in rows:

@@ -16,6 +16,8 @@
 #*************#
 #   imports   #
 #*************#
+import importlib.util
+
 import numpy as np
 import pytest
 from keras import ops
@@ -255,43 +257,49 @@ class TestMultiplex:
 #                                      Class TestTransients                                        #
 #**************************************************************************************************#
 #                                                                                                  #
-# Repeated transients: the drift clock, jitter, and motion act per transient and are recorded.     #
+# Repeated transients: Augmentrum's instability tracks act per transient and are recorded.         #
 #                                                                                                  #
 #**************************************************************************************************#
 class TestTransients:
-    pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
+    # full-scan renders, skipped on the tensorflow CI leg; the tracks come from
+    # Augmentrum (the mrsandbox[augment] extra)
+    pytestmark = [pytest.mark.render,
+                  pytest.mark.skipif(importlib.util.find_spec("augmentrum") is None,
+                                     reason="Augmentrum not installed (mrsandbox[augment])")]
+
+    # a still scanner and subject: every TransientSynthesizer range pinned to zero
+    STILL = dict(drift_hz_per_min=0.0, ar_sigma_hz=0.0, resp_amp_hz=0.0,
+                 phase_coupling_deg_per_hz=0.0, phase_jitter_deg=0.0, amp_jitter_frac=0.0,
+                 broaden_hz=0.0, events_per_min=0.0)
 
     #*************#
     #   helpers   #
     #*************#
     @staticmethod
-    def multiplex(**overrides):
-        stable = dict(drift_hz_per_min=0.0, jitter_hz=0.0, phase_jitter_deg=0.0,
-                      amplitude_sd=0.0, motion_rate_per_min=0.0,
-                      motion_shift_hz=4.0, motion_phase_deg=20.0)
-        stable.update(overrides)
-        params = QUIET | Params(transients=stable)
+    def multiplex():
         return Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
-                         MegaPress.pair(), params=params)
+                         MegaPress.pair(), params=QUIET)
+
+    def still(self, **overrides):
+        return {**self.STILL, **overrides}
 
     #*****************#
     #   single shot   #
     #*****************#
     def test_single_transient_schedule_works(self):
-        # n = 1 has no later transient to place a motion event on, so even a high
-        # drawn rate must yield zero events and one valid FID
-        data = self.multiplex(motion_rate_per_min=30.0).transients(
-            (10, -20, 5), 20.0, schedule=1, seed=3, npoints=128)
+        data = self.multiplex().transients((10, -20, 5), 20.0, schedule=1, seed=3, npoints=128,
+                                           synthesis=self.still(events_per_min=30.0))
         # the container squeezes the trailing singleton DIM_DYN axis
         assert np.asarray(data[:]).shape == (1, 1, 1, 128)
         assert np.abs(np.asarray(data[:])).max() > 0.0
-        assert data.hdr_ext["SimulationSchedule"]["motion_events"] == []
+        assert len(data.hdr_ext["SimulationSchedule"]["frequency_hz"]) == 1
 
     #******************#
     #   still scanner  #
     #******************#
-    def test_stable_scanner_repeats_the_transient_exactly(self):
-        data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, seed=3, npoints=256)
+    def test_still_scanner_repeats_the_transient_exactly(self):
+        data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, seed=3, npoints=256,
+                                           synthesis=self.still())
         assert data.shape == (1, 1, 1, 256, 4)
         assert data.dim_tags[0] == "DIM_DYN"
         volume = np.asarray(data[:])[0, 0, 0]
@@ -302,41 +310,39 @@ class TestTransients:
     #   drift     #
     #*************#
     def test_drift_accumulates_on_the_acquisition_clock(self):
-        data = self.multiplex(drift_hz_per_min=6.0).transients(
-            (10, -20, 5), 20.0, schedule=4, tr_s=2.0, seed=3, npoints=256)
+        data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, tr_s=2.0, seed=3,
+                                           npoints=256, synthesis=self.still(drift_hz_per_min=6.0))
         volume = np.asarray(data[:])[0, 0, 0]
         t = np.arange(256) / 4000.0
         for k in (1, 3):
             expected = volume[:, 0] * np.exp(2j * np.pi * (6.0 * k * 2.0 / 60.0) * t)
             assert np.abs(volume[:, k] - expected).max() < 1e-4 * np.abs(volume[:, 0]).max()
-        drift = data.hdr_ext.to_dict()["SimulationSchedule"]["drift_hz"]
-        assert np.allclose(drift, [0.0, 0.2, 0.4, 0.6])
-
-    #*************#
-    #   motion    #
-    #*************#
-    def test_motion_events_step_the_frequency_track(self):
-        data = self.multiplex(motion_rate_per_min=30.0).transients(
-            (10, -20, 5), 20.0, schedule=16, tr_s=2.0, seed=5, npoints=64)
         schedule = data.hdr_ext.to_dict()["SimulationSchedule"]
-        events = schedule["motion_events"]
-        drift = np.asarray(schedule["drift_hz"])
-        assert events  # the forced rate produced at least one event
-        steps = {}
-        for event in events:  # events may share a transient; the step is their sum
-            steps[event["transient"]] = steps.get(event["transient"], 0.0) + event["shift_hz"]
-        for at, shift in steps.items():
-            assert abs((drift[at] - drift[at - 1]) - shift) < 1e-9
+        assert np.allclose(schedule["frequency_hz"], [0.0, 0.2, 0.4, 0.6])
+        assert schedule["synthesis"]["module"].endswith("TransientSynthesizer")
+
+    #********************#
+    #   live envelope    #
+    #********************#
+    def test_default_envelope_breathes_and_reproduces(self):
+        # Augmentrum's 3 T envelope: the frequency track is not flat, and the same
+        # seed reproduces every track and every sample
+        first = self.multiplex().transients((10, -20, 5), 20.0, schedule=16, tr_s=2.0, seed=5,
+                                            npoints=64)
+        again = self.multiplex().transients((10, -20, 5), 20.0, schedule=16, tr_s=2.0, seed=5,
+                                            npoints=64)
+        schedule = first.hdr_ext.to_dict()["SimulationSchedule"]
+        assert np.ptp(schedule["frequency_hz"]) > 0.0
+        assert len(schedule["broadening_hz"]) == 16
+        np.testing.assert_array_equal(np.asarray(first[:]), np.asarray(again[:]))
 
     #**********************#
     #   mixed schedules    #
     #**********************#
     def test_interleaved_conditions_follow_the_schedule(self):
         schedule = ["on", "off", "on", "off"]
-        data = self.multiplex().transients((10, -20, 5), 20.0, schedule=schedule,
-                                           seed=3, npoints=256)
+        data = self.multiplex().transients((10, -20, 5), 20.0, schedule=schedule, seed=3,
+                                           npoints=256, synthesis=self.still())
         volume = np.asarray(data[:])[0, 0, 0]
         np.testing.assert_array_equal(volume[:, 0], volume[:, 2])
         np.testing.assert_array_equal(volume[:, 1], volume[:, 3])
-        assert np.abs(volume[:, 0] - volume[:, 1]).max() > 0.0  # editing differs
-        assert data.hdr_ext.to_dict()["SimulationSchedule"]["conditions"] == schedule

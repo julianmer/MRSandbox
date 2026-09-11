@@ -76,9 +76,10 @@ class ParameterizedDownfield(DownfieldSource):
     """The nine downfield Gaussians of the Johns Hopkins parameterization (Ozdemir
     2023, Povazan 2022), vanishing physically under water presaturation.
 
-    Each peak is a Gaussian at its published position with the drawn level
-    (institutional units treated as concentration equivalent mM, stated) times the
-    tissue presence of the voxel. With truth.downfield.presaturated the exchangeable
+    Each peak is a Gaussian at its published position, with its digitized 3 T basis
+    width (database.downfield POVAZAN_WIDTHS) times the drawn width scale, and the
+    drawn level (institutional units treated as concentration equivalent mM, stated)
+    times the tissue presence of the voxel. With truth.downfield.presaturated the exchangeable
     protons are partially saturated through their exchange with the saturated water:
     each peak retains R1 / (R1 + kex), the two-site Bloch-McConnell steady state at
     full water saturation, with the MacMillan 2011 median 3 T values mapped by peak
@@ -117,7 +118,7 @@ class ParameterizedDownfield(DownfieldSource):
                 level *= self.retention(name)
             freqs.append(peak["ppm"] * f0_mhz)
             amps.append(level)
-            gauss.append(truth.downfield.gauss_hz)
+            gauss.append(downfield.POVAZAN_WIDTHS[name]["fwhm_hz"] * truth.downfield.width_scale)
         return (np.asarray(freqs, dtype=np.float32),
                 np.asarray(amps, dtype=np.complex64),
                 np.asarray(gauss, dtype=np.float32))

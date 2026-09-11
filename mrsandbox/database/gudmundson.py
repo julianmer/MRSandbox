@@ -95,10 +95,19 @@ class Gudmundson:
             merged = {**references.get((row.get("Reference"), row.get("ID")), {}), **row}
             if group is not None and merged.get("Group") != group:
                 continue
-            if tesla is not None and merged.get("Tesla") != str(tesla):
+            if tesla is not None and not self._same_field(merged.get("Tesla"), tesla):
                 continue
             rows.append(merged)
         return rows
+
+    @staticmethod
+    def _same_field(printed, tesla):
+        """Whether a row's printed field ("3", "1.5", "7") is the requested one, compared
+        numerically so 3 and 3.0 agree; unparseable entries never match."""
+        try:
+            return float(printed) == float(tesla)
+        except (TypeError, ValueError):
+            return False
 
     #***************#
     #   pooling     #
