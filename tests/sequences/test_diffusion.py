@@ -92,7 +92,7 @@ class TestAttenuation:
         conc = {name: 0.0 for name in VirtualScan.default_params().conc}
         conc["sIns"] = 5.0
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
                        conc=conc,
                        # pin the drawn mm ADC so both trees consume the same randomness
                        diffusion=dict(mm=0.0075))

@@ -97,7 +97,7 @@ class TestInSequenceRelaxation:
         brain = Brain.load("icbm152")
         # quiet receiver: the real-part peak reads an absorption line only without the
         # drawn shift, phase, eddy, and spurious content (each gated by its own test)
-        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0),
+        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
                        spurious=dict(amplitude=0.0))
         heights, truth = [], None
         for te in (0.03, 0.06):

@@ -26,7 +26,7 @@ from mrsandbox import (Brain, CoherenceFilter, Engine, Hercules, Hermes, MegaPre
                        Params, Scanner, SelectivePulse, Sequence, SpinSystem)
 
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
 
 
 #*************#

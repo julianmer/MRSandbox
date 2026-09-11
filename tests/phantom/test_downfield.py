@@ -104,7 +104,7 @@ class TestDownfieldInScan:
     def test_downfield_replaces_the_nh_lines_and_presaturates_exactly(self):
         brain = Brain.load("icbm152")
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
 
         def spectrum(**kwargs):

@@ -193,19 +193,35 @@ class TestAcquisitionImperfections:
         assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
 
     #**********************#
-    #   eddy phase decay   #
+    #   eddy phase         #
     #**********************#
-    def test_eddy_current_phase_decays_on_the_fid(self, scan):
+    def test_eddy_phase_is_augmentrums_seeded_trajectory(self, scan):
+        # the eddy phase is Augmentrum's synthetic trajectory: a pure phase that
+        # regenerates from the drawn seed, and exactly what its module applies to
+        # the clean FID
+        from augmentrum.augmentation import EddyCurrent
+
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
-        still = Params(noise=dict(sigma=0.0), acquisition=dict(eddy_deg=0.0, eddy_tau_s=0.05))
-        rung = Params(noise=dict(sigma=0.0), acquisition=dict(eddy_deg=25.0, eddy_tau_s=0.05))
-        base = VirtualScan(brain, *pieces, params=still).voxel(position_mm=(10, -20, 5), size_mm=20)
-        warp = VirtualScan(brain, *pieces, params=rung).voxel(position_mm=(10, -20, 5), size_mm=20)
-        _, fid0 = base.fid(seed=7, npoints=512)
-        _, fid1 = warp.fid(seed=7, npoints=512)
-        t = np.arange(512) / 4000.0
-        expected = fid0 * np.exp(1j * np.radians(25.0) * np.exp(-t / 0.05))
-        assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
+        quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0))
+        still = Params(**quiet, acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+
+        def rung(seed, std=0.5):
+            return Params(**quiet, acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=std,
+                                                    eddy_lp_cut_hz=25.0, eddy_seed=float(seed)))
+
+        def fid(params):
+            voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
+                                                                     size_mm=20)
+            return voxel.fid(seed=7, npoints=512)[1]
+
+        clean, warped, again, other = fid(still), fid(rung(11)), fid(rung(11)), fid(rung(12))
+        np.testing.assert_allclose(np.abs(warped), np.abs(clean), rtol=1e-5)  # a pure phase
+        np.testing.assert_array_equal(warped, again)
+        assert np.abs(warped - clean).max() > 1e-2 * np.abs(clean).max()
+        assert np.abs(other - warped).max() > 1e-2 * np.abs(clean).max()
+        expected = EddyCurrent(std_rad=0.5, lp_cut_hz=25.0, seed=11).process_tensor(
+            clean[None, :], sw_hz=4000.0)[0][0]
+        np.testing.assert_allclose(warped, expected, atol=1e-5 * np.abs(clean).max())
 
     #********************#
     #   spurious echo    #
@@ -213,7 +229,7 @@ class TestAcquisitionImperfections:
     def test_spurious_echo_rides_at_its_drawn_position(self, scan):
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         still = dict(noise=dict(sigma=0.0),
-                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_deg=0.0))
+                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
         ghost = dict(tau_s=0.1, width_s2=2000.0, ppm=2.5, phase_deg=0.0)
         off = Params(**still, spurious=dict(amplitude=0.0, **ghost))
         on = Params(**still, spurious=dict(amplitude=0.1, **ghost))

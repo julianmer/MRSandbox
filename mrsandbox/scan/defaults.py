@@ -150,14 +150,16 @@ def default_params(database=None, b0_t=3.0):
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),
         # acquisition: receiver-side imperfections, stated assumptions.
-        #   shift_hz, phase_deg: scanner frequency error and an uncorrected
-        #     zero-order phase.
-        #   eddy_deg, eddy_tau_s: a residual eddy current as a decaying phase on
-        #     the FID (the leading term of the multi-exponential gradient response,
-        #     de Graaf 2019; in vivo the bulk is removed by Klose 1990 ECC, so the
-        #     residual stays modest).
+        #   shift_hz, phase_deg: scanner frequency error (which also runs the
+        #     sequence off resonance) and an uncorrected zero-order phase.
+        #   eddy_std_rad, eddy_lp_cut_hz, eddy_seed: the residual eddy-current
+        #     phase is Augmentrum's synthetic trajectory (EddyCurrent: low-pass
+        #     filtered Gaussian phase noise with its linear trend removed, its
+        #     defaults 0.6 rad and 25 Hz as the range ceilings, stated); the seed
+        #     is drawn so the trajectory regenerates from the truth.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
-                         eddy_deg=Uniform(-30.0, 30.0), eddy_tau_s=(0.01, 0.1)),
+                         eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
+                         eddy_seed=(0.0, 2.0 ** 31 - 1.0)),
         # spurious: the out-of-voxel echo that imperfect crushing or cycling fails
         #   to remove, rephasing mid-acquisition (the mechanism is demonstrated by
         #   the crusher gates in tests/sequences). Form and every range are typed
@@ -166,7 +168,8 @@ def default_params(database=None, b0_t=3.0):
         #   a exp(-W (t - tau)^2) exp(i (2 pi f t + phi)), tau 10-400 ms,
         #   W 500-8000 1/s^2 (FWHM 18-74 ms), position 1-4 ppm, amplitude 0.1-20%
         #   of the FID maximum, free phase. The source adds one echo to 85% of its
-        #   examples; here it is always on, and amplitude=0.0 switches it off.
+        #   examples; here it is always on, and amplitude=0.0 switches it off. The
+        #   echo is rendered by Augmentrum's SpuriousEchoes (scan.Voxel).
         spurious=dict(amplitude=(0.001, 0.2), tau_s=(0.010, 0.400),
                       width_s2=(500.0, 8000.0), ppm=(1.0, 4.0),
                       phase_deg=(0.0, 360.0)),

@@ -247,8 +247,22 @@ class Voxel:
 
     def _clean_fid(self, truth, npoints, dwell_s):
         """The noise-free voxel FID: components summed, B0 dephasing, the drawn spurious
-        echo, and the drawn acquisition imperfections (frequency shift, zero-order
-        phase, decaying eddy-current phase) applied."""
+        echo and eddy-current phase applied through Augmentrum's modules, then the
+        drawn frequency shift and zero-order phase.
+
+        The spurious echo is the drawn AGNOSTIC-form echo (amplitude relative to the
+        FID maximum, centre, Gaussian width, position, phase) rendered by Augmentrum's
+        localized echo with its Gaussian envelope exp(-(t - t_echo)^2 / (2 T2^2)),
+        so T2 = 1 / sqrt(2 W). The eddy phase is Augmentrum's synthetic trajectory
+        (low-pass filtered Gaussian phase noise, its linear trend removed) with the
+        drawn standard deviation, cut-off, and seed, so it regenerates from the truth.
+        """
+        try:
+            from augmentrum.augmentation import EddyCurrent, SpuriousEchoes
+        except ImportError as error:
+            raise ImportError("acquisitions need Augmentrum for the spurious echo and eddy "
+                              "phase (the mrsandbox[augment] extra; see pyproject.toml "
+                              "for the install recipe)") from error
         freqs, amps, lw, gauss = self._flat_lines(truth)
         t, total = self.scan.engine.render_fid(freqs, amps, npoints=npoints, dwell_s=dwell_s,
                                                lw_hz=lw, gauss_hz=gauss)
@@ -261,18 +275,23 @@ class Voxel:
                 self._diffusion_factor(truth)(truth.diffusion.mm))
         if self.scan.field is not None:
             fid = fid * self._field_kernel(npoints, dwell_s)
-        spur = truth.spurious
+        spur, acquisition = truth.spurious, truth.acquisition
+        sw_hz = 1.0 / dwell_s
         if spur.amplitude > 0.0:
-            # the AGNOSTIC-form out-of-voxel echo, scaled to this voxel's FID maximum
-            # and entering before the receiver-side modulation like any received signal
-            echo = np.exp(-spur.width_s2 * (grid - spur.tau_s) ** 2) * np.exp(
-                1j * (2.0 * np.pi * spur.ppm * self._f0_mhz() * grid
-                      + np.radians(spur.phase_deg)))
-            fid = fid + spur.amplitude * np.abs(fid).max() * echo.astype(np.complex64)
-        modulation = np.exp(1j * (2.0 * np.pi * truth.acquisition.shift_hz * grid
-                                  + np.radians(truth.acquisition.phase_deg)
-                                  + np.radians(truth.acquisition.eddy_deg)
-                                  * np.exp(-grid / truth.acquisition.eddy_tau_s)))
+            # the out-of-voxel echo enters before the receiver-side modulation like
+            # any received signal
+            echo = SpuriousEchoes(mode="echo", echoes=[dict(
+                alpha=spur.amplitude, t_echo=spur.tau_s,
+                T2=1.0 / np.sqrt(2.0 * spur.width_s2), freq_hz=spur.ppm * self._f0_mhz(),
+                phase_deg=spur.phase_deg, gaussian_env=True)])
+            fid = np.asarray(echo.process_tensor(fid[None, :], sw_hz=sw_hz)[0][0])
+        if acquisition.eddy_std_rad > 0.0:
+            eddy = EddyCurrent(std_rad=acquisition.eddy_std_rad,
+                               lp_cut_hz=acquisition.eddy_lp_cut_hz,
+                               seed=int(acquisition.eddy_seed))
+            fid = np.asarray(eddy.process_tensor(fid[None, :], sw_hz=sw_hz)[0][0])
+        modulation = np.exp(1j * (2.0 * np.pi * acquisition.shift_hz * grid
+                                  + np.radians(acquisition.phase_deg)))
         return t, (fid * modulation).astype(np.complex64)
 
     def _field_kernel(self, npoints, dwell_s):
