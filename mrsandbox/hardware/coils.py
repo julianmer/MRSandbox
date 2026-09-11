@@ -193,10 +193,11 @@ class MappedCoilArray(CoilArray):
 
     The bigbrain_mr preset derives its maps once from the BigBrain-MR 400 um ESPIRiT
     magnitude and phase volumes (32-channel Nova head coil at 7 T) into a strided
-    complex cache, then serves positions by nearest-cell lookup and voxel boxes by the
-    overlap-weighted mean (see phantom.Volume). The shipped files carry no world
-    origin, so the volume-centre convention of the other BigBrain-MR resources
-    applies. Positions outside the mapped volume have zero sensitivity.
+    complex cache; the t2star_move preset takes the measured 3 T maps of the T2*-MOVE
+    dataset through Augmentrum (see `load`). Both serve positions by nearest-cell
+    lookup and voxel boxes by the overlap-weighted mean (see phantom.Volume). The
+    shipped files carry no world origin, so the volume-centre convention applies.
+    Positions outside the mapped volume have zero sensitivity.
 
     Args:
         sensitivities_map: Complex volume (nx, ny, nz, n_coils).
@@ -225,15 +226,41 @@ class MappedCoilArray(CoilArray):
     #*************#
     #   loading   #
     #*************#
-    @classmethod
-    def load(cls, name="bigbrain_mr", stride=5):
-        """Load a named preset, deriving and caching its strided complex map on first use.
+    PRESETS = ("bigbrain_mr", "t2star_move")
 
-        The first call reads the two full 400 um volumes (about 10 GB each decompressed)
+    @classmethod
+    def load(cls, name="bigbrain_mr", stride=5, subject=None):
+        """Load a named preset.
+
+        "bigbrain_mr" derives and caches its strided complex map on first use: the
+        first call reads the two full 400 um volumes (about 10 GB each decompressed)
         and writes the strided complex cache; every later call loads the cache.
+
+        "t2star_move" is the measured 3 T array of the T2*-MOVE dataset (Eichhorn, H.,
+        Saks, E., Spieker, V. J., Preibisch, C., Schnabel, J. A. T2*-MOVE: an open
+        k-space dataset to address motion in T2* quantification from gradient echo
+        MRI. Magnetic Resonance in Medicine (2025), doi 10.1002/mrm.70050; data doi
+        10.15134/2kek-3553, CC BY 4.0): a 32-channel Philips head coil (31 channels in
+        the file) at 2 x 2 x 3 mm over 112 x 92 x 36 voxels, fetched and cached by
+        Augmentrum's T2starMove source (5.4 GB once, a few MB after; `subject` picks
+        one of its 22 volunteers, the first by default). The maps are root-sum-of-
+        squares normalized to one inside the head and zero outside, so they carry the
+        channel pattern rather than an absolute gain (stated), and ship no world
+        origin: the volume-centre convention applies, the index axes taken as world
+        x, y, z (stated). `stride` is ignored for this preset.
         """
-        if name != "bigbrain_mr":
-            raise KeyError(f"unknown coil map preset {name!r}; known: bigbrain_mr")
+        if name not in cls.PRESETS:
+            raise KeyError(f"unknown coil map preset {name!r}; known: {', '.join(cls.PRESETS)}")
+        if name == "t2star_move":
+            try:
+                from augmentrum.sampling.coil_sampling import T2starMove
+            except ImportError as error:
+                raise ImportError("the t2star_move coil maps come through Augmentrum (the "
+                                  "mrsandbox[augment] extra)") from error
+            maps = T2starMove.fetch(subject, progress=False)
+            affine = np.diag([2.0, 2.0, 3.0, 1.0])
+            affine[:3, 3] = -affine[:3, :3] @ ((np.asarray(maps.shape[:3]) - 1) / 2.0)
+            return cls(maps, affine, name=name)
         from mrsandbox.resources import Resources
 
         cache = Resources.cache_dir() / f"bigbrain_mr/coil_sens_stride{stride}.npz"
@@ -254,8 +281,14 @@ class MappedCoilArray(CoilArray):
         return cls(stored["sensitivities"], stored["affine"], name=name)
 
     @classmethod
-    def cached(cls, name="bigbrain_mr", stride=5):
-        """True when the derived map cache already exists."""
+    def cached(cls, name="bigbrain_mr", stride=5, subject=None):
+        """True when the preset's map cache already exists (Augmentrum's for t2star_move)."""
+        if name == "t2star_move":
+            try:
+                from augmentrum.utils import download
+            except ImportError:
+                return False
+            return (download.cache_root() / "csm" / f"t2star_move_{subject or 'first'}.npz").exists()
         from mrsandbox.resources import Resources
 
         return (Resources.cache_dir() / f"bigbrain_mr/coil_sens_stride{stride}.npz").exists()

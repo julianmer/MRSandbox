@@ -155,18 +155,18 @@ class Voxel:
         # phantom.downfield.DownfieldSource)
         cutoff = self.scan.downfield.replaces_above_ppm
         parts = []
+        lines = self._metabolite_lines(truth)
         for name, concentration in truth.conc.items():
             concentration = self.resolve(concentration)
-            t1, t2 = self.resolve(truth.t1[name]), self.resolve(truth.t2[name])
-            freqs, amps = self._metabolite_lines(name, truth, t1, t2)
+            t2 = self.resolve(truth.t2[name])
+            freqs, amps = lines[name]
             if cutoff is not None:
-                amps = ops.where(freqs > cutoff * f0_mhz, ops.zeros_like(amps), amps)
+                amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
             # the drawn concentration is the equal-mix value; the GM to WM contrast
             # ratio r splits it per tissue, keeping gm + wm at r = 1 exactly
             r = truth.contrast[name]
             tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
-            weight = ops.convert_to_tensor(
-                np.complex64(concentration * tissue * faded(truth.diffusion.adc[name])))
+            weight = np.complex64(concentration * tissue * faded(truth.diffusion.adc[name]))
             parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))
         water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
         if water is not None:
@@ -404,35 +404,46 @@ class Voxel:
             return lorentzian, None
         return lorentzian, bucket(voigt, (freqs, 0.0), (amps, 0.0), (lw, 1.0), (gauss, 0.0))
 
-    def _metabolite_lines(self, name, truth, t1_s, t2_s):
-        """Unweighted lines of one metabolite for one truth and its resolved relaxation
-        times, plain or through the compiled per-system path.
+    def _metabolite_lines(self, truth):
+        """Unweighted numpy lines of every metabolite for one truth and this voxel's
+        resolved frame, as {name: (freqs, amps)}.
 
-        The lines depend on the draw (relaxation, b1) but not on the voxel position
-        beyond the resolved times, so they are cached per truth on the scan keyed by
-        those times: one truth serving many voxels (MRSI, multiplex) simulates each
-        metabolite once, and every voxel applies only its own weights. Compiled, the
-        jitted (t1_s, t2_s, b1_scale) -> (freqs, amps) functions are cached on the
-        engine, so drawing fresh values per sample replays compiled graphs instead of
-        re-tracing the whole simulation.
+        The lines depend on the draw (relaxation, b1, offset) but not on the voxel
+        position beyond the resolved values, so they are cached per truth on the scan
+        keyed by those values: one truth serving many voxels (MRSI, multiplex)
+        simulates the metabolites once, and every voxel applies only its own weights.
+        Compiled, all systems replay in one jitted graph (Engine.compiled_batch), so a
+        draw costs one dispatch and one transfer; plain, each metabolite runs through
+        Engine.lines.
         """
+        names = tuple(truth.conc)
+        t1 = tuple(float(self.resolve(truth.t1[name])) for name in names)
+        t2 = tuple(float(self.resolve(truth.t2[name])) for name in names)
+        b1_scale, offset_hz = self.b1_scale(truth), self.offset_hz(truth)
         cached = self.scan._lines
         if cached is None or cached[0] is not truth:
             cached = self.scan._lines = (truth, {})
-        b1_scale, offset_hz = self.b1_scale(truth), self.offset_hz(truth)
-        key = (name, self.compiled, t1_s, t2_s, b1_scale, offset_hz)
+        key = (self.compiled, t1, t2, b1_scale, offset_hz)
         if key in cached[1]:
             return cached[1][key]
-        systems = self.scan.systems(name)
+        groups = tuple(self.scan.systems(name) for name in names)
+        sequence = self.scan.sequence
         if self.compiled:
-            args = [ops.convert_to_tensor(np.float32(v)) for v in (t1_s, t2_s, b1_scale, offset_hz)]
-            parts = [self.scan.engine.compiled(self.scan.sequence, s)(*args) for s in systems]
-            lines = (ops.concatenate([f for f, _ in parts]),
-                     ops.concatenate([a for _, a in parts]))
+            fn, bounds = self.scan.engine.compiled_batch(sequence, groups)
+            f, a = fn(ops.convert_to_tensor(np.asarray(t1, dtype=np.float32)),
+                      ops.convert_to_tensor(np.asarray(t2, dtype=np.float32)),
+                      ops.convert_to_tensor(np.float32(b1_scale)),
+                      ops.convert_to_tensor(np.float32(offset_hz)))
+            freqs, amps = np.asarray(ops.convert_to_numpy(f)), np.asarray(ops.convert_to_numpy(a))
         else:
-            relaxed = tuple(s.with_relaxation(t1_s=t1_s, t2_s=t2_s) for s in systems)
-            lines = self.scan.engine.lines(self.scan.sequence, *relaxed, b1_scale=b1_scale,
-                                           offset_hz=offset_hz)
+            parts = [self.scan.engine.lines(
+                sequence, *(s.with_relaxation(t1_s=t1[i], t2_s=t2[i]) for s in group),
+                b1_scale=b1_scale, offset_hz=offset_hz) for i, group in enumerate(groups)]
+            freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _ in parts])
+            amps = np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a in parts])
+            bounds = np.cumsum([0] + [sum(s.dim ** 2 for s in group) for group in groups])
+        lines = {name: (freqs[bounds[i]:bounds[i + 1]], amps[bounds[i]:bounds[i + 1]])
+                 for i, name in enumerate(names)}
         cached[1][key] = lines
         return lines
 

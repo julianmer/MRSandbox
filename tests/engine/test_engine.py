@@ -231,10 +231,11 @@ class TestRenderPrecision:
     #********************#
     def test_long_fid_tail_phase_stays_folded(self, sim):
         # the rendered oscillation must track exp(i 2 pi f t) against a float64 oracle
-        # on long FIDs: the factorized render builds its power tables by cumulative
-        # products, so the tail phase error is a few hundred float32 roundings (the
-        # dense unfolded form reaches 4e-3 rad at 8192 points, the folded dense form
-        # 2.6e-3; this gate catches a regression to either)
+        # on long FIDs: the factorized render folds its block phases on the host in
+        # float64, so the tail phase error sits near 5e-5 rad, where any float32
+        # product of f and t (the dense fold at 2.6e-3, a power table built in the
+        # graph at 3e-3, the unfolded form at 4.3e-3) cannot; the gate holds the
+        # factorized floor with margin and catches a regression to any of those
         npoints, dwell = 8192, 1.0 / 4000.0
         t64 = np.arange(npoints, dtype=np.float64) * dwell
         for f0 in (-1907.3, 433.1, 1990.7):
@@ -244,7 +245,7 @@ class TestRenderPrecision:
                                     npoints=npoints, dwell_s=dwell, lw_hz=0.0)
             fid = np.asarray(ops.convert_to_numpy(fid), dtype=np.complex128)
             oracle = np.exp(1j * 2.0 * np.pi * np.float64(f[0]) * t64)
-            assert np.abs(np.angle(fid / oracle)).max() < 3.4e-3
+            assert np.abs(np.angle(fid / oracle)).max() < 5e-4
 
     #**********************#
     #   factorized render  #

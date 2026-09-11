@@ -17,10 +17,13 @@
 #*************#
 #   imports   #
 #*************#
+import importlib.util
+
 import numpy as np
 import pytest
 
-from mrsandbox import Brain, CoilArray, Loop, Params, Press, Scanner, VirtualScan
+from mrsandbox import (Brain, CoilArray, Loop, MappedCoilArray, Params, Press, Scanner,
+                       VirtualScan)
 
 VOXEL = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 
@@ -235,3 +238,50 @@ class TestMappedBox:
         array = self.ramp_array()
         s, clean = synthetic_signal(array.sensitivities((3.5, 3.0, 3.0), 3.0))
         assert np.abs(array.combine(clean, (3.5, 3.0, 3.0), 3.0) - s).max() < 1e-5
+
+
+#**************************************************************************************************#
+#                                       Class TestT2starMove                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The measured 3 T T2*-MOVE array through Augmentrum; runs only once its cache holds the maps.     #
+#                                                                                                  #
+#**************************************************************************************************#
+@pytest.mark.skipif(importlib.util.find_spec("augmentrum") is None
+                    or not MappedCoilArray.cached("t2star_move"),
+                    reason="T2*-MOVE maps not cached; MappedCoilArray.load('t2star_move') "
+                           "fetches them once through Augmentrum (5.4 GB)")
+class TestT2starMove:
+
+    #**************#
+    #   the maps   #
+    #**************#
+    def test_maps_serve_the_head_at_their_geometry(self):
+        array = MappedCoilArray.load("t2star_move")
+        assert len(array) == 31 and array.map.shape[:3] == (112, 92, 36)
+        assert np.allclose(np.diag(array.affine)[:3], (2.0, 2.0, 3.0))
+        # the volume centre sits at the origin, inside the head, root-sum-of-squares one
+        centre = array.sensitivities((0.0, 0.0, 0.0))
+        assert abs(np.linalg.norm(centre) - 1.0) < 1e-3
+        assert np.ptp(np.angle(centre[np.abs(centre) > 1e-3])) > 1.0  # measured phases vary
+        box = array.sensitivities((0.0, 0.0, 0.0), 20.0)
+        assert 0.5 < np.linalg.norm(box) <= 1.0 + 1e-6  # the box mean of unit-norm vectors
+        assert np.abs(array.sensitivities((0.0, 0.0, 200.0))).max() == 0.0  # outside the slab
+        s, clean = synthetic_signal(box)
+        assert np.abs(array.combine(clean, (0.0, 0.0, 0.0), 20.0) - s).max() < 1e-5
+
+    #***************#
+    #   round trip  #
+    #***************#
+    def test_scan_round_trip_with_the_measured_array(self, pieces):
+        brain, scanner, sequence = pieces
+        array = MappedCoilArray.load("t2star_move")
+        quiet = Params(noise=dict(sigma=0.0))
+        plain = VirtualScan(brain, scanner, sequence, params=quiet)
+        coiled = VirtualScan(brain, scanner, sequence, params=quiet, coils=array)
+        reference = np.asarray(plain.voxel(**VOXEL).acquire(seed=7, npoints=256)[:])[0, 0, 0]
+        data = coiled.voxel(**VOXEL).acquire(seed=7, npoints=256)
+        assert data.shape == (1, 1, 1, 256, 31)
+        channels = np.asarray(data[:])[0, 0, 0].T
+        combined = array.combine(channels, **VOXEL)
+        assert np.abs(combined - reference).max() < 1e-3 * np.abs(reference).max()

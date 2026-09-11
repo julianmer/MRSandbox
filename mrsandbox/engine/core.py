@@ -275,6 +275,44 @@ class Engine:
             self._compiled[key] = jit(fn)
         return self._compiled[key]
 
+    #********************#
+    #   compiled batch   #
+    #********************#
+    def compiled_batch(self, sequence, groups, isochromats=None):
+        """One jit-compiled replay for many systems: (t1_s, t2_s, b1_scale, offset_hz) ->
+        (freqs, amps) with t1_s and t2_s one value per group, and the lines of every
+        system concatenated in group order.
+
+        `groups` is a tuple of tuples of structural systems, each group sharing one
+        relaxation entry (a metabolite and its coupled groups). Where `compiled`
+        replays one graph per system, this schedules all of them in one graph, so a
+        draw costs one dispatch and one transfer instead of one per system. Returns
+        the function and the element bounds of the groups in the concatenated
+        output, so a caller slices its metabolite's lines without another call.
+        """
+        from nifti_mrs_plus.backend import jit
+
+        isochromats = isochromats if isochromats is not None else self.isochromats
+        key = (sequence, groups, isochromats)
+        if key not in self._compiled:
+            contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
+                        for index, group in enumerate(groups) for system in group]
+            bounds = np.cumsum([0] + [sum(system.dim ** 2 for system in group)
+                                      for group in groups])
+
+            def fn(t1_s, t2_s, b1_scale, offset_hz):
+                freqs, amps = [], []
+                for index, ctx0 in contexts:
+                    ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
+                                              b1_scale=b1_scale, offset_hz=offset_hz)
+                    f, a = self._system_lines(sequence, ctx)
+                    freqs.append(f)
+                    amps.append(a)
+                return ops.concatenate(freqs), ops.concatenate(amps)
+
+            self._compiled[key] = (jit(fn), bounds)
+        return self._compiled[key]
+
     #**************#
     #   spectrum   #
     #**************#
@@ -329,12 +367,16 @@ class Engine:
         Lorentzian lines (`gauss_hz` the scalar 0) render through the factorized
         graph: with the point index split as n = P p + q, the sum s(n) = sum_k a_k z_k^n
         is one complex matmul of the two small power tables a_k z_k^q and (z_k^P)^p,
-        built by cumulative products, so the cost is a BLAS product instead of L x N
-        exponentials and the phase error stays at a few hundred float32 roundings
-        rather than the product floor of f t. Voigt lines take the dense graph. Both
-        replay jitted graphs cached per (npoints, dwell); the callers' stable
-        line-bucket shapes keep retracing rare, so training draws render at replay
-        speed.
+        so the cost is a BLAS product instead of L x N exponentials. The phases of
+        both tables come from cycle counts folded on the host in float64, f dwell mod
+        1 and f P dwell mod 1, so inside the float32 graph a folded phase only ever
+        multiplies a small integer: the tail phase error stays near 5e-5 rad at 8192
+        points, where any float32 product of f and t (the dense fold, or a power
+        table built in the graph) sits at 3e-3. The frequencies are therefore
+        constants to the graph (they are the Hamiltonian's, never a timing's).
+        Voigt lines take the dense graph. Both replay jitted graphs cached per
+        (npoints, dwell); the callers' stable line-bucket shapes keep retracing
+        rare, so training draws render at replay speed.
         """
         voigt = not (isinstance(gauss_hz, numbers.Real) and gauss_hz == 0.0)
         key = (npoints, float(dwell_s), voigt)
@@ -343,33 +385,43 @@ class Engine:
         dtype = ops.dtype(freqs)
         lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * ops.ones_like(freqs)
         if not voigt:
-            return self._renderers[key](freqs, amps, lw)
+            cycles = np.asarray(ops.convert_to_numpy(freqs), dtype=np.float64) * dwell_s
+            within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(np.float32))
+            across = ops.convert_to_tensor(
+                np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
+            return self._renderers[key](amps, lw, within, across)
         gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
         return self._renderers[key](freqs, amps, lw, gauss)
 
+    @staticmethod
+    def _block(npoints):
+        """The block length P of the factorized render: the largest power of two at or
+        below sqrt(N), so both power tables stay near sqrt(N) wide."""
+        return 1 << int(math.log2(math.sqrt(npoints)))
+
     def _fid_renderer(self, npoints, dwell_s, voigt):
-        """A jitted (freqs, amps, lw_hz[, gauss_hz]) -> (t, fid) for one time grid: the
-        factorized Lorentzian graph, or the dense Voigt one."""
+        """A jitted (amps, lw_hz, within, across) -> (t, fid) for the factorized
+        Lorentzian graph (`within` and `across` the folded cycle counts f dwell mod 1
+        and f P dwell mod 1 per line), or a jitted (freqs, amps, lw_hz, gauss_hz) ->
+        (t, fid) for the dense Voigt one, for one time grid."""
         from nifti_mrs_plus.backend import jit
 
         if not voigt:
-            block = 1 << int(math.log2(math.sqrt(npoints)))  # the largest power of two <= sqrt(N)
+            block = self._block(npoints)
             blocks = -(-npoints // block)
 
-            def powers(base, count):
-                """base^0 .. base^(count - 1) per line, (L, count), by cumulative product."""
-                steps = ops.concatenate(
-                    [ops.expand_dims(ops.ones_like(base), 1),
-                     ops.tile(ops.expand_dims(base, 1), (1, count - 1))], axis=1)
-                return ops.cumprod(steps, axis=1)
-
-            def lorentzian(freqs, amps, lw_hz):
-                t = ops.arange(0, npoints, dtype=ops.dtype(freqs)) * dwell_s
-                z = ops.exp(nops.complex_from(-math.pi * lw_hz * dwell_s,
-                                              2.0 * math.pi * freqs * dwell_s))
-                within = powers(z, block)  # z^q, q inside a block
-                across = powers(within[:, -1] * z, blocks)  # (z^P)^p, block by block
-                table = ops.matmul(ops.transpose(across), ops.expand_dims(amps, 1) * within)
+            def lorentzian(amps, lw_hz, within, across):
+                t = ops.arange(0, npoints, dtype=ops.dtype(lw_hz)) * dwell_s
+                q = ops.arange(0, block, dtype=ops.dtype(lw_hz))
+                p = ops.arange(0, blocks, dtype=ops.dtype(lw_hz))
+                decay = -math.pi * lw_hz * dwell_s
+                # z^q inside a block and (z^P)^p block by block, each (L, count)
+                inside = ops.exp(nops.complex_from(
+                    ops.expand_dims(decay, 1) * q, 2.0 * math.pi * ops.expand_dims(within, 1) * q))
+                stride = ops.exp(nops.complex_from(
+                    ops.expand_dims(decay * block, 1) * p,
+                    2.0 * math.pi * ops.expand_dims(across, 1) * p))
+                table = ops.matmul(ops.transpose(stride), ops.expand_dims(amps, 1) * inside)
                 return t, ops.reshape(table, (-1,))[:npoints]
 
             return jit(lorentzian)
