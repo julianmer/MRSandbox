@@ -77,6 +77,8 @@ class VirtualScan:
         self.params = (default_params(self.database, b0_t=self.engine.b0_t)
                        | (params if params is not None else Params()))
         self._lines = None
+        self._basis = None
+        self._eddy = None
         self._systems = {}
         self._b_value = None
 

@@ -666,3 +666,36 @@ class TestNonuniform:
                       trajectory_params=dict(n_shots=2))
         with pytest.raises(ValueError, match="Unknown trajectory"):
             scan.mrsi(matrix=(4, 4), voxel_mm=4.0, trajectory="helix_2d")
+
+
+#**************************************************************************************************#
+#                                         Class TestBasis                                          #
+#**************************************************************************************************#
+#                                                                                                  #
+# The per-truth metabolite basis reproduces the per-voxel render exactly: what MRSI relies on.     #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestBasis:
+
+    #*****************#
+    #   the identity  #
+    #*****************#
+    def test_basis_render_equals_the_per_voxel_render(self):
+        # every source cell of a lattice: weights @ basis plus the other sources equals
+        # the plain per-voxel render, quiet and with the drawn echo and eddy phase
+        brain = Brain.load("icbm152")
+        pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        for params in (QUIET, Params(noise=dict(sigma=0.0))):
+            scan = VirtualScan(brain, *pieces, params=params)
+            mrsi = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(3, 3), voxel_mm=20.0)
+            truth = scan.params.sample(seed=5)
+            for row in mrsi.voxels:
+                for cell in row:
+                    voxel = cell[0]
+                    _, plain = voxel._clean_fid(truth, 256, 1.0 / 4000.0)
+                    basis = voxel.metabolite_basis(truth, 256, 1.0 / 4000.0)
+                    _, formed = voxel._clean_fid(truth, 256, 1.0 / 4000.0, basis=basis)
+                    assert basis.shape == (len(truth.conc), 256)
+                    np.testing.assert_allclose(formed, plain, atol=1e-4 * np.abs(plain).max())
+            # one basis per truth: the cache serves every cell of the lattice
+            assert len(scan._basis[1]) == 1

@@ -139,13 +139,15 @@ class Voxel:
     #******************#
     #   components     #
     #******************#
-    def components(self, truth):
+    def components(self, truth, metabolites=True):
         """Every signal component as (freqs, amps, lw_hz, gauss_hz): metabolites, water,
         lipids, and the macromolecule background.
 
         Every metabolite is its own component with its own pooled T1 and T2 (linewidth
         and echo attenuation stay consistent), and water and lipids carry theirs;
         renderings flatten all components into one pruned line list and render once.
+        With `metabolites` False the metabolite parts are left out, for a caller that
+        forms them from a per-truth basis (`metabolite_basis`).
         """
         engine, sequence = self.scan.engine, self.scan.sequence
         f0_mhz = self._f0_mhz()
@@ -155,19 +157,15 @@ class Voxel:
         # phantom.downfield.DownfieldSource)
         cutoff = self.scan.downfield.replaces_above_ppm
         parts = []
-        lines = self._metabolite_lines(truth)
-        for name, concentration in truth.conc.items():
-            concentration = self.resolve(concentration)
-            t2 = self.resolve(truth.t2[name])
-            freqs, amps = lines[name]
-            if cutoff is not None:
-                amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
-            # the drawn concentration is the equal-mix value; the GM to WM contrast
-            # ratio r splits it per tissue, keeping gm + wm at r = 1 exactly
-            r = truth.contrast[name]
-            tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
-            weight = np.complex64(concentration * tissue * faded(truth.diffusion.adc[name]))
-            parts.append((freqs, amps * weight, 1.0 / (np.pi * t2), 0.0))
+        if metabolites:
+            lines = self._metabolite_lines(truth)
+            weights = self.metabolite_weights(truth)
+            for name, weight in zip(truth.conc, weights):
+                freqs, amps = lines[name]
+                if cutoff is not None:
+                    amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
+                parts.append((freqs, amps * weight, 1.0 / (np.pi * self.resolve(truth.t2[name])),
+                              0.0))
         water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
         if water is not None:
             water_t2 = self.resolve(truth.water.t2_s)
@@ -193,6 +191,69 @@ class Voxel:
             parts.append((ops.convert_to_tensor(freqs), ops.convert_to_tensor(amps),
                           0.0, ops.convert_to_tensor(gauss)))
         return parts
+
+    #*************#
+    #   weights   #
+    #*************#
+    def metabolite_weights(self, truth):
+        """The complex weight of every metabolite's unit lines in this voxel, in
+        truth.conc order: the resolved concentration split per tissue by the drawn GM
+        to WM contrast r as gm 2r/(1+r) + wm 2/(1+r) (an equal-mix voxel carries exactly
+        the drawn value, pure tissues the published contrast), times the diffusion
+        fade of the local ADC."""
+        faded = self._diffusion_factor(truth)
+        weights = []
+        for name, concentration in truth.conc.items():
+            r = truth.contrast[name]
+            tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
+            weights.append(self.resolve(concentration) * tissue * faded(truth.diffusion.adc[name]))
+        return np.asarray(weights, dtype=np.complex64)
+
+    #***********#
+    #   basis   #
+    #***********#
+    def metabolite_basis(self, truth, npoints, dwell_s):
+        """The unit FIDs of every metabolite on a time grid, (K, npoints) complex64 in
+        truth.conc order: each metabolite's lines at its resolved linewidth with the
+        downfield cutoff applied, rendered in one call (Engine.render_fids) and cached
+        per truth on the scan under this voxel's resolved frame, so a lattice of voxels
+        sharing one truth renders the metabolites once and forms every cell as
+        `metabolite_weights` @ basis."""
+        lines = self._metabolite_lines(truth)
+        names = tuple(truth.conc)
+        frame = (tuple(float(self.resolve(truth.t2[name])) for name in names),
+                 self.b1_scale(truth), self.offset_hz(truth), npoints, float(dwell_s))
+        cached = self.scan._basis
+        if cached is None or cached[0] is not truth:
+            cached = self.scan._basis = (truth, {})
+        if frame in cached[1]:
+            return cached[1][frame]
+        cutoff = self.scan.downfield.replaces_above_ppm
+        f0_mhz = self._f0_mhz()
+        freqs, amps, lw, rows = [], [], [], []
+        for k, name in enumerate(names):
+            f, a = lines[name]
+            if cutoff is not None:
+                a = np.where(f > cutoff * f0_mhz, np.complex64(0.0), a)
+            keep = np.abs(a) > 1e-7 * np.abs(a).max() if a.size else np.zeros(0, bool)
+            freqs.append(f[keep])
+            amps.append(a[keep])
+            lw.append(np.full(int(keep.sum()), frame[0][k], dtype=np.float32))
+            rows.append(np.full(int(keep.sum()), k, dtype=np.int64))
+        freqs, amps, rows = np.concatenate(freqs), np.concatenate(amps), np.concatenate(rows)
+        lw = 1.0 / (np.pi * np.concatenate(lw))
+        # one amplitude row per metabolite over the shared line list, padded to a
+        # stable bucket so the jitted graph keeps its shapes across draws
+        pad = -(-freqs.size // 512) * 512 - freqs.size
+        matrix = np.zeros((len(names), freqs.size + pad), dtype=np.complex64)
+        matrix[rows, np.arange(freqs.size)] = amps
+        _, fids = self.scan.engine.render_fids(
+            ops.convert_to_tensor(np.pad(freqs, (0, pad))), ops.convert_to_tensor(matrix),
+            npoints=npoints, dwell_s=dwell_s,
+            lw_hz=ops.convert_to_tensor(np.pad(lw, (0, pad), constant_values=1.0)))
+        basis = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
+        cached[1][frame] = basis
+        return basis
 
     #**************#
     #   fading     #
@@ -245,17 +306,24 @@ class Voxel:
             fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
         return t, fid
 
-    def _clean_fid(self, truth, npoints, dwell_s):
+    def _clean_fid(self, truth, npoints, dwell_s, basis=None):
         """The noise-free voxel FID: components summed, B0 dephasing, the drawn spurious
         echo and eddy-current phase applied through Augmentrum's modules, then the
         drawn frequency shift and zero-order phase.
+
+        With `basis` (the per-truth metabolite unit FIDs of `metabolite_basis`) the
+        metabolites enter as `metabolite_weights` @ basis and only the other sources
+        render here; a multi-voxel acquisition renders the metabolites once that way.
+        Line lists small enough not to be worth a dispatch render on the host in
+        float64 (exact), the rest through the engine's jitted graphs.
 
         The spurious echo is the drawn AGNOSTIC-form echo (amplitude relative to the
         FID maximum, centre, Gaussian width, position, phase) rendered by Augmentrum's
         localized echo with its Gaussian envelope exp(-(t - t_echo)^2 / (2 T2^2)),
         so T2 = 1 / sqrt(2 W). The eddy phase is Augmentrum's synthetic trajectory
         (low-pass filtered Gaussian phase noise, its linear trend removed) with the
-        drawn standard deviation, cut-off, and seed, so it regenerates from the truth.
+        drawn standard deviation, cut-off, and seed, so it regenerates from the truth;
+        its phasor depends on the truth alone and is cached per truth.
         """
         try:
             from augmentrum.augmentation import EddyCurrent, SpuriousEchoes
@@ -263,16 +331,15 @@ class Voxel:
             raise ImportError("acquisitions need Augmentrum for the spurious echo and eddy "
                               "phase (the mrsandbox[augment] extra; see pyproject.toml "
                               "for the install recipe)") from error
-        lorentzian, voigt = self._flat_lines(truth)
-        t, total = self.scan.engine.render_fid(lorentzian[0], lorentzian[1], npoints=npoints,
-                                               dwell_s=dwell_s, lw_hz=lorentzian[2])
-        fid = np.asarray(ops.convert_to_numpy(total), dtype=np.complex64)
-        if voigt is not None:
-            _, extra = self.scan.engine.render_fid(voigt[0], voigt[1], npoints=npoints,
-                                                   dwell_s=dwell_s, lw_hz=voigt[2],
-                                                   gauss_hz=voigt[3])
-            fid = fid + np.asarray(ops.convert_to_numpy(extra), dtype=np.complex64)
         grid = np.arange(npoints) * dwell_s
+        t = ops.convert_to_tensor(grid.astype(np.float32))
+        fid = np.zeros(npoints, dtype=np.complex64)
+        if basis is not None:
+            fid = fid + (self.metabolite_weights(truth) @ basis).astype(np.complex64)
+        lorentzian, voigt = self._flat_lines(truth, metabolites=basis is None)
+        for bucket in (lorentzian, voigt):
+            if bucket is not None:
+                fid = fid + self._render_lines(bucket, npoints, dwell_s)
         mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
                                   sequence=self.scan.sequence)
         if mm_fid is not None:
@@ -291,13 +358,48 @@ class Voxel:
                 phase_deg=spur.phase_deg, gaussian_env=True)])
             fid = np.asarray(echo.process_tensor(fid[None, :], sw_hz=sw_hz)[0][0])
         if acquisition.eddy_std_rad > 0.0:
-            eddy = EddyCurrent(std_rad=acquisition.eddy_std_rad,
-                               lp_cut_hz=acquisition.eddy_lp_cut_hz,
-                               seed=int(acquisition.eddy_seed))
-            fid = np.asarray(eddy.process_tensor(fid[None, :], sw_hz=sw_hz)[0][0])
+            key = (int(acquisition.eddy_seed), float(acquisition.eddy_std_rad),
+                   float(acquisition.eddy_lp_cut_hz), npoints, float(dwell_s))
+            cached = self.scan._eddy
+            if cached is None or cached[0] is not truth:
+                cached = self.scan._eddy = (truth, {})
+            if key not in cached[1]:
+                eddy = EddyCurrent(std_rad=acquisition.eddy_std_rad,
+                                   lp_cut_hz=acquisition.eddy_lp_cut_hz,
+                                   seed=int(acquisition.eddy_seed))
+                ones = np.ones((1, npoints), dtype=np.complex64)
+                cached[1][key] = np.asarray(eddy.process_tensor(ones, sw_hz=sw_hz)[0][0])
+            fid = fid * cached[1][key]
         modulation = np.exp(1j * (2.0 * np.pi * acquisition.shift_hz * grid
                                   + np.radians(acquisition.phase_deg)))
         return t, (fid * modulation).astype(np.complex64)
+
+    def _render_lines(self, bucket, npoints, dwell_s):
+        """One line bucket, (freqs, amps, lw_hz[, gauss_hz]) as numpy, to a complex64
+        FID: on the host in float64 when the bucket holds at most 64 lines (exact, no
+        dispatch), otherwise through the engine's jitted graphs."""
+        freqs, amps, lw = bucket[0], bucket[1], bucket[2]
+        gauss = bucket[3] if len(bucket) > 3 else None
+        if freqs.size <= 64:
+            t = np.arange(npoints, dtype=np.float64) * dwell_s
+            rate = 1j * 2.0 * np.pi * freqs.astype(np.float64) - np.pi * lw.astype(np.float64)
+            phase = rate[:, None] * t[None, :]
+            if gauss is not None:
+                g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
+                phase = phase - g[:, None] * t[None, :] ** 2
+            return (amps.astype(np.complex128)[:, None] * np.exp(phase)).sum(axis=0).astype(np.complex64)
+        tensors = [ops.convert_to_tensor(np.pad(a, (0, -(-freqs.size // 512) * 512 - freqs.size),
+                                                constant_values=fill))
+                   for a, fill in ((freqs, 0.0), (amps, 0.0), (lw, 1.0))]
+        if gauss is None:
+            _, fid = self.scan.engine.render_fid(tensors[0], tensors[1], npoints=npoints,
+                                                 dwell_s=dwell_s, lw_hz=tensors[2])
+        else:
+            padded = ops.convert_to_tensor(np.pad(gauss, (0, -(-freqs.size // 512) * 512 - freqs.size)))
+            _, fid = self.scan.engine.render_fid(tensors[0], tensors[1], npoints=npoints,
+                                                 dwell_s=dwell_s, lw_hz=tensors[2],
+                                                 gauss_hz=padded)
+        return np.asarray(ops.convert_to_numpy(fid), dtype=np.complex64)
 
     def _field_kernel(self, npoints, dwell_s):
         """The cached intra-voxel B0 dephasing kernel of this voxel on this time grid."""
@@ -368,19 +470,22 @@ class Voxel:
     #*************#
     #   helpers   #
     #*************#
-    def _flat_lines(self, truth):
-        """All components as two pruned line lists with per-line widths: the
+    def _flat_lines(self, truth, metabolites=True):
+        """All components as two pruned numpy line lists with per-line widths: the
         Lorentzian lines (metabolites, water, lipids) as (freqs, amps, lw_hz), and
         the Voigt lines carrying a Gaussian width (macromolecules, downfield) as
-        (freqs, amps, lw_hz, gauss_hz), or None when there are none. The split lets
-        the engine render the many Lorentzian lines through its factorized graph and
-        the few Voigt ones densely.
+        (freqs, amps, lw_hz, gauss_hz); either is None when empty. The split lets the
+        engine render the many Lorentzian lines through its factorized graph and the
+        few Voigt ones densely (`_render` pads each to a stable bucket, so every draw
+        renders at the same shapes and the jitted graphs never retrace).
 
         Most of the d*d transition elements are silent (the coherence filters zero
         them), so dropping them before rendering cuts the render cost by orders of
         magnitude without touching the result.
         """
-        parts = self.components(truth)
+        parts = self.components(truth, metabolites=metabolites)
+        if not parts:
+            return None, None
         freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _, _, _ in parts])
         amps = np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a, _, _ in parts])
         lw = np.concatenate([np.full(f.shape[0], lw, dtype=np.float32) for f, _, lw, _ in parts])
@@ -390,19 +495,11 @@ class Voxel:
         ])
         keep = np.abs(amps) > 1e-7 * np.abs(amps).max()
         voigt = keep & (gauss > 0.0)
-
-        def bucket(mask, *columns):
-            # pad to a stable bucket size so every draw renders at the same shapes (the
-            # jax op cache is keyed by shape; a fresh shape per draw would recompile)
-            count = int(mask.sum())
-            pad = -(-count // 512) * 512 - count
-            return tuple(ops.convert_to_tensor(np.pad(values[mask], (0, pad), constant_values=fill))
-                         for values, fill in columns)
-
-        lorentzian = bucket(keep & ~voigt, (freqs, 0.0), (amps, 0.0), (lw, 1.0))
+        lorentz = keep & ~voigt
+        lorentzian = (freqs[lorentz], amps[lorentz], lw[lorentz]) if lorentz.any() else None
         if not voigt.any():
             return lorentzian, None
-        return lorentzian, bucket(voigt, (freqs, 0.0), (amps, 0.0), (lw, 1.0), (gauss, 0.0))
+        return lorentzian, (freqs[voigt], amps[voigt], lw[voigt], gauss[voigt])
 
     def _metabolite_lines(self, truth):
         """Unweighted numpy lines of every metabolite for one truth and this voxel's

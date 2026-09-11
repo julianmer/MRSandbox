@@ -335,7 +335,11 @@ class MRSI:
         for i in range(sx):
             for j in range(sy):
                 cell = self.voxels[i][j]
-                fids = [voxel._clean_fid(truth, fine, step)[1] for voxel in cell]
+                # the metabolites render once per truth (and resolved frame) as unit
+                # FIDs; every voxel forms its own from its weights
+                fids = [voxel._clean_fid(truth, fine, step,
+                                         basis=voxel.metabolite_basis(truth, fine, step))[1]
+                        for voxel in cell]
                 if nz == 1:
                     if coils is None:
                         source[i, j] = sum(w * fid for w, fid in zip(weights, fids)) / weights.size

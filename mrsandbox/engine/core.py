@@ -393,16 +393,32 @@ class Engine:
         gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
         return self._renderers[key](freqs, amps, lw, gauss)
 
+    def render_fids(self, freqs, amps, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0):
+        """Render K amplitude rows over one Lorentzian line list to K FIDs in one call:
+        `amps` is (K, L), the result (K, npoints). The factorized graph of `render_fid`
+        with a batched matmul; what a multi-voxel acquisition uses to render every
+        metabolite's unit FID once per truth."""
+        key = (npoints, float(dwell_s), "many")
+        if key not in self._renderers:
+            self._renderers[key] = self._fid_renderer(npoints, dwell_s, False, many=True)
+        dtype = ops.dtype(freqs)
+        lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * ops.ones_like(freqs)
+        cycles = np.asarray(ops.convert_to_numpy(freqs), dtype=np.float64) * dwell_s
+        within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(np.float32))
+        across = ops.convert_to_tensor(np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
+        return self._renderers[key](amps, lw, within, across)
+
     @staticmethod
     def _block(npoints):
         """The block length P of the factorized render: the largest power of two at or
         below sqrt(N), so both power tables stay near sqrt(N) wide."""
         return 1 << int(math.log2(math.sqrt(npoints)))
 
-    def _fid_renderer(self, npoints, dwell_s, voigt):
+    def _fid_renderer(self, npoints, dwell_s, voigt, many=False):
         """A jitted (amps, lw_hz, within, across) -> (t, fid) for the factorized
         Lorentzian graph (`within` and `across` the folded cycle counts f dwell mod 1
-        and f P dwell mod 1 per line), or a jitted (freqs, amps, lw_hz, gauss_hz) ->
+        and f P dwell mod 1 per line; with `many` the amplitudes are (K, L) rows and
+        the result (K, npoints)), or a jitted (freqs, amps, lw_hz, gauss_hz) ->
         (t, fid) for the dense Voigt one, for one time grid."""
         from nifti_mrs_plus.backend import jit
 
@@ -421,6 +437,9 @@ class Engine:
                 stride = ops.exp(nops.complex_from(
                     ops.expand_dims(decay * block, 1) * p,
                     2.0 * math.pi * ops.expand_dims(across, 1) * p))
+                if many:
+                    table = ops.einsum("lm,kl,lp->kmp", stride, amps, inside)
+                    return t, ops.reshape(table, (amps.shape[0], -1))[:, :npoints]
                 table = ops.matmul(ops.transpose(stride), ops.expand_dims(amps, 1) * inside)
                 return t, ops.reshape(table, (-1,))[:npoints]
 
