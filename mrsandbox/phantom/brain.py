@@ -70,10 +70,10 @@ class Brain:
         """Load a named brain preset; its maps are fetched on first use and cached."""
         if name not in cls.PRESETS:
             raise KeyError(f"unknown brain {name!r}; known: {', '.join(cls.PRESETS)}")
+        if name == "bigbrain_mr":
+            return cls._load_bigbrain()
         import nibabel as nib
 
-        if name == "bigbrain_mr":
-            return cls._load_bigbrain(nib)
         from mrsandbox.resources import Resources
 
         images = {
@@ -89,28 +89,24 @@ class Brain:
         )
 
     @classmethod
-    def _load_bigbrain(cls, nib):
+    def _load_bigbrain(cls):
         """The BigBrain-MR atlas at 800 um, tissue maps from the 20-ROI labels.
 
         The label volume is fetched from Zenodo on first use (about half a megabyte)
         and cached; partial volumes at voxel boundaries emerge from box averaging the
         binary tissue masks, exactly as for probability maps. The shipped files carry
         no world origin (the affine is a bare 0.8 mm scaling), so by stated convention
-        the origin is moved to the volume centre, which puts (0, 0, 0) mid brain the
-        way ICBM coordinates do.
+        the origin is moved to the volume centre (Volume.load), which puts (0, 0, 0)
+        mid brain the way ICBM coordinates do.
         """
-        from mrsandbox.resources import Resources
-
-        image = nib.load(str(Resources.path("bigbrain_mr/labels_800um")))
-        labels = np.asarray(image.get_fdata(), dtype=np.uint8)
+        volume = Volume.load("bigbrain_mr/labels_800um")
+        labels = np.asarray(volume.data, dtype=np.uint8)
         masks = {
             tissue: np.isin(labels, cls.BIGBRAIN_TISSUES[tissue]).astype(np.float32)
             for tissue in ("gm", "wm", "csf")
         }
-        affine = np.array(image.affine, dtype=np.float64)
-        affine[:3, 3] = -affine[:3, :3] @ ((np.asarray(labels.shape) - 1) / 2.0)
         return cls(gm=masks["gm"], wm=masks["wm"], csf=masks["csf"],
-                   affine=affine, name="bigbrain_mr")
+                   affine=volume.affine, name="bigbrain_mr")
 
     @classmethod
     def from_maps(cls, gm, wm, csf, affine, name="custom"):

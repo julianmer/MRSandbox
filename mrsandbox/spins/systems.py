@@ -43,6 +43,8 @@ class SpinSystem:
         j_hz: Full n-by-n coupling matrix in Hz (tuple of tuples, symmetric).
         scale: Signal scale (equivalent uncoupled spins folded into one).
         gamma_mhz_t: Gyromagnetic ratio of the nucleus, MHz/T.
+        spin: Nuclear spin quantum number I of the nucleus (1/2 for protons, 1 for
+            deuterium, 3/2 for sodium); every spin of a system is one nucleus.
         t1_s, t2_s: Optional relaxation times; when set, Delay events relax the system
             (T2 decays every coherence, T1 recovers the populations toward equilibrium).
             Excluded from equality and hash: relaxation never changes the operator
@@ -55,6 +57,7 @@ class SpinSystem:
     j_hz: tuple
     scale: float
     gamma_mhz_t: float
+    spin: float = 0.5
     t1_s: float = dataclasses.field(default=None, compare=False)
     t2_s: float = dataclasses.field(default=None, compare=False)
 
@@ -62,10 +65,12 @@ class SpinSystem:
     #   from database   #
     #*******************#
     @classmethod
-    def from_database(cls, metabolite, database=None):
-        """All coupled groups of `metabolite` as SpinSystems - simulate each, sum the lines."""
+    def from_database(cls, metabolite, database=None, source="govindaraju"):
+        """All coupled groups of `metabolite` as SpinSystems - simulate each, sum the
+        lines. `source` names the table (the 1H Govindaraju set, or "dmi" for the
+        deuterium set); the nucleus comes from the record."""
         db = database if database is not None else Database()
-        record = db.spin_system(metabolite)
+        record = db.spin_system(metabolite, source=source)
         nucleus = record.get("nucleus", "1H")
         systems = []
         for group in record["groups"]:
@@ -82,6 +87,9 @@ class SpinSystem:
                     j_hz=tuple(map(tuple, j)),
                     scale=float(group.get("scale", 1.0)),
                     gamma_mhz_t=db.gamma(nucleus),
+                    spin=db.spin(nucleus),
+                    t1_s=record.get("t1_s"),
+                    t2_s=record.get("t2_s"),
                 )
             )
         return tuple(systems)
@@ -96,8 +104,8 @@ class SpinSystem:
 
     @property
     def dim(self):
-        """Hilbert-space dimension 2**n."""
-        return 2 ** self.n
+        """Hilbert-space dimension (2 I + 1)**n."""
+        return int(round(2 * self.spin + 1)) ** self.n
 
     #******************#
     #   relaxation     #
@@ -116,14 +124,14 @@ class SpinSystem:
     #*****************#
     #   hamiltonian   #
     #*****************#
-    def hamiltonian(self, b0_t, offset_hz=0.0, ref_ppm=0.0):
+    def hamiltonian(self, b0_t):
         """Static Hamiltonian at field `b0_t` (tesla), in Hz, numpy complex64 (d, d).
 
         H = sum_i nu_i Iz_i + sum_{i<j} J_ij (Ix_i Ix_j + Iy_i Iy_j + Iz_i Iz_j),
-        with nu_i = (shift_i - ref_ppm) * gamma_mhz_t * b0_t - offset_hz.
+        with nu_i = shift_i * gamma_mhz_t * b0_t (the frame offset is a Context input).
         """
         op = self.operators()
-        nu = (np.asarray(self.shifts_ppm) - ref_ppm) * self.gamma_mhz_t * float(b0_t) - offset_hz
+        nu = np.asarray(self.shifts_ppm) * self.gamma_mhz_t * float(b0_t)
         h = np.tensordot(nu.astype(np.complex64), op.iz, axes=1)
         j = np.asarray(self.j_hz)
         for a in range(self.n):
@@ -141,10 +149,13 @@ class SpinSystem:
         """Thermal equilibrium density operator, high temperature, up to one global constant.
 
         rho is proportional to (1 + beta Fz) / d; the identity is silent, so the signal
-        bearing part is Fz / 2**(n - 1), which makes the per proton amplitude invariant to
-        the system size (a 6 spin creatine and a 1 spin singlet weigh their protons alike).
+        bearing part is 2 Fz / d (Fz / 2**(n - 1) for spins 1/2), which makes the per
+        spin amplitude invariant to the system size (a 6 spin creatine and a 1 spin
+        singlet weigh their protons alike). Across nuclei the amplitude per spin then
+        scales as I (I + 1), the trace of Fx^2 per spin; the polarization and the
+        detection gain of a nucleus are global factors outside the engine (stated).
         """
-        return np.complex64(self.scale / 2 ** (self.n - 1)) * self.operators().fz
+        return np.complex64(2.0 * self.scale / self.dim) * self.operators().fz
 
 
 #**************************************************************************************************#
@@ -167,10 +178,11 @@ class Operators:
             is a boolean mask on it.
         mz: Per-spin magnetic quantum numbers on the product basis, (n, d) float32: the
             diagonals of iz, which are also the eigenvalues of ix in the hadamard basis.
-        hadamard: The transverse eigenbasis H (the n-fold Kronecker Hadamard, real and
-            unitary), (d, d) complex64: H Iz_i H = Ix_i for every spin, so any sum of
-            Ix_i is diagonalized by H with the matching sum of mz rows as eigenvalues,
-            and transverse rotations need no eigendecomposition.
+        hadamard: The transverse eigenbasis H, (d, d) complex64, the Kronecker product
+            of the per-spin eigenvector matrices of Ix ordered like Iz (for spins 1/2
+            the n-fold Hadamard matrix): H Iz_i H^H = Ix_i for every spin, so any sum
+            of Ix_i is diagonalized by H with the matching sum of mz rows as
+            eigenvalues, and transverse rotations need no eigendecomposition.
     """
 
     ix: np.ndarray
@@ -192,25 +204,40 @@ class Operators:
     def build(cls, system):
         """Build (and cache) the operator stack of a hashable SpinSystem; relaxed
         variants of one structural system hit the same entry."""
-        pauli = {
-            "x": np.array([[0.0, 0.5], [0.5, 0.0]], dtype=np.complex64),
-            "y": np.array([[0.0, -0.5j], [0.5j, 0.0]], dtype=np.complex64),
-            "z": np.array([[0.5, 0.0], [0.0, -0.5]], dtype=np.complex64),
-        }
+        single = cls._single(system.spin)
         ix, iy, iz = (
-            np.stack([cls._embed(pauli[axis], i, system.n) for i in range(system.n)])
+            np.stack([cls._embed(single[axis], i, system.n) for i in range(system.n)])
             for axis in "xyz"
         )
         fx, fy, fz = ix.sum(axis=0), iy.sum(axis=0), iz.sum(axis=0)
         m = np.real(np.diag(fz))
         order = np.rint(m[:, None] - m[None, :]).astype(np.int32)
         mz = np.real(np.diagonal(iz, axis1=1, axis2=2)).astype(np.float32)
+        # the eigenvectors of Ix, one column per m in the order of Iz (eigh returns
+        # them ascending; the column phases are free, a diagonal one cancels in
+        # V diag(m) V^H): the n-fold Hadamard for spins 1/2
+        _, basis = np.linalg.eigh(single["x"])
+        basis = basis[:, ::-1].astype(np.complex64)
         hadamard = np.array([[1.0]], dtype=np.complex64)
         for _ in range(system.n):
-            hadamard = np.kron(hadamard, np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex64)
-                               / np.sqrt(np.float32(2.0)))
+            hadamard = np.kron(hadamard, basis)
         return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy, coherence_order=order,
                    mz=mz, hadamard=hadamard)
+
+    #*******************#
+    #   single spin     #
+    #*******************#
+    @staticmethod
+    def _single(spin):
+        """The x, y, z operators of one spin I on its 2 I + 1 levels, m descending:
+        Iz = diag(m) and the ladder I+ with <m + 1|I+|m> = sqrt(I (I + 1) - m (m + 1))."""
+        m = spin - np.arange(int(round(2 * spin + 1)))
+        plus = np.diag(np.sqrt(spin * (spin + 1.0) - m[1:] * (m[1:] + 1.0)), k=1)
+        return {
+            "x": ((plus + plus.T) / 2.0).astype(np.complex64),
+            "y": ((plus - plus.T) / 2.0j).astype(np.complex64),
+            "z": np.diag(m).astype(np.complex64),
+        }
 
     #***************#
     #   embedding   #
@@ -220,5 +247,5 @@ class Operators:
         """Kronecker-embed a single-spin operator at position `i` of an n-spin product space."""
         out = np.array([[1.0]], dtype=np.complex64)
         for k in range(n):
-            out = np.kron(out, op if k == i else np.eye(2, dtype=np.complex64))
+            out = np.kron(out, op if k == i else np.eye(op.shape[0], dtype=np.complex64))
         return out

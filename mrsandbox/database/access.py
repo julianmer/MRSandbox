@@ -20,7 +20,7 @@
 import copy
 import math
 
-from mrsandbox.database import concentrations, nuclei, relaxation, spinsystems
+from mrsandbox.database import concentrations, deuterium, nuclei, relaxation, spinsystems
 from mrsandbox.database.gudmundson import PooledValue
 
 
@@ -66,16 +66,25 @@ class Database:
         """Gyromagnetic ratio gamma-bar in MHz/T."""
         return self._lookup(nuclei.GAMMA_MHZ_PER_T, nucleus, "nucleus")
 
+    def spin(self, nucleus="1H"):
+        """Nuclear spin quantum number I."""
+        return self._lookup(nuclei.SPIN, nucleus, "nucleus")
+
     #********************#
     #   spin systems     #
     #********************#
-    def metabolites(self):
-        """Names of all metabolites with a spin system."""
-        return tuple(sorted(spinsystems.GOVINDARAJU))
+    SPIN_SYSTEMS = {"govindaraju": spinsystems.GOVINDARAJU, "dmi": deuterium.DMI}
 
-    def spin_system(self, metabolite):
-        """Spin system record of one metabolite: its groups (spins, j triplets, scale)."""
-        return copy.deepcopy(self._lookup(spinsystems.GOVINDARAJU, metabolite, "metabolite"))
+    def metabolites(self, source="govindaraju"):
+        """Names of all metabolites with a spin system in one source table (the 1H
+        Govindaraju set by default; "dmi" is the deuterium set)."""
+        return tuple(sorted(self._lookup(self.SPIN_SYSTEMS, source, "spin system source")))
+
+    def spin_system(self, metabolite, source="govindaraju"):
+        """Spin system record of one metabolite: its groups (spins, j triplets, scale)
+        and, for a table of another nucleus, the nucleus and its relaxation."""
+        table = self._lookup(self.SPIN_SYSTEMS, source, "spin system source")
+        return copy.deepcopy(self._lookup(table, metabolite, f"metabolite in {source}"))
 
     #**********************#
     #   concentrations     #
@@ -88,19 +97,13 @@ class Database:
     #****************#
     #   relaxation   #
     #****************#
-    def t2(self, metabolite=None, source="simple"):
-        """T2 (seconds) from one source; the simple source is one value for every metabolite."""
-        table = self._source(relaxation, source)
-        if "t2_s" in table:
-            return table["t2_s"]
-        return self._lookup(table, metabolite, f"metabolite in relaxation.{source.upper()}")
+    def t2(self, source="simple"):
+        """T2 (seconds) of the simple card: one value for every metabolite."""
+        return self._source(relaxation, source)["t2_s"]
 
-    def t1(self, metabolite=None, source="simple"):
-        """T1 (seconds) from one source; the simple source is one value for every metabolite."""
-        table = self._source(relaxation, source)
-        if "t1_s" in table:
-            return table["t1_s"]
-        return self._lookup(table, metabolite, f"metabolite in relaxation.{source.upper()}")
+    def t1(self, source="simple"):
+        """T1 (seconds) of the simple card: one value for every metabolite."""
+        return self._source(relaxation, source)["t1_s"]
 
     def pooled_t1(self, metabolite, tesla=3.0):
         """DerSimonian and Laird random-effects pool of the typed literature T1 rows at

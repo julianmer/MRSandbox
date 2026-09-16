@@ -322,6 +322,19 @@ class TestAdiabatic:
         # a hard 180 at 1.4 times nominal has already lost most of its inversion
         assert self.inversion(engine, Pulse(180.0), b1=1.4) > -0.5
 
+    def test_adiabatic_profile_is_symmetric_in_offset(self, engine):
+        # the sweep phase is sampled at the same step midpoints as the envelope; a
+        # half-step lead of the frequency over the amplitude skews the profile
+        # (3e-3 at 256 steps on this probe and 5e-2 at 64; midpoint sampled it is
+        # below 4e-4 and 8e-3, the remaining discretization error)
+        for steps, bound in ((64, 1e-2), (256, 1e-3)):
+            for offset_hz in (300.0, 500.0):
+                mz = [self.inversion(engine, ShapedPulse.hyperbolic_secant(
+                          0.008, 1500.0, 700.0, steps=steps,
+                          offset_ppm=4.65 + sign * offset_hz / F0_MHZ))
+                      for sign in (+1.0, -1.0)]
+                assert abs(mz[0] - mz[1]) < bound
+
     #*******************#
     #   semi-laser      #
     #*******************#

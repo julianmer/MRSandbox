@@ -187,15 +187,25 @@ def default_params(database=None, b0_t=3.0):
         #   jitter, motion) come from Augmentrum's TransientSynthesizer, configured
         #   per acquisition in scan.Multiplex.transients, not from this tree.
     )
-    # diffusion: every component fades by exp(-b ADC), with b built from the
-    # sequence's own gradient events (sequences.diffusion; consensus Box 2 of
-    # Ligneul et al. 2024, MRM 91:860), so a standard sequence is only as
-    # diffusion weighted as its crushers make it. ADCs in um^2/ms:
+    # diffusion: every component attenuates with the b-value the sequence's own
+    # gradient events build up (sequences.diffusion; consensus Box 2 of Ligneul
+    # et al. 2024, MRM 91:860), so a standard sequence is only as diffusion
+    # weighted as its crushers make it. ADCs in um^2/ms:
+    #   model: the metabolite decay law. "sticks" is the consensus minimal model
+    #     (section 5.1: randomly oriented infinitely long cylinders of zero
+    #     radius; the radius needs the gradient timings the b-value alone does not
+    #     carry, stated), whose powder average is non-monoexponential above b of
+    #     3 to 5 ms/um^2 as measured; "gaussian" is the monoexponential exp(-b ADC)
+    #     representation. Water, lipids, and the macromolecules stay Gaussian.
     #   adc: metabolites follow the human long-diffusion-time summary the
     #     consensus defers to (Valette et al. 2018, Front Neurosci 12:2: about
-    #     0.10 in grey and 0.15 in white matter, weighted per voxel).
+    #     0.10 in grey and 0.15 in white matter, weighted per voxel); under the
+    #     sticks model this low-b ADC is D_intra / 3 (consensus section 5.1), so
+    #     the intracellular diffusivity is 3 ADC, 0.3 to 0.45 um^2/ms, inside the
+    #     0.2 to 0.5 range the consensus simulates.
     #   mm: the consensus's own range. water, lipids: stated.
     diffusion = Params(diffusion=dict(
+        model="sticks",
         adc={name: PerTissue(gm=0.10, wm=0.15, csf=0.10) for name in names},
         water=0.75,
         mm=(0.005, 0.01),

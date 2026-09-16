@@ -97,3 +97,19 @@ class TestGenerator:
         noise = loud - quiet
         assert np.abs(noise).max() > 0.0
         assert abs(np.std(noise) - 2.0) < 0.2
+
+    def test_noise_draws_never_shift_the_next_truth(self, scan):
+        # every sample owns its generator, so a quiet and a noisy stream of one seed
+        # draw the same truths for the whole batch, not only its first sample
+        quiet_scan = VirtualScan(scan.brain, scan.scanner, scan.sequence,
+                                 params=Params(noise=dict(sigma=0.0)))
+        loud_scan = VirtualScan(scan.brain, scan.scanner, scan.sequence,
+                                params=Params(noise=dict(sigma=2.0)))
+        quiet_gen = quiet_scan.generator(**VOXEL, batch_size=3, seed=5, npoints=512)
+        loud_gen = loud_scan.generator(**VOXEL, batch_size=3, seed=5, npoints=512)
+        (quiet, y_quiet), (loud, y_loud) = next(quiet_gen), next(loud_gen)
+        np.testing.assert_array_equal(y_quiet, y_loud)
+        for a, b in zip(quiet_gen.truths, loud_gen.truths):
+            assert a.conc.to_dict() == b.conc.to_dict()
+        for i in range(3):
+            assert abs(np.std(loud[i] - quiet[i]) - 2.0) < 0.2

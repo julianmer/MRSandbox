@@ -16,6 +16,7 @@
 #   imports   #
 #*************#
 import numpy as np
+import scipy.special
 from keras import ops
 
 from mrsandbox.params import Params, Tissues
@@ -36,7 +37,22 @@ def acquisition_seed(seed):
         raise TypeError("acquire needs a serializable seed (an int, or None for a fresh "
                         "one) so the file can regenerate itself; use fid() for "
                         "generator-driven draws")
-    return int(np.random.SeedSequence().entropy) % 2 ** 53 if seed is None else seed
+    return int(np.random.SeedSequence().entropy) % 2 ** 53 if seed is None else int(seed)
+
+
+#**********************#
+#   subject and noise  #
+#**********************#
+def draw(params, seed):
+    """One subject and its receiver noise from one seed: (seed, truth, rng). The seed
+    (an int, or None for a fresh recorded one) is the root of every leaf's path-keyed
+    draw, so sample(seed), spectrum(seed), fid(seed), and acquire(seed) all mean the
+    same subject and a seed read from a header regenerates it anywhere; the noise
+    generator is the seed's own spawned stream, so drawing noise never reaches the
+    leaves."""
+    seed = acquisition_seed(seed)
+    return seed, params.sample(seed), np.random.default_rng(
+        np.random.SeedSequence(seed).spawn(1)[0])
 
 
 #**********************#
@@ -200,13 +216,15 @@ class Voxel:
         truth.conc order: the resolved concentration split per tissue by the drawn GM
         to WM contrast r as gm 2r/(1+r) + wm 2/(1+r) (an equal-mix voxel carries exactly
         the drawn value, pure tissues the published contrast), times the diffusion
-        fade of the local ADC."""
+        attenuation of the local ADC under the drawn diffusion model."""
         faded = self._diffusion_factor(truth)
+        sticks = truth.diffusion.model == "sticks"
         weights = []
         for name, concentration in truth.conc.items():
             r = truth.contrast[name]
             tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
-            weights.append(self.resolve(concentration) * tissue * faded(truth.diffusion.adc[name]))
+            weights.append(self.resolve(concentration) * tissue
+                           * faded(truth.diffusion.adc[name], sticks))
         return np.asarray(weights, dtype=np.complex64)
 
     #***********#
@@ -221,7 +239,8 @@ class Voxel:
         `metabolite_weights` @ basis."""
         lines = self._metabolite_lines(truth)
         names = tuple(truth.conc)
-        frame = (tuple(float(self.resolve(truth.t2[name])) for name in names),
+        frame = (tuple(float(self.resolve(truth.t1[name])) for name in names),
+                 tuple(float(self.resolve(truth.t2[name])) for name in names),
                  self.b1_scale(truth), self.offset_hz(truth), npoints, float(dwell_s))
         cached = self.scan._basis
         if cached is None or cached[0] is not truth:
@@ -238,7 +257,7 @@ class Voxel:
             keep = np.abs(a) > 1e-7 * np.abs(a).max() if a.size else np.zeros(0, bool)
             freqs.append(f[keep])
             amps.append(a[keep])
-            lw.append(np.full(int(keep.sum()), frame[0][k], dtype=np.float32))
+            lw.append(np.full(int(keep.sum()), frame[1][k], dtype=np.float32))
             rows.append(np.full(int(keep.sum()), k, dtype=np.int64))
         freqs, amps, rows = np.concatenate(freqs), np.concatenate(amps), np.concatenate(rows)
         lw = 1.0 / (np.pi * np.concatenate(lw))
@@ -259,14 +278,29 @@ class Voxel:
     #   fading     #
     #**************#
     def _diffusion_factor(self, truth):
-        """exp(-b ADC) for this scan's b-value: per-tissue ADC leaves weighted by the
-        local composition, scalars passing through; the identity at b = 0."""
+        """The diffusion attenuation of a component for this scan's b-value, given its
+        ADC leaf (per-tissue leaves weighted by the local composition, scalars passing
+        through); the identity at b = 0.
+
+        The Gaussian form exp(-b ADC) is every component's default. With `sticks`
+        the component is an intracellular metabolite in the consensus minimal model
+        (Ligneul et al. 2024, MRM 91:860, section 5.1: randomly oriented infinitely
+        long cylinders of zero radius, the sticks whose powder average is
+        S = sqrt(pi / (4 b D)) erf(sqrt(b D)) with D the intracellular diffusivity along
+        the fibre), so the decay is non-monoexponential above b of 3 to 5 ms/um^2 as
+        measured. The leaf stays the low-b ADC, which is D / 3 for uniformly oriented
+        sticks (the consensus's own identity), so the ADC tables and every b = 0 or
+        low-b result keep their meaning and D = 3 ADC.
+        """
         b = self.scan.b_value_ms_um2
 
-        def faded(adc):
+        def faded(adc, sticks=False):
             if b == 0.0:
                 return 1.0
-            return float(np.exp(-b * self.resolve(adc)))
+            x = b * self.resolve(adc)
+            if not sticks or x <= 0.0:
+                return float(np.exp(-x))
+            return float(np.sqrt(np.pi / (12.0 * x)) * scipy.special.erf(np.sqrt(3.0 * x)))
 
         return faded
 
@@ -291,8 +325,10 @@ class Voxel:
 
     def fid(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0):
         """(t, complex FID) at any grid: all components summed, sampled noise added."""
-        rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
-        truth = self.scan.params.sample(rng)
+        if isinstance(seed, np.random.Generator):
+            rng, truth = seed, self.scan.params.sample(seed)
+        else:
+            _, truth, rng = draw(self.scan.params, seed)
         t, fid = self._render(truth, rng, npoints, dwell_s)
         return np.asarray(ops.convert_to_numpy(t)), fid
 
@@ -377,7 +413,7 @@ class Voxel:
                 ones = np.ones((1, npoints), dtype=np.complex64)
                 cached[1][key] = np.asarray(eddy.process_tensor(ones, sw_hz=sw_hz)[0][0])
             fid = fid * cached[1][key]
-        modulation = np.exp(1j * (2.0 * np.pi * acquisition.shift_hz * grid
+        modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
                                   + np.radians(acquisition.phase_deg)))
         return t, (fid * modulation).astype(np.complex64)
 
@@ -433,9 +469,7 @@ class Voxel:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
-        seed = acquisition_seed(seed)
-        rng = np.random.default_rng(seed)
-        truth = self.scan.params.sample(rng)
+        seed, truth, rng = draw(self.scan.params, seed)
         coils = self.scan.coils
         if coils is None:
             _, fid = self._render(truth, rng, npoints, dwell_s)

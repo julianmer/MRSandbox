@@ -282,6 +282,17 @@ class TestCoupled:
         window = np.abs(ppm - 0.91) < 0.1
         assert abs(high[window].max() / low[window].max() - 2.0) < 0.05
 
+    def test_background_reads_a_resolved_creatine(self):
+        # the anchor reads the creatine like every other concentration leaf: a
+        # per-tissue creatine of one value everywhere is that fixed value
+        from mrsandbox import PerTissue
+
+        sequence = Press(te1_s=0.015, te2_s=0.015)
+        _, fixed = self.background(sequence, conc=dict(Cr=8.0, PCr=4.0))
+        _, tissue = self.background(sequence, conc=dict(Cr=PerTissue(gm=8.0, wm=8.0, csf=8.0),
+                                                        PCr=PerTissue(gm=4.0, wm=4.0, csf=4.0)))
+        np.testing.assert_allclose(tissue, fixed, atol=1e-6 * np.abs(fixed).max())
+
     #***********************#
     #   couplings by table  #
     #***********************#

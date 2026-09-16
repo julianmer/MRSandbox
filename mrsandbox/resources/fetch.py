@@ -21,7 +21,7 @@ import pathlib
 import shutil
 import urllib.request
 
-from mrsandbox.resources import bigbrain, icbm, mrshub
+from mrsandbox.resources import bigbrain, hmri, icbm, mrshub
 
 
 #**************************************************************************************************#
@@ -43,7 +43,7 @@ class Resources:
     CACHE_ENV = "MRSANDBOX_CACHE"
 
     # one dict per data source, each in its own cited module
-    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS}
+    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO}
 
     #*************#
     #   lookup    #

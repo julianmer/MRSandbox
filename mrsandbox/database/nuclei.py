@@ -24,3 +24,20 @@ GAMMA_MHZ_PER_T = {
     "23Na": 11.2620,
     "31P": 17.2351,
 }
+
+
+#**********************#
+#   spin quantum no.   #
+#**********************#
+# Source: Harris, R. K., et al. NMR nomenclature (IUPAC Recommendations 2001). Pure and
+#         Applied Chemistry 73 (2001) 1795-1818. doi:10.1351/pac200173111795.
+# Units:  nuclear spin quantum number I (dimensionless); the Hilbert space of one spin
+#         has 2 I + 1 levels.
+SPIN = {
+    "1H": 0.5,
+    "2H": 1.0,
+    "13C": 0.5,
+    "19F": 0.5,
+    "23Na": 1.5,
+    "31P": 0.5,
+}

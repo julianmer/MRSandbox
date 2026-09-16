@@ -81,17 +81,9 @@ class FieldMap:
         """
         if name not in cls.PRESETS:
             raise KeyError(f"unknown field map {name!r}; known: {', '.join(cls.PRESETS)}")
-        import nibabel as nib
-
-        from mrsandbox.resources import Resources
-
-        entry = Resources.REGISTRY["bigbrain_mr/background_field_400um"]
-        image = nib.load(str(Resources.path("bigbrain_mr/background_field_400um")))
-        offsets = np.asarray(image.get_fdata(), dtype=np.float32) * entry["scale"]
-        offsets = offsets * (float(b0_t) / 7.0)
-        affine = np.array(image.affine, dtype=np.float64)
-        affine[:3, 3] = -affine[:3, :3] @ ((np.asarray(offsets.shape) - 1) / 2.0)
-        return cls(offsets_hz=offsets, affine=affine, name=name, shim=shim)
+        volume = Volume.load("bigbrain_mr/background_field_400um")
+        return cls(offsets_hz=volume.data * np.float32(float(b0_t) / 7.0), affine=volume.affine,
+                   name=name, shim=shim)
 
     @classmethod
     def from_map(cls, offsets_hz, affine, name="custom", shim="linear"):

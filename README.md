@@ -10,7 +10,7 @@ MRSandbox creates magnetic resonance spectra from first principles. A virtual br
 tissue composition at any voxel position, a virtual scanner provides the field strength and the
 hardware limits, and fully flexible pulse sequences probe both through a density matrix engine.
 Every quantity is a configurable parameter that can be fixed, sampled from literature ranges, or
-replaced by a learned posterior. The simulations are written with Keras operations and run batched
+read from a quantitative map. The simulations are written with Keras operations and run batched
 and differentiable on JAX, PyTorch, and TensorFlow.
 
 ```python
@@ -49,40 +49,56 @@ flowchart LR
 
 This repository consists of the following main structures:
 * The `mrsandbox/params/` folder holds the parameter system: `Value` providers (fixed, uniform,
-  normal, clipped, per tissue) inside composable `Params` trees. Sampling a tree
-  realizes every leaf with one seed and records the ground truth.
+  normal, clipped, per tissue, mapped) inside composable `Params` trees. Sampling a tree
+  realizes every leaf with one seed and records the ground truth; every leaf draws from its own
+  path keyed stream, so adding a parameter never shifts the others. The default priors follow the
+  scanner field (1.5, 3, and 7 T relaxation tables).
 * The `mrsandbox/database/` folder stores literature values as source named Python dicts with the
   citation beside each dict, including the de Graaf concentration ranges, per metabolite T2 pooled
   from the Gudmundson database in `externals/`, per metabolite T1 typed from Mlynarik 2001,
   Ethofer 2003, and Traber 2004, the published WET and VAPOR suppression series, and the de Graaf
   RF pulse characteristics. Pooling across sources is code, never data.
 * The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
-  any position, together with swappable water, lipid, and macromolecule sources (LCModel style
-  Gaussians, or the measured consensus spectrum) and B0 field maps that dephase each voxel
-  physically (after a first order voxel shim, as a real acquisition would). ICBM152
-  (TemplateFlow) and BigBrain-MR (Sainz Martinez et al. 2023) are fetched on first use; the
-  wheel ships no data.
+  any position, together with swappable water, lipid, macromolecule, and downfield sources
+  (coupled mini spin systems, LCModel style Gaussians, or the measured consensus spectrum) and
+  B0 field maps that dephase each voxel physically (after a voxel shim up to second order, as a
+  real acquisition would). `Volume` is the one spatial container: every map, from the tissue
+  fractions to a user's T1 or transmit map, answers box queries with exact partial volume
+  weights. ICBM152 (TemplateFlow) and BigBrain-MR (Sainz Martinez et al. 2023) are fetched on
+  first use; the wheel ships no data.
 * The `mrsandbox/resources/` folder pulls large named datasets from their canonical homes on
-  first use into a local, checksum verified cache, so the package itself stays lightweight.
+  first use into a local, checksum verified cache, so the package itself stays lightweight,
+  and derives the hMRI demo subject's quantitative 3 T stack (R1, PD, MT saturation, R2*,
+  transmit field, B0) from its raw scans in cited numpy.
 * The `mrsandbox/hardware/` folder describes scanners and receive coil arrays. Loops carry
-  Biot-Savart sensitivities, arrays carry the Roemer noise resistance matrix, and acquisitions
-  gain a DIM_COIL dimension with the Roemer optimum combination to fold them back.
-* The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, and
-  coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, or any sampled
-  waveform) share one propagator, and named designs compose from the same events: PRESS, STEAM,
-  semi-LASER, CHESS, WET, and VAPOR ship with their published series, and J-difference editing
-  spans MEGA-PRESS plus the Hadamard-encoded HERMES and HERCULES schemes, whose dual-band
-  editing pulses and combination weights ship as typed tables. Every timing and every waveform
-  is a tensor, so sequences can come from your code or from a neural network.
-* The `mrsandbox/spins/` folder holds the spin systems and their operator algebra.
+  Biot-Savart sensitivities, measured arrays (the BigBrain-MR and T2*-MOVE maps) carry their
+  channel patterns, arrays carry the Roemer noise resistance matrix, and acquisitions gain a
+  DIM_COIL dimension with the Roemer optimum combination to fold them back.
+* The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
+  and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
+  hyperbolic secant, or any sampled waveform, with or without a slice gradient) share one
+  propagator, gradient crushers dephase an isochromat ensemble physically, and named designs
+  compose from the same events: PRESS, STEAM, semi-LASER, CHESS, WET, and VAPOR ship with their
+  published series, and J-difference editing spans MEGA-PRESS plus the Hadamard-encoded HERMES
+  and HERCULES schemes, whose dual-band editing pulses and combination weights ship as typed
+  tables. The b-value of any sequence follows from its own gradient events. Every timing and
+  every waveform is a tensor, so sequences can come from your code or from a neural network.
+* The `mrsandbox/spins/` folder holds the spin systems and their operator algebra for any
+  nuclear spin (protons, deuterium, sodium); the deuterium metabolites of DMI ship as a
+  typed set beside the Govindaraju proton systems.
 * The `mrsandbox/engine/` folder runs sequences on spin systems and reads out transition lines,
-  which render to spectra and FIDs on any grid. A compiled path replays jitted per system graphs,
-  so training draws cost milliseconds instead of a fresh simulation.
+  which render to spectra and FIDs on any grid. A compiled path replays one jitted graph per
+  sequence design with every timing as an input, so training draws and a TE series cost
+  milliseconds instead of a fresh simulation, and a gradient with respect to a timing flows.
 * The `mrsandbox/backend/` folder contains the propagator mathematics. Generic backend utilities
   (jit, autograd) live upstream in NIfTI-MRS+ so that anyone can use them.
 * The `mrsandbox/scan/` folder composes everything into `VirtualScan` and `Voxel`, scales up to
-  MRSI slices (a voxel lattice sharing one truth, spatial contrast from the anatomy, NIfTI-MRS
-  with real spatial dimensions), and provides the on the fly generators for training.
+  MRSI slices and slabs (a voxel lattice sharing one truth, spatial contrast from the anatomy,
+  Cartesian, EPSI, and non-Cartesian trajectories, NIfTI-MRS with real spatial dimensions),
+  multiplexes named conditions and transient schedules against one truth, and provides the on
+  the fly generators for training. The instrumental imperfections (spurious echoes, eddy
+  current phase, drift and motion across transients) are rendered by
+  [Augmentrum](https://github.com/julianmer/Augmentrum), installed as the `augment` extra.
 * The `mrsandbox/io/` folder reads external file formats: the Varian format of the consensus
   macromolecule spectra, and Pulseq `.seq` files (via pypulseq), whose blocks translate into
   the event primitives with the ADC marking the readout, so vendor-agnostic sequences run

@@ -104,11 +104,25 @@ class TestAttenuation:
         still = VirtualScan(brain, *pieces, params=frozen, **sources).voxel(**kw)
         fading = VirtualScan(brain, *pieces, params=quiet, **sources).voxel(**kw)
         _, reference = still.spectrum(seed=7, npoints=2048)
-        _, attenuated = fading.spectrum(seed=7, npoints=2048)
-        ratio = np.abs(np.asarray(attenuated)).max() / np.abs(np.asarray(reference)).max()
         truth = fading.sample(seed=7)
         adc = truth.diffusion.adc["sIns"]
         f = fading.fractions
         total = f.gm + f.wm + f.csf
         adc = (f.gm * adc.gm + f.wm * adc.wm + f.csf * adc.csf) / total
-        assert abs(ratio - math.exp(-b * adc)) < 1e-3 * math.exp(-b * adc)
+        # the metabolite decay law is the drawn model: the monoexponential
+        # representation, or the consensus sticks whose powder average is
+        # sqrt(pi / (4 b D)) erf(sqrt(b D)) with D = 3 ADC (Ligneul 2024, 5.1)
+        x = b * adc
+        sticks = math.sqrt(math.pi / (12.0 * x)) * math.erf(math.sqrt(3.0 * x))
+        for model, law in (("gaussian", math.exp(-x)), ("sticks", sticks)):
+            modelled = VirtualScan(brain, *pieces, params=quiet | Params(diffusion=dict(model=model)),
+                                   **sources).voxel(**kw)
+            _, attenuated = modelled.spectrum(seed=7, npoints=2048)
+            ratio = np.abs(np.asarray(attenuated)).max() / np.abs(np.asarray(reference)).max()
+            assert abs(ratio - law) < 1e-3 * law
+        # the sticks decay is weaker than the Gaussian one at this b and the two
+        # agree to first order at low b (the ADC is the same low-b slope)
+        assert sticks > math.exp(-x)
+        low = 0.05 * adc
+        assert abs(math.sqrt(math.pi / (12.0 * low)) * math.erf(math.sqrt(3.0 * low))
+                   - math.exp(-low)) < 1e-3

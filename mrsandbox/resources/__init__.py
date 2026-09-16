@@ -15,3 +15,4 @@
 #   imports   #
 #*************#
 from mrsandbox.resources.fetch import Resources
+from mrsandbox.resources.hmri import HMRI

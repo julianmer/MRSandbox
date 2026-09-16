@@ -17,6 +17,7 @@
 #   imports   #
 #*************#
 import abc
+import copy
 import math
 
 import numpy as np
@@ -27,6 +28,16 @@ from nifti_mrs_plus import ops as nops
 from mrsandbox.backend import Backend
 
 
+#*****************#
+#   hashable      #
+#*****************#
+def _hashable(value):
+    """A structural attribute as a dict key: arrays by their bytes, the rest as is."""
+    if isinstance(value, np.ndarray):
+        return (value.shape, value.tobytes())
+    return value
+
+
 #**************************************************************************************************#
 #                                           Class Event                                            #
 #**************************************************************************************************#
@@ -35,7 +46,16 @@ from mrsandbox.backend import Backend
 #                                                                                                  #
 #**************************************************************************************************#
 class Event(abc.ABC):
-    """One step of a pulse sequence, applied to a density matrix in a system context."""
+    """One step of a pulse sequence, applied to a density matrix in a system context.
+
+    Every event splits into its structure (the type and the attributes that shape the
+    graph: axes, phases, coherence orders) and its timings (the attributes `free`
+    names: durations, flips, moments, waveforms), so a compiled graph is keyed by the
+    structure and replays with the timings as inputs; a free attribute left None
+    counts as structure.
+    """
+
+    free = ()
 
     #***********#
     #   apply   #
@@ -49,6 +69,27 @@ class Event(abc.ABC):
             ctx: The Simulator-built context of one spin system (Hamiltonian eigensystem,
                 total-spin operators, coherence orders).
         """
+
+    #***********************#
+    #   structure, timings  #
+    #***********************#
+    def structure(self):
+        """The hashable key of everything but the timings."""
+        fixed = tuple((name, _hashable(value)) for name, value in sorted(vars(self).items())
+                      if name not in self.free or value is None)
+        return (type(self).__name__, fixed)
+
+    def timings(self):
+        """The free values in `free` order, None ones left out."""
+        return tuple(getattr(self, name) for name in self.free if getattr(self, name) is not None)
+
+    def bound(self, values):
+        """A copy of this event with its timings replaced, in `timings` order."""
+        event = copy.copy(self)
+        names = [name for name in self.free if getattr(self, name) is not None]
+        for name, value in zip(names, values):
+            setattr(event, name, value)
+        return event
 
     #**************#
     #   sandwich   #
@@ -92,6 +133,8 @@ class Pulse(Event):
         phase_deg: Axis phase in degrees (0 = x, 90 = y).
     """
 
+    free = ("flip_deg",)
+
     #**********#
     #   init   #
     #**********#
@@ -131,6 +174,8 @@ class SelectivePulse(Event):
         bandwidth_hz: Full width of each band in Hz.
         phase_deg: Axis phase in degrees (0 = x, 90 = y).
     """
+
+    free = ("flip_deg", "offset_ppm", "bandwidth_hz")
 
     #**********#
     #   init   #
@@ -199,6 +244,8 @@ class ShapedPulse(Event):
             it directly instead of being flip calibrated (adiabatic pulses are defined
             by their peak B1, not a nutation angle; flip_deg is ignored then).
     """
+
+    free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz")
 
     #**********#
     #   init   #
@@ -317,37 +364,55 @@ class ShapedPulse(Event):
             flip = ops.convert_to_tensor(ctx.b1_scale * self.flip_deg, dtype="float32")
             f1 = env * (flip / 360.0) / (ops.sum(env) * dt)
         h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, "complex64"), ops.conj(ctx.v))
-        # the frame offset shifts every resonance: H - offset Fz
-        h_free = h_free - nops.cast(
-            ops.convert_to_tensor(ctx.offset_hz, dtype="float32"), "complex64") * ctx.fz
+        # the frame: the offset and the slice gradient are one z term delta Fz, with
+        # delta a scalar or one value per isochromat
+        delta = -ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
         if self.gradient_hz_per_mm:
-            slice_hz = self.gradient_hz_per_mm * ops.convert_to_tensor(
+            delta = delta + self.gradient_hz_per_mm * ops.convert_to_tensor(
                 getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
-            if ops.ndim(slice_hz) > 0:  # a vector of positions batches the ensemble
-                slice_hz = ops.reshape(slice_hz, (-1, 1, 1))
-            h_free = h_free + nops.cast(slice_hz, "complex64") * ctx.fz
         offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype="float32") * ctx.f0_mhz
         t_mid = (ops.arange(0, steps, dtype="float32") + 0.5) * dt
         phase = math.radians(self.phase_deg) + 2.0 * math.pi * offset_hz * t_mid
         if self.frequency_hz is not None:
             sweep = ops.cast(ops.convert_to_tensor(self.frequency_hz), "float32")
-            phase = phase + 2.0 * math.pi * ops.cumsum(sweep) * dt
-        # all step Hamiltonians at once: one batched eigendecomposition replaces the
-        # step loop, then the step propagators collapse into the total by an ordered
-        # pairwise product (log2(steps) batched matmuls), and one sandwich applies it;
-        # with an in-pulse gradient over an isochromat vector the batch gains that axis
-        shape = (-1, 1, 1, 1) if ops.ndim(h_free) == 3 else (-1, 1, 1)
-        wx = nops.cast(f1 * ops.cos(phase), "complex64")
-        wy = nops.cast(f1 * ops.sin(phase), "complex64")
-        h = (ops.expand_dims(h_free, 0)
-             + ops.reshape(wx, shape) * ctx.fx
-             + ops.reshape(wy, shape) * ctx.fy)
-        u = Backend.expm_herm(h, dt)
+            # the sweep phase at the same step midpoints as the carrier (the running
+            # integral to the end of each step would lead the envelope by half a step
+            # and skew the inversion profile)
+            phase = phase + 2.0 * math.pi * (ops.cumsum(sweep) - sweep / 2.0) * dt
+        # every step Hamiltonian is a z rotation of H_free + f1 Fx: the RF phase and,
+        # in the interaction frame of delta Fz, the frame term itself become one
+        # angle theta = phase - 2 pi delta t per step (the frame term sampled at the
+        # step midpoints, the approximation the carrier ramp already makes), so one
+        # batched eigendecomposition over the steps serves every isochromat, carrier,
+        # and sweep, and the rotation D = exp(-i theta Fz) is diagonal on the product
+        # basis: U_n = D W_n D^H, a phase per row times a phase per column. The step
+        # propagators collapse into the total by an ordered pairwise product
+        # (log2(steps) batched matmuls), one sandwich applies it, and the frame
+        # rotation over the whole pulse follows as a phase per coherence order,
+        # exactly as a Delay applies the offset
+        h = ops.expand_dims(h_free, 0) + ops.reshape(nops.cast(f1, "complex64"), (-1, 1, 1)) * ctx.fx
+        w = Backend.expm_herm(h, dt)
+        m = ops.sum(ctx.mz, axis=0)
+        if ops.ndim(delta) > 0:  # a vector of positions batches the ensemble
+            theta = (ops.expand_dims(phase, 1)
+                     - 2.0 * math.pi * ops.expand_dims(delta, 0) * ops.expand_dims(t_mid, 1))
+        else:
+            theta = ops.expand_dims(phase - 2.0 * math.pi * delta * t_mid, 1)
+        angle = -ops.expand_dims(theta, -1) * m  # (steps, isochromats or 1, d)
+        d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
+        u = ops.expand_dims(d, -1) * ops.expand_dims(w, 1) * ops.expand_dims(ops.conj(d), -2)
+        if ops.ndim(delta) == 0:
+            u = u[:, 0]
         while int(u.shape[0]) > 1:
             n = int(u.shape[0])
             pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
             u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
-        return self._sandwich(u[0], rho)
+        rho = self._sandwich(u[0], rho)
+        frame = -2.0 * math.pi * ops.convert_to_tensor(self.duration_s, dtype="float32") * delta
+        if ops.ndim(delta) > 0:
+            frame = ops.reshape(frame, (-1, 1, 1))
+        frame = frame * ops.cast(ctx.q, "float32")
+        return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))
 
 
 #**************************************************************************************************#
@@ -376,6 +441,8 @@ class Delay(Event):
         t_s: Duration in seconds - may be a traced tensor, so sequence timings stay
             free, sweepable, and differentiable.
     """
+
+    free = ("t_s",)
 
     #**********#
     #   init   #
@@ -425,6 +492,8 @@ class Gradient(Event):
         axis: The gradient axis, "x", "y", or "z"; kicks on different axes dephase
             independently and never rephase each other.
     """
+
+    free = ("moment_per_mm",)
 
     #**********#
     #   init   #
@@ -518,10 +587,27 @@ class Sequence:
             rho = event.apply(rho, ctx)
         return rho
 
+    #***********************#
+    #   structure, timings  #
+    #***********************#
+    def structure(self):
+        """The hashable key of the design: every event's structure in order. Two
+        sequences of one structure share one compiled graph and differ only in
+        their timings."""
+        return tuple(event.structure() for event in self.events)
+
+    def timings(self):
+        """The free values of every event, one tuple per event."""
+        return tuple(event.timings() for event in self.events)
+
+    def bound(self, timings):
+        """The same design at other timings (as `timings` lays them out), as a plain
+        Sequence; this is what a compiled graph rebuilds from its inputs."""
+        return Sequence(*(event.bound(values) for event, values in zip(self.events, timings)))
+
     #*******************#
     #   composition     #
     #*******************#
     def __add__(self, other):
         """Concatenate two sequences, e.g. Chess(3) + Press(te1, te2)."""
-        combined = Sequence(*self.events, *other.events)
-        return combined
+        return Sequence(*self.events, *other.events)

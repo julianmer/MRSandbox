@@ -297,7 +297,7 @@ class CoupledMM(MMSource):
         if tissue <= 0.0:
             return None
         components = macromolecules.MRSI_CHALLENGE["components"]
-        c_tcr = truth.conc.Cr + truth.conc.PCr
+        c_tcr = voxel.resolve(truth.conc.Cr) + voxel.resolve(truth.conc.PCr)
         freqs, amps, gauss = [], [], []
         for name, groups, couplings, width_ppm in self.SYSTEMS:
             anchor = components[self.ANCHORS[name]]

@@ -91,14 +91,21 @@ class Params(dict):
     #*****************#
     #   composition   #
     #*****************#
+    def copy(self):
+        """A copy of the tree structure; the leaves are shared (they are frozen)."""
+        return Params({key: value.copy() if isinstance(value, Params) else value
+                       for key, value in self.items()})
+
     def __or__(self, other):
-        """Deep, right biased merge: leaves in `other` override, subtrees merge recursively."""
-        merged = Params(self)
+        """Deep, right biased merge: leaves in `other` override, subtrees merge recursively.
+        The result shares no subtree with either operand, so editing it never reaches
+        back into the defaults it was composed from."""
+        merged = self.copy()
         for key, value in Params(other).items():
             if key in merged and isinstance(merged[key], Params) and isinstance(value, Params):
                 merged[key] = merged[key] | value
             else:
-                merged[key] = value
+                merged[key] = value.copy() if isinstance(value, Params) else value
         return merged
 
     #**************#
@@ -135,12 +142,10 @@ class Params(dict):
             value = self[key]
             if isinstance(value, Params):
                 drawn = value._realize(root, path + (key,))
-            elif isinstance(value, Value):
+            else:
                 rng = np.random.default_rng(
                     np.random.SeedSequence([root, _path_entropy(path + (key,))]))
                 drawn = value.sample(rng)
-            else:
-                drawn = value
             dict.__setitem__(realization, key, drawn)
         return realization
 

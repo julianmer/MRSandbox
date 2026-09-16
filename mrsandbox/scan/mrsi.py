@@ -21,7 +21,7 @@ import numbers
 
 import numpy as np
 
-from mrsandbox.scan.voxel import acquisition_seed, receiver_noise
+from mrsandbox.scan.voxel import draw, receiver_noise
 
 
 #**************************************************************************************************#
@@ -313,9 +313,7 @@ class MRSI:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
-        seed = acquisition_seed(seed)
-        rng = np.random.default_rng(seed)
-        truth = self.scan.params.sample(rng)
+        seed, truth, rng = draw(self.scan.params, seed)
         coils = self.scan.coils
         nx, ny = self.matrix[0], self.matrix[1]
         nz = self.partitions

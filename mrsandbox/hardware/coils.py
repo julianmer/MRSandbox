@@ -107,12 +107,16 @@ class CoilArray:
     #**********#
     def __init__(self, loops, noise_resistance=None):
         self.loops = tuple(loops)
-        n = len(self.loops)
-        self.noise_resistance = (
-            np.asarray(noise_resistance, dtype=float) if noise_resistance is not None else np.eye(n)
-        )
-        if self.noise_resistance.shape != (n, n):
-            raise ValueError(f"noise_resistance must be {n}x{n} for {n} loops")
+        self.noise_resistance = self._resistance(len(self.loops), noise_resistance)
+
+    @staticmethod
+    def _resistance(n, noise_resistance):
+        """The (n, n) noise resistance matrix, the identity when none is given."""
+        matrix = (np.asarray(noise_resistance, dtype=float) if noise_resistance is not None
+                  else np.eye(n))
+        if matrix.shape != (n, n):
+            raise ValueError(f"noise_resistance must be {n}x{n} for {n} channels")
+        return matrix
 
     def __len__(self):
         return len(self.loops)
@@ -215,10 +219,7 @@ class MappedCoilArray(CoilArray):
         self.affine = self.volume.affine
         self.name = name
         self.loops = ()
-        n = self.map.shape[-1]
-        self.noise_resistance = (
-            np.asarray(noise_resistance, dtype=float) if noise_resistance is not None else np.eye(n)
-        )
+        self.noise_resistance = self._resistance(self.map.shape[-1], noise_resistance)
 
     def __len__(self):
         return self.map.shape[-1]

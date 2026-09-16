@@ -213,3 +213,33 @@ class TestSliceSelection:
         displacement = slab_centre(acetyl) - slab_centre(water)
         expected = (4.65 - 2.008) * 127.73 / g
         assert abs(displacement - expected) < 1.0  # millimetres
+
+
+#**************************************************************************************************#
+#                                       Class TestPulseFrame                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# A shaped pulse under a gradient: the batched isochromat ensemble equals a loop over positions.   #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestPulseFrame:
+
+    def test_batched_ensemble_equals_a_loop_over_positions(self, engine):
+        # the offset and slice term enter as one frame rotation per isochromat
+        # (rank one in the row and column phases); the vector path must equal the
+        # scalar path at every position, for a swept pulse with a carrier and an
+        # offset frame
+        import dataclasses
+
+        from mrsandbox import ShapedPulse
+
+        lac = SpinSystem.from_database("Lac")[0]
+        pulse = ShapedPulse.hyperbolic_secant(0.005, 2000.0, 1500.0, offset_ppm=4.65,
+                                              gradient_hz_per_mm=100.0, extent_mm=20.0, steps=64)
+        ctx = engine._ensemble_context(Sequence(pulse), engine.context(lac, offset_hz=25.0), 8)
+        batched = np.asarray(ops.convert_to_numpy(pulse.apply(ctx.rho_eq, ctx)))
+        positions = np.asarray(ops.convert_to_numpy(ctx.gradient_x))
+        for k, x in enumerate(positions):
+            single = dataclasses.replace(ctx, gradient_x=float(x))
+            one = np.asarray(ops.convert_to_numpy(pulse.apply(ctx.rho_eq, single)))
+            np.testing.assert_allclose(batched[k], one, atol=1e-6)

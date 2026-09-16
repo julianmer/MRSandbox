@@ -20,7 +20,7 @@ import importlib.util
 import numpy as np
 import pytest
 
-from mrsandbox import Brain, CoilArray, Params, Press, Scanner, VirtualScan
+from mrsandbox import Brain, CoilArray, Params, PerTissue, Press, Scanner, VirtualScan
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
 pytestmark = pytest.mark.render
@@ -699,3 +699,21 @@ class TestBasis:
                     np.testing.assert_allclose(formed, plain, atol=1e-4 * np.abs(plain).max())
             # one basis per truth: the cache serves every cell of the lattice
             assert len(scan._basis[1]) == 1
+
+    def test_basis_frame_follows_a_per_tissue_t1(self):
+        # cells of equal T2 but different resolved T1 (a per-tissue leaf, b1 off
+        # nominal so recovery reaches the echo) must not share one basis
+        brain = Brain.load("icbm152")
+        params = QUIET | Params(t1=dict(NAA=PerTissue(gm=0.3, wm=3.0)), b1_scale=0.8)
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           params=params)
+        mrsi = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(3, 3), voxel_mm=20.0)
+        truth = scan.params.sample(seed=5)
+        for row in mrsi.voxels:
+            for cell in row:
+                voxel = cell[0]
+                _, plain = voxel._clean_fid(truth, 256, 1.0 / 4000.0)
+                basis = voxel.metabolite_basis(truth, 256, 1.0 / 4000.0)
+                _, formed = voxel._clean_fid(truth, 256, 1.0 / 4000.0, basis=basis)
+                np.testing.assert_allclose(formed, plain, atol=1e-4 * np.abs(plain).max())
+        assert len(scan._basis[1]) > 1

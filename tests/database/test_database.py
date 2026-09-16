@@ -60,7 +60,7 @@ class TestDatabase:
     def test_simple_relaxation(self):
         db = Database()
         assert db.t2() == 0.160
-        assert db.t1("anything") == 1.300
+        assert db.t1() == 1.300
 
     #*****************#
     #   pooled t1     #

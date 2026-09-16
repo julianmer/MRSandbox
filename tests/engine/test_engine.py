@@ -20,8 +20,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import (Chess, Engine, Press, PulseAcquire, SelectivePulse, Sequence, ShapedPulse,
-                       SpinSystem)
+from mrsandbox import (Chess, Delay, Engine, Press, Pulse, PulseAcquire, SelectivePulse, Sequence,
+                       ShapedPulse, SpinSystem)
 from mrsandbox.sequences.events import CoherenceFilter
 
 F0_MHZ = 42.5774785 * 3.0
@@ -281,3 +281,88 @@ class TestRenderPrecision:
                                   gauss_hz=ops.convert_to_tensor(gauss))
         voigt = np.asarray(ops.convert_to_numpy(voigt), dtype=np.complex128)
         assert np.abs(voigt - voigt_oracle).max() < 1e-4 * np.abs(voigt_oracle).max()
+
+
+#**************************************************************************************************#
+#                                        Class TestGraph                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# One compiled graph per sequence structure: timings are inputs, so a TE series replays, a mutated #
+# event replays its new physics, and a timing gradient flows.                                      #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestGraph:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def eager(engine, sequence, system):
+        _, amps = engine.lines(sequence, system.with_relaxation(t1_s=1.2, t2_s=0.2))
+        return np.asarray(ops.convert_to_numpy(amps))
+
+    @staticmethod
+    def replay(engine, sequence, system):
+        args = [ops.convert_to_tensor(np.float32(v)) for v in (1.2, 0.2, 1.0, 0.0)]
+        _, amps = engine.compiled(sequence, system)(*args)
+        return np.asarray(ops.convert_to_numpy(amps))
+
+    #**********************#
+    #   one graph per TE   #
+    #**********************#
+    def test_a_te_series_shares_one_graph(self):
+        from mrsandbox import SemiLaser
+
+        engine = Engine(3.0)
+        lac = SpinSystem.from_database("Lac")[0]
+        for te2 in (0.019, 0.024, 0.060):
+            sequence = Press(te1_s=0.011, te2_s=te2)
+            np.testing.assert_allclose(self.replay(engine, sequence, lac),
+                                       self.eager(engine, sequence, lac), atol=1e-6)
+        assert len(engine._compiled) == 1
+        # waveform arrays are timings too: an adiabatic design replays at another TE
+        # (four 256-step propagator products in float32: the compiled and the eager
+        # fusion orders agree to about 1e-4 relative)
+        for te in (0.030, 0.040):
+            sequence = SemiLaser(te_s=te)
+            np.testing.assert_allclose(self.replay(engine, sequence, lac),
+                                       self.eager(engine, sequence, lac), atol=1e-4)
+        assert len(engine._compiled) == 2
+
+    #****************#
+    #   mutation     #
+    #****************#
+    def test_a_mutated_event_replays_its_new_physics(self):
+        engine = Engine(3.0)
+        lac = SpinSystem.from_database("Lac")[0]
+        delay = Delay(0.005)
+        echo = Sequence(Pulse(90.0), CoherenceFilter(+1), delay, Pulse(180.0, phase_deg=90.0),
+                        CoherenceFilter(-1), delay)
+        before = self.replay(engine, echo, lac)
+        delay.t_s = 0.072
+        after = self.replay(engine, echo, lac)
+        assert np.abs(after - before).max() > 0.1
+        np.testing.assert_allclose(after, self.eager(engine, echo, lac), atol=1e-6)
+
+    #*******************#
+    #   timing gradient #
+    #*******************#
+    def test_the_graph_is_differentiable_in_a_timing(self, needs_autograd):
+        from nifti_mrs_plus.backend import value_and_grad
+
+        engine = Engine(3.0)
+        lac = SpinSystem.from_database("Lac")[0]
+        fn, _ = engine.graph(Press(te1_s=0.011, te2_s=0.019), ((lac,),))
+        args = [ops.convert_to_tensor(np.asarray(v, dtype=np.float32)) for v in ([1.2], [0.2], 1.0, 0.0)]
+
+        def observable(te1):
+            timings = Engine.tensors(Press(te1_s=te1, te2_s=0.019).timings())
+            _, amps = fn(*args, timings)
+            return ops.sum(ops.abs(amps))
+
+        te1 = ops.convert_to_tensor(np.float32(0.011))
+        value, grad = value_and_grad(observable)(te1)
+        h = 1e-4
+        finite = (float(observable(ops.convert_to_tensor(np.float32(0.011 + h))))
+                  - float(observable(ops.convert_to_tensor(np.float32(0.011 - h))))) / (2.0 * h)
+        assert abs(float(grad) - finite) < 0.02 * abs(finite)

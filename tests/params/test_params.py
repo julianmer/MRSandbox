@@ -110,6 +110,19 @@ class TestParams:
         assert merged.noise == Uniform(0.0, 5.0)
         assert base.brain.NAA.conc == Uniform(7.5, 12.0)  # inputs untouched
 
+    def test_or_shares_no_subtree_with_its_operands(self):
+        # a loop composes defaults | learned and edits the result: neither operand
+        # may see the edit, whether the subtree came untouched from the left or
+        # whole from the right
+        base = Params(conc=dict(NAA=(7.5, 12.0)), noise=dict(sigma=1.0))
+        override = Params(mm=dict(kappa=7.0))
+        merged = base | override
+        merged.conc.NAA = 5.0
+        merged.mm.kappa = 1.0
+        assert base.conc.NAA == Uniform(7.5, 12.0)
+        assert override.mm.kappa == Fixed(7.0)
+        assert merged.conc is not base.conc and merged.mm is not override.mm
+
     #*****************#
     #   determinism   #
     #*****************#

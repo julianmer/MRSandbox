@@ -241,77 +241,85 @@ class Engine:
             amps = ops.mean(amps, axis=0)
         return ops.reshape(freqs, (-1,)), receiver * ops.reshape(amps, (-1,))
 
-    #****************#
-    #   compiled     #
-    #****************#
-    def compiled(self, sequence, system, isochromats=None):
-        """A jit-compiled (t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for one
-        system and sequence.
-
-        The context (eigendecomposition, operators) is built once and closed over; only
-        the relaxation times, the transmit scale, and the frequency offset remain
-        inputs, passed as backend tensors so the trace is reused across draws. This is
-        what makes per-draw sampling cheap: the first call compiles, every further
-        call replays the compiled graph. A gradient-bearing sequence compiles with its
-        isochromat ensemble as a batch axis, so crushers and slice selection run at
-        replay speed too.
-
-        Compiled functions are cached on the engine, keyed by the sequence and the
-        structural system (relaxation stays an input), so every consumer - metabolites,
-        water, lipids, macromolecules - shares one compilation per system and sequence.
-        """
-        from nifti_mrs_plus.backend import jit
-
-        isochromats = isochromats if isochromats is not None else self.isochromats
-        key = (sequence, system, isochromats)
-        if key not in self._compiled:
-            ctx0 = self._ensemble_context(sequence, self.context(system), isochromats)
-
-            def fn(t1_s, t2_s, b1_scale, offset_hz):
-                ctx = dataclasses.replace(ctx0, t1_s=t1_s, t2_s=t2_s, b1_scale=b1_scale,
-                                          offset_hz=offset_hz)
-                return self._system_lines(sequence, ctx)
-
-            self._compiled[key] = jit(fn)
-        return self._compiled[key]
-
-    #********************#
-    #   compiled batch   #
-    #********************#
-    def compiled_batch(self, sequence, groups, isochromats=None):
-        """One jit-compiled replay for many systems: (t1_s, t2_s, b1_scale, offset_hz) ->
-        (freqs, amps) with t1_s and t2_s one value per group, and the lines of every
-        system concatenated in group order.
+    #**********#
+    #   graph  #
+    #**********#
+    def graph(self, sequence, groups, isochromats=None):
+        """The jit-compiled graph of a sequence design on many systems:
+        (t1_s, t2_s, b1_scale, offset_hz, timings) -> (freqs, amps), with t1_s and
+        t2_s one value per group, `timings` laid out as Sequence.timings (backend
+        tensors; `tensors` converts), and the lines of every system concatenated in
+        group order. Returns the function and the element bounds of the groups in
+        the output, so a caller slices its metabolite's lines without another call.
 
         `groups` is a tuple of tuples of structural systems, each group sharing one
-        relaxation entry (a metabolite and its coupled groups). Where `compiled`
-        replays one graph per system, this schedules all of them in one graph, so a
-        draw costs one dispatch and one transfer instead of one per system. Returns
-        the function and the element bounds of the groups in the concatenated
-        output, so a caller slices its metabolite's lines without another call.
+        relaxation entry (a metabolite and its coupled groups). The contexts
+        (eigendecomposition, operators, the isochromat ensemble of a gradient-bearing
+        design) are built once and closed over; the relaxation times, the transmit
+        scale, the frequency offset, and every timing of the design are inputs, so
+        the first call compiles and every further call replays, for any timings.
+        Graphs are cached on the engine, keyed by the sequence structure, the
+        structural systems, and the ensemble size: two instances of one design
+        (a TE series, a candidate set of a closed loop) share one compilation, and a
+        gradient with respect to the timings flows through `value_and_grad`.
         """
         from nifti_mrs_plus.backend import jit
 
         isochromats = isochromats if isochromats is not None else self.isochromats
-        key = (sequence, groups, isochromats)
+        key = (sequence.structure(), groups, isochromats)
         if key not in self._compiled:
             contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
                         for index, group in enumerate(groups) for system in group]
             bounds = np.cumsum([0] + [sum(system.dim ** 2 for system in group)
                                       for group in groups])
 
-            def fn(t1_s, t2_s, b1_scale, offset_hz):
+            def fn(t1_s, t2_s, b1_scale, offset_hz, timings):
+                design = sequence.bound(timings)
                 freqs, amps = [], []
                 for index, ctx0 in contexts:
                     ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
                                               b1_scale=b1_scale, offset_hz=offset_hz)
-                    f, a = self._system_lines(sequence, ctx)
+                    f, a = self._system_lines(design, ctx)
                     freqs.append(f)
                     amps.append(a)
                 return ops.concatenate(freqs), ops.concatenate(amps)
 
             self._compiled[key] = (jit(fn), bounds)
         return self._compiled[key]
+
+    @staticmethod
+    def tensors(timings):
+        """Sequence timings as float32 backend tensors, nesting kept."""
+        if isinstance(timings, tuple):
+            return tuple(Engine.tensors(value) for value in timings)
+        return ops.convert_to_tensor(timings, dtype="float32")
+
+    #****************#
+    #   compiled     #
+    #****************#
+    def compiled(self, sequence, system, isochromats=None):
+        """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for one system, replaying
+        the design's graph (`graph`) with this sequence's own timings: the first call
+        of a design compiles, every further call, at any timings, replays."""
+        fn, _ = self.compiled_batch(sequence, ((system,),), isochromats)
+
+        def replay(t1_s, t2_s, b1_scale, offset_hz):
+            row = lambda value: ops.expand_dims(ops.convert_to_tensor(value, dtype="float32"), 0)
+            return fn(row(t1_s), row(t2_s), b1_scale, offset_hz)
+
+        return replay
+
+    #********************#
+    #   compiled batch   #
+    #********************#
+    def compiled_batch(self, sequence, groups, isochromats=None):
+        """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for many systems (t1_s
+        and t2_s one value per group) plus the group bounds, replaying the design's
+        graph with this sequence's own timings; see `graph`."""
+        fn, bounds = self.graph(sequence, groups, isochromats)
+        timings = self.tensors(sequence.timings())
+        return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings),
+                bounds)
 
     #**************#
     #   spectrum   #

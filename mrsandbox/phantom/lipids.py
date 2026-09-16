@@ -49,10 +49,10 @@ class LipidSource(abc.ABC):
     #   lipid systems   #
     #*******************#
     @staticmethod
-    def systems(gamma_mhz_t, table=None):
-        """The lipid resonances as uncoupled systems, by default the Hamilton six-peak
-        triglyceride spectrum with its measured relative amplitudes."""
-        peaks = (table if table is not None else lipid_table.HAMILTON)["peaks"]
+    def systems(gamma_mhz_t):
+        """The lipid resonances as uncoupled systems: the Hamilton six-peak triglyceride
+        spectrum with its measured relative amplitudes."""
+        peaks = lipid_table.HAMILTON["peaks"]
         return tuple(
             SpinSystem(name=f"lipid_{name}", nucleus="1H", shifts_ppm=(peak["shift_ppm"],),
                        j_hz=((0.0,),), scale=peak["relative_amplitude"], gamma_mhz_t=gamma_mhz_t)

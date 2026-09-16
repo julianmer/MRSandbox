@@ -107,3 +107,99 @@ class TestSpinSystem:
     def test_thermal_rho_carries_the_scale(self):
         (scyllo,) = SpinSystem.from_database("sIns")
         np.testing.assert_allclose(scyllo.thermal_rho(), 6.0 * scyllo.operators().fz, atol=0)
+
+
+#**************************************************************************************************#
+#                                      Class TestHigherSpin                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# The operator algebra of any spin I: deuterium (1) and sodium (3/2) beside the proton (1/2).      #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestHigherSpin:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def single(nucleus, spin, shift_ppm=0.0):
+        from mrsandbox.database import Database
+
+        return SpinSystem(name=nucleus, nucleus=nucleus, shifts_ppm=(shift_ppm,), j_hz=((0.0,),),
+                          scale=1.0, gamma_mhz_t=Database().gamma(nucleus), spin=spin)
+
+    #***************#
+    #   algebra     #
+    #***************#
+    @pytest.mark.parametrize("nucleus, spin", [("1H", 0.5), ("2H", 1.0), ("23Na", 1.5)])
+    def test_operators_obey_the_spin_algebra(self, nucleus, spin):
+        # [Ix, Iy] = i Iz, the Casimir I (I + 1), the m ladder of Iz, and the
+        # transverse eigenbasis H diag(m) H^H = Ix, on the (2 I + 1) levels
+        system = self.single(nucleus, spin)
+        op = system.operators()
+        levels = int(round(2 * spin + 1))
+        assert system.dim == levels and op.ix.shape == (1, levels, levels)
+        ix, iy, iz = op.ix[0], op.iy[0], op.iz[0]
+        np.testing.assert_allclose(ix @ iy - iy @ ix, 1j * iz, atol=1e-6)
+        np.testing.assert_allclose(ix @ ix + iy @ iy + iz @ iz,
+                                   spin * (spin + 1.0) * np.eye(levels), atol=1e-6)
+        np.testing.assert_allclose(np.real(np.diag(iz)), spin - np.arange(levels), atol=1e-6)
+        h = op.hadamard
+        np.testing.assert_allclose(h @ h.conj().T, np.eye(levels), atol=1e-6)
+        np.testing.assert_allclose(h @ np.diag(op.mz[0]) @ h.conj().T, ix, atol=1e-6)
+        assert op.coherence_order.max() == int(round(2 * spin))
+
+    #*****************#
+    #   two spins     #
+    #*****************#
+    def test_two_deuterons_share_the_product_space(self):
+        from mrsandbox.database import Database
+
+        pair = SpinSystem(name="pair", nucleus="2H", shifts_ppm=(1.0, 2.0), j_hz=((0.0, 0.0), (0.0, 0.0)),
+                          scale=1.0, gamma_mhz_t=Database().gamma("2H"), spin=1.0)
+        op = pair.operators()
+        assert pair.dim == 9
+        comm = op.ix[0] @ op.iy[1] - op.iy[1] @ op.ix[0]
+        np.testing.assert_allclose(comm, np.zeros_like(comm), atol=1e-6)
+        for i in range(2):
+            np.testing.assert_allclose(op.hadamard @ np.diag(op.mz[i]) @ op.hadamard.conj().T,
+                                       op.ix[i], atol=1e-6)
+
+    #*****************#
+    #   amplitudes    #
+    #*****************#
+    def test_amplitude_per_spin_follows_i_times_i_plus_one(self):
+        # 2 Fz / d is the thermal state of every spin, so the detected amplitude of
+        # one spin scales as I (I + 1): 8/3 for deuterium and 5 for sodium against
+        # the proton (the polarization and detection gain of a nucleus stay outside)
+        from keras import ops
+
+        from mrsandbox import Engine, PulseAcquire
+
+        def detected(nucleus, spin):
+            engine = Engine(3.0)
+            _, amps = engine.lines(PulseAcquire(), self.single(nucleus, spin))
+            return float(np.abs(np.asarray(ops.convert_to_numpy(amps))).sum())
+
+        proton = detected("1H", 0.5)
+        assert abs(detected("2H", 1.0) / proton - 8.0 / 3.0) < 1e-5
+        assert abs(detected("23Na", 1.5) / proton - 5.0) < 1e-5
+
+    #***********#
+    #   dmi     #
+    #***********#
+    def test_dmi_spectrum_shows_the_four_deuterated_resonances(self):
+        # the typed deuterium set (water, glucose, Glx, lactate) renders at its in
+        # vivo positions, as spin 1 with its 11.7 T T1
+        from keras import ops
+
+        from mrsandbox import Engine, PulseAcquire
+
+        systems = [SpinSystem.from_database(name, source="dmi")[0]
+                   for name in ("Water", "Glc", "Glx", "Lac")]
+        assert all(s.nucleus == "2H" and s.spin == 1.0 and s.dim == 3 for s in systems)
+        assert systems[1].t1_s == 0.064
+        ppm, spec = Engine(11.7).spectrum(PulseAcquire(), *systems, npoints=4096, sw_hz=2000.0)
+        real = np.real(np.asarray(ops.convert_to_numpy(spec)))
+        peaks = np.sort(np.asarray(ppm)[np.argsort(real)[-4:]])
+        np.testing.assert_allclose(peaks, [1.4, 2.4, 3.8, 4.8], atol=0.01)

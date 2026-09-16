@@ -7,10 +7,11 @@
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
 # Purpose: The training mode: an infinite, seeded stream of freshly simulated batches from one     #
-#          voxel. Every batch draws its realizations and noise from a generator keyed by the       #
-#          stream seed and the batch index, so a seed reproduces the whole stream and any batch    #
-#          alone; inputs come as real and imaginary channels (the network boundary), targets as    #
-#          the concentration vector, and the full realized truth rides along.                      #
+#          voxel. Every sample draws its realization and noise from a generator keyed by the       #
+#          stream seed, the batch index, and its place in the batch, so a seed reproduces the      #
+#          whole stream and any sample alone; inputs come as real and imaginary channels (the      #
+#          network boundary), targets as the concentration vector, and the full realized truth     #
+#          rides along.                                                                            #
 #                                                                                                  #
 ####################################################################################################
 
@@ -34,8 +35,11 @@ class Generator(keras.utils.PyDataset):
     A keras.utils.PyDataset, so model.fit consumes it directly (pass steps_per_epoch;
     workers and queueing come from the PyDataset kwargs), and a plain iterator for
     direct use. Batch `index` draws from its own generator derived from the stream
-    seed and the index, so any batch is reproducible on its own and the iteration
-    order never matters. Each batch is (x, y) with x of shape (batch, 2, npoints)
+    seed and the index, and every sample in it from its own (seed, index, place)
+    generator, so any sample is reproducible on its own, the iteration order never
+    matters, and a quiet and a noisy stream of one seed draw the same truths (the
+    noise draw of one sample never shifts the next). Each batch is (x, y) with x of
+    shape (batch, 2, npoints)
     float32 holding the real and imaginary FID channels, and y of shape
     (batch, n_metabolites) float32 holding the drawn concentrations in the order of
     the `metabolites` attribute. `batches(n)` yields n of them; `truths` of the
@@ -74,11 +78,11 @@ class Generator(keras.utils.PyDataset):
         return None
 
     def __getitem__(self, index):
-        rng = np.random.default_rng(np.random.SeedSequence([self.root, int(index)]))
         x = np.empty((self.batch_size, 2, self.npoints), dtype=np.float32)
         y = np.empty((self.batch_size, len(self.metabolites)), dtype=np.float32)
         truths = []
         for i in range(self.batch_size):
+            rng = np.random.default_rng(np.random.SeedSequence([self.root, int(index), i]))
             truth = self.voxel.scan.params.sample(rng)
             _, fid = self.voxel._render(truth, rng, self.npoints, self.dwell_s)
             x[i, 0], x[i, 1] = fid.real, fid.imag

@@ -29,6 +29,14 @@ pytestmark = pytest.mark.render
 #*****************#
 #   shared scan   #
 #*****************#
+def typed_truth(voxel, seed):
+    """The recorded truth of an acquisition as the header carries it (a JSON round trip)."""
+    import json
+
+    return json.loads(json.dumps(voxel.acquire(seed=seed, npoints=256)
+                                 .hdr_ext["SimulationGroundTruth"]["params"]))
+
+
 @pytest.fixture(scope="module")
 def scan():
     return VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
@@ -88,6 +96,18 @@ class TestVirtualScan:
         np.testing.assert_array_equal(np.asarray(data[:]), np.asarray(again[:]))
         with pytest.raises(TypeError):
             voxel.acquire(seed=np.random.default_rng(3), npoints=256)
+        # one integer is one subject everywhere: the sampled truth, the quick-look
+        # FID, and the acquisition of a seed agree, and the noise is the seed's own
+        assert voxel.sample(seed=11).to_dict() == typed_truth(voxel, 11)
+        _, fid = voxel.fid(seed=11, npoints=256)
+        np.testing.assert_array_equal(fid, np.asarray(voxel.acquire(seed=11, npoints=256)[:])[0, 0, 0])
+        # a numpy integer (a loop drawing seeds from its own generator) records as a
+        # plain int and means the same acquisition
+        typed = voxel.acquire(seed=np.int64(11), npoints=256)
+        assert type(typed.hdr_ext["SimulationGroundTruth"]["seed"]) is int
+        assert typed.hdr_ext["SimulationGroundTruth"]["params"] == typed_truth(voxel, 11)
+        np.testing.assert_array_equal(np.asarray(typed[:]),
+                                      np.asarray(voxel.acquire(seed=11, npoints=256)[:]))
 
     #****************#
     #   provenance   #
@@ -288,6 +308,25 @@ class TestMaps:
         volume = Volume(ramp.copy(), affine)
         assert abs(voxel.resolve(volume) - 3.5) < 1e-12  # the box mean of the ramp
         assert voxel.resolve(Volume(ramp.copy(), np.eye(4) * 100.0)) == 0.0  # outside
+
+    #*******************#
+    #   mapped offset   #
+    #*******************#
+    def test_mapped_offset_runs_the_sequence_and_shifts_the_readout(self, scan):
+        # a B0 offset map resolves at the voxel for both the sequence frame and the
+        # receiver modulation, so a flat 30 Hz map is the fixed 30 Hz world exactly
+        from mrsandbox import Mapped, Volume
+
+        affine = np.eye(4)
+        affine[:3, 3] = -3.5
+        flat = Volume(np.full((8, 8, 8), 30.0), affine, name="offset_flat")
+
+        def fid(shift):
+            params = Params(acquisition=dict(shift_hz=shift))
+            voxel = self.uniform_scan(scan, params).voxel(position_mm=(0.0, 0.0, 0.0), size_mm=2.0)
+            return voxel._clean_fid(voxel.sample(seed=7), 256, 1.0 / 4000.0)[1]
+
+        np.testing.assert_allclose(fid(Mapped(flat)), fid(30.0), rtol=1e-6)
 
     #*************************#
     #   mapped concentration  #

@@ -222,6 +222,16 @@ class TestMappedBox:
         return MappedCoilArray(maps, np.eye(4))
 
     #*****************#
+    #   resistance    #
+    #*****************#
+    def test_resistance_must_match_the_channel_count(self):
+        from mrsandbox import MappedCoilArray
+
+        with pytest.raises(ValueError):
+            MappedCoilArray(np.zeros((4, 4, 4, 2), dtype=np.complex64), np.eye(4),
+                            noise_resistance=np.eye(3))
+
+    #*****************#
     #   box average   #
     #*****************#
     def test_box_average_weighs_the_edge_cells(self):

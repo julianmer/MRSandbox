@@ -19,7 +19,7 @@
 import numpy as np
 
 from mrsandbox.scan.virtual_scan import VirtualScan
-from mrsandbox.scan.voxel import acquisition_seed, receiver_noise
+from mrsandbox.scan.voxel import draw, receiver_noise
 
 
 #**************************************************************************************************#
@@ -79,9 +79,7 @@ class Multiplex:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
-        seed = acquisition_seed(seed)
-        rng = np.random.default_rng(seed)
-        truth = self.params.sample(rng)
+        seed, truth, rng = draw(self.params, seed)
         stack = []
         for name in self.conditions:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
@@ -169,9 +167,7 @@ class Multiplex:
         if isinstance(schedule, int):
             schedule = [self.conditions[0]] * schedule
         schedule = list(schedule)
-        seed = acquisition_seed(seed)
-        rng = np.random.default_rng(seed)
-        truth = self.params.sample(rng)
+        seed, truth, rng = draw(self.params, seed)
 
         clean = {}
         for name in set(schedule):
