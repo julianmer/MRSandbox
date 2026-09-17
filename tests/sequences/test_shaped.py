@@ -230,6 +230,25 @@ class TestShapedPulse:
         assert np.all(np.isfinite(grad))
         assert np.abs(grad).max() > 0.0
 
+    def test_envelope_gradient_is_finite_on_equivalent_spins(self, engine, needs_autograd):
+        # creatine's equivalent protons give degenerate eigenvalues, where the
+        # derivative of an eigendecomposition divides by zero; the matmul-only
+        # propagator has no such term, so waveform optimization works on any system
+        from nifti_mrs_plus.backend import value_and_grad
+
+        (cr, *_) = SpinSystem.from_database("Cr")
+
+        def residual(envelope):
+            sequence = acquire(ShapedPulse(90.0, 0.004, envelope, offset_ppm=3.0))
+            _, amps = engine.lines(sequence, cr)
+            return ops.sum(ops.abs(amps))
+
+        envelope = ops.convert_to_tensor(np.full(16, 0.5, dtype=np.float32))
+        _, grad = value_and_grad(residual)(envelope)
+        grad = ops.convert_to_numpy(grad)
+        assert np.all(np.isfinite(grad))
+        assert np.abs(grad).max() > 0.0
+
 
 #**************************************************************************************************#
 #                                     Class TestPulseProfiles                                      #

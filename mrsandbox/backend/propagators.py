@@ -72,8 +72,48 @@ class Backend:
     #***************#
     #   expm herm   #
     #***************#
+    SQUARINGS = 8
+
     @staticmethod
     def expm_herm(h, dt):
-        """exp(-i 2 pi H dt) for Hermitian H (Hz), batched over leading axes of H and dt."""
-        lam, v = Backend.eigh_herm(h)
-        return Backend.propagator_from_eigh(lam, v, dt)
+        """exp(-i 2 pi H dt) for Hermitian H (Hz), batched over leading axes of H and dt,
+        by scaling and squaring: A = -i 2 pi H dt is scaled by 2^-s to a Frobenius norm
+        below two, exponentiated by its degree-18 Taylor polynomial (truncation 4e-12,
+        below float32; seven matmuls in the Paterson-Stockmeyer grouping by powers of
+        A^6), and squared s times. The scaling s is chosen per matrix in the graph and
+        the squarings run a fixed SQUARINGS budget with a mask, so the graph stays
+        static, the whole propagator is matmuls (no eigendecomposition and no LAPACK
+        call inside a compiled graph, which every backend and platform fuses alike),
+        and the gradient with respect to H or dt is exact at degenerate eigenvalues,
+        where an eigendecomposition's derivative divides by zero. Matrices of norm
+        above 2^(SQUARINGS + 1) (a step of hundreds of radians) exceed the budget; no
+        pulse step comes near it. Every squaring doubles the float32 rounding, so the
+        window is as wide as the polynomial allows."""
+        dt_t = ops.cast(ops.convert_to_tensor(dt), "float32")
+        if ops.ndim(dt_t) > 0:
+            dt_t = ops.reshape(dt_t, tuple(dt_t.shape) + (1, 1))
+        a = nops.complex_from(ops.zeros_like(nops.real(h)), (-2.0 * math.pi) * nops.real(h) * dt_t) \
+            + nops.complex_from((2.0 * math.pi) * nops.imag(h) * dt_t, ops.zeros_like(nops.real(h)))
+        norm = ops.sqrt(ops.sum(ops.abs(a) ** 2, axis=(-2, -1)))
+        s = ops.maximum(ops.ceil(ops.log2(ops.maximum(norm / 2.0, 1e-30))), 0.0)
+        scale = nops.cast(ops.exp2(-s), "complex64")
+        a = a * ops.expand_dims(ops.expand_dims(scale, -1), -1)
+        eye = ops.eye(int(a.shape[-1]), dtype="complex64")
+        a2 = ops.matmul(a, a)
+        a3 = ops.matmul(a2, a)
+        a4 = ops.matmul(a2, a2)
+        a5 = ops.matmul(a4, a)
+        a6 = ops.matmul(a4, a2)
+        powers = (eye, a, a2, a3, a4, a5)
+        inverse_factorial = [1.0 / math.factorial(k) for k in range(19)]
+
+        def block(j):
+            return sum(inverse_factorial[6 * j + k] * powers[k] for k in range(6))
+
+        u = block(2) + inverse_factorial[18] * a6
+        u = block(1) + ops.matmul(a6, u)
+        u = block(0) + ops.matmul(a6, u)
+        for k in range(Backend.SQUARINGS):
+            keep = ops.expand_dims(ops.expand_dims(s > float(k), -1), -1)
+            u = ops.where(keep, ops.matmul(u, u), u)
+        return u
