@@ -19,6 +19,7 @@
 import abc
 import copy
 import math
+import numbers
 
 import numpy as np
 
@@ -570,44 +571,102 @@ class CoherenceFilter(Event):
 #                                                                                                  #
 #**************************************************************************************************#
 class Sequence:
-    """An ordered event list; subclasses are named designs, instances are concrete timings."""
+    """An ordered event list; subclasses are named designs, instances are concrete timings.
+
+    Args:
+        *events: The events in order.
+        tr_s: Repetition time. None runs the events once from thermal equilibrium, a
+            fully relaxed acquisition. With a TR the run reaches the spoiled steady
+            state first: `cycles` repetitions of the events, each followed by the
+            readout's crushing (only order zero survives the spoilers) and the
+            recovery over the rest of the repetition (a Delay of TR minus the
+            sequence's own duration, relaxing under T1 and T2), then the events run
+            once more for the readout. So partial recovery, the inversion of the
+            recovered magnetization by refocusing pulses, and the per-metabolite T1
+            weighting emerge from the same density matrix; the readout and its
+            spoiling fall inside the recovery time. One cycle is exact for a complete
+            excitation (nothing longitudinal survives an ideal 90), and every further
+            cycle multiplies the residual of an imperfect one by another cos(flip)
+            exp(-TR / T1). TR is a timing, so a compiled design replays at any TR.
+            One idealization to know: a CoherenceFilter keeps only its orders, so the
+            longitudinal magnetization that recovers between excitation and readout
+            (and that refocusing pulses invert) is dropped by a filter on +1 or -1,
+            an O(TE / T1) term of the steady state; physical Gradient crushers keep
+            it and reproduce the inversion law exactly.
+        cycles: Steady-state repetitions before the readout run.
+    """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, *events):
+    def __init__(self, *events, tr_s=None, cycles=1):
         self.events = tuple(events)
+        self.tr_s = tr_s
+        self.cycles = cycles
+        if isinstance(tr_s, numbers.Real) and isinstance(self.duration_s, numbers.Real) \
+                and tr_s < self.duration_s:
+            raise ValueError(f"tr_s {tr_s} s is shorter than the sequence's {self.duration_s} s")
 
     #*********#
     #   run   #
     #*********#
     def run(self, rho, ctx):
-        """Apply every event in order and return the pre-readout density matrix."""
+        """Apply every event in order and return the pre-readout density matrix, from
+        the spoiled steady state when the sequence carries a TR."""
+        if self.tr_s is not None:
+            crush, recover = CoherenceFilter(0), Delay(self.tr_s - self.duration_s)
+            for _ in range(self.cycles):
+                rho = recover.apply(crush.apply(self._pass(rho, ctx), ctx), ctx)
+        return self._pass(rho, ctx)
+
+    def _pass(self, rho, ctx):
         for event in self.events:
             rho = event.apply(rho, ctx)
         return rho
+
+    #**************#
+    #   duration   #
+    #**************#
+    @property
+    def duration_s(self):
+        """The time the events take: every delay and every shaped pulse (ideal pulses,
+        kicks, and filters are instantaneous)."""
+        total = 0.0
+        for event in self.events:
+            if isinstance(event, Delay):
+                total = total + event.t_s
+            elif isinstance(event, ShapedPulse):
+                total = total + event.duration_s
+        return total
 
     #***********************#
     #   structure, timings  #
     #***********************#
     def structure(self):
-        """The hashable key of the design: every event's structure in order. Two
-        sequences of one structure share one compiled graph and differ only in
-        their timings."""
-        return tuple(event.structure() for event in self.events)
+        """The hashable key of the design: every event's structure in order, the
+        cycle count, and whether a TR is set. Two sequences of one structure share
+        one compiled graph and differ only in their timings."""
+        return (tuple(event.structure() for event in self.events), self.cycles, self.tr_s is None)
 
     def timings(self):
-        """The free values of every event, one tuple per event."""
-        return tuple(event.timings() for event in self.events)
+        """The free values of every event, one tuple per event, then the TR as a last
+        tuple (empty without one)."""
+        return (tuple(event.timings() for event in self.events)
+                + ((self.tr_s,) if self.tr_s is not None else (),))
 
     def bound(self, timings):
         """The same design at other timings (as `timings` lays them out), as a plain
         Sequence; this is what a compiled graph rebuilds from its inputs."""
-        return Sequence(*(event.bound(values) for event, values in zip(self.events, timings)))
+        events = (event.bound(values) for event, values in zip(self.events, timings[:-1]))
+        tr_s = timings[-1][0] if self.tr_s is not None else None
+        return Sequence(*events, tr_s=tr_s, cycles=self.cycles)
 
     #*******************#
     #   composition     #
     #*******************#
     def __add__(self, other):
-        """Concatenate two sequences, e.g. Chess(3) + Press(te1, te2)."""
-        return Sequence(*self.events, *other.events)
+        """Concatenate two sequences, e.g. Chess(3) + Press(te1, te2); the right
+        operand's TR (the localization's) carries, else the left one's."""
+        tr_s = other.tr_s if other.tr_s is not None else self.tr_s
+        cycles = other.cycles if other.tr_s is not None else self.cycles
+        return Sequence(*self.events, *other.events, tr_s=tr_s, cycles=cycles)

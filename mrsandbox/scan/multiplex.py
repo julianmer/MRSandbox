@@ -18,6 +18,7 @@
 #*************#
 import numpy as np
 
+from mrsandbox.engine import Engine
 from mrsandbox.scan.virtual_scan import VirtualScan
 from mrsandbox.scan.voxel import draw, receiver_noise
 
@@ -56,50 +57,67 @@ class Multiplex:
     #   init   #
     #**********#
     def __init__(self, brain, scanner, sequences, combinations=None, compiled=False, **kwargs):
-        self.conditions = tuple(sequences)
+        self.conditions = ()
         self.combinations = dict(combinations) if combinations else {}
         self.compiled = compiled
-        self.scans = {
-            name: VirtualScan(brain, scanner, sequence, **kwargs)
-            for name, sequence in sequences.items()
-        }
-        first = self.scans[self.conditions[0]]
-        self.params = first.params
         self.brain = brain
+        self.scanner = scanner
+        # one engine for every condition: designs of one structure share its graphs
+        self._kwargs = dict(kwargs, engine=Engine(scanner, isochromats=kwargs.pop("isochromats", 32)))
+        self.scans = {}
+        for name, sequence in sequences.items():
+            self.add(name, sequence)
+        self.params = self.scans[self.conditions[0]].params
+
+    #*****************#
+    #   conditions    #
+    #*****************#
+    def add(self, name, sequence):
+        """Register one more condition (a loop's next candidate) on the shared
+        engine, brain, scanner, and parameter tree."""
+        self.scans[name] = VirtualScan(self.brain, self.scanner, sequence, **self._kwargs)
+        self.conditions = self.conditions + (name,)
 
     #*****************#
     #   acquisition   #
     #*****************#
-    def acquire(self, position_mm, size_mm, seed=None, npoints=2048, dwell_s=1.0 / 4000.0):
-        """Acquire every condition of one voxel and return NIfTI-MRS on DIM_EDIT.
+    def acquire(self, position_mm, size_mm, seed=None, npoints=2048, dwell_s=1.0 / 4000.0,
+                conditions=None, step=0, averages=1):
+        """Acquire conditions of one voxel and return NIfTI-MRS on DIM_EDIT.
 
         Returns data of shape (1, 1, 1, npoints, n_conditions); the header records the
-        condition order, the shared realized truth, and the voxel placement.
+        condition order, the shared realized truth, and the voxel placement. The
+        subject is the seed's; `conditions` selects a subset in the given order
+        (default all), `step` the noise stream of the seed (a loop acquiring one
+        subject over many steps takes fresh noise each time), and every condition is
+        the average of `averages` transients.
         """
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
-        seed, truth, rng = draw(self.params, seed)
+        conditions = tuple(self.conditions if conditions is None else conditions)
+        seed, truth, rng = draw(self.params, seed, step)
         stack = []
-        for name in self.conditions:
+        for name in conditions:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             _, fid = voxel._clean_fid(truth, npoints, dwell_s)
-            if truth.noise.sigma > 0.0:
-                fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
+            sigma = voxel.noise_sigma(truth, averages)
+            if sigma > 0.0:
+                fid = fid + receiver_noise(rng, sigma, npoints)
             stack.append(fid)
-        data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(self.conditions))
+        data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(conditions))
 
-        voxel = self.scans[self.conditions[0]].voxel(position_mm, size_mm)
+        voxel = self.scans[conditions[0]].voxel(position_mm, size_mm)
         hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
         hdr.set_dim_info(0, "DIM_EDIT")
         hdr.set_user_def(
             "SimulationGroundTruth",
-            {"seed": seed, "params": truth.to_dict(),
+            {"seed": seed, "step": int(step), "averages": int(averages), "params": truth.to_dict(),
              "tissue_fractions": dict(voxel.fractions._asdict())},
             "MRSandbox: the one realized parameter tree shared by every condition.",
         )
-        record = {"names": list(self.conditions),
-                  "sequences": [type(self.scans[n].sequence).__name__ for n in self.conditions]}
+        record = {"names": list(conditions),
+                  "sequences": [type(self.scans[n].sequence).__name__ for n in conditions]}
         if self.combinations:
             record["combinations"] = self.combinations
         hdr.set_user_def(
@@ -188,8 +206,9 @@ class Multiplex:
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
             fid = clean[name] * modulation
-            if truth.noise.sigma > 0.0:
-                fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
+            sigma = voxel.noise_sigma(truth)
+            if sigma > 0.0:
+                fid = fid + receiver_noise(rng, sigma, npoints)
             data[0, 0, 0, :, k] = fid
 
         voxel = self.scans[schedule[0]].voxel(position_mm, size_mm)

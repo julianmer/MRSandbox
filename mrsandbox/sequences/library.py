@@ -33,8 +33,8 @@ class PulseAcquire(Sequence):
     #**********#
     #   init   #
     #**********#
-    def __init__(self):
-        super().__init__(Pulse(90.0), CoherenceFilter(-1))
+    def __init__(self, tr_s=None):
+        super().__init__(Pulse(90.0), CoherenceFilter(-1), tr_s=tr_s)
 
 
 #**************************************************************************************************#
@@ -50,12 +50,13 @@ class Press(Sequence):
     Args:
         te1_s: First echo time in seconds (may be a traced tensor).
         te2_s: Second echo time in seconds (may be a traced tensor).
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te1_s, te2_s):
+    def __init__(self, te1_s, te2_s, tr_s=None):
         self.te1_s = te1_s
         self.te2_s = te2_s
         super().__init__(
@@ -68,6 +69,7 @@ class Press(Sequence):
             Pulse(180.0, phase_deg=90.0),
             CoherenceFilter(-1),
             Delay(te2_s / 2.0),
+            tr_s=tr_s,
         )
 
 
@@ -84,12 +86,13 @@ class Steam(Sequence):
     Args:
         te_s: Echo time in seconds.
         tm_s: Mixing time in seconds.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, tm_s):
+    def __init__(self, te_s, tm_s, tr_s=None):
         self.te_s = te_s
         self.tm_s = tm_s
         super().__init__(
@@ -102,6 +105,7 @@ class Steam(Sequence):
             Pulse(90.0),
             CoherenceFilter(-1),
             Delay(te_s / 2.0),
+            tr_s=tr_s,
         )
 
 
@@ -254,12 +258,14 @@ class MegaPress(Sequence):
             centres for a multi-band editing pulse (Hadamard-encoded schemes).
         taus_s: The five inter-pulse delays in seconds; their sum is the echo time.
         bandwidth_hz: Full selective bandwidth of the editing pulses.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, edit_ppm=1.88, taus_s=(0.005, 0.017, 0.017, 0.017, 0.012), bandwidth_hz=60.0):
+    def __init__(self, edit_ppm=1.88, taus_s=(0.005, 0.017, 0.017, 0.017, 0.012), bandwidth_hz=60.0,
+                 tr_s=None):
         self.edit_ppm = edit_ppm
         self.taus_s = tuple(taus_s)
         self.bandwidth_hz = bandwidth_hz
@@ -278,6 +284,7 @@ class MegaPress(Sequence):
             Delay(t4),
             SelectivePulse(180.0, offset_ppm=edit_ppm, bandwidth_hz=bandwidth_hz),
             Delay(t5),
+            tr_s=tr_s,
         )
 
     #**********#
@@ -323,8 +330,9 @@ class HadamardEditing(MegaPress):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, edit_ppm, taus_s=(0.005, 0.015, 0.025, 0.015, 0.020), bandwidth_hz=60.0):
-        super().__init__(edit_ppm=edit_ppm, taus_s=taus_s, bandwidth_hz=bandwidth_hz)
+    def __init__(self, edit_ppm, taus_s=(0.005, 0.015, 0.025, 0.015, 0.020), bandwidth_hz=60.0,
+                 tr_s=None):
+        super().__init__(edit_ppm=edit_ppm, taus_s=taus_s, bandwidth_hz=bandwidth_hz, tr_s=tr_s)
 
     #************#
     #   scheme   #
@@ -404,12 +412,14 @@ class SemiLaser(Sequence):
         afp_duration_s: Duration of each adiabatic pulse.
         afp_bandwidth_hz: Sweep bandwidth of each adiabatic pulse.
         afp_peak_hz: Peak RF amplitude; must sit above the adiabatic threshold.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, afp_duration_s=0.005, afp_bandwidth_hz=2000.0, afp_peak_hz=1500.0):
+    def __init__(self, te_s, afp_duration_s=0.005, afp_bandwidth_hz=2000.0, afp_peak_hz=1500.0,
+                 tr_s=None):
         self.te_s = te_s
         self.afp_duration_s = afp_duration_s
         self.afp_bandwidth_hz = afp_bandwidth_hz
@@ -428,4 +438,5 @@ class SemiLaser(Sequence):
             afp(), CoherenceFilter(-1), Delay(2.0 * tau),
             afp(), CoherenceFilter(+1), Delay(2.0 * tau),
             afp(), CoherenceFilter(-1), Delay(tau),
+            tr_s=tr_s,
         )

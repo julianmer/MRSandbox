@@ -54,6 +54,8 @@ class VirtualScan:
             parameterization, presaturated along with the default suppressed water.
         isochromats: Ensemble size for gradient-bearing sequences, handed to the
             engine; raise it for dense multi-axis gradient schemes.
+        engine: An Engine to share (its compiled graphs and renderers) between scans
+            of one scanner, as a Multiplex does; None builds one for this scan.
     """
 
     #**********#
@@ -61,12 +63,12 @@ class VirtualScan:
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
-                 isochromats=32):
+                 isochromats=32, engine=None):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
         self.database = database if database is not None else Database()
-        self.engine = Engine(scanner, isochromats=isochromats)
+        self.engine = engine if engine is not None else Engine(scanner, isochromats=isochromats)
         self.water = water if water is not None else Suppressed()
         self.lipids = lipids if lipids is not None else Skull()
         self.mm = mm if mm is not None else CoupledMM()

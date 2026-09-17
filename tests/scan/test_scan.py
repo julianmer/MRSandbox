@@ -450,3 +450,45 @@ class TestLineshape:
         only_background = fid(0.0)
         assert np.abs(only_background).max() > 0.0
         np.testing.assert_array_equal(fid(6.0), only_background)
+
+
+#**************************************************************************************************#
+#                                        Class TestNoiseModel                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The drawn sigma belongs to one transient of the 8 mL reference voxel at 3 T; averages, volume,   #
+# and field scale it, and a step of one seed is a fresh noise stream on the same subject.          #
+#**************************************************************************************************#
+class TestNoiseModel:
+
+    def test_averages_volume_and_field_scale_the_noise(self, scan):
+        from mrsandbox.scan.voxel import noise_scale
+
+        truth = scan.params.sample(seed=3)
+        reference = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        assert reference.noise_sigma(truth) == pytest.approx(truth.noise.sigma)
+        assert reference.noise_sigma(truth, averages=16) == pytest.approx(truth.noise.sigma / 4.0)
+        small = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=10.0)
+        assert small.noise_sigma(truth) == pytest.approx(8.0 * truth.noise.sigma)
+        slab = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=(20.0, 20.0, 10.0))
+        assert slab.noise_sigma(truth) == pytest.approx(2.0 * truth.noise.sigma)
+        assert noise_scale(8.0, 7.0) == pytest.approx(3.0 / 7.0)
+        # the empirical check: sixteen averages quarter the added noise
+        quiet = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=Params(noise=dict(sigma=0.0)))
+        loud = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=Params(noise=dict(sigma=2.0)))
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        _, clean = quiet.voxel(**kw).fid(seed=5, npoints=1024)
+        _, one = loud.voxel(**kw).fid(seed=5, npoints=1024)
+        _, sixteen = loud.voxel(**kw).fid(seed=5, npoints=1024, averages=16)
+        assert abs(np.std((one - clean).real) - 2.0) < 0.2
+        assert abs(np.std((sixteen - clean).real) - 0.5) < 0.05
+
+    def test_a_step_is_fresh_noise_on_the_same_subject(self, scan):
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        first = voxel.acquire(seed=11, npoints=256, step=0)
+        second = voxel.acquire(seed=11, npoints=256, step=1)
+        assert first.hdr_ext["SimulationGroundTruth"]["params"] == second.hdr_ext["SimulationGroundTruth"]["params"]
+        assert second.hdr_ext["SimulationGroundTruth"]["step"] == 1
+        assert np.abs(np.asarray(first[:]) - np.asarray(second[:])).max() > 0.0
+        np.testing.assert_array_equal(np.asarray(first[:]),
+                                      np.asarray(voxel.acquire(seed=11, npoints=256)[:]))

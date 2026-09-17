@@ -21,7 +21,7 @@ import numbers
 
 import numpy as np
 
-from mrsandbox.scan.voxel import draw, receiver_noise
+from mrsandbox.scan.voxel import draw, noise_scale, receiver_noise
 
 
 #**************************************************************************************************#
@@ -366,22 +366,24 @@ class MRSI:
             data[:, :, 0] = encoded
         else:
             data[:] = encoded
-        if truth.noise.sigma > 0.0:
+        # the drawn sigma scaled to the acquired cell (its in-plane size times the
+        # slab thickness) and the field; the averages enter per encode below
+        sigma = truth.noise.sigma * noise_scale(
+            self.voxel_mm ** 2 * self.thickness_mm / 1000.0, self.scan.engine.b0_t)
+        if sigma > 0.0:
             if self.averages is None:
                 for index in np.ndindex(nx, ny, nz):
                     if coils is None:
-                        data[index] += receiver_noise(rng, truth.noise.sigma, npoints)
+                        data[index] += receiver_noise(rng, sigma, npoints)
                     else:
-                        data[index] += np.transpose(
-                            coils.noise(rng, truth.noise.sigma, npoints))
+                        data[index] += np.transpose(coils.noise(rng, sigma, npoints))
             else:
                 # per-encode noise, summed over the NA(k) transients and normalized by
                 # the centre count like the signal: std sigma sqrt(prod(dims)) sqrt(NA)
                 # over NA(0) in the centred k frame, nothing where never measured
                 counts = self._averages_map()
                 centre = tuple(n // 2 for n in self.dims)
-                scale = (truth.noise.sigma * np.sqrt(float(np.prod(self.dims)))
-                         * np.sqrt(counts) / counts[centre])
+                scale = sigma * np.sqrt(float(np.prod(self.dims))) * np.sqrt(counts) / counts[centre]
                 if coils is None:
                     noise_k = scale[..., None] * (
                         rng.standard_normal(self.dims + (npoints,))

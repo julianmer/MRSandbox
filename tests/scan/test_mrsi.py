@@ -408,8 +408,13 @@ class TestAcquisitionWeighting:
         kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2), voxel_mm=4.0)
         single = np.asarray(scan.mrsi(**kw, averages=1).acquire(seed=3, npoints=256)[:])
         four = np.asarray(scan.mrsi(**kw, averages=4).acquire(seed=5, npoints=256)[:])
-        assert abs(np.std(single.real) - 2.0) < 0.2  # one transient keeps sigma
-        assert abs(np.std(four.real) - 1.0) < 0.1  # four transients halve it
+        # one transient keeps the drawn sigma scaled to the acquired cell (a 4 mm
+        # cube is 0.064 mL against the 8 mL reference), four transients halve it
+        from mrsandbox.scan.voxel import noise_scale
+
+        sigma = 2.0 * noise_scale(0.064, 3.0)
+        assert abs(np.std(single.real) - sigma) < 0.1 * sigma
+        assert abs(np.std(four.real) - sigma / 2.0) < 0.05 * sigma
 
 
 #**************************************************************************************************#

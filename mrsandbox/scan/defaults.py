@@ -154,7 +154,9 @@ def default_params(database=None, b0_t=3.0):
     )
     # instrumental and physiological imperfections and artifact signals
     imperfections = Params(
-        # noise: complex Gaussian per FID point, acquisition side; range stated.
+        # noise: complex Gaussian per FID point of ONE transient of the reference
+        #   acquisition, a 20 mm cube (8 mL) at 3 T (scan.voxel NOISE_REFERENCE); every
+        #   acquisition scales it by its volume, field, and averages. Range stated.
         noise=dict(sigma=(0.5, 3.0)),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.

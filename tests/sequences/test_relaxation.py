@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import (Brain, Engine, Params, Press, PulseAcquire, Scanner, SpinSystem,
+from mrsandbox import (Brain, Delay, Engine, Params, Press, PulseAcquire, Scanner, SpinSystem,
                        SuppressionTrain, VirtualScan)
 from mrsandbox.phantom.water import WaterSource
 
@@ -116,3 +116,92 @@ class TestInSequenceRelaxation:
             heights.append(float(spec.real[np.argmin(np.abs(ppm - 2.008))]))
         expected = math.exp(-0.03 / truth.t2.NAA)  # the drawn Gudmundson-pooled NAA T2
         assert abs(heights[1] / heights[0] - expected) < 1e-2
+
+
+#**************************************************************************************************#
+#                                      Class TestRepetition                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# A sequence with a TR reaches the spoiled steady state: the T1 saturation of the excitation and   #
+# the inversion of the recovered magnetization by refocusing pulses follow the analytic laws.      #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestRepetition:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def system(t1_s=1.3):
+        return SpinSystem.from_database("sIns")[0].with_relaxation(t1_s=t1_s, t2_s=100.0)
+
+    #**********************#
+    #   pulse acquire      #
+    #**********************#
+    def test_pulse_acquire_saturates_by_one_minus_exp(self, engine):
+        from mrsandbox import Sequence
+
+        relaxed = total_amplitude(engine, PulseAcquire(), self.system())
+        for tr in (0.5, 1.0, 2.0, 5.0):
+            ratio = total_amplitude(engine, PulseAcquire(tr_s=tr), self.system()) / relaxed
+            assert abs(ratio - (1.0 - math.exp(-tr / 1.3))) < 1e-5
+        with pytest.raises(ValueError):
+            Sequence(Delay(0.5), tr_s=0.2)
+
+    #*****************#
+    #   spin echo     #
+    #*****************#
+    def test_spin_echo_inverts_the_recovered_magnetization(self, engine):
+        # 90 - tau - 180 - tau: what recovers during the first tau is inverted by the
+        # 180, so the steady state is 1 - 2 exp(-(TR - tau) / T1) + exp(-TR / T1) with
+        # physical crushers; a coherence filter on the detected order drops the
+        # recovered longitudinal part, the stated O(tau / T1) idealization, and the
+        # steady state becomes 1 - exp(-(TR - tau) / T1)
+        from mrsandbox import CoherenceFilter, Gradient, Pulse, Sequence
+
+        tau, t1 = 0.030, 1.3
+
+        def crushed(tr):
+            return Sequence(Pulse(90.0), Gradient(30.0), Delay(tau), Pulse(180.0, phase_deg=90.0),
+                            Gradient(30.0), Delay(tau), tr_s=tr)
+
+        def filtered(tr):
+            return Sequence(Pulse(90.0), CoherenceFilter(+1), Delay(tau), Pulse(180.0, phase_deg=90.0),
+                            CoherenceFilter(-1), Delay(tau), tr_s=tr)
+
+        for tr in (0.5, 2.0):
+            exact = 1.0 - 2.0 * math.exp(-(tr - tau) / t1) + math.exp(-tr / t1)
+            ratio = (total_amplitude(engine, crushed(tr), self.system(t1))
+                     / total_amplitude(engine, crushed(None), self.system(t1)))
+            assert abs(ratio - exact) < 1e-3
+            ratio = (total_amplitude(engine, filtered(tr), self.system(t1))
+                     / total_amplitude(engine, filtered(None), self.system(t1)))
+            assert abs(ratio - (1.0 - math.exp(-(tr - tau) / t1))) < 1e-5
+
+    #*****************#
+    #   convergence   #
+    #*****************#
+    def test_cycles_converge_for_an_imperfect_excitation(self, engine):
+        # with b1 off nominal some longitudinal magnetization survives the 90 and the
+        # first cycle is off by its cos(flip) exp(-TR / T1) fraction; more cycles close it
+        from mrsandbox import CoherenceFilter, Pulse, Sequence
+
+        def amplitude(cycles):
+            sequence = Sequence(Pulse(90.0), CoherenceFilter(-1), tr_s=0.5, cycles=cycles)
+            _, amps = engine.lines(sequence, self.system(), b1_scale=0.7)
+            return float(np.abs(ops.convert_to_numpy(amps)).sum())
+
+        one, four, eight = amplitude(1), amplitude(4), amplitude(8)
+        assert abs(one - eight) / eight < 0.2
+        assert abs(four - eight) / eight < 1e-3
+
+    #*****************#
+    #   graph inputs  #
+    #*****************#
+    def test_tr_is_a_timing_of_the_design(self):
+        # two repetition times of one design share the graph; None is another design
+        assert Press(0.011, 0.019, tr_s=1.0).structure() == Press(0.011, 0.019, tr_s=2.0).structure()
+        assert Press(0.011, 0.019, tr_s=1.0).structure() != Press(0.011, 0.019).structure()
+        assert Press(0.011, 0.019, tr_s=2.0).timings()[-1] == (2.0,)
+        assert Press(0.011, 0.019).timings()[-1] == ()
+        assert abs(Press(0.011, 0.019).duration_s - 0.030) < 1e-12

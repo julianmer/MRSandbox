@@ -43,16 +43,33 @@ def acquisition_seed(seed):
 #**********************#
 #   subject and noise  #
 #**********************#
-def draw(params, seed):
+def draw(params, seed, step=0):
     """One subject and its receiver noise from one seed: (seed, truth, rng). The seed
     (an int, or None for a fresh recorded one) is the root of every leaf's path-keyed
     draw, so sample(seed), spectrum(seed), fid(seed), and acquire(seed) all mean the
     same subject and a seed read from a header regenerates it anywhere; the noise
-    generator is the seed's own spawned stream, so drawing noise never reaches the
-    leaves."""
+    generator is the seed's own spawned stream number `step`, so drawing noise never
+    reaches the leaves and a loop acquiring one subject many times takes fresh noise
+    at every step."""
     seed = acquisition_seed(seed)
     return seed, params.sample(seed), np.random.default_rng(
-        np.random.SeedSequence(seed).spawn(1)[0])
+        np.random.SeedSequence(seed, spawn_key=(int(step),)))
+
+
+#**********************#
+#   noise scale        #
+#**********************#
+# the reference acquisition the drawn noise sigma belongs to: one transient of a 20 mm
+# cube (8 mL) at 3 T; SNR scales with the voxel volume, with the field (body-noise
+# dominated, stated), and with the square root of the averages, so the per-point
+# sigma scales inversely
+NOISE_REFERENCE = {"volume_ml": 8.0, "b0_t": 3.0}
+
+
+def noise_scale(volume_ml, b0_t, averages=1):
+    """The factor on the drawn sigma for an acquisition of `volume_ml` at `b0_t` tesla
+    averaged `averages` times, one at the reference."""
+    return (NOISE_REFERENCE["volume_ml"] / volume_ml) * (NOISE_REFERENCE["b0_t"] / b0_t) / np.sqrt(averages)
 
 
 #**********************#
@@ -144,6 +161,21 @@ class Voxel:
         frequency error, which the selective, shaped, and suppression pulses see; the
         readout shifts by the same value afterwards (the acquisition modulation)."""
         return self.resolve(truth.acquisition.shift_hz)
+
+    #***********#
+    #   noise   #
+    #***********#
+    @property
+    def volume_ml(self):
+        """The voxel volume in millilitres."""
+        size = np.asarray(self.size_mm, dtype=np.float64) * np.ones(3)
+        return float(np.prod(size)) / 1000.0
+
+    def noise_sigma(self, truth, averages=1):
+        """The per-point receiver noise of this voxel's acquisition: the drawn sigma
+        (one transient of the reference 8 mL voxel at 3 T) scaled by the volume, the
+        field, and the averages (noise_scale)."""
+        return truth.noise.sigma * noise_scale(self.volume_ml, self.scan.engine.b0_t, averages)
 
     #*****************#
     #   realization   #
@@ -323,23 +355,26 @@ class Voxel:
         order = np.argsort(grid)
         return grid[order] / self._f0_mhz(), spec[order]
 
-    def fid(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0):
-        """(t, complex FID) at any grid: all components summed, sampled noise added."""
+    def fid(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0, averages=1):
+        """(t, complex FID) at any grid: all components summed, the sampled noise of
+        `averages` averaged transients added."""
         if isinstance(seed, np.random.Generator):
             rng, truth = seed, self.scan.params.sample(seed)
         else:
             _, truth, rng = draw(self.scan.params, seed)
-        t, fid = self._render(truth, rng, npoints, dwell_s)
+        t, fid = self._render(truth, rng, npoints, dwell_s, averages)
         return np.asarray(ops.convert_to_numpy(t)), fid
 
     #*****************#
     #   realization   #
     #*****************#
-    def _render(self, truth, rng, npoints, dwell_s):
-        """Render all components in one call and add the sampled complex Gaussian noise."""
+    def _render(self, truth, rng, npoints, dwell_s, averages=1):
+        """Render all components in one call and add the sampled complex Gaussian noise
+        of `averages` averaged transients."""
         t, fid = self._clean_fid(truth, npoints, dwell_s)
-        if truth.noise.sigma > 0.0:
-            fid = fid + receiver_noise(rng, truth.noise.sigma, npoints)
+        sigma = self.noise_sigma(truth, averages)
+        if sigma > 0.0:
+            fid = fid + receiver_noise(rng, sigma, npoints)
         return t, fid
 
     def _clean_fid(self, truth, npoints, dwell_s, basis=None):
@@ -455,12 +490,15 @@ class Voxel:
     #*****************#
     #   acquisition   #
     #*****************#
-    def acquire(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0):
+    def acquire(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0, averages=1, step=0):
         """Acquire the voxel and return NIfTI-MRS carrying the full provenance.
 
         The header extension holds SimulationGroundTruth (seed, realized parameters,
         tissue fractions), SimulationSequence (name and timings), and SimulationPhantom
         (brain, position, size), so any spectrum can be regenerated from its own file.
+        The data is the average of `averages` transients (the noise falls by their
+        square root), and `step` selects the noise stream of the seed, so a loop
+        acquiring one subject repeatedly draws fresh noise each time.
 
         With a CoilArray on the scan, every coil receives the FID weighted by its
         complex sensitivity at this voxel plus correlated noise (covariance sigma^2 R),
@@ -469,16 +507,17 @@ class Voxel:
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
-        seed, truth, rng = draw(self.scan.params, seed)
+        seed, truth, rng = draw(self.scan.params, seed, step)
         coils = self.scan.coils
+        sigma = self.noise_sigma(truth, averages)
         if coils is None:
-            _, fid = self._render(truth, rng, npoints, dwell_s)
+            _, fid = self._render(truth, rng, npoints, dwell_s, averages)
             data = fid.reshape(1, 1, 1, npoints)
         else:
             _, fid = self._clean_fid(truth, npoints, dwell_s)
             channels = coils.sensitivities(self.position_mm, self.size_mm)[:, None] * fid[None, :]
-            if truth.noise.sigma > 0.0:
-                channels = channels + coils.noise(rng, truth.noise.sigma, npoints)
+            if sigma > 0.0:
+                channels = channels + coils.noise(rng, sigma, npoints)
             data = np.transpose(channels.astype(np.complex64)).reshape(1, 1, 1, npoints, len(coils))
 
         hdr = Hdr_Ext(self._f0_mhz(), "1H")
@@ -486,10 +525,11 @@ class Voxel:
             hdr.set_dim_info(0, "DIM_COIL")
         timings = {k: float(v) for k, v in vars(self.scan.sequence).items()
                    if k.endswith("_s") and isinstance(v, (int, float))}
+        timings["tr_s"] = None if self.scan.sequence.tr_s is None else float(self.scan.sequence.tr_s)
         hdr.set_user_def(
             "SimulationGroundTruth",
-            {"seed": seed, "params": truth.to_dict(), "tissue_fractions": dict(self.fractions._asdict()),
-             "local": self.local(truth)},
+            {"seed": seed, "step": int(step), "averages": int(averages), "params": truth.to_dict(),
+             "tissue_fractions": dict(self.fractions._asdict()), "local": self.local(truth)},
             "MRSandbox: the realized parameter tree of this acquisition, with every "
             "map-valued leaf resolved at the voxel under local.",
         )

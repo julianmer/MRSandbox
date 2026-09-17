@@ -346,3 +346,37 @@ class TestTransients:
         volume = np.asarray(data[:])[0, 0, 0]
         np.testing.assert_array_equal(volume[:, 0], volume[:, 2])
         np.testing.assert_array_equal(volume[:, 1], volume[:, 3])
+
+
+#**************************************************************************************************#
+#                                       Class TestLoopSurface                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# One subject acquired condition by condition over steps, conditions added as a loop goes, all on  #
+# one engine.                                                                                      #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestLoopSurface:
+    pytestmark = pytest.mark.render
+
+    def test_conditions_steps_and_added_designs_share_one_subject_and_engine(self):
+        loud = QUIET | Params(noise=dict(sigma=1.0))
+        multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                              MegaPress.pair(), params=loud, compiled=True)
+        assert len({id(scan.engine) for scan in multiplex.scans.values()}) == 1
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0, seed=7, npoints=512)
+        on = multiplex.acquire(**kw, conditions=("on",), step=0)
+        assert on.shape == (1, 1, 1, 512, 1)
+        assert on.hdr_ext["SimulationConditions"]["names"] == ["on"]
+        later = multiplex.acquire(**kw, conditions=("on",), step=1)
+        assert on.hdr_ext["SimulationGroundTruth"]["params"] == later.hdr_ext["SimulationGroundTruth"]["params"]
+        assert np.abs(np.asarray(on[:]) - np.asarray(later[:])).max() > 0.0
+        both = multiplex.acquire(**kw, step=0)
+        np.testing.assert_array_equal(np.asarray(both[:]).reshape(512, 2)[:, 0],
+                                      np.asarray(on[:]).reshape(512))
+        # a third condition of the same design family joins without a compile
+        graphs = len(multiplex.scans["on"].engine._compiled)
+        multiplex.add("off_far", MegaPress(edit_ppm=8.0))
+        far = multiplex.acquire(**kw, conditions=("off_far",))
+        assert far.hdr_ext["SimulationConditions"]["names"] == ["off_far"]
+        assert len(multiplex.scans["on"].engine._compiled) == graphs
