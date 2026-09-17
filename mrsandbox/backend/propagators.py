@@ -37,6 +37,31 @@ class Backend:
     nifti_mrs_plus.backend, which dispatches at call time on the tensors you pass.
     """
 
+    #**********#
+    #   vmap   #
+    #**********#
+    @staticmethod
+    def vmap(fn, in_axes):
+        """`fn` mapped over a leading axis of the arguments `in_axes` marks with 0 (None
+        passes an argument whole), the outputs stacked on a new leading axis: jax's
+        vmap on jax tensors, where the batch axis stays hidden from the traced code and
+        one compiled graph serves the whole batch, and a loop over the batch with the
+        results stacked everywhere else (the same values, one dispatch per element).
+        Dispatches at call time on the tensors passed, like jit."""
+        def mapped(*args):
+            if any(nops.is_jax(arg) for arg in args):
+                import jax
+
+                return jax.vmap(fn, in_axes=in_axes)(*args)
+            size = next(int(arg.shape[0]) for arg, axis in zip(args, in_axes) if axis == 0)
+            outputs = [fn(*(arg[i] if axis == 0 else arg for arg, axis in zip(args, in_axes)))
+                       for i in range(size)]
+            if isinstance(outputs[0], tuple):
+                return tuple(ops.stack(column) for column in zip(*outputs))
+            return ops.stack(outputs)
+
+        return mapped
+
     #********************#
     #   hermitian eigh   #
     #********************#

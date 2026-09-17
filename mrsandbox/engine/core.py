@@ -192,11 +192,10 @@ class Engine:
             all_amps.append(amps)
         return ops.concatenate(all_freqs), ops.concatenate(all_amps)
 
-    @staticmethod
-    def _ensemble_context(sequence, ctx, isochromats):
-        """The context with the isochromat position vectors a gradient-bearing sequence
-        needs (the events broadcast them as one shared batch axis), or the context
-        untouched.
+    def positions(self, sequence, isochromats=None):
+        """The isochromat positions of a gradient-bearing design, {axis: (isochromats,)
+        mm from the voxel centre} over the axes its gradients use, empty for a design
+        without gradients.
 
         Every used axis gets the exact uniform grid over its largest extent, so all
         per-axis dephasing laws hold exactly; with several axes the later grids are
@@ -206,6 +205,7 @@ class Engine:
         a stated approximation; raise `isochromats` for dense multi-axis schemes."""
         from mrsandbox.sequences.events import Gradient, ShapedPulse
 
+        isochromats = isochromats if isochromats is not None else self.isochromats
         extents = {}
         for event in sequence.events:
             if isinstance(event, Gradient):
@@ -213,15 +213,25 @@ class Engine:
             elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
                 extents[event.gradient_axis] = max(extents.get(event.gradient_axis, 0.0),
                                                    event.extent_mm)
-        if not extents:
-            return ctx
         grid = (np.arange(isochromats) + 0.5) / isochromats - 0.5
-        replacements = {}
+        positions = {}
         for order, axis in enumerate(sorted(extents)):
             stride = 1 if order == 0 else _coprime_stride(isochromats, order)
-            positions = grid[(np.arange(isochromats) * stride) % isochromats] * extents[axis]
-            replacements["gradient_" + axis] = ops.convert_to_tensor(positions.astype(np.float32))
-        return dataclasses.replace(ctx, **replacements)
+            positions[axis] = (grid[(np.arange(isochromats) * stride) % isochromats]
+                               * extents[axis]).astype(np.float32)
+        return positions
+
+    def _ensemble_context(self, sequence, ctx, isochromats, shift_mm=None):
+        """The context with the isochromat position vectors a gradient-bearing sequence
+        needs (the events broadcast them as one shared batch axis; `positions`,
+        moved by `shift_mm` per axis), or the context untouched."""
+        positions = self.positions(sequence, isochromats)
+        if not positions:
+            return ctx
+        shift = dict(shift_mm or {})
+        return dataclasses.replace(ctx, **{
+            "gradient_" + axis: ops.convert_to_tensor(values + np.float32(shift.get(axis, 0.0)))
+            for axis, values in positions.items()})
 
     def _system_lines(self, sequence, ctx):
         """The (freqs, amps) of one system context, receiver phase applied; a vector
@@ -244,7 +254,7 @@ class Engine:
     #**********#
     #   graph  #
     #**********#
-    def graph(self, sequence, groups, isochromats=None):
+    def graph(self, sequence, groups, isochromats=None, shift_mm=None):
         """The jit-compiled graph of a sequence design on many systems:
         (t1_s, t2_s, b1_scale, offset_hz, timings) -> (freqs, amps), with t1_s and
         t2_s one value per group, `timings` laid out as Sequence.timings (backend
@@ -259,16 +269,20 @@ class Engine:
         scale, the frequency offset, and every timing of the design are inputs, so
         the first call compiles and every further call replays, for any timings.
         Graphs are cached on the engine, keyed by the sequence structure, the
-        structural systems, and the ensemble size: two instances of one design
-        (a TE series, a candidate set of a closed loop) share one compilation, and a
-        gradient with respect to the timings flows through `value_and_grad`.
+        structural systems, the ensemble size, and the ensemble shift: two instances
+        of one design (a TE series, a candidate set of a closed loop) share one
+        compilation, and a gradient with respect to the timings flows through
+        `value_and_grad`. `shift_mm` ({axis: mm}) moves the ensemble off the voxel
+        centre, for content that sits elsewhere (the fat layer beyond the brain).
         """
         from nifti_mrs_plus.backend import jit
 
         isochromats = isochromats if isochromats is not None else self.isochromats
-        key = (sequence.structure(), groups, isochromats)
+        shift = tuple(sorted((axis, float(mm)) for axis, mm in (shift_mm or {}).items()))
+        key = (sequence.structure(), groups, isochromats, shift)
         if key not in self._compiled:
-            contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
+            contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats,
+                                                       dict(shift)))
                         for index, group in enumerate(groups) for system in group]
             bounds = np.cumsum([0] + [sum(system.dim ** 2 for system in group)
                                       for group in groups])
@@ -297,26 +311,42 @@ class Engine:
     #****************#
     #   compiled     #
     #****************#
-    def compiled(self, sequence, system, isochromats=None):
+    def compiled(self, sequence, system, isochromats=None, batched=False, shift_mm=None):
         """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for one system, replaying
         the design's graph (`graph`) with this sequence's own timings: the first call
-        of a design compiles, every further call, at any timings, replays."""
-        fn, _ = self.compiled_batch(sequence, ((system,),), isochromats)
+        of a design compiles, every further call, at any timings, replays.
+
+        `batched` maps the replay over draws: t1_s and t2_s are (B,) vectors, one
+        relaxation pair per draw, b1_scale and offset_hz stay one frame, and the
+        amplitudes come back as (B, L) over the one line list (Backend.vmap: one
+        graph over the whole batch on jax, a loop elsewhere), the rows a
+        `render_fids` call turns into B FIDs at once. `shift_mm` moves the
+        ensemble (see `graph`)."""
+        fn, _ = self.compiled_batch(sequence, ((system,),), isochromats, shift_mm)
+        row = lambda value: ops.expand_dims(ops.convert_to_tensor(value, dtype="float32"), -1)
 
         def replay(t1_s, t2_s, b1_scale, offset_hz):
-            row = lambda value: ops.expand_dims(ops.convert_to_tensor(value, dtype="float32"), 0)
             return fn(row(t1_s), row(t2_s), b1_scale, offset_hz)
 
-        return replay
+        if not batched:
+            return replay
+        mapped = Backend.vmap(replay, in_axes=(0, 0, None, None))
+
+        def replay_batch(t1_s, t2_s, b1_scale, offset_hz):
+            freqs, amps = mapped(ops.convert_to_tensor(t1_s, dtype="float32"),
+                                 ops.convert_to_tensor(t2_s, dtype="float32"), b1_scale, offset_hz)
+            return freqs[0], amps
+
+        return replay_batch
 
     #********************#
     #   compiled batch   #
     #********************#
-    def compiled_batch(self, sequence, groups, isochromats=None):
+    def compiled_batch(self, sequence, groups, isochromats=None, shift_mm=None):
         """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for many systems (t1_s
         and t2_s one value per group) plus the group bounds, replaying the design's
         graph with this sequence's own timings; see `graph`."""
-        fn, bounds = self.graph(sequence, groups, isochromats)
+        fn, bounds = self.graph(sequence, groups, isochromats, shift_mm)
         timings = self.tensors(sequence.timings())
         return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings),
                 bounds)

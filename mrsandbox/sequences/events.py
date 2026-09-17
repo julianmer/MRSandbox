@@ -39,6 +39,21 @@ def _hashable(value):
     return value
 
 
+#*****************#
+#   trapezoid     #
+#*****************#
+def trapezoid(area_t_s_m, max_grad_t_m, max_slew_t_m_s):
+    """The shortest trapezoid of a signed gradient area (T s / m) under a gradient and
+    slew limit, as (amplitude T/m, ramp s, flat s): a triangle while the area fits
+    under one, a flat top at the maximum gradient beyond."""
+    magnitude = abs(area_t_s_m)
+    if magnitude <= max_grad_t_m ** 2 / max_slew_t_m_s:
+        amplitude = math.sqrt(magnitude * max_slew_t_m_s)
+        return math.copysign(amplitude, area_t_s_m), amplitude / max_slew_t_m_s, 0.0
+    return (math.copysign(max_grad_t_m, area_t_s_m), max_grad_t_m / max_slew_t_m_s,
+            (magnitude - max_grad_t_m ** 2 / max_slew_t_m_s) / max_grad_t_m)
+
+
 #**************************************************************************************************#
 #                                           Class Event                                            #
 #**************************************************************************************************#
@@ -50,9 +65,9 @@ class Event(abc.ABC):
     """One step of a pulse sequence, applied to a density matrix in a system context.
 
     Every event splits into its structure (the type and the attributes that shape the
-    graph: axes, phases, coherence orders) and its timings (the attributes `free`
-    names: durations, flips, moments, waveforms), so a compiled graph is keyed by the
-    structure and replays with the timings as inputs; a free attribute left None
+    graph: axes, coherence orders) and its timings (the attributes `free` names:
+    durations, flips, phases, moments, waveforms), so a compiled graph is keyed by
+    the structure and replays with the timings as inputs; a free attribute left None
     counts as structure.
     """
 
@@ -113,7 +128,8 @@ class Event(abc.ABC):
         so U = (D H) exp(-i 2 pi turns Az) (D H)^H: two matmuls and no eigendecomposition
         in the graph. `turns` may be a traced tensor (the transmit scale times the flip).
         """
-        angle = -math.radians(phase_deg) * ops.sum(ctx.mz, axis=0)
+        phase = ops.convert_to_tensor(phase_deg, dtype="float32") * (math.pi / 180.0)
+        angle = -phase * ops.sum(ctx.mz, axis=0)
         d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         v = ops.expand_dims(d, 1) * ctx.hadamard
         return Backend.propagator_from_eigh(lam, v, turns)
@@ -134,7 +150,7 @@ class Pulse(Event):
         phase_deg: Axis phase in degrees (0 = x, 90 = y).
     """
 
-    free = ("flip_deg",)
+    free = ("flip_deg", "phase_deg")
 
     #**********#
     #   init   #
@@ -176,7 +192,7 @@ class SelectivePulse(Event):
         phase_deg: Axis phase in degrees (0 = x, 90 = y).
     """
 
-    free = ("flip_deg", "offset_ppm", "bandwidth_hz")
+    free = ("flip_deg", "offset_ppm", "bandwidth_hz", "phase_deg")
 
     #**********#
     #   init   #
@@ -246,7 +262,8 @@ class ShapedPulse(Event):
             by their peak B1, not a nutation angle; flip_deg is ignored then).
     """
 
-    free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz")
+    free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz",
+            "phase_deg")
 
     #**********#
     #   init   #
@@ -356,14 +373,20 @@ class ShapedPulse(Event):
         env = ops.cast(ops.convert_to_tensor(self.envelope), "float32")
         steps = int(env.shape[0])
         dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / steps
+        # the transmit scale: one value, or one per isochromat (a transmit field
+        # varying across the voxel), which batches the step Hamiltonians like the
+        # positions batch the frame
+        b1 = ops.convert_to_tensor(ctx.b1_scale, dtype="float32")
+        if ops.ndim(b1) > 0:
+            env = ops.expand_dims(env, 1)
         if self.peak_hz is not None:
             # adiabatic style: the envelope is scaled to the peak B1 directly
-            f1 = env * ops.convert_to_tensor(ctx.b1_scale * self.peak_hz, dtype="float32")
+            f1 = env * (b1 * ops.convert_to_tensor(self.peak_hz, dtype="float32"))
         else:
             # calibration: 360 * integral of f1 dt equals flip_deg for an on-resonance
             # spin, scaled by the transmit field like any real RF amplitude
-            flip = ops.convert_to_tensor(ctx.b1_scale * self.flip_deg, dtype="float32")
-            f1 = env * (flip / 360.0) / (ops.sum(env) * dt)
+            flip = b1 * ops.convert_to_tensor(self.flip_deg, dtype="float32")
+            f1 = env * (flip / 360.0) / (ops.sum(env, axis=0) * dt)
         h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, "complex64"), ops.conj(ctx.v))
         # the frame: the offset and the slice gradient are one z term delta Fz, with
         # delta a scalar or one value per isochromat
@@ -373,7 +396,8 @@ class ShapedPulse(Event):
                 getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
         offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype="float32") * ctx.f0_mhz
         t_mid = (ops.arange(0, steps, dtype="float32") + 0.5) * dt
-        phase = math.radians(self.phase_deg) + 2.0 * math.pi * offset_hz * t_mid
+        phase = (ops.convert_to_tensor(self.phase_deg, dtype="float32") * (math.pi / 180.0)
+                 + 2.0 * math.pi * offset_hz * t_mid)
         if self.frequency_hz is not None:
             sweep = ops.cast(ops.convert_to_tensor(self.frequency_hz), "float32")
             # the sweep phase at the same step midpoints as the carrier (the running
@@ -391,8 +415,11 @@ class ShapedPulse(Event):
         # (log2(steps) batched matmuls), one sandwich applies it, and the frame
         # rotation over the whole pulse follows as a phase per coherence order,
         # exactly as a Delay applies the offset
-        h = ops.expand_dims(h_free, 0) + ops.reshape(nops.cast(f1, "complex64"), (-1, 1, 1)) * ctx.fx
+        h = ops.expand_dims(ops.expand_dims(nops.cast(f1, "complex64"), -1), -1) * ctx.fx
+        h = h + h_free  # (steps, d, d), or (steps, isochromats, d, d) with a vector b1
         w = Backend.expm_herm(h, dt)
+        if ops.ndim(b1) == 0:
+            w = ops.expand_dims(w, 1)
         m = ops.sum(ctx.mz, axis=0)
         if ops.ndim(delta) > 0:  # a vector of positions batches the ensemble
             theta = (ops.expand_dims(phase, 1)
@@ -401,8 +428,8 @@ class ShapedPulse(Event):
             theta = ops.expand_dims(phase - 2.0 * math.pi * delta * t_mid, 1)
         angle = -ops.expand_dims(theta, -1) * m  # (steps, isochromats or 1, d)
         d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
-        u = ops.expand_dims(d, -1) * ops.expand_dims(w, 1) * ops.expand_dims(ops.conj(d), -2)
-        if ops.ndim(delta) == 0:
+        u = ops.expand_dims(d, -1) * w * ops.expand_dims(ops.conj(d), -2)
+        if ops.ndim(delta) == 0 and ops.ndim(b1) == 0:
             u = u[:, 0]
         while int(u.shape[0]) > 1:
             n = int(u.shape[0])
@@ -638,6 +665,67 @@ class Sequence:
             elif isinstance(event, ShapedPulse):
                 total = total + event.duration_s
         return total
+
+    #*****************#
+    #   feasibility   #
+    #*****************#
+    def feasible(self, scanner, gamma_mhz_t=42.5774785):
+        """Whether the design plays on `scanner`; `violations` says why not."""
+        return not self.violations(scanner, gamma_mhz_t)
+
+    def violations(self, scanner, gamma_mhz_t=42.5774785):
+        """Why the design cannot play on `scanner` (a hardware.Scanner), as a tuple of
+        reasons, empty when it can.
+
+        Two kinds of limit. Amplitudes: a shaped pulse's peak RF must stay under the
+        scanner's peak B1 and its slice gradient under the maximum gradient. Time:
+        the events that are instantaneous in the simulation take time on hardware,
+        and the delays around them must absorb it, exactly as the Pulseq export
+        borrows it (io.pulseq.write_seq), so the shortfall reported is what the echo
+        time must grow by. The hardware durations, all stated: a hard pulse is the
+        shortest block pulse the peak B1 allows, flip / (360 gamma B1); an ideal
+        selective band is the 1 percent truncated Gaussian of that FWHM bandwidth, so
+        its length is the de Graaf Table 5.1 bandwidth factor (2.70 for excitation,
+        1.53 for inversion) over the bandwidth; a gradient kick is the shortest
+        trapezoid of its moment under the maximum gradient and slew rate, and a
+        slice gradient adds its two ramps; a coherence filter is an idealization and
+        takes no time (the physical design carries crushers). A trailing shortfall
+        means the readout would start inside the last event.
+        """
+        peak_hz = gamma_mhz_t * scanner.peak_b1_ut  # MHz/T times uT is Hz
+        reasons, owed = [], 0.0
+        for event in self.events:
+            if isinstance(event, Delay):
+                owed = max(owed - float(event.t_s), 0.0)
+            elif isinstance(event, ShapedPulse):
+                envelope = np.asarray(event.envelope, dtype=np.float64)
+                if event.peak_hz is not None:
+                    peak = float(event.peak_hz)
+                else:
+                    dt = float(event.duration_s) / envelope.size
+                    peak = envelope.max() * (float(event.flip_deg) / 360.0) / (envelope.sum() * dt)
+                if peak > peak_hz:
+                    reasons.append(f"shaped pulse peak {peak / gamma_mhz_t:.1f} uT exceeds the "
+                                   f"scanner's {scanner.peak_b1_ut:.1f} uT")
+                if event.gradient_hz_per_mm:
+                    amplitude = abs(float(event.gradient_hz_per_mm)) / gamma_mhz_t  # mT/m
+                    if amplitude > scanner.max_grad_mt_m:
+                        reasons.append(f"slice gradient {amplitude:.1f} mT/m exceeds the "
+                                       f"scanner's {scanner.max_grad_mt_m:.1f} mT/m")
+                    owed += 2.0 * amplitude * 1e-3 / scanner.max_slew_t_m_s
+            elif isinstance(event, SelectivePulse):
+                factor = 1.53 if float(event.flip_deg) >= 135.0 else 2.70
+                owed += factor / float(event.bandwidth_hz)
+            elif isinstance(event, Pulse):
+                owed += (float(event.flip_deg) / 360.0) / peak_hz
+            elif isinstance(event, Gradient):
+                _, ramp, flat = trapezoid(float(event.moment_per_mm) * 1e3 / (gamma_mhz_t * 1e6),
+                                          scanner.max_grad_mt_m * 1e-3, scanner.max_slew_t_m_s)
+                owed += 2.0 * ramp + flat
+        if owed > 1e-9:
+            reasons.append(f"the delays are {owed * 1e3:.3f} ms too short to absorb the pulse "
+                           f"and gradient durations")
+        return tuple(reasons)
 
     #***********************#
     #   structure, timings  #

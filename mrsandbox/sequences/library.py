@@ -15,7 +15,7 @@
 #*************#
 #   imports   #
 #*************#
-from mrsandbox.database import suppression
+from mrsandbox.database import pulses, suppression
 from mrsandbox.sequences.events import (CoherenceFilter, Delay, Pulse, SelectivePulse,
                                         Sequence, ShapedPulse)
 
@@ -145,6 +145,56 @@ class SuppressionTrain(Sequence):
             events.append(CoherenceFilter(0))
             if delay:
                 events.append(Delay(delay))
+        super().__init__(*events)
+
+
+#**************************************************************************************************#
+#                                  Class OuterVolumeSuppression                                    #
+#**************************************************************************************************#
+#                                                                                                  #
+# Outer-volume suppression as physics: slab-selective saturation of the regions around the voxel.  #
+#                                                                                                  #
+#**************************************************************************************************#
+class OuterVolumeSuppression(Sequence):
+    """Outer-volume suppression as physics: slab-selective saturation of the regions
+    around the voxel, played before the localization (`Ovs(...) + Press(...)`).
+
+    Every band is a three-lobe sinc 90 under a slice gradient on its axis, its
+    carrier set so the slab of `thickness_mm` sits at `centre_mm` from the voxel
+    centre for spins at `reference_ppm` (other shifts displace by their chemical
+    shift over the gradient, the same displacement the localization suffers),
+    followed by a coherence filter keeping the longitudinal magnetization only: the
+    idealization of the crusher (a scanner's crusher moment aliases on the discrete
+    ensemble, and a smaller one a later slice lobe can undo, so the filter states the
+    dephasing exactly; the spurious echo of a band is not modelled). The voxel's own
+    isochromats span `extent_mm` about its centre and a band outside it leaves them
+    alone; the fat layer, rendered where it sits (phantom.lipids.Skull), is what a
+    band covers, and what survives (the profile's transition band, an imperfect
+    flip, T1 recovery before the excitation) is the physical residual, not a typed
+    factor.
+
+    Args:
+        bands: ((axis, centre_mm, thickness_mm), ...), each axis "x", "y", or "z".
+        f0_mhz: The spectrometer frequency, which sets the carriers in ppm.
+        duration_s: Each saturation pulse's length.
+        extent_mm: The isochromat span of the voxel (its size along the axes).
+        reference_ppm: The scanner reference the slab positions hold at (water).
+    """
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, bands, f0_mhz, duration_s=0.003, extent_mm=20.0, reference_ppm=4.65):
+        self.bands = tuple((axis, float(centre), float(thickness)) for axis, centre, thickness in bands)
+        bandwidth_hz = pulses.DE_GRAAF[("sinc", 90)]["r_bw"] / duration_s
+        events = []
+        for axis, centre_mm, thickness_mm in self.bands:
+            gradient = bandwidth_hz / thickness_mm  # Hz per mm
+            events.append(ShapedPulse.sinc(90.0, duration_s,
+                                           offset_ppm=reference_ppm + gradient * centre_mm / f0_mhz,
+                                           gradient_hz_per_mm=gradient, gradient_axis=axis,
+                                           extent_mm=extent_mm))
+            events.append(CoherenceFilter(0))
         super().__init__(*events)
 
 

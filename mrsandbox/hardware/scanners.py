@@ -6,8 +6,8 @@
 #                                                                                                  #
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Scanner descriptions. Tiny on purpose: field strength first; gradient/slew/B1/raster    #
-#          limits join as simulations start consuming them. "Select scanner" grows here.           #
+# Purpose: Scanner descriptions: the field strength and the hardware limits a design must stay     #
+#          within (peak B1, maximum gradient, slew rate). "Select scanner" grows here.             #
 #                                                                                                  #
 ####################################################################################################
 
@@ -21,20 +21,34 @@ import dataclasses
 #                                          Class Scanner                                           #
 #**************************************************************************************************#
 #                                                                                                  #
-# A scanner description; today that is a name and a field strength.                                #
+# A scanner description: a name, a field strength, and the hardware limits.                        #
 #                                                                                                  #
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class Scanner:
-    """A scanner description; today that is a name and a field strength.
+    """A scanner description: a name, a field strength, and the hardware limits.
+
+    The limits are what `Sequence.feasible` checks a design against: the peak
+    transmit field bounds every pulse amplitude and sets the shortest hard pulse, the
+    gradient amplitude and slew rate set the shortest crusher and slice gradient. The
+    presets carry stated numbers per field class until measured ones arrive: the
+    gradient limits of the common whole-body systems, and the peak B1 of Oz et al.
+    2021 (NMR Biomed 34:e4236, adiabatic pulses: 24 to 26 uT with a body coil at 3 T,
+    26 to 45 uT with a head transmit coil at 7 T).
 
     Attributes:
         name: Preset name.
         b0_t: Field strength in tesla.
+        peak_b1_ut: Peak transmit field in microtesla.
+        max_grad_mt_m: Maximum gradient amplitude in millitesla per metre.
+        max_slew_t_m_s: Maximum slew rate in tesla per metre per second.
     """
 
     name: str
     b0_t: float
+    peak_b1_ut: float = 25.0
+    max_grad_mt_m: float = 40.0
+    max_slew_t_m_s: float = 150.0
 
     #*****************#
     #   from preset   #
@@ -49,7 +63,10 @@ class Scanner:
 
 
 PRESETS = {
-    "generic_1p5t": Scanner("generic_1p5t", 1.5),
-    "generic_3t": Scanner("generic_3t", 3.0),
-    "generic_7t": Scanner("generic_7t", 7.0),
+    "generic_1p5t": Scanner("generic_1p5t", 1.5, peak_b1_ut=25.0, max_grad_mt_m=40.0,
+                            max_slew_t_m_s=150.0),
+    "generic_3t": Scanner("generic_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=40.0,
+                          max_slew_t_m_s=200.0),
+    "generic_7t": Scanner("generic_7t", 7.0, peak_b1_ut=30.0, max_grad_mt_m=70.0,
+                          max_slew_t_m_s=200.0),
 }

@@ -371,3 +371,35 @@ class TestGraph:
         finite = (float(observable(ops.convert_to_tensor(np.float32(0.011 + h))))
                   - float(observable(ops.convert_to_tensor(np.float32(0.011 - h))))) / (2.0 * h)
         assert abs(float(grad) - finite) < 0.02 * abs(finite)
+
+    #*******************#
+    #   batched draws   #
+    #*******************#
+    def test_batched_draws_equal_the_looped_replays(self):
+        from mrsandbox.sequences.events import Gradient
+
+        engine = Engine(3.0)
+        lac = SpinSystem.from_database("Lac")[0]
+        t1 = np.asarray([0.9, 1.2, 1.5, 2.0], dtype=np.float32)
+        t2 = np.asarray([0.10, 0.20, 0.15, 0.30], dtype=np.float32)
+        crusher = Gradient(3.7, 20.0)
+        for design in (Press(te1_s=0.011, te2_s=0.019),
+                       Sequence(Pulse(90.0), Delay(0.015), crusher, Pulse(180.0, phase_deg=90.0),
+                                crusher, Delay(0.015))):
+            one = engine.compiled(design, lac)
+            many = engine.compiled(design, lac, batched=True)
+            b1, offset = ops.convert_to_tensor(np.float32(1.0)), ops.convert_to_tensor(np.float32(0.0))
+            freqs, amps = many(ops.convert_to_tensor(t1), ops.convert_to_tensor(t2), b1, offset)
+            amps = np.asarray(ops.convert_to_numpy(amps))
+            assert amps.shape == (4, lac.dim ** 2)
+            for k in range(4):
+                f, a = one(ops.convert_to_tensor(t1[k]), ops.convert_to_tensor(t2[k]), b1, offset)
+                np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(f)),
+                                           np.asarray(ops.convert_to_numpy(freqs)), atol=1e-6)
+                np.testing.assert_allclose(amps[k], np.asarray(ops.convert_to_numpy(a)), atol=1e-6)
+            # the rows render to B FIDs in one call
+            _, fids = engine.render_fids(freqs, ops.convert_to_tensor(amps), npoints=256,
+                                         dwell_s=1.0 / 4000.0, lw_hz=5.0)
+            assert tuple(fids.shape) == (4, 256)
+        # one graph per design, the batched replay included
+        assert len(engine._compiled) == 2
