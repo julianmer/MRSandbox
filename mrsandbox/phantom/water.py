@@ -79,7 +79,7 @@ class WaterSource(abc.ABC):
         t1_s, t2_s = voxel.resolve(truth.water.t1_s), voxel.resolve(truth.water.t2_s)
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t))
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in
-                    (t1_s, t2_s, voxel.b1_scale(truth), voxel.offset_hz(truth))))
+                    (t1_s, t2_s, voxel.b1_input(truth), voxel.offset_hz(truth))))
 
 
 #**************************************************************************************************#

@@ -483,6 +483,29 @@ class TestNoiseModel:
         assert abs(np.std((one - clean).real) - 2.0) < 0.2
         assert abs(np.std((sixteen - clean).real) - 0.5) < 0.05
 
+    def test_the_default_noise_reproduces_the_in_vivo_naa_snr(self, scan):
+        # the calibration of the noise prior (scan.defaults): at the calibration
+        # dataset's conditions (3 T PRESS TE 35, a 30 mm cube, 4096 points at 5 kHz,
+        # one transient) the default draws give the measured single-transient NAA
+        # SNR of 6.7 +- 1.2 by the consensus peak-height-over-noise definition
+        calm = Params(spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+                      gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
+                                     linear_short=0.0, linear_long=0.0))
+        calibration = VirtualScan(scan.brain, scan.scanner, Press(te1_s=0.011, te2_s=0.024), params=calm)
+        voxel = calibration.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=30.0)
+        n, bw, cf = 4096, 5000.0, voxel._f0_mhz()
+        ppm = np.fft.fftshift(np.fft.fftfreq(n, 1.0 / bw)) / cf + 4.65
+        snrs = []
+        for seed in range(8):
+            _, fid = voxel.fid(seed=seed, npoints=n, dwell_s=1.0 / bw)
+            real = np.fft.fftshift(np.fft.fft(np.conj(fid))).real
+            height = real[np.abs(ppm - 2.01) < 0.1].max()
+            noise = (ppm > -5.0) & (ppm < -1.0)
+            floor = real[noise] - np.polyval(np.polyfit(ppm[noise], real[noise], 1), ppm[noise])
+            snrs.append(height / floor.std())
+        assert 4.7 < np.median(snrs) < 9.4, snrs  # 6.7 within the stated 0.7 to 1.4 range
+
     def test_a_step_is_fresh_noise_on_the_same_subject(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         first = voxel.acquire(seed=11, npoints=256, step=0)
@@ -492,3 +515,48 @@ class TestNoiseModel:
         assert np.abs(np.asarray(first[:]) - np.asarray(second[:])).max() > 0.0
         np.testing.assert_array_equal(np.asarray(first[:]),
                                       np.asarray(voxel.acquire(seed=11, npoints=256)[:]))
+
+
+#**************************************************************************************************#
+#                                      Class TestComponents                                        #
+#**************************************************************************************************#
+class TestComponents:
+    # The component-separated acquisition: the same subject and noise as the
+    # acquisition, split on DIM_USER_0 into parts that sum back to it exactly.
+
+    def test_components_sum_to_the_acquisition(self, scan):
+        from mrsandbox import CoilArray
+
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        whole = voxel.acquire(seed=11, npoints=256, step=1)
+        parts = voxel.acquire_components(seed=11, npoints=256, step=1)
+        names = parts.hdr_ext["SimulationComponents"]["names"]
+        assert parts.dim_tags[0] == "DIM_USER_0"
+        assert parts.shape == (1, 1, 1, 256, len(names))
+        assert names[:2] == ["metabolites", "water"] and names[-1] == "noise"
+        assert {"mm", "downfield", "spurious"} <= set(names)  # no fat layer mid-brain
+        assert parts.hdr_ext["SimulationGroundTruth"] == whole.hdr_ext["SimulationGroundTruth"]
+        summed = np.asarray(parts[:]).sum(axis=-1)
+        np.testing.assert_allclose(summed, np.asarray(whole[:]), atol=1e-5 * np.abs(summed).max())
+        # every component carries signal of its own
+        for k, name in enumerate(names):
+            assert np.abs(np.asarray(parts[:])[0, 0, 0, :, k]).max() > 0.0, name
+        # with coils: DIM_COIL first, the components after it, the noise correlated
+        coiled = VirtualScan(scan.brain, scan.scanner, scan.sequence, coils=CoilArray.ring(4))
+        voxel = coiled.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        whole = voxel.acquire(seed=11, npoints=256)
+        parts = voxel.acquire_components(seed=11, npoints=256)
+        assert parts.dim_tags[:2] == ["DIM_COIL", "DIM_USER_0"]
+        assert parts.shape == (1, 1, 1, 256, 4, len(names))
+        summed = np.asarray(parts[:]).sum(axis=-1)
+        np.testing.assert_allclose(summed, np.asarray(whole[:]), atol=1e-5 * np.abs(summed).max())
+
+    def test_frame_is_the_key_of_the_rendered_lines(self, scan):
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        truth = voxel.sample(seed=3)
+        t1, t2, b1, offset = voxel.frame(truth)
+        assert len(t1) == len(t2) == len(truth.conc)
+        assert t1[list(truth.conc).index("NAA")] == pytest.approx(float(voxel.resolve(truth.t1.NAA)))
+        assert b1 == voxel.b1_scale(truth) and offset == voxel.offset_hz(truth)
+        voxel._metabolite_lines(truth)
+        assert (False,) + voxel.frame(truth) in scan._lines[1]

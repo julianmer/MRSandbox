@@ -162,3 +162,16 @@ class Brain:
         if not bool((total[weights > 0.0] > 0.5).any()):
             return 0.0
         return float((weights * (total < 0.1)).sum() / weights.sum())
+
+    def lipid_offset(self, position_mm, size_mm):
+        """Where the fat layer sits: the centroid of the box's beyond-the-brain content
+        (the cells `lipid_weight` counts) relative to the voxel centre, (x, y, z) in
+        millimetres; zeros when the box holds none."""
+        values, weights = self.maps.box(position_mm, size_mm)
+        if weights.sum() <= 0.0:
+            return np.zeros(3)
+        outside = weights * (values.sum(axis=-1) < 0.1)
+        if outside.sum() <= 0.0:
+            return np.zeros(3)
+        centres = self.maps.centres(position_mm, size_mm).reshape(-1, 3)
+        return np.average(centres, axis=0, weights=outside.ravel()) - np.asarray(position_mm, dtype=np.float64)

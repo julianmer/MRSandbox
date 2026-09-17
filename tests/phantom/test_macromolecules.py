@@ -204,6 +204,34 @@ class TestMeasured:
         window = (ppm > 0.5) & (ppm < 4.2)
         assert np.abs(long_te[window]).max() < 0.08 * np.abs(short[window]).max()
 
+    #*****************#
+    #   tr recovery   #
+    #*****************#
+    @staticmethod
+    def pulse_acquire_background(tr_s, seed=7, npoints=4096):
+        from mrsandbox import PulseAcquire
+
+        brain = Brain.load("icbm152")
+        tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        pieces = (Scanner.preset("generic_3t"), PulseAcquire(tr_s=tr_s))
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        with_mm = VirtualScan(brain, *pieces, params=tree, mm=MeasuredMM())
+        without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())
+        truth = with_mm.voxel(**kw).sample(seed=seed)
+        ppm, s1 = with_mm.voxel(**kw).spectrum(seed=seed, npoints=npoints)
+        _, s0 = without.voxel(**kw).spectrum(seed=seed, npoints=npoints)
+        return np.asarray(ppm), np.real(np.asarray(s1) - np.asarray(s0)), truth
+
+    def test_tr_saturates_each_component_by_its_own_t1(self):
+        ppm, relaxed, truth = self.pulse_acquire_background(None)
+        _, saturated, _ = self.pulse_acquire_background(0.3)
+        for name, centre in (("mm091", 0.94), ("mm321", 3.21)):
+            window = np.abs(ppm - centre) < 0.05
+            ratio = saturated[window].max() / relaxed[window].max()
+            expected = 1.0 - np.exp(-0.3 / truth.mm.t1[name])  # the pulse-acquire law
+            assert abs(ratio - expected) < 0.03 * expected, (name, ratio, expected)
+
 
 #**************************************************************************************************#
 #                                        Class TestCoupled                                         #

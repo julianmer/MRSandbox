@@ -27,6 +27,14 @@ from mrsandbox.spins import SpinSystem
 
 
 #*****************#
+#   nearest peak  #
+#*****************#
+def _nearest(positions, ppm):
+    """The index of the nearest of the sorted `positions` for every value of `ppm`."""
+    return np.searchsorted(0.5 * (positions[1:] + positions[:-1]), ppm)
+
+
+#*****************#
 #   echo timing   #
 #*****************#
 def _echo_time_s(sequence):
@@ -168,9 +176,15 @@ class MeasuredMM(MMSource):
     is attenuated by exp(-(TE - 8 ms) / T2(ppm)), with T2(ppm) the value of the nearest
     peak in the consensus 3 T human column (Landheer 2020 in the typed Appendix S1
     Table S3, the 3 T study reporting uncertainties) and the echo time read from the
-    sequence's own timings. Stated approximations: the T2 map is a nearest-peak step
-    function, and the editing-band response of the measured shapes is not modelled
-    (couplings are not resolvable in a measured sum; CoupledMM carries co-editing).
+    sequence's own timings. With a TR every bin is scaled by the steady-state factor
+    of the nearest component: a one-spin probe at the component's position with the
+    drawn mm.t1 and mm.t2 runs the sequence itself with its TR and at a TR of a
+    thousand seconds, and the ratio of the two is the factor, so partial recovery and
+    the inversion of the recovered magnetization by refocusing pulses follow exactly
+    the law the metabolites obey (Sequence.run). Stated approximations: the T2 and T1
+    maps are nearest-peak step functions, and the editing-band response of the
+    measured shapes is not modelled (couplings are not resolvable in a measured sum;
+    CoupledMM carries co-editing).
     """
 
     TOTAL_PROTON_AREAS = 11.39  # the ParameterizedMM MM components summed
@@ -183,6 +197,7 @@ class MeasuredMM(MMSource):
         self.center_ppm = center_ppm
         self._measured = None
         self._t2_map = None
+        self._repetition = None
 
     #*********#
     #   fid   #
@@ -201,32 +216,70 @@ class MeasuredMM(MMSource):
         # conjugate into our +ppm convention, shift the transmitter frame to 0 ppm
         signal = np.conj(resampled) * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
         if sequence is not None:
-            signal = self._echo_decay(signal, t, f0_mhz, _echo_time_s(sequence))
+            signal = self._sequence_response(signal, t, f0_mhz, sequence, voxel, truth)
         scale = truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS / np.conj(measured[0])
         return (signal * scale).astype(np.complex64)
 
-    #****************#
-    #   echo decay   #
-    #****************#
-    def _echo_decay(self, signal, t, f0_mhz, te_s):
-        """Attenuate every frequency bin by exp(-(TE - 8 ms) / T2(ppm)), the typed
-        per-peak T2 of the nearest consensus 3 T peak, via one FFT round trip."""
-        delta = te_s - self.MEASURED_TE_S
-        if abs(delta) < 1e-9:
-            return signal
-        if self._t2_map is None:
-            table = macromolecules.CONSENSUS_T2["t2_ms"]
-            rows = sorted((_peak_ppm(peak), value[0] / 1000.0)
-                          for peak, entries in table.items()
-                          if (value := entries.get("landheer_2020")) is not None)
-            self._t2_map = (np.asarray([ppm for ppm, _ in rows]),
-                            np.asarray([t2 for _, t2 in rows]))
-        positions, t2_s = self._t2_map
+    #*************************#
+    #   sequence response     #
+    #*************************#
+    def _sequence_response(self, signal, t, f0_mhz, sequence, voxel, truth):
+        """Every frequency bin scaled by what the sequence does beyond the measurement,
+        via one FFT round trip: the echo decay exp(-(TE - 8 ms) / T2(ppm)) with the
+        typed T2 of the nearest consensus 3 T peak, and with a TR the steady-state
+        factor of the nearest component (`_repetition_factors`)."""
         dwell = float(t[1] - t[0])
         ppm = (np.fft.fftfreq(t.size, d=dwell) % (1.0 / dwell)) / f0_mhz
-        nearest = np.searchsorted(0.5 * (positions[1:] + positions[:-1]), ppm)
-        attenuation = np.exp(-delta / t2_s[nearest])
-        return np.fft.ifft(np.fft.fft(signal) * attenuation)
+        factor = np.ones(t.size)
+        delta = _echo_time_s(sequence) - self.MEASURED_TE_S
+        if abs(delta) >= 1e-9:
+            if self._t2_map is None:
+                table = macromolecules.CONSENSUS_T2["t2_ms"]
+                rows = sorted((_peak_ppm(peak), value[0] / 1000.0)
+                              for peak, entries in table.items()
+                              if (value := entries.get("landheer_2020")) is not None)
+                self._t2_map = (np.asarray([ppm for ppm, _ in rows]),
+                                np.asarray([t2 for _, t2 in rows]))
+            positions, t2_s = self._t2_map
+            factor = factor * np.exp(-delta / t2_s[_nearest(positions, ppm)])
+        if sequence.tr_s is not None:
+            positions, factors = self._repetition_factors(sequence, voxel, truth, f0_mhz)
+            factor = factor * factors[_nearest(positions, ppm)]
+        if np.all(factor == 1.0):
+            return signal
+        return np.fft.ifft(np.fft.fft(signal) * factor)
+
+    def _repetition_factors(self, sequence, voxel, truth, f0_mhz):
+        """The steady-state factor of every component under the sequence's TR, as
+        (positions ppm, complex factors): a one-spin probe at each component's
+        position with the drawn mm.t1 and mm.t2 runs the design at its TR and at a
+        TR of a thousand seconds (the same compiled graph, TR being a timing), and
+        the ratio of its detected amplitudes is the factor. Cached per truth and per
+        engine, sequence, and transmit frame, like CoupledMM's lines."""
+        from mrsandbox.sequences.events import Sequence
+
+        engine = voxel.scan.engine
+        b1_scale, offset_hz = voxel.b1_input(truth), voxel.offset_hz(truth)
+        cached = self._repetition
+        if cached is None or cached[0] is not truth:
+            cached = self._repetition = (truth, {})
+        key = (engine, sequence, voxel.frame(truth)[2], offset_hz)
+        if key not in cached[1]:
+            relaxed = Sequence(*sequence.events, tr_s=1000.0, cycles=sequence.cycles)
+            positions, factors = [], []
+            for name, groups, _, _ in CoupledMM.SYSTEMS:
+                probe = SpinSystem(name=name, nucleus="1H", shifts_ppm=(groups[0][0],),
+                                   j_hz=((0.0,),), scale=1.0, gamma_mhz_t=f0_mhz / engine.b0_t)
+                args = tuple(ops.convert_to_tensor(np.float32(v)) for v in
+                             (truth.mm.t1[name], truth.mm.t2[name], b1_scale, offset_hz))
+                _, at_tr = engine.compiled(sequence, probe)(*args)
+                _, at_infinity = engine.compiled(relaxed, probe)(*args)
+                positions.append(groups[0][0])
+                factors.append(complex(ops.convert_to_numpy(ops.sum(at_tr)))
+                               / complex(ops.convert_to_numpy(ops.sum(at_infinity))))
+            order = np.argsort(positions)
+            cached[1][key] = (np.asarray(positions)[order], np.asarray(factors)[order])
+        return cached[1][key]
 
     #*************#
     #   loading   #
@@ -340,8 +393,8 @@ class CoupledMM(MMSource):
         cached = self._lines
         if cached is None or cached[0] is not truth:
             cached = self._lines = (truth, {})
-        b1_scale, offset_hz = voxel.b1_scale(truth), voxel.offset_hz(truth)
-        key = (engine, sequence, name, b1_scale, offset_hz)
+        b1_scale, offset_hz = voxel.b1_input(truth), voxel.offset_hz(truth)
+        key = (engine, sequence, name, voxel.frame(truth)[2], offset_hz)
         if key in cached[1]:
             return cached[1][key]
         shifts = tuple(ppm for ppm, protons in groups for _ in range(protons))

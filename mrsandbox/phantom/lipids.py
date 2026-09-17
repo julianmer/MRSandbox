@@ -85,11 +85,17 @@ class NoLipids(LipidSource):
 #                                                                                                  #
 #**************************************************************************************************#
 class Skull(LipidSource):
-    """Lipids weighted by the voxel's head-but-not-brain content.
+    """Lipids weighted by the voxel's head-but-not-brain content, rendered where that
+    content sits.
 
     The sampled amplitude (truth.lipids.amplitude_mm, a concentration equivalent at full
     lipid weight) scales with the geometric weight, so interior voxels stay clean and
-    voxels touching the skull bleed.
+    voxels touching the skull bleed. The lipid systems run the design with the
+    isochromat ensemble moved to the fat's centroid (Brain.lipid_offset, along the
+    axes the design's gradients use), so a slice profile's transition band, the
+    chemical shift displacement, and an outer-volume saturation band act on the fat
+    where it is; the ensemble keeps the voxel's extent about that centroid (a stated
+    approximation of the layer's true shape).
     """
 
     #***********#
@@ -100,12 +106,14 @@ class Skull(LipidSource):
         if weight == 0.0:
             return None
         amplitude = truth.lipids.amplitude_mm * weight
+        offset = voxel.scan.brain.lipid_offset(voxel.position_mm, voxel.size_mm)
+        shift = {axis: float(offset[k]) for k, axis in enumerate("xyz")}
         args = [ops.convert_to_tensor(np.float32(v)) for v in
-                (truth.lipids.t1_s, truth.lipids.t2_s, voxel.b1_scale(truth),
+                (truth.lipids.t1_s, truth.lipids.t2_s, voxel.b1_input(truth),
                  voxel.offset_hz(truth))]
         freqs_all, amps_all = [], []
         for system in self.systems(f0_mhz / engine.b0_t):
-            freqs, amps = engine.compiled(sequence, system)(*args)
+            freqs, amps = engine.compiled(sequence, system, shift_mm=shift)(*args)
             freqs_all.append(freqs)
             amps_all.append(amps * complex(amplitude))
         return ops.concatenate(freqs_all), ops.concatenate(amps_all)

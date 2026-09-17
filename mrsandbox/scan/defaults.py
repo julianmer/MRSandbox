@@ -156,8 +156,22 @@ def default_params(database=None, b0_t=3.0):
     imperfections = Params(
         # noise: complex Gaussian per FID point of ONE transient of the reference
         #   acquisition, a 20 mm cube (8 mL) at 3 T (scan.voxel NOISE_REFERENCE); every
-        #   acquisition scales it by its volume, field, and averages. Range stated.
-        noise=dict(sigma=(0.5, 3.0)),
+        #   acquisition scales it by its volume, field, and averages. Calibrated
+        #   17/09/26 against one in vivo 3 T dataset (Siemens Prisma, 64-channel head
+        #   coil, PRESS TE 35 ms, TR 2 s, a 30 mm cube, 4096 points at 5 kHz, 32
+        #   transients with the coils kept: dataset 28 of the BasisREMY REMY test
+        #   set, by its own NIfTI-MRS header): the single-transient NAA SNR by the
+        #   consensus definition (Near et al. 2021: the real NAA peak height over the
+        #   noise standard deviation of a signal-free region, here -5 to -1 ppm after
+        #   a linear detrend, no apodization) is 6.7 +- 1.2 over the 32 transients
+        #   after an SVD coil combination, 28.1 for their aligned average; the
+        #   simulator at the same voxel, timings, and grid (ICBM mixed tissue, the
+        #   default lineshape, whose NAA width of 6 to 7 Hz brackets the measured 5)
+        #   reaches 6.7 at a reference sigma of 5.2 (median over 24 subjects, IQR 4.6
+        #   to 5.5, the spread being the concentration prior). The range around it
+        #   is stated: 0.7 to 1.4 times, the site-to-site SNR scatter of multi-site
+        #   3 T studies (tests/scan/test_scan TestNoiseModel gates the calibration).
+        noise=dict(sigma=(3.5, 7.5)),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),
@@ -172,6 +186,20 @@ def default_params(database=None, b0_t=3.0):
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
                          eddy_seed=(0.0, 2.0 ** 31 - 1.0)),
+        # gradients: the eddy currents the design's own gradients induce (scan.eddy),
+        #   two exponential terms per step of the gradient, shared by the three
+        #   axes (stated): a short one of a few to a hundred milliseconds and a long
+        #   one of a fraction of a second to seconds (the residuals of a pre-emphasized
+        #   system, de Graaf 2019 section 10.5; the constants are the PLAN's stated
+        #   ranges, unverified against a measured response), each with a uniform
+        #   B0 term in hertz per mT/m of step and a fraction of the step opposing it
+        #   along the axis. Their integrals over the readout phase the FID (the
+        #   Klose-type lineshape distortion) and dephase the voxel box; the ranges
+        #   are stated so the strong end distorts a line visibly and the weak end
+        #   is clean.
+        gradients=dict(tau_short_s=(0.002, 0.100), tau_long_s=(0.3, 3.0),
+                       b0_short_hz_per_mt_m=(0.0, 0.5), b0_long_hz_per_mt_m=(0.0, 0.2),
+                       linear_short=(0.0, 0.005), linear_long=(0.0, 0.002)),
         # spurious: the out-of-voxel echo that imperfect crushing or cycling fails
         #   to remove, rephasing mid-acquisition (the mechanism is demonstrated by
         #   the crusher gates in tests/sequences). Form and every range are typed
