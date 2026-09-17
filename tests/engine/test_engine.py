@@ -315,10 +315,12 @@ class TestGraph:
 
         engine = Engine(3.0)
         lac = SpinSystem.from_database("Lac")[0]
+        # float32 with the compiled and the eager fusion orders: 1e-8 on jax, a few
+        # 1e-6 on tensorflow
         for te2 in (0.019, 0.024, 0.060):
             sequence = Press(te1_s=0.011, te2_s=te2)
             np.testing.assert_allclose(self.replay(engine, sequence, lac),
-                                       self.eager(engine, sequence, lac), atol=1e-6)
+                                       self.eager(engine, sequence, lac), atol=1e-5)
         assert len(engine._compiled) == 1
         # waveform arrays are timings too: an adiabatic design replays at another TE
         # (four 256-step propagator products in float32: the compiled and the eager
@@ -342,7 +344,7 @@ class TestGraph:
         delay.t_s = 0.072
         after = self.replay(engine, echo, lac)
         assert np.abs(after - before).max() > 0.1
-        np.testing.assert_allclose(after, self.eager(engine, echo, lac), atol=1e-6)
+        np.testing.assert_allclose(after, self.eager(engine, echo, lac), atol=1e-5)
 
     #*******************#
     #   timing gradient #

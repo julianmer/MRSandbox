@@ -69,7 +69,8 @@ This repository consists of the following main structures:
 * The `mrsandbox/resources/` folder pulls large named datasets from their canonical homes on
   first use into a local, checksum verified cache, so the package itself stays lightweight,
   and derives the hMRI demo subject's quantitative 3 T stack (R1, PD, MT saturation, R2*,
-  transmit field, B0) from its raw scans in cited numpy.
+  transmit field, B0) and the UK7T travelling head's 7 T stack (DREAM transmit field, B0, R2*
+  on five scanners) from their raw scans in cited numpy.
 * The `mrsandbox/hardware/` folder describes scanners and receive coil arrays. Loops carry
   Biot-Savart sensitivities, measured arrays (the BigBrain-MR and T2*-MOVE maps) carry their
   channel patterns, arrays carry the Roemer noise resistance matrix, and acquisitions gain a

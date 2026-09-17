@@ -21,6 +21,8 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # a hung leg fails within the hour instead of burning the six-hour default
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -78,6 +80,11 @@ jobs:
           EOF
       - name: Run tests
         # tensorflow runs eagerly and pays minutes per integration scan, so its leg
-        # skips the render-marked tests; jax and torch always run the full suite
+        # skips the render-marked tests; jax and torch always run the full suite.
+        # Unbuffered verbose output names the test a stalled leg is in, and the
+        # faulthandler dumps every thread's stack after 20 minutes of silence
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
-          if [ "${{ matrix.backend }}" = "tensorflow" ]; then pytest -q -m "not render"; else pytest -q; fi
+          if [ "${{ matrix.backend }}" = "tensorflow" ]; then marker='-m "not render"'; else marker=''; fi
+          eval pytest -v -o faulthandler_timeout=1200 $marker
