@@ -20,5 +20,6 @@ from mrsandbox.phantom.field import FieldMap
 from mrsandbox.phantom.lipids import LipidSource, NoLipids, Skull
 from mrsandbox.phantom.macromolecules import (CoupledMM, MeasuredMM, MMSource, NoMM,
                                               ParameterizedMM)
+from mrsandbox.phantom.registration import overlap, register
 from mrsandbox.phantom.volume import Volume
 from mrsandbox.phantom.water import NoWater, Suppressed, Unsuppressed, WaterSource

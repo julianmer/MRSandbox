@@ -284,8 +284,11 @@ class HMRI:
     #   volumes   #
     #*************#
     @classmethod
-    def volume(cls, name):
-        """One derived map as a Volume, deriving and caching the whole stack on first use."""
+    def volume(cls, name, space=None):
+        """One derived map as a Volume, deriving and caching the whole stack on first
+        use; with `space` "bigbrain_mr" its affine carries the map into the
+        BigBrain-MR world (`registration`), so it reads at the virtual brain's
+        positions."""
         if name not in cls.MAPS:
             raise KeyError(f"unknown hMRI map {name!r}; known: {', '.join(cls.MAPS)}")
         from mrsandbox.resources import Resources
@@ -298,7 +301,44 @@ class HMRI:
         data, affine = stored[name], stored[name + "_affine"]
         if name == "T1map":
             data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0), 0.0).astype(np.float32)
+        if space is not None:
+            affine = cls.registration(space) @ affine
         return Volume(data, affine, name="hmri/" + name)
+
+    @classmethod
+    def registration(cls, space="bigbrain_mr"):
+        """The world-to-world affine carrying the session's scanner frame into the
+        BigBrain-MR world (phantom.registration.register), fitted once and cached:
+        a shape fit of the brain tissue, the largest connected component of the
+        voxels reading brain tissue in R1 (0.4 to 1.8 1/s) and MT saturation (0.3 to
+        6 percent units) after a 2.4 mm erosion that cuts the brainstem's link to
+        the neck, dilated back, against the BigBrain-MR grey and white matter labels.
+        The R1 contrast itself does not refine it: the demo's MPM maps are too
+        speckled for the correlation to hold a 12-parameter fit (stated). Every map
+        of the session shares the transform: the MPM, B1, and B0 grids are
+        co-registered by acquisition (stated)."""
+        import scipy.ndimage
+
+        from mrsandbox.phantom.brain import Brain
+        from mrsandbox.phantom.registration import register
+        from mrsandbox.resources import Resources
+
+        if space != "bigbrain_mr":
+            raise KeyError(f"unknown space {space!r}; known: bigbrain_mr")
+        cache = Resources.cache_dir() / "hmri/to_bigbrain_mr.npy"
+        if not cache.exists():
+            r1, mt = cls.volume("R1map"), cls.volume("MTsat")
+            tissue = (np.isfinite(r1.data) & (r1.data > 0.4) & (r1.data < 1.8)
+                      & np.isfinite(mt.data) & (mt.data > 0.3) & (mt.data < 6.0))
+            eroded = scipy.ndimage.binary_erosion(tissue, iterations=3)
+            labels, count = scipy.ndimage.label(eroded)
+            largest = labels == (np.bincount(labels.ravel())[1:].argmax() + 1)
+            mask = scipy.ndimage.binary_dilation(largest, iterations=3) & tissue
+            atlas = Volume.load("bigbrain_mr/labels_800um")
+            brain = np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["wm"] + Brain.BIGBRAIN_TISSUES["gm"])
+            np.save(cache, register(Volume(mask.astype(np.float32), r1.affine),
+                                    Volume(brain.astype(np.float32), atlas.affine)))
+        return np.load(cache)
 
     @classmethod
     def cached(cls):

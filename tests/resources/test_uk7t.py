@@ -16,7 +16,7 @@
 import numpy as np
 import pytest
 
-from mrsandbox.resources import UK7T
+from mrsandbox.resources import Resources, UK7T
 
 
 #**************************************************************************************************#
@@ -32,7 +32,30 @@ class TestConversion:
         with pytest.raises(KeyError):
             UK7T.file("abc", "DREAM_FA")
         with pytest.raises(KeyError):
-            UK7T.volume("T1map")
+            UK7T.volume("MTsat")
+
+    def test_mp2rage_lookup_inverts_its_own_signal_model(self):
+        from mrsandbox.resources.uk7t import UK7T_ACQUISITION
+
+        mp2rage = UK7T_ACQUISITION["mp2rage"]
+        # the protocol's timing closes around the full 224-echo trains
+        n, spacing = mp2rage["train"], mp2rage["echo_spacing_s"]
+        assert mp2rage["ti_s"][0] - n * spacing / 2.0 > 0.0
+        assert mp2rage["ti_s"][1] - mp2rage["ti_s"][0] - n * spacing > 0.0
+        assert mp2rage["tr_s"] - mp2rage["ti_s"][1] - n * spacing / 2.0 > 0.0
+        # the unified contrast falls monotonically over the tissue range, in -0.5..0.5
+        grid = np.linspace(0.7, 3.5, 200)
+        curve = UK7T.mp2rage_unified(grid, mp2rage)
+        assert np.all(np.diff(curve) < 0.0) and curve.max() <= 0.5 and curve.min() >= -0.5
+        assert 0.25 < UK7T.mp2rage_unified(1.15, mp2rage) < 0.35  # the 7 T WM of Marques 2010
+        assert -0.30 < UK7T.mp2rage_unified(1.92, mp2rage) < -0.20  # and its GM
+        # the lookup recovers T1 from the two block signals, per-voxel B1 included
+        t1 = np.array([[0.9, 1.2], [1.9, 2.4]])
+        b1 = np.array([[1.0, 0.8], [1.2, 1.0]])
+        s1, s2 = UK7T.mp2rage_signals(t1, mp2rage, b1=b1)
+        phase = np.exp(1j * np.array([[0.3, -1.0], [2.0, 0.0]]))  # a common receive phase
+        np.testing.assert_allclose(UK7T.mp2rage_t1(s1 * phase, s2 * phase, mp2rage, b1=b1), t1,
+                                   rtol=2e-3)
 
 
 #**************************************************************************************************#
@@ -66,3 +89,38 @@ class TestStack:
         # the maps answer box queries in the session's scanner space: the grid centre
         middle = transmit.affine[:3, :3] @ ((np.asarray(transmit.data.shape) - 1) / 2.0) + transmit.affine[:3, 3]
         assert transmit.mean(middle, 20.0) is not None
+        # the MP2RAGE T1 map: 0.7 mm, the head's T1 values bimodal at the 7 T white and
+        # grey matter values (Marques 2010: 1.15 and 1.92 s), zero outside the head
+        t1 = UK7T.volume("T1map", "oxf")
+        assert t1.data.shape == (320, 320, 224)
+        inside = t1.data[t1.data > 0.0]
+        assert 0.4 < inside.size / t1.data.size < 0.8 or inside.size > 1e6
+        counts, edges = np.histogram(inside, bins=np.arange(0.7, 3.0, 0.05))
+        centres = 0.5 * (edges[1:] + edges[:-1])
+        white = centres[(centres > 0.9) & (centres < 1.5)][np.argmax(counts[(centres > 0.9) & (centres < 1.5)])]
+        grey = centres[(centres > 1.5) & (centres < 2.4)][np.argmax(counts[(centres > 1.5) & (centres < 2.4)])]
+        assert 1.0 < white < 1.4 and 1.7 < grey < 2.2, (white, grey)
+
+    @pytest.mark.skipif(not Resources.cached("bigbrain_mr/t1map_800um")
+                        or not Resources.cached("bigbrain_mr/labels_800um"),
+                        reason="bigbrain_mr maps not cached")
+    def test_maps_register_into_bigbrain_space(self):
+        from mrsandbox import Brain, Volume
+
+        # the registered T1 map reads 7 T white and grey matter values where the
+        # virtual brain's labels say white and grey matter
+        t1 = UK7T.volume("T1map", "oxf", space="bigbrain_mr")
+        labels = Volume.load("bigbrain_mr/labels_800um")
+        grid = np.array(np.nonzero(labels.data > 0))[:, ::7]
+        world = labels.affine[:3, :3] @ grid + labels.affine[:3, 3:4]
+        index = np.linalg.solve(t1.affine[:3, :3], world - t1.affine[:3, 3:4])
+        import scipy.ndimage
+        sampled = scipy.ndimage.map_coordinates(t1.data, index, order=1, cval=0.0)
+        tissue = labels.data[tuple(grid)]
+        white = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["wm"])])
+        grey = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["gm"])])
+        assert 1.0 < white < 1.35 and 1.5 < grey < 2.1 and grey - white > 0.3, (white, grey)
+        # every map of the site shares the one transform, and a mid-brain box reads it
+        transmit = UK7T.volume("TB1map", "oxf", space="bigbrain_mr")
+        np.testing.assert_allclose(transmit.affine, UK7T.registration("oxf") @ UK7T.volume("TB1map", "oxf").affine)
+        assert 0.7 < transmit.mean((0.0, 0.0, 0.0), 20.0) < 1.3

@@ -17,7 +17,7 @@
 import numpy as np
 import pytest
 
-from mrsandbox.resources import HMRI
+from mrsandbox.resources import HMRI, Resources
 
 
 #**************************************************************************************************#
@@ -148,3 +148,29 @@ class TestStack:
         # the transmit map reads at a mid-brain box as a relative flip near nominal
         centre = transmit.mean((0.0, 0.0, 0.0), 20.0)
         assert centre is not None and 0.7 < centre < 1.3
+
+    @pytest.mark.skipif(not Resources.cached("bigbrain_mr/t1map_800um")
+                        or not Resources.cached("bigbrain_mr/labels_800um"),
+                        reason="bigbrain_mr maps not cached")
+    def test_maps_register_into_bigbrain_space(self):
+        import scipy.ndimage
+
+        from mrsandbox import Brain, Volume
+
+        # the registered 3 T T1 map reads 3 T white and grey matter values where the
+        # virtual brain's labels say white and grey matter
+        t1 = HMRI.volume("T1map", space="bigbrain_mr")
+        labels = Volume.load("bigbrain_mr/labels_800um")
+        grid = np.array(np.nonzero(labels.data > 0))[:, ::7]
+        world = labels.affine[:3, :3] @ grid + labels.affine[:3, 3:4]
+        index = np.linalg.solve(t1.affine[:3, :3], world - t1.affine[:3, 3:4])
+        sampled = scipy.ndimage.map_coordinates(np.clip(t1.data, 0.0, 5.0), index, order=1, cval=0.0)
+        tissue = labels.data[tuple(grid)]
+        white = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["wm"])])
+        grey = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["gm"])])
+        # a shape fit of another subject: the tissues order as at 3 T, the medians
+        # blurred by the boundaries the affine cannot follow (stated)
+        assert 0.9 < white < 1.3 and 1.2 < grey < 1.8 and grey - white > 0.15, (white, grey)
+        transmit = HMRI.volume("TB1map", space="bigbrain_mr")
+        np.testing.assert_allclose(transmit.affine, HMRI.registration() @ HMRI.volume("TB1map").affine)
+        assert 0.7 < transmit.mean((0.0, 0.0, 0.0), 20.0) < 1.3
