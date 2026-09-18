@@ -397,9 +397,9 @@ class ShapedPulse(Event):
     #**********#
     @classmethod
     def slr(cls, flip_deg, duration_s, time_bandwidth, kind, offset_ppm=0.0, phase_deg=0.0,
-            steps=256, ripples=(0.01, 0.01), **kwargs):
-        """A linear-phase Shinnar-Le Roux pulse, the design behind the slice-selective
-        pulses scanners play (Pauly, Le Roux, Nishimura, Macovski, IEEE Trans Med
+            steps=256, ripples=(0.01, 0.01), minimum_phase=False, **kwargs):
+        """A Shinnar-Le Roux pulse, linear phase unless told, the design behind the
+        slice-selective pulses scanners play (Pauly, Le Roux, Nishimura, Macovski, IEEE Trans Med
         Imaging 10 (1991) 53): the profile is an equiripple low-pass filter (Parks and
         McClellan), here its beta polynomial, of `time_bandwidth` (the bandwidth is
         that over the duration, between the half-amplitude points); the minimum-phase
@@ -407,6 +407,11 @@ class ShapedPulse(Event):
         pulses off one by one. `kind` sets how the passband and stopband `ripples`
         of the magnetization map onto the filter's: "excitation" (a 90, rephased by
         half its gradient moment) or "refocusing" (a spin-echo 180 between crushers).
+        `minimum_phase` makes the beta polynomial the minimum-phase half of a filter
+        twice as long, played backwards, so the main lobe comes late (at 0.8 of the
+        pulse): the asymmetric excitation of short echo times, rephased by about 0.23
+        of its moment instead of 0.52, at the price of a phase that is no longer linear
+        across the slab (its slab integral is 0.9 where the linear pulse keeps 0.98).
         """
         from scipy import signal
 
@@ -424,7 +429,13 @@ class ShapedPulse(Event):
         width = d_inf / time_bandwidth
         edges = np.array([0.0, (1.0 - width) * time_bandwidth / 2.0,
                           (1.0 + width) * time_bandwidth / 2.0, steps / 2.0]) / steps
-        beta = scale * signal.remez(steps, edges, [1.0, 0.0], weight=[1.0, d1 / d2], fs=1.0)
+        if minimum_phase:
+            # the prototype carries the squared response: its stopband ripple squares
+            prototype = signal.remez(2 * steps - 1, edges, [1.0, 0.0],
+                                     weight=[1.0, 2.0 * d1 / (0.5 * d2 * d2)], fs=1.0)
+            beta = scale * signal.minimum_phase(prototype, method="homomorphic", half=True)[::-1]
+        else:
+            beta = scale * signal.remez(steps, edges, [1.0, 0.0], weight=[1.0, d1 / d2], fs=1.0)
         # the minimum-phase alpha with |alpha|^2 + |beta|^2 = 1, by the cepstrum
         pad = 16 * steps
         response = np.fft.fft(beta, pad)

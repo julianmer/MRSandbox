@@ -389,6 +389,19 @@ class TestAdiabatic:
             assert kept[:40].max() < 0.02 and kept[161:].max() < 0.02  # beyond 15 mm
             assert abs(kept[:-1].mean() * 2.5 - 1.0) < 0.05
         assert abs(ninety.peak_hz / GAMMA - 13.9) < 0.5 and abs(one_eighty.peak_hz / GAMMA - 24.5) < 0.5
+        # the minimum-phase 90: the same slab in magnitude, its main lobe late, less to
+        # rephase, and a tenth of the slab integral lost to its nonlinear phase
+        late = ShapedPulse.slr(90.0, 0.0026, 6.0, "excitation", offset_ppm=4.65, steps=128,
+                               minimum_phase=True, gradient_hz_per_mm=6.0 / 0.0026 / 20.0,
+                               gradient_axis="x", extent_mm=50.0)
+        assert np.argmax(np.abs(np.asarray(late.envelope))) > 0.7 * 128
+        slope = 6.0 / 0.0026 / 20.0
+        _, amps = engine.profile(Sequence(late, Gradient(-0.23 * slope * 0.0026, 50.0, axis="x"),
+                                          CoherenceFilter(-1)), water, "x", x)
+        kept = np.abs(amps).max(axis=1) / plain
+        assert kept[100 - 28:100 + 29].min() > 0.95 and kept[:40].max() < 0.03
+        line = np.argmax(np.abs(amps[100]))
+        assert 0.8 < abs(amps[:-1, line].mean()) * 2.5 / plain < 0.95
         with pytest.raises(ValueError):
             ShapedPulse.slr(90.0, 0.0026, 6.0, "inversion")
 
