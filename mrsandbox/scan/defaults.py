@@ -89,7 +89,13 @@ def default_params(database=None, b0_t=3.0):
         #     cited WATER table; at 1.5 and 7 T the WATER_FIELDS cards (Ethofer,
         #     Xin, Marjanska) replace what they cover. Draws clip at a stated 0.2 s
         #     floor; CSF keeps the field-independent cited value.
-        water=dict(residual_fraction=(1e-4, 3e-3), t1_s=water_t1, t2_s=water_t2),
+        #   temperature_c: the tissue temperature; the water line moves against the
+        #     metabolites by the thermometry calibration (tissue.CADY_1995, -1 / 94
+        #     ppm per degree from 37 C, where the shifts are typed). Fixed at 37; a
+        #     range is the user's belief about the subject (stated: the metabolites'
+        #     own shifts, fourteen times less sensitive, stay).
+        water=dict(residual_fraction=(1e-4, 3e-3), t1_s=water_t1, t2_s=water_t2,
+                   temperature_c=37.0),
         # lipids: subcutaneous fat at the skull boundary.
         #   amplitude_mm: adipose protons are water-like (about 60 to 70 M), which
         #     is why a voxel clipping the skull drowns in fat; the range is stated.

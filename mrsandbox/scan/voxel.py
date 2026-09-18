@@ -21,6 +21,7 @@ import numpy as np
 import scipy.special
 from keras import ops
 
+from mrsandbox.database.tissue import CADY_1995
 from mrsandbox.params import Params, Tissues
 from mrsandbox.phantom.volume import Volume
 
@@ -279,6 +280,9 @@ class Voxel:
         if water is not None:
             water_t2 = self.resolve(truth.water.t2_s)
             w_freqs, w_amps = water
+            # the water line moves with the temperature, the metabolites stay
+            warm = self.resolve(truth.water.temperature_c) - 37.0
+            w_freqs = w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz)
             groups["water"] = [(w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
                                 1.0 / (np.pi * water_t2), 0.0)]
         lipid = self.scan.lipids.lines(engine, sequence, self, truth, f0_mhz)

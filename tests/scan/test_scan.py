@@ -212,6 +212,30 @@ class TestAcquisitionImperfections:
         expected = fid0 * np.exp(1j * (2.0 * np.pi * 5.0 * t + np.pi / 2.0))
         assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
 
+    #*******************#
+    #   temperature     #
+    #*******************#
+    def test_temperature_moves_the_water_against_the_metabolites(self, scan):
+        # two degrees of fever: the water component is the 37 C one turned by
+        # -2 / 94.0 ppm (Cady 1995), everything else is untouched
+        brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+
+        def parts(temperature_c):
+            voxel = VirtualScan(brain, *pieces, params=Params(
+                **quiet, water=dict(temperature_c=temperature_c))).voxel(position_mm=(10, -20, 5),
+                                                                         size_mm=20)
+            return voxel._component_fids(voxel.sample(seed=7), 512, 1.0 / 4000.0), voxel._f0_mhz()
+
+        (body, f0_mhz), (fever, _) = parts(37.0), parts(39.0)
+        t = np.arange(512) / 4000.0
+        turned = body["water"] * np.exp(-2j * np.pi * (2.0 / 94.0) * f0_mhz * t)
+        np.testing.assert_allclose(fever["water"], turned, atol=1e-4 * np.abs(turned).max())
+        assert np.abs(fever["water"] - body["water"]).max() > 0.1 * np.abs(turned).max()
+        for name in ("metabolites", "mm", "downfield"):
+            np.testing.assert_array_equal(fever[name], body[name])
+
     #**********************#
     #   receiver delay     #
     #**********************#
