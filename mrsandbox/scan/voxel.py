@@ -191,8 +191,9 @@ class Voxel:
         voxel: (T1 per metabolite, T2 per metabolite, transmit, offset_hz) in
         truth.conc order, every value resolved here, the transmit being `b1_scale`
         or, with a per-isochromat profile, (b1_scale, the profile's bytes). Together
-        with the scan's `sequence.structure()` and timings it is the complete key of
-        a rendered basis, so a caller caching bases across voxels or draws keys them
+        with the scan's `sequence.structure()` and timings (and, under a gradient
+        response, this voxel's position, `_design_key`) it is the complete key of a
+        rendered basis, so a caller caching bases across voxels or draws keys them
         by this tuple."""
         names = tuple(truth.conc)
         profile = self.b1_profile(truth)
@@ -241,7 +242,7 @@ class Voxel:
     def _grouped(self, truth, metabolites=True):
         """The parts of `components` grouped by source, {name: [parts]} in the order
         metabolites, water, lipids, mm, downfield; silent sources are left out."""
-        engine, sequence = self.scan.engine, self.scan.sequence
+        engine, sequence = self.scan.engine, self.design(truth)
         f0_mhz = self._f0_mhz()
         faded = self._diffusion_factor(truth)
         # an empirical downfield source carries everything above its cutoff, so the
@@ -317,7 +318,7 @@ class Voxel:
         `metabolite_weights` @ basis. The frame is `frame(truth)` plus the grid."""
         lines = self._metabolite_lines(truth)
         names = tuple(truth.conc)
-        frame = self.frame(truth) + (npoints, float(dwell_s))
+        frame = self.frame(truth) + (npoints, float(dwell_s)) + self._design_key(truth)
         cached = self.scan._basis
         if cached is None or cached[0] is not truth:
             cached = self.scan._basis = (truth, {})
@@ -475,7 +476,7 @@ class Voxel:
                 fid = fid + self._render_lines(voigt, npoints, dwell_s)
             fids[name] = fid
         mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
-                                  sequence=self.scan.sequence)
+                                  sequence=self.design(truth))
         if mm_fid is not None:
             fids["mm"] = fids.get("mm", 0.0) + mm_fid * np.float32(
                 self._diffusion_factor(truth)(truth.diffusion.mm))
@@ -548,26 +549,66 @@ class Voxel:
             self._kernels[key] = self.scan.field.kernel(self.position_mm, self.size_mm, t)
         return self._kernels[key]
 
-    def _gradient_kernel(self, truth, npoints, dwell_s):
-        """The cached eddy-current kernel of this voxel's readout (scan.eddy) for the
-        drawn gradients leaves, the design's gradients played within the scanner's
-        limits; None when the design plays no gradient or every term is zero."""
-        from mrsandbox.hardware import Scanner
-        from mrsandbox.scan.eddy import readout_kernel
+    def _response(self, truth):
+        """The gradient response this voxel plays its design and readout through, as
+        (key, callable): the scan's measured one when it has one, else the
+        exponential response of the drawn gradients leaves; None when every drawn
+        term is zero."""
+        from mrsandbox.scan.eddy import exponential_response
 
+        if self.scan.girf is not None:
+            return ("girf", self.scan.girf.name), self.scan.girf
         g = truth.gradients
         terms = ((float(g.tau_short_s), float(g.tau_long_s)),
                  (float(g.b0_short_hz_per_mt_m), float(g.b0_long_hz_per_mt_m)),
                  (float(g.linear_short), float(g.linear_long)))
         if not any(terms[1]) and not any(terms[2]):
             return None
-        key = ("gradients", npoints, dwell_s) + terms
+        return ("gradients",) + terms, exponential_response(*terms)
+
+    def _scanner(self):
+        """The scan's scanner with its limits (a bare field strength gets the generic
+        limits)."""
+        from mrsandbox.hardware import Scanner
+
+        scanner = self.scan.scanner
+        return scanner if hasattr(scanner, "max_grad_mt_m") else Scanner("custom", float(scanner))
+
+    def design(self, truth):
+        """The scan's design as this voxel plays it: with the phase its own gradients
+        induce before the readout at this position (scan.eddy.induced_sequence,
+        through `_response`), the design itself without a response; cached per
+        response."""
+        from mrsandbox.scan.eddy import induced_sequence
+
+        response = self._response(truth)
+        if response is None:
+            return self.scan.sequence
+        key = ("design",) + response[0]
         if key not in self._kernels:
-            scanner = self.scan.scanner
-            if not hasattr(scanner, "max_grad_mt_m"):
-                scanner = Scanner("custom", float(scanner))
-            self._kernels[key] = readout_kernel(self.scan.sequence, scanner, self.position_mm,
-                                                self.size_mm, npoints, dwell_s, *terms)
+            self._kernels[key] = induced_sequence(self.scan.sequence, self._scanner(), response[1],
+                                                  self.position_mm)
+        return self._kernels[key]
+
+    def _design_key(self, truth):
+        """What a line or basis cache adds for this voxel's design: nothing while the
+        voxel plays the scan's own design (no response, or one with nothing to act
+        on), the position once it carries kicks (they depend on it)."""
+        return () if self.design(truth) is self.scan.sequence else (self.position_mm,)
+
+    def _gradient_kernel(self, truth, npoints, dwell_s):
+        """The cached eddy-current kernel of this voxel's readout (scan.eddy), the
+        design's gradients played within the scanner's limits through `_response`;
+        None without a response."""
+        from mrsandbox.scan.eddy import readout_kernel
+
+        response = self._response(truth)
+        if response is None:
+            return None
+        key = ("kernel", npoints, dwell_s) + response[0]
+        if key not in self._kernels:
+            self._kernels[key] = readout_kernel(self.scan.sequence, self._scanner(), self.position_mm,
+                                                self.size_mm, npoints, dwell_s, response[1])
         return self._kernels[key]
 
     #*****************#
@@ -731,11 +772,11 @@ class Voxel:
         cached = self.scan._lines
         if cached is None or cached[0] is not truth:
             cached = self.scan._lines = (truth, {})
-        key = (self.compiled,) + frame
+        key = (self.compiled,) + frame + self._design_key(truth)
         if key in cached[1]:
             return cached[1][key]
         groups = tuple(self.scan.systems(name) for name in names)
-        sequence = self.scan.sequence
+        sequence = self.design(truth)
         if self.compiled:
             fn, bounds = self.scan.engine.compiled_batch(sequence, groups)
             f, a = fn(ops.convert_to_tensor(np.asarray(t1, dtype=np.float32)),

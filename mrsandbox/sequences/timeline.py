@@ -21,6 +21,24 @@ import numpy as np
 from mrsandbox.sequences.events import Delay, Gradient, ShapedPulse, trapezoid
 
 
+#*******************#
+#   event spans     #
+#*******************#
+def event_spans(sequence):
+    """When each event of a design plays, [(start_s, end_s)] in event order: delays
+    and shaped pulses take their duration, everything else is instantaneous."""
+    spans, now = [], 0.0
+    for event in sequence.events:
+        took = 0.0
+        if isinstance(event, Delay):
+            took = float(event.t_s)
+        elif isinstance(event, ShapedPulse):
+            took = float(event.duration_s)
+        spans.append((now, now + took))
+        now += took
+    return spans
+
+
 #*************************#
 #   gradient waveforms    #
 #*************************#
@@ -49,12 +67,9 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
                           [0.0, 1.0, 1.0, 0.0], left=0.0, right=0.0)
         waveforms[axis] = waveforms.get(axis, np.zeros(n)) + amplitude_t_m * 1e3 * shape
 
-    now = 0.0
     events = sequence.events
-    for k, event in enumerate(events):
-        if isinstance(event, Delay):
-            now += float(event.t_s)
-        elif isinstance(event, Gradient):
+    for k, (event, (now, _)) in enumerate(zip(events, event_spans(sequence))):
+        if isinstance(event, Gradient):
             area = float(event.moment_per_mm) * 1e3 / (gamma_mhz_t * 1e6)  # T s / m
             amplitude, ramp, flat = trapezoid(area, max_grad, max_slew)
             following = next((e for e in events[k + 1:] if not isinstance(e, Gradient)), None)
@@ -65,5 +80,4 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
                 amplitude = float(event.gradient_hz_per_mm) / (gamma_mhz_t * 1e3)  # T/m
                 ramp = abs(amplitude) / max_slew
                 play(event.gradient_axis, now - ramp, amplitude, ramp, float(event.duration_s))
-            now += float(event.duration_s)
     return t, waveforms

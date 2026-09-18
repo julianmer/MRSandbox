@@ -193,10 +193,14 @@ def default_params(database=None, b0_t=3.0):
         #   system, de Graaf 2019 section 10.5; the constants are the PLAN's stated
         #   ranges, unverified against a measured response), each with a uniform
         #   B0 term in hertz per mT/m of step and a fraction of the step opposing it
-        #   along the axis. Their integrals over the readout phase the FID (the
-        #   Klose-type lineshape distortion) and dephase the voxel box; the ranges
-        #   are stated so the strong end distorts a line visibly and the weak end
-        #   is clean.
+        #   along the axis. Their integrals before the readout phase the coherences
+        #   and unbalance the crusher pairs (scan.eddy.induced_sequence, a zero-order
+        #   phase growing with the voxel's distance from the isocentre), over the
+        #   readout they phase the FID (the Klose-type lineshape distortion) and
+        #   dephase the voxel box; the ranges are stated so the strong end distorts
+        #   a line visibly and the weak end is clean. A scan with a measured
+        #   response (VirtualScan girf) plays its gradients through that instead
+        #   and leaves these terms unread.
         gradients=dict(tau_short_s=(0.002, 0.100), tau_long_s=(0.3, 3.0),
                        b0_short_hz_per_mt_m=(0.0, 0.5), b0_long_hz_per_mt_m=(0.0, 0.2),
                        linear_short=(0.0, 0.005), linear_long=(0.0, 0.002)),

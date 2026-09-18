@@ -75,7 +75,8 @@ jobs:
           for name in ("mm_consensus/3t_human_steam_fid",
                        "mm_consensus/3t_human_steam_procpar",
                        "bigbrain_mr/labels_800um",
-                       "bigbrain_mr/background_field_400um"):
+                       "bigbrain_mr/background_field_400um",
+                       "nws/release_zip"):
               Resources.path(name)
           EOF
       - name: Run tests

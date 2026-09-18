@@ -15,5 +15,6 @@
 #   imports   #
 #*************#
 from mrsandbox.resources.fetch import Resources
+from mrsandbox.resources.girf import GIRF
 from mrsandbox.resources.hmri import HMRI
 from mrsandbox.resources.uk7t import UK7T

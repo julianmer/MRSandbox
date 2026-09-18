@@ -21,7 +21,7 @@ import pathlib
 import shutil
 import urllib.request
 
-from mrsandbox.resources import bigbrain, hmri, icbm, mrshub, uk7t
+from mrsandbox.resources import bigbrain, girf, hmri, icbm, mrshub, uk7t
 
 
 #**************************************************************************************************#
@@ -44,7 +44,7 @@ class Resources:
 
     # one dict per data source, each in its own cited module
     REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO,
-                **uk7t.UK7T_DEPOSIT}
+                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT}
 
     #*************#
     #   lookup    #

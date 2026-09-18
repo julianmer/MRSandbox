@@ -99,7 +99,10 @@ This repository consists of the following main structures:
   multiplexes named conditions and transient schedules against one truth, and provides the on
   the fly generators for training. The instrumental imperfections (spurious echoes, eddy
   current phase, drift and motion across transients) are rendered by
-  [Augmentrum](https://github.com/julianmer/Augmentrum), installed as the `augment` extra.
+  [Augmentrum](https://github.com/julianmer/Augmentrum), installed as the `augment` extra; the
+  eddy currents a design's own gradients induce come from the scanner's gradient impulse
+  response (a measured 3 T response ships as a resource beside the parametric form), acting
+  on the coherences before the readout and on the FID during it.
 * The `mrsandbox/io/` folder reads external file formats: the Varian format of the consensus
   macromolecule spectra, and Pulseq `.seq` files (via pypulseq), whose blocks translate into
   the event primitives with the ADC marking the readout, so vendor-agnostic sequences run

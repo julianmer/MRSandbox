@@ -52,6 +52,10 @@ class VirtualScan:
         mm: A phantom.MMSource; defaults to the LCModel-convention parameterization.
         downfield: A phantom.DownfieldSource; defaults to the nine-peak
             parameterization, presaturated along with the default suppressed water.
+        girf: A resources.GIRF, the scanner's measured gradient impulse response;
+            every readout then carries the fields the design's own gradients induce
+            through it (scan.eddy) in place of the drawn exponential terms of the
+            gradients leaves. None draws those terms.
         isochromats: Ensemble size for gradient-bearing sequences, handed to the
             engine; raise it for dense multi-axis gradient schemes.
         engine: An Engine to share (its compiled graphs and renderers) between scans
@@ -63,7 +67,7 @@ class VirtualScan:
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
-                 isochromats=32, engine=None):
+                 girf=None, isochromats=32, engine=None):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -76,6 +80,7 @@ class VirtualScan:
         self.coils = coils
         self.field = field
         self.transmit = transmit
+        self.girf = girf
         self.params = (default_params(self.database, b0_t=self.engine.b0_t)
                        | (params if params is not None else Params()))
         self._lines = None

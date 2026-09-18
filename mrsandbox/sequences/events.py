@@ -559,6 +559,56 @@ class Gradient(Event):
 
 
 #**************************************************************************************************#
+#                                        Class InducedKick                                         #
+#**************************************************************************************************#
+#                                                                                                  #
+# The phase an induced field accumulates over an interval: uniform cycles and moments per axis.    #
+#                                                                                                  #
+#**************************************************************************************************#
+class InducedKick(Event):
+    """The phase an induced field accumulates over an interval: uniform cycles and
+    moments per axis.
+
+    What the scanner's gradient response adds to a design before the readout
+    (scan.eddy.induced_sequence): the field's integral over the interval it follows,
+    as a uniform part in cycles applied per coherence order like a delay's frame
+    offset (the B0 term plus the first-order terms at the voxel centre) and a moment
+    per axis in cycles per millimetre applied over the isochromat ensemble like a
+    gradient kick (the first-order terms across the box, unbalancing the crushers).
+    Every value is a timing, so one compiled design replays at every voxel.
+
+    Args:
+        cycles: The uniform phase in cycles.
+        moment_x, moment_y, moment_z: The moments in cycles per millimetre.
+    """
+
+    free = ("cycles", "moment_x", "moment_y", "moment_z")
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, cycles, moment_x=0.0, moment_y=0.0, moment_z=0.0):
+        self.cycles = cycles
+        self.moment_x = moment_x
+        self.moment_y = moment_y
+        self.moment_z = moment_z
+
+    #***********#
+    #   apply   #
+    #***********#
+    def apply(self, rho, ctx):
+        angle = 2.0 * math.pi * ops.convert_to_tensor(self.cycles, dtype="float32")
+        for axis in "xyz":
+            x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype="float32")
+            if ops.ndim(x) > 0:
+                x = ops.reshape(x, (-1, 1, 1))
+            moment = ops.convert_to_tensor(getattr(self, "moment_" + axis), dtype="float32")
+            angle = angle - 2.0 * math.pi * moment * x
+        angle = angle * ops.cast(ctx.q, "float32")
+        return rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
+
+
+#**************************************************************************************************#
 #                                      Class CoherenceFilter                                       #
 #**************************************************************************************************#
 #                                                                                                  #
