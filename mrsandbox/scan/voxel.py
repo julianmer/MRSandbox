@@ -15,6 +15,8 @@
 #*************#
 #   imports   #
 #*************#
+import dataclasses
+
 import numpy as np
 import scipy.special
 from keras import ops
@@ -438,6 +440,20 @@ class Voxel:
         return t, fid
 
     def _component_fids(self, truth, npoints, dwell_s, basis=None):
+        """Every component's noise-free FID as the receiver delivers it: the rendered
+        components of `_rendered_fids`, with a hardware.Receiver on the scan rendered
+        on the receiver's oversampled grid and each filtered and decimated (a linear
+        step, so the components still sum to the clean FID exactly)."""
+        receiver = self.scan.receiver
+        if receiver is None:
+            return self._rendered_fids(truth, npoints, dwell_s, basis)
+        fine_n, fine_dwell = receiver.grid(npoints, dwell_s)
+        if basis is not None:
+            basis = self.metabolite_basis(truth, fine_n, fine_dwell)
+        return {name: receiver.decimate(fid, npoints)
+                for name, fid in self._rendered_fids(truth, fine_n, fine_dwell, basis).items()}
+
+    def _rendered_fids(self, truth, npoints, dwell_s, basis=None):
         """Every component's noise-free FID on the grid, {name: complex64} in the order
         metabolites, water, lipids, mm, downfield, spurious (silent ones left out):
         each source's lines rendered on their own, with the B0 dephasing, the drawn
@@ -740,8 +756,11 @@ class Voxel:
             "SimulationPhantom",
             {"brain": self.scan.brain.name, "position_mm": list(self.position_mm),
              "size_mm": list(self.size_mm) if isinstance(self.size_mm, tuple) else self.size_mm,
-             "transmit": None if self.scan.transmit is None else self.scan.transmit.name},
-            "MRSandbox: the virtual brain, the transmit map, and the voxel placement.",
+             "transmit": None if self.scan.transmit is None else self.scan.transmit.name,
+             "receiver": None if self.scan.receiver is None
+             else dataclasses.asdict(self.scan.receiver)},
+            "MRSandbox: the virtual brain, the transmit map, the receiver, and the voxel "
+            "placement.",
         )
         return hdr
 

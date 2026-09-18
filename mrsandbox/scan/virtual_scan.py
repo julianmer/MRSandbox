@@ -56,6 +56,9 @@ class VirtualScan:
             every readout then carries the fields the design's own gradients induce
             through it (scan.eddy) in place of the drawn exponential terms of the
             gradients leaves. None draws those terms.
+        receiver: A hardware.Receiver, the digital receiver every FID passes through
+            (oversampled, filtered, decimated: the first points carry the filter's
+            onset). None samples the ideal FID. The noise stays white (stated).
         isochromats: Ensemble size for gradient-bearing sequences, handed to the
             engine; raise it for dense multi-axis gradient schemes.
         engine: An Engine to share (its compiled graphs and renderers) between scans
@@ -67,7 +70,7 @@ class VirtualScan:
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
-                 girf=None, isochromats=32, engine=None):
+                 girf=None, receiver=None, isochromats=32, engine=None):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -81,6 +84,7 @@ class VirtualScan:
         self.field = field
         self.transmit = transmit
         self.girf = girf
+        self.receiver = receiver
         self.params = (default_params(self.database, b0_t=self.engine.b0_t)
                        | (params if params is not None else Params()))
         self._lines = None

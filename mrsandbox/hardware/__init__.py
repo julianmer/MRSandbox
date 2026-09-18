@@ -15,4 +15,5 @@
 #   imports   #
 #*************#
 from mrsandbox.hardware.coils import CoilArray, Loop, MappedCoilArray
+from mrsandbox.hardware.receiver import Receiver
 from mrsandbox.hardware.scanners import Scanner
