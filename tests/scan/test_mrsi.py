@@ -162,6 +162,31 @@ class TestSeeds:
         assert data.shape == (3, 3, 1, 64, 4)
         assert data.dim_tags[0] == "DIM_COIL"
 
+    def test_components_sum_to_the_acquisition(self, scan):
+        # the second file of a training pair: the same seed, split on DIM_USER_0 into
+        # the named components plus the noise, summing back to the acquisition;
+        # quiet and with the drawn noise, plain and with coils, on a weighted lattice
+        brain = scan.brain
+        for params, coils in ((QUIET, None), (Params(), None), (Params(), CoilArray.ring(4))):
+            noisy = VirtualScan(brain, scan.scanner, scan.sequence, params=params, coils=coils)
+            mrsi = noisy.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(3, 3), voxel_mm=20.0,
+                              weighting="hamming")
+            whole = mrsi.acquire(seed=3, npoints=64)
+            parts = mrsi.acquire_components(seed=3, npoints=64)
+            names = parts.hdr_ext.to_dict()["SimulationComponents"]["names"]
+            assert names[0] == "metabolites" and names[-1] == "noise" and "water" in names
+            assert parts.shape == whole.shape + (len(names),)
+            assert parts.dim_tags[0 if coils is None else 1] == "DIM_USER_0"
+            if coils is not None:
+                assert parts.dim_tags[0] == "DIM_COIL"
+            summed = np.asarray(parts[:]).sum(axis=-1)
+            np.testing.assert_allclose(summed, np.asarray(whole[:]),
+                                       atol=1e-5 * np.abs(summed).max())
+            noise = np.asarray(parts[:])[..., -1]
+            assert (np.abs(noise).max() == 0.0) == (params is QUIET)
+            assert (parts.hdr_ext.to_dict()["SimulationGroundTruth"]
+                    == whole.hdr_ext.to_dict()["SimulationGroundTruth"])
+
 
 #**************************************************************************************************#
 #                                       Class TestEncoding                                         #

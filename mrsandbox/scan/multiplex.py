@@ -93,7 +93,6 @@ class Multiplex:
         the average of `averages` transients.
         """
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-        from nifti_mrs.hdr_ext import Hdr_Ext
 
         conditions = tuple(self.conditions if conditions is None else conditions)
         seed, truth, rng = draw(self.params, seed, step)
@@ -101,11 +100,53 @@ class Multiplex:
         for name in conditions:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             _, fid = voxel._clean_fid(truth, npoints, dwell_s)
-            sigma = voxel.noise_sigma(truth, averages)
-            if sigma > 0.0:
-                fid = fid + receiver_noise(rng, sigma, npoints)
-            stack.append(fid)
+            stack.append(fid + self._noise(voxel, truth, rng, npoints, averages))
         data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(conditions))
+        hdr = self._header(conditions, position_mm, size_mm, seed, step, averages, truth)
+        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+
+    def acquire_components(self, position_mm, size_mm, seed=None, npoints=2048,
+                           dwell_s=1.0 / 4000.0, conditions=None, step=0, averages=1):
+        """Acquire the conditions component by component and return NIfTI-MRS on
+        DIM_EDIT then DIM_USER_0: the same subject, noise, header, and provenance as
+        `acquire` with the same arguments, every condition split into the signal
+        components named in the header's SimulationComponents (the union over the
+        conditions in order of appearance, a component silent in a condition being
+        zero there, and noise last), so the components sum to the acquisition
+        exactly. The second file of a training pair (Voxel.acquire_components)."""
+        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
+
+        conditions = tuple(self.conditions if conditions is None else conditions)
+        seed, truth, rng = draw(self.params, seed, step)
+        parts, names = [], []
+        for name in conditions:
+            voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
+            fids = voxel._component_fids(truth, npoints, dwell_s)
+            names += [n for n in fids if n not in names]
+            fids["noise"] = self._noise(voxel, truth, rng, npoints, averages)
+            parts.append(fids)
+        names.append("noise")
+        zero = np.zeros(npoints, dtype=np.complex64)
+        data = np.stack([np.stack([fids.get(n, zero) for n in names], axis=-1) for fids in parts],
+                        axis=-2).reshape(1, 1, 1, npoints, len(conditions), len(names))
+        hdr = self._header(conditions, position_mm, size_mm, seed, step, averages, truth)
+        hdr.set_dim_info(1, "DIM_USER_0",
+                         info="MRSandbox: the signal components named in SimulationComponents.")
+        hdr.set_user_def("SimulationComponents", {"names": names},
+                         "MRSandbox: the components on DIM_USER_0, in order; they sum to "
+                         "the acquisition of the same seed and step.")
+        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+
+    @staticmethod
+    def _noise(voxel, truth, rng, npoints, averages):
+        """One condition's receiver noise of `averages` transients, zeros when silent."""
+        sigma = voxel.noise_sigma(truth, averages)
+        return (receiver_noise(rng, sigma, npoints) if sigma > 0.0
+                else np.zeros(npoints, dtype=np.complex64))
+
+    def _header(self, conditions, position_mm, size_mm, seed, step, averages, truth):
+        """The header extension every acquisition of a condition stack carries."""
+        from nifti_mrs.hdr_ext import Hdr_Ext
 
         voxel = self.scans[conditions[0]].voxel(position_mm, size_mm)
         hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
@@ -131,17 +172,20 @@ class Multiplex:
              "size_mm": list(size_mm) if hasattr(size_mm, "__len__") else float(size_mm)},
             "MRSandbox: the virtual brain and the voxel placement.",
         )
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+        return hdr
 
     #*************#
     #   combine   #
     #*************#
     def combine(self, acquisition, name):
         """One named combination of an acquired condition stack (e.g. the Hadamard GABA
-        difference): the weighted sum over DIM_EDIT, returned as a complex FID array."""
+        difference): the weighted sum over DIM_EDIT, returned as a complex array of
+        the voxel's remaining dimensions (the FID, or the FID by the components of an
+        `acquire_components` file)."""
         weights = self.combinations[name]
         w = np.asarray([weights[c] for c in self.conditions], dtype=np.float32)
-        return np.asarray(acquisition[:])[0, 0, 0] @ w
+        axis = 4 + acquisition.dim_tags.index("DIM_EDIT")
+        return np.tensordot(np.asarray(acquisition[:])[0, 0, 0], w, axes=([axis - 3], [0]))
 
     #****************#
     #   transients   #

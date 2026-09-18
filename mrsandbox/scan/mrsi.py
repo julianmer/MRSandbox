@@ -311,9 +311,44 @@ class MRSI:
         CoilArray on the scan the data gains a trailing DIM_COIL dimension.
         """
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-        from nifti_mrs.hdr_ext import Hdr_Ext
 
         seed, truth, rng = draw(self.scan.params, seed)
+        data, _, n_dead = self._decoded(truth, npoints, dwell_s)
+        noise = self._noise(truth, rng, npoints)
+        if noise is not None:
+            data = data + noise
+        hdr = self._header(seed, truth, dwell_s, n_dead)
+        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
+
+    def acquire_components(self, seed=None, npoints=512, dwell_s=1.0 / 4000.0):
+        """Acquire the slice component by component and return NIfTI-MRS on DIM_USER_0
+        (after DIM_COIL with a CoilArray): the same subject, noise, header, and
+        provenance as `acquire` with the same arguments, every cell split into the
+        signal components named in the header's SimulationComponents (the union over
+        the cells in order of appearance, noise last), each encoded and decoded on
+        its own, so the components sum to the acquisition exactly (the encoding is
+        linear). The second file of a training pair (Voxel.acquire_components)."""
+        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
+
+        seed, truth, rng = draw(self.scan.params, seed)
+        data, names, n_dead = self._decoded(truth, npoints, dwell_s, components=True)
+        noise = self._noise(truth, rng, npoints)
+        if noise is None:
+            noise = np.zeros(data.shape[:-1], dtype=np.complex64)
+        data = np.concatenate([data, noise[..., None]], axis=-1)
+        names = names + ["noise"]
+        hdr = self._header(seed, truth, dwell_s, n_dead)
+        hdr.set_dim_info(0 if self.scan.coils is None else 1, "DIM_USER_0",
+                         info="MRSandbox: the signal components named in SimulationComponents.")
+        hdr.set_user_def("SimulationComponents", {"names": names},
+                         "MRSandbox: the components on DIM_USER_0, in order; they sum to "
+                         "the acquisition of the same seed.")
+        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
+
+    def _decoded(self, truth, npoints, dwell_s, components=False):
+        """The clean decoded lattice of one truth, (nx, ny, nz, npoints[, coils]) or with
+        `components` a trailing axis over the signal components, as (data, the
+        component names, the dead points per period)."""
         coils = self.scan.coils
         nx, ny = self.matrix[0], self.matrix[1]
         nz = self.partitions
@@ -326,34 +361,48 @@ class MRSI:
         fine = npoints if self.trajectory is None else npoints * period
         step = dwell_s if self.trajectory is None else dwell_s / period
         tail = (npoints,) + ((len(coils),) if coils is not None else ())
-        source = np.zeros((sx, sy) + ((nz,) if nz > 1 else ())
-                          + (fine,) + tail[1:], dtype=np.complex64)
         weights = (self.profile if self.profile is not None
                    else np.ones(len(self.voxels[0][0])))
+        # every cell's FIDs, {component: fid} per voxel of the cell (one component,
+        # the sum, without `components`), the metabolites rendered once per truth
+        # (and resolved frame) as unit FIDs every voxel forms its own from
+        cells, names = {}, []
         for i in range(sx):
             for j in range(sy):
-                cell = self.voxels[i][j]
-                # the metabolites render once per truth (and resolved frame) as unit
-                # FIDs; every voxel forms its own from its weights
-                fids = [voxel._clean_fid(truth, fine, step,
-                                         basis=voxel.metabolite_basis(truth, fine, step))[1]
-                        for voxel in cell]
+                cells[i, j] = []
+                for voxel in self.voxels[i][j]:
+                    basis = voxel.metabolite_basis(truth, fine, step)
+                    if components:
+                        fids = voxel._component_fids(truth, fine, step, basis=basis)
+                        names += [n for n in fids if n not in names]
+                    else:
+                        fids = {"": voxel._clean_fid(truth, fine, step, basis=basis)[1]}
+                    cells[i, j].append(fids)
+        components_names = names
+        names = names or [""]
+        zero = np.zeros(fine, dtype=np.complex64)
+        source = np.zeros((sx, sy) + ((nz,) if nz > 1 else ()) + (fine,) + tail[1:]
+                          + (len(names),), dtype=np.complex64)
+        for (i, j), cell in cells.items():
+            for k, name in enumerate(names):
+                fids = [f.get(name, zero) for f in cell]
                 if nz == 1:
                     if coils is None:
-                        source[i, j] = sum(w * fid for w, fid in zip(weights, fids)) / weights.size
+                        source[i, j, ..., k] = (sum(w * fid for w, fid in zip(weights, fids))
+                                                / weights.size)
                     else:
                         channels = sum(
                             w * coils.sensitivities(voxel.position_mm, voxel.size_mm)[:, None]
                             * fid[None, :]
-                            for w, voxel, fid in zip(weights, cell, fids)
+                            for w, voxel, fid in zip(weights, self.voxels[i][j], fids)
                         ) / weights.size
-                        source[i, j] = np.transpose(channels)
+                        source[i, j, ..., k] = np.transpose(channels)
                 else:
-                    for l, (w, voxel, fid) in enumerate(zip(weights, cell, fids)):
+                    for l, (w, voxel, fid) in enumerate(zip(weights, self.voxels[i][j], fids)):
                         channel = w * fid if coils is None else np.transpose(
                             w * coils.sensitivities(voxel.position_mm, voxel.size_mm)[:, None]
                             * fid[None, :])
-                        source[i, j, l] = channel
+                        source[i, j, l, ..., k] = channel
 
         if self.trajectory is None:
             encoded = self._encode(source)
@@ -361,45 +410,61 @@ class MRSI:
             encoded = self._sample_trajectory(source, npoints, n_dead)
         else:
             encoded = self._sample_nonuniform(source, npoints, n_dead)
-        data = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
+        data = np.zeros((nx, ny, nz) + tail + (len(names),), dtype=np.complex64)
         if nz == 1:
             data[:, :, 0] = encoded
         else:
             data[:] = encoded
+        return (data if components else data[..., 0]), components_names, n_dead
+
+    def _noise(self, truth, rng, npoints):
+        """The receiver noise of one acquisition, (nx, ny, nz, npoints[, coils]), or
+        None when the drawn sigma is zero."""
+        coils = self.scan.coils
+        nx, ny = self.matrix[0], self.matrix[1]
+        nz = self.partitions
+        tail = (npoints,) + ((len(coils),) if coils is not None else ())
         # the drawn sigma scaled to the acquired cell (its in-plane size times the
         # slab thickness) and the field; the averages enter per encode below
         sigma = truth.noise.sigma * noise_scale(
             self.voxel_mm ** 2 * self.thickness_mm / 1000.0, self.scan.engine.b0_t)
-        if sigma > 0.0:
-            if self.averages is None:
-                for index in np.ndindex(nx, ny, nz):
-                    if coils is None:
-                        data[index] += receiver_noise(rng, sigma, npoints)
-                    else:
-                        data[index] += np.transpose(coils.noise(rng, sigma, npoints))
-            else:
-                # per-encode noise, summed over the NA(k) transients and normalized by
-                # the centre count like the signal: std sigma sqrt(prod(dims)) sqrt(NA)
-                # over NA(0) in the centred k frame, nothing where never measured
-                counts = self._averages_map()
-                centre = tuple(n // 2 for n in self.dims)
-                scale = sigma * np.sqrt(float(np.prod(self.dims))) * np.sqrt(counts) / counts[centre]
+        if sigma <= 0.0:
+            return None
+        noise = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
+        if self.averages is None:
+            for index in np.ndindex(nx, ny, nz):
                 if coils is None:
-                    noise_k = scale[..., None] * (
-                        rng.standard_normal(self.dims + (npoints,))
-                        + 1j * rng.standard_normal(self.dims + (npoints,)))
+                    noise[index] = receiver_noise(rng, sigma, npoints)
                 else:
-                    noise_k = np.zeros(self.dims + (npoints, len(coils)), dtype=np.complex64)
-                    for index in np.ndindex(*self.dims):
-                        if counts[index] > 0:
-                            noise_k[index] = np.transpose(
-                                coils.noise(rng, float(scale[index]), npoints))
-                axes = tuple(range(len(self.dims)))
-                image = np.fft.ifftn(np.fft.ifftshift(noise_k, axes=axes), axes=axes)
-                data += image.reshape((nx, ny, nz) + tail).astype(np.complex64)
+                    noise[index] = np.transpose(coils.noise(rng, sigma, npoints))
+            return noise
+        # per-encode noise, summed over the NA(k) transients and normalized by
+        # the centre count like the signal: std sigma sqrt(prod(dims)) sqrt(NA)
+        # over NA(0) in the centred k frame, nothing where never measured
+        counts = self._averages_map()
+        centre = tuple(n // 2 for n in self.dims)
+        scale = sigma * np.sqrt(float(np.prod(self.dims))) * np.sqrt(counts) / counts[centre]
+        if coils is None:
+            noise_k = scale[..., None] * (
+                rng.standard_normal(self.dims + (npoints,))
+                + 1j * rng.standard_normal(self.dims + (npoints,)))
+        else:
+            noise_k = np.zeros(self.dims + (npoints, len(coils)), dtype=np.complex64)
+            for index in np.ndindex(*self.dims):
+                if counts[index] > 0:
+                    noise_k[index] = np.transpose(
+                        coils.noise(rng, float(scale[index]), npoints))
+        axes = tuple(range(len(self.dims)))
+        image = np.fft.ifftn(np.fft.ifftshift(noise_k, axes=axes), axes=axes)
+        return image.reshape((nx, ny, nz) + tail).astype(np.complex64)
 
+    def _header(self, seed, truth, dwell_s, n_dead):
+        """The header extension every acquisition of the lattice carries."""
+        from nifti_mrs.hdr_ext import Hdr_Ext
+
+        period = self.samples_per_period + n_dead
         hdr = Hdr_Ext(self.voxels[0][0][0]._f0_mhz(), "1H")
-        if coils is not None:
+        if self.scan.coils is not None:
             hdr.set_dim_info(0, "DIM_COIL")
         hdr.set_user_def(
             "SimulationGroundTruth",
@@ -431,7 +496,7 @@ class MRSI:
                 if self.averages is not None else {})},
             "MRSandbox: the virtual brain and the slice lattice.",
         )
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
+        return hdr
 
     #**************#
     #   encoding   #

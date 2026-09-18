@@ -238,6 +238,36 @@ class TestMultiplex:
         np.testing.assert_allclose(multiplex.combine(data, "gaba"), manual,
                                    atol=1e-5 * np.abs(volume).max())
 
+    #******************#
+    #   components     #
+    #******************#
+    def test_components_sum_to_the_conditions_and_combine_alike(self, hermes_acquisition):
+        # the second file of a training pair: DIM_EDIT then DIM_USER_0, the components
+        # of every condition summing to it, and combine reading either file
+        multiplex, data = hermes_acquisition
+        parts = multiplex.acquire_components(position_mm=(10.0, -20.0, 5.0), size_mm=20.0,
+                                             seed=7, npoints=512)
+        names = parts.hdr_ext.to_dict()["SimulationComponents"]["names"]
+        assert parts.dim_tags[:2] == ["DIM_EDIT", "DIM_USER_0"]
+        assert parts.shape == (1, 1, 1, 512, 4, len(names))
+        assert names[0] == "metabolites" and names[-1] == "noise" and "water" in names
+        summed = np.asarray(parts[:]).sum(axis=-1)
+        np.testing.assert_allclose(summed, np.asarray(data[:]), atol=1e-5 * np.abs(summed).max())
+        combined = multiplex.combine(parts, "gaba")
+        assert combined.shape == (512, len(names))
+        np.testing.assert_allclose(combined.sum(axis=-1), multiplex.combine(data, "gaba"),
+                                   atol=1e-5 * np.abs(combined).max())
+        assert (parts.hdr_ext.to_dict()["SimulationConditions"]
+                == data.hdr_ext.to_dict()["SimulationConditions"])
+        # with the drawn noise the noise component carries it, the same draw as acquire
+        noisy = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"), MegaPress.pair())
+        whole = noisy.acquire(position_mm=(10.0, -20.0, 5.0), size_mm=20.0, seed=7, npoints=256)
+        parts = noisy.acquire_components(position_mm=(10.0, -20.0, 5.0), size_mm=20.0, seed=7,
+                                         npoints=256)
+        assert np.abs(np.asarray(parts[:])[..., -1]).max() > 0.0
+        summed = np.asarray(parts[:]).sum(axis=-1)
+        np.testing.assert_allclose(summed, np.asarray(whole[:]), atol=1e-5 * np.abs(summed).max())
+
     #*****************#
     #   replay path   #
     #*****************#
