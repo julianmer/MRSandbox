@@ -70,3 +70,17 @@ class TestSteam:
         steam = ops.convert_to_numpy(sim.lines(Steam(te_s=0.02, tm_s=0.01), scyllo)[1])
         ratio = np.abs(steam).sum() / np.abs(reference).sum()
         assert abs(ratio - 0.5) < 1e-3
+
+    #*******************#
+    #   refocused       #
+    #*******************#
+    def test_the_stimulated_echo_refocuses_the_shifts(self, sim):
+        # the kept pathway is +1, 0, -1: the echo is in phase with a plain excitation
+        # at any echo time (the pathway -1, 0, -1 has the same half amplitude and a
+        # phase that turns with shift times TE)
+        (scyllo,) = SpinSystem.from_database("sIns")
+        reference = ops.convert_to_numpy(sim.lines(PulseAcquire(), scyllo)[1])
+        k = np.argmax(np.abs(reference))
+        for te_s in (0.0200, 0.0203, 0.0217):
+            steam = ops.convert_to_numpy(sim.lines(Steam(te_s=te_s, tm_s=0.01), scyllo)[1])
+            assert abs(np.angle(steam[k] / reference[k])) < 1e-3

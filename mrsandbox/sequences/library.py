@@ -83,7 +83,10 @@ class Press(Sequence):
 #                                                                                                  #
 #**************************************************************************************************#
 class Steam(Sequence):
-    """Ideal STEAM: 90x - te/2 - 90x - tm - 90x - te/2 - acquire, stimulated-echo pathway only.
+    """Ideal STEAM: 90x - te/2 - 90x - tm - 90(-x) - te/2 - acquire, stimulated-echo pathway
+    only: order +1 in the first half, stored along z through the mixing time, order -1
+    in the second half, so the shifts refocus at the echo (the pathway -1, 0, -1 has the
+    same half amplitude and never refocuses).
 
     Args:
         te_s: Echo time in seconds.
@@ -99,12 +102,12 @@ class Steam(Sequence):
         self.tm_s = tm_s
         super().__init__(
             Pulse(90.0),
-            CoherenceFilter(-1),
+            CoherenceFilter(+1),
             Delay(te_s / 2.0),
             Pulse(90.0),
             CoherenceFilter(0),
             Delay(tm_s),
-            Pulse(90.0),
+            Pulse(90.0, phase_deg=180.0),  # the echo upright, in phase with a plain excitation
             CoherenceFilter(-1),
             Delay(te_s / 2.0),
             tr_s=tr_s,
