@@ -29,9 +29,8 @@ jobs:
         backend: [jax, tensorflow, torch]
         python: ["3.11"]
         include:
-          # newer interpreters run on the jax leg only (the fastest backend)
-          - backend: jax
-            python: "3.12"
+          # the newest interpreter runs on the jax leg only (the fastest backend): the
+          # oldest and the newest bracket the ones between
           - backend: jax
             python: "3.13"
     env:
