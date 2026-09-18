@@ -18,6 +18,6 @@ from mrsandbox.sequences.cycling import Cycled
 from mrsandbox.sequences.events import (CoherenceFilter, Delay, Event, Gradient, InducedKick,
                                         Projection, Pulse, SelectivePulse, Sequence, ShapedPulse)
 from mrsandbox.sequences.library import (Chess, HadamardEditing, Hercules, Hermes, LocalizedPress,
-                                         LocalizedSemiLaser, MegaPress, OuterVolumeSuppression,
-                                         Press, PulseAcquire, SemiLaser, Steam, SuppressionTrain,
-                                         Vapor, Wet)
+                                         LocalizedSemiLaser, LocalizedSteam, MegaPress,
+                                         OuterVolumeSuppression, Press, PulseAcquire, SemiLaser,
+                                         Steam, SuppressionTrain, Vapor, Wet)

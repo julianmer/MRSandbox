@@ -466,3 +466,34 @@ class TestLocalizedPress:
         assert 0.95 < abs(a[k] / b[k]) < 1.05 and abs(np.degrees(np.angle(a[k] / b[k]))) < 0.5
         with pytest.raises(ValueError):
             LocalizedPress(0.004, 0.010, 3.0 * 42.5774785)
+
+
+#**************************************************************************************************#
+#                                     Class TestLocalizedSteam                                     #
+#**************************************************************************************************#
+class TestLocalizedSteam:
+
+    def test_three_slabs_keep_the_stimulated_echo_upright(self):
+        from mrsandbox import LocalizedSteam, Scanner, SpinSystem, Steam
+
+        f0_mhz = 3.0 * 42.5774785
+        engine = Engine(3.0, isochromats=32)
+
+        def lines(sequence, system):
+            return np.asarray(ops.convert_to_numpy(engine.lines(sequence, system)[1]))
+
+        water = WaterSource.system(gamma_mhz_t=42.5774785)
+        ideal = lines(Steam(te_s=0.020, tm_s=0.010), water)
+        k = np.argmax(np.abs(ideal))
+        voxel = lines(LocalizedSteam(0.020, 0.010, f0_mhz, reference_ppm=4.65), water)
+        # three Shinnar-Le Roux slab integrals of 0.98, in phase with the ideal echo
+        assert 0.9 < abs(voxel[k] / ideal[k]) < 1.0
+        assert abs(np.degrees(np.angle(voxel[k] / ideal[k]))) < 0.5
+        # 2.3 kHz on every axis: the coupled multiplets stay close to the ideal ones
+        glu = SpinSystem.from_database("Glu")[0]
+        a, b = lines(LocalizedSteam(0.020, 0.010, f0_mhz), glu), lines(Steam(te_s=0.020, tm_s=0.010), glu)
+        assert abs(np.vdot(a, b)) / np.linalg.norm(a) / np.linalg.norm(b) > 0.98
+        # 14 uT pulses play on every preset
+        assert LocalizedSteam(0.020, 0.010, f0_mhz).feasible(Scanner.preset("philips_elition_3t"))
+        with pytest.raises(ValueError):
+            LocalizedSteam(0.004, 0.010, f0_mhz)

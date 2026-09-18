@@ -228,6 +228,71 @@ class LocalizedPress(Sequence):
 
 
 #**************************************************************************************************#
+#                                       Class LocalizedSteam                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# STEAM with its localization played: three slice-selective Shinnar-Le Roux 90s on three axes.     #
+#                                                                                                  #
+#**************************************************************************************************#
+class LocalizedSteam(Sequence):
+    """STEAM with its localization played: slice-selective Shinnar-Le Roux 90s on x, y,
+    and z (2.6 ms, 2.3 kHz, 14 uT: every pulse has the bandwidth of an excitation,
+    which is why STEAM displaces less than PRESS and reaches shorter echo times).
+
+    The stimulated-echo pathway +1, 0, -1 is selected by coherence filters on both
+    sides of the second and third pulse, as the crushers of the two echo halves and
+    of the mixing time do; zero-quantum coherences of coupled spins pass the mixing
+    time, as they do on a scanner. The first pulse is rephased after it, the second,
+    which stores, before it (the same pulse run backwards), the third after it, each
+    by 0.52 of its gradient moment, and each axis is averaged as soon as its pulse
+    has played (`Projection`). The times run between pulse centres; the carriers
+    read their nominal phase at the pulse centres.
+
+    Args:
+        te_s: Echo time in seconds.
+        tm_s: Mixing time in seconds.
+        f0_mhz: The spectrometer frequency (the carrier phases need it).
+        size_mm: The voxel edge, or its (x, y, z) edges.
+        reference_ppm: The shift the three slabs are centred for; others displace.
+        span: The ensemble's extent per axis in voxel edges.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
+    """
+
+    PULSE_S, PULSE_TBW, REPHASE = 0.0026, 6.0, 0.52
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, te_s, tm_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None):
+        self.te_s = te_s
+        self.tm_s = tm_s
+        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        t = self.PULSE_S
+        if te_s / 2.0 <= t or tm_s <= t:
+            raise ValueError(f"te_s {te_s} and tm_s {tm_s} are too short for the {t * 1e3:.1f} ms pulses")
+        carrier = -180.0 * reference_ppm * f0_mhz * t
+
+        def slab(axis, edge, phase_deg):
+            slope = self.PULSE_TBW / t / edge  # Hz per mm
+            pulse = ShapedPulse.slr(90.0, t, self.PULSE_TBW, "excitation", steps=128,
+                                    offset_ppm=reference_ppm, phase_deg=phase_deg + carrier,
+                                    gradient_hz_per_mm=slope, gradient_axis=axis,
+                                    extent_mm=span * edge)
+            return pulse, Gradient(-self.REPHASE * slope * t, span * edge, axis=axis)
+
+        (first, after_x), (second, before_y), (third, after_z) = (
+            slab("x", edges[0], 0.0), slab("y", edges[1], 0.0), slab("z", edges[2], 180.0))
+        super().__init__(
+            first, after_x, CoherenceFilter(+1), Projection(span), Delay(te_s / 2.0 - t),
+            CoherenceFilter(+1), before_y, second, CoherenceFilter(0), Projection(span),
+            Delay(tm_s - t),
+            CoherenceFilter(0), third, after_z, CoherenceFilter(-1), Projection(span),
+            Delay(te_s / 2.0 - t / 2.0),
+            tr_s=tr_s,
+        )
+
+
+#**************************************************************************************************#
 #                                     Class LocalizedSemiLaser                                     #
 #**************************************************************************************************#
 #                                                                                                  #
