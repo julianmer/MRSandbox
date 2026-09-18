@@ -153,6 +153,33 @@ class SuppressionTrain(Sequence):
         super().__init__(*events)
 
 
+#*****************#
+#   voxel edges   #
+#*****************#
+def voxel_edges(size_mm):
+    """The (x, y, z) edges in mm of a voxel given as one edge or as its three."""
+    return (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+
+
+#****************#
+#   slab pulse   #
+#****************#
+def slab_pulse(flip_deg, duration_s, time_bandwidth, axis, edge_mm, span, reference_ppm, f0_mhz,
+               phase_deg=0.0):
+    """One slice-selective Shinnar-Le Roux pulse of a localized design and its gradient
+    in Hz per mm: the slab of `edge_mm` for spins at `reference_ppm` (the bandwidth,
+    the time-bandwidth product over the duration, over the edge), the ensemble
+    spanning `span` edges, and the carrier, a phase ramp from the pulse's start,
+    reading `phase_deg` at the pulse's centre."""
+    slope = time_bandwidth / duration_s / edge_mm
+    kind = "excitation" if flip_deg == 90 else "refocusing"
+    pulse = ShapedPulse.slr(float(flip_deg), duration_s, time_bandwidth, kind, steps=128,
+                            offset_ppm=reference_ppm,
+                            phase_deg=phase_deg - 180.0 * reference_ppm * f0_mhz * duration_s,
+                            gradient_hz_per_mm=slope, gradient_axis=axis, extent_mm=span * edge_mm)
+    return pulse, slope
+
+
 #**************************************************************************************************#
 #                                       Class LocalizedPress                                       #
 #**************************************************************************************************#
@@ -199,30 +226,21 @@ class LocalizedPress(Sequence):
                  refocusing_s=0.0065, span=2.5, tr_s=None):
         self.te1_s = te1_s
         self.te2_s = te2_s
-        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        edges = voxel_edges(size_mm)
         delays = (te1_s / 2.0 - excitation_s / 2.0 - refocusing_s / 2.0,
                   (te1_s + te2_s) / 2.0 - refocusing_s, te2_s / 2.0 - refocusing_s / 2.0)
         if min(delays) <= 0.0:
             raise ValueError(f"te1_s {te1_s} and te2_s {te2_s} are too short for the pulses")
 
-        def slab(flip_deg, duration_s, axis, edge, phase_deg):
-            kind, tbw = (("excitation", self.EXCITATION_TBW) if flip_deg == 90
-                         else ("refocusing", self.REFOCUSING_TBW))
-            slope = tbw / duration_s / edge  # Hz per mm
-            carrier = -180.0 * reference_ppm * f0_mhz * duration_s
-            return slope, ShapedPulse.slr(float(flip_deg), duration_s, tbw, kind, steps=128,
-                                          offset_ppm=reference_ppm, phase_deg=phase_deg + carrier,
-                                          gradient_hz_per_mm=slope, gradient_axis=axis,
-                                          extent_mm=span * edge)
-
-        slope, excitation = slab(90, excitation_s, "x", edges[0], 0.0)
+        frame = (span, reference_ppm, f0_mhz)
+        excitation, slope = slab_pulse(90, excitation_s, self.EXCITATION_TBW, "x", edges[0], *frame)
+        refocus_y, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, "y", edges[1], *frame, 90.0)
+        refocus_z, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, "z", edges[2], *frame, 90.0)
         super().__init__(
             excitation, Gradient(-self.REPHASE * slope * excitation_s, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
-            CoherenceFilter(-1), slab(180, refocusing_s, "y", edges[1], 90.0)[1],
-            CoherenceFilter(+1), Projection(span), Delay(delays[1]),
-            CoherenceFilter(+1), slab(180, refocusing_s, "z", edges[2], 90.0)[1],
-            CoherenceFilter(-1), Projection(span), Delay(delays[2]),
+            CoherenceFilter(-1), refocus_y, CoherenceFilter(+1), Projection(span), Delay(delays[1]),
+            CoherenceFilter(+1), refocus_z, CoherenceFilter(-1), Projection(span), Delay(delays[2]),
             tr_s=tr_s,
         )
 
@@ -280,25 +298,17 @@ class LocalizedMegaPress(Sequence):
                  reference_ppm=3.0, edit_s=0.014, span=2.5, tr_s=None):
         self.edit_ppm = edit_ppm
         self.taus_s = tuple(taus_s)
-        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        edges = voxel_edges(size_mm)
         t90, t180 = self.EXCITATION_S, self.REFOCUSING_S
         t1, t2, t3, t4, t5 = self.taus_s
         delays = (t1 - t90 / 2.0 - t180 / 2.0, t2 - t180 / 2.0 - edit_s / 2.0,
                   t3 - edit_s / 2.0 - t180 / 2.0, t4 - t180 / 2.0 - edit_s / 2.0, t5 - edit_s / 2.0)
         if min(delays) <= 0.0:
             raise ValueError(f"taus_s {self.taus_s} are too short for the pulses between them")
-        press = LocalizedPress
-
-        def slab(flip_deg, duration_s, axis, edge, phase_deg):
-            kind, tbw = (("excitation", press.EXCITATION_TBW) if flip_deg == 90
-                         else ("refocusing", press.REFOCUSING_TBW))
-            slope = tbw / duration_s / edge  # Hz per mm
-            carrier = -180.0 * reference_ppm * f0_mhz * duration_s
-            return slope, ShapedPulse.slr(float(flip_deg), duration_s, tbw, kind, steps=128,
-                                          offset_ppm=reference_ppm, phase_deg=phase_deg + carrier,
-                                          gradient_hz_per_mm=slope, gradient_axis=axis,
-                                          extent_mm=span * edge)
-
+        press, frame = LocalizedPress, (span, reference_ppm, f0_mhz)
+        excitation, slope = slab_pulse(90, t90, press.EXCITATION_TBW, "x", edges[0], *frame)
+        refocus_y, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "y", edges[1], *frame, 90.0)
+        refocus_z, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "z", edges[2], *frame, 90.0)
         # one editing pulse object played twice: computed once per run
         centres = tuple(edit_ppm) if isinstance(edit_ppm, (tuple, list)) else (edit_ppm,)
         if len(centres) > 2:
@@ -314,15 +324,12 @@ class LocalizedMegaPress(Sequence):
             edit = ShapedPulse(None, edit_s, (envelope / envelope.max() * split).astype(np.float32),
                                offset_ppm=middle, phase_deg=edit.phase_deg,
                                peak_hz=2.0 * single * envelope.max())
-        slope, excitation = slab(90, t90, "x", edges[0], 0.0)
         super().__init__(
             excitation, Gradient(-press.REPHASE * slope * t90, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
-            CoherenceFilter(-1), slab(180, t180, "y", edges[1], 90.0)[1],
-            CoherenceFilter(+1), Projection(span), Delay(delays[1]),
+            CoherenceFilter(-1), refocus_y, CoherenceFilter(+1), Projection(span), Delay(delays[1]),
             CoherenceFilter(+1), edit, CoherenceFilter(+1), Delay(delays[2]),
-            CoherenceFilter(+1), slab(180, t180, "z", edges[2], 90.0)[1],
-            CoherenceFilter(-1), Projection(span), Delay(delays[3]),
+            CoherenceFilter(+1), refocus_z, CoherenceFilter(-1), Projection(span), Delay(delays[3]),
             CoherenceFilter(-1), edit, CoherenceFilter(-1), Delay(delays[4]),
             tr_s=tr_s,
         )
@@ -387,18 +394,14 @@ class LocalizedSteam(Sequence):
     def __init__(self, te_s, tm_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None):
         self.te_s = te_s
         self.tm_s = tm_s
-        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        edges = voxel_edges(size_mm)
         t = self.PULSE_S
         if te_s / 2.0 <= t or tm_s <= t:
             raise ValueError(f"te_s {te_s} and tm_s {tm_s} are too short for the {t * 1e3:.1f} ms pulses")
-        carrier = -180.0 * reference_ppm * f0_mhz * t
 
         def slab(axis, edge, phase_deg):
-            slope = self.PULSE_TBW / t / edge  # Hz per mm
-            pulse = ShapedPulse.slr(90.0, t, self.PULSE_TBW, "excitation", steps=128,
-                                    offset_ppm=reference_ppm, phase_deg=phase_deg + carrier,
-                                    gradient_hz_per_mm=slope, gradient_axis=axis,
-                                    extent_mm=span * edge)
+            pulse, slope = slab_pulse(90, t, self.PULSE_TBW, axis, edge, span, reference_ppm, f0_mhz,
+                                      phase_deg)
             return pulse, Gradient(-self.REPHASE * slope * t, span * edge, axis=axis)
 
         (first, after_x), (second, before_y), (third, after_z) = (
@@ -458,12 +461,13 @@ class LocalizedSemiLaser(Sequence):
     #**********#
     def __init__(self, te_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None):
         self.te_s = te_s
-        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        edges = voxel_edges(size_mm)
         tau = (te_s - 4.0 * self.AFP_S) / 8.0
         if tau <= self.EXCITATION_S / 2.0:
             raise ValueError(f"te_s {te_s} is too short for the excitation and four "
                              f"{self.AFP_S * 1e3:.1f} ms refocusing pulses")
-        slope = self.EXCITATION_TBW / self.EXCITATION_S / edges[0]  # Hz per mm
+        excitation, slope = slab_pulse(90, self.EXCITATION_S, self.EXCITATION_TBW, "x", edges[0], span,
+                                       reference_ppm, f0_mhz)
 
         def afp(axis, edge):
             # 128 steps: within 5e-4 of 512 on lactate, glutamate, and glucose
@@ -475,10 +479,7 @@ class LocalizedSemiLaser(Sequence):
         # one pulse object per pair: its propagator is computed once per run
         afp_y, afp_z = afp("y", edges[1]), afp("z", edges[2])
         super().__init__(
-            ShapedPulse.slr(90.0, self.EXCITATION_S, self.EXCITATION_TBW, "excitation", steps=128,
-                            offset_ppm=reference_ppm,
-                            phase_deg=-180.0 * reference_ppm * f0_mhz * self.EXCITATION_S,
-                            gradient_hz_per_mm=slope, gradient_axis="x", extent_mm=span * edges[0]),
+            excitation,
             Gradient(-self.REPHASE * slope * self.EXCITATION_S, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span),
             Delay(tau - self.EXCITATION_S / 2.0),

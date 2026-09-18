@@ -11,6 +11,11 @@
 #                                                                                                  #
 ####################################################################################################
 
+#*************#
+#   imports   #
+#*************#
+import numpy as np
+
 #**********************#
 #   qsm challenge 2    #
 #**********************#
@@ -71,8 +76,6 @@ class QSMHead:
     @classmethod
     def volume(cls, name):
         """One map as a Volume in the head's world (mm from the brain's centre)."""
-        import numpy as np
-
         from mrsandbox.phantom.volume import Volume
 
         if name not in cls.MAPS:
