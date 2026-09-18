@@ -251,7 +251,7 @@ class TestPulseFrame:
 #**************************************************************************************************#
 class TestInducedKick:
 
-    def test_moments_kick_like_gradients_and_cycles_like_a_frame_offset(self, engine):
+    def test_moments_kick_like_gradients_and_cycles_like_faster_precession(self, engine):
         water = WaterSource.system(gamma_mhz_t=42.5774785)
         # a kick's moment over the ensemble is a gradient kick (the ensemble comes from
         # the design's own Gradient, so the kick rides on its axis)
@@ -259,15 +259,20 @@ class TestInducedKick:
         kicked = Sequence(Pulse(90.0), Gradient(0.02, 20.0, axis="z"), InducedKick(0.0, moment_z=0.05))
         np.testing.assert_allclose(amps(engine, kicked, water), amps(engine, gradient, water),
                                    atol=1e-6)
-        # its uniform cycles are a delay's frame offset: offset times duration in cycles
+        # its uniform cycles advance the spins as a field does: a scanner frequency
+        # error of minus that field over the delay, offset times duration in cycles,
+        # and the sign of free precession itself
         offset = Sequence(Pulse(90.0), Delay(0.010))
-        _, reference = engine.lines(offset, water, offset_hz=30.0)
+        _, reference = engine.lines(offset, water, offset_hz=-30.0)
         _, plain = engine.lines(offset, water)
         kicked = Sequence(Pulse(90.0), Delay(0.010), InducedKick(0.3))
         _, kick = engine.lines(kicked, water)
         np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(kick)),
                                    np.asarray(ops.convert_to_numpy(reference)), atol=1e-6)
         assert np.abs(np.asarray(ops.convert_to_numpy(kick)) - np.asarray(ops.convert_to_numpy(plain))).max() > 1e-2
+        brief = Sequence(Pulse(90.0), CoherenceFilter(-1), InducedKick(0.05))
+        line = np.asarray(ops.convert_to_numpy(engine.lines(brief, water)[1]))
+        assert abs(np.degrees(np.angle(line[np.argmax(np.abs(line))])) - 18.0) < 1e-3
         # every value is a timing, the axes are structure
         assert InducedKick(0.1, moment_x=0.2).structure() == InducedKick(0.3, moment_x=0.4).structure()
         assert InducedKick(0.1, moment_x=0.2).timings() == (0.1, 0.2, 0.0, 0.0)

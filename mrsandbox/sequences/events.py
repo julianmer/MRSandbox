@@ -571,11 +571,14 @@ class InducedKick(Event):
 
     What the scanner's gradient response adds to a design before the readout
     (scan.eddy.induced_sequence): the field's integral over the interval it follows,
-    as a uniform part in cycles applied per coherence order like a delay's frame
-    offset (the B0 term plus the first-order terms at the voxel centre) and a moment
-    per axis in cycles per millimetre applied over the isochromat ensemble like a
-    gradient kick (the first-order terms across the box, unbalancing the crushers).
-    Every value is a timing, so one compiled design replays at every voxel.
+    as a uniform part in cycles applied per coherence order (the B0 term plus the
+    first-order terms at the voxel centre) and a moment per axis in cycles per
+    millimetre applied over the isochromat ensemble (the first-order terms across the
+    box, unbalancing the crushers), both with a gradient kick's sign: a positive field
+    advances the spins as faster precession does, the sign the readout's kernel
+    carries on (a delay's frame offset is the scanner's frequency error and has the
+    other sign). Every value is a timing, so one compiled design replays at every
+    voxel.
 
     Args:
         cycles: The uniform phase in cycles.
@@ -597,7 +600,7 @@ class InducedKick(Event):
     #   apply   #
     #***********#
     def apply(self, rho, ctx):
-        angle = 2.0 * math.pi * ops.convert_to_tensor(self.cycles, dtype="float32")
+        angle = -2.0 * math.pi * ops.convert_to_tensor(self.cycles, dtype="float32")
         for axis in "xyz":
             x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype="float32")
             if ops.ndim(x) > 0:

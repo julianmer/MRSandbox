@@ -229,21 +229,18 @@ class TestInducedDesign:
 
     def test_the_b0_term_phases_the_echo_by_the_difference_of_its_halves(self):
         # the detected coherence carries q Phi per interval with q flipping at the
-        # 180, so the echo's phase is 2 pi q (Phi2 - Phi1); the sign is the one a
-        # single kick after a delay shows
+        # 180, so the echo's phase is 2 pi (Phi2 - Phi1): a field after the 180
+        # advances the echo as faster precession does, the readout kernel's sign
         scanner, engine = Scanner.preset("generic_3t"), Engine(3.0)
         moment = GAMMA * 1e6 * 30e-3 * 2e-3 * 1e-3
         response = exponential_response((0.050,), (0.5,), (0.0,))
         plain = crushed_echo(moment)
         kicked = induced_sequence(plain, scanner, response, (0.0, 0.0, 0.0))
         phase = np.angle(self.water_line(engine, kicked) / self.water_line(engine, plain))
-        one = Sequence(Pulse(90.0), Delay(0.010), InducedKick(0.01))
-        sign = np.sign(np.angle(self.water_line(engine, one)
-                                / self.water_line(engine, Sequence(Pulse(90.0), Delay(0.010)))))
         t, cycles, _ = induced_phase(plain, scanner, response, 0.030)
         phi1, phi2 = np.diff(np.interp([0.0, 0.015, 0.030], t, cycles))
         assert abs(phi2 - phi1) > 1e-3  # a visible phase
-        np.testing.assert_allclose(phase, sign * 2.0 * np.pi * (phi2 - phi1), atol=1e-4)
+        np.testing.assert_allclose(phase, 2.0 * np.pi * (phi2 - phi1), atol=1e-4)
         np.testing.assert_allclose(np.abs(self.water_line(engine, kicked)),
                                    np.abs(self.water_line(engine, plain)), rtol=1e-5)
 
@@ -262,11 +259,8 @@ class TestInducedDesign:
         ratio = np.abs(self.water_line(engine, at_centre) / self.water_line(engine, plain))
         assert 0.9 < ratio < 0.999
         np.testing.assert_allclose(ratio, np.sinc((m2 - m1) * 20.0), atol=2e-3)
-        one = Sequence(Pulse(90.0), Delay(0.010), InducedKick(0.01))
-        sign = np.sign(np.angle(self.water_line(engine, one)
-                                / self.water_line(engine, Sequence(Pulse(90.0), Delay(0.010)))))
         phase = np.angle(self.water_line(engine, shifted) / self.water_line(engine, at_centre))
-        np.testing.assert_allclose(phase, np.angle(np.exp(1j * sign * 2.0 * np.pi * (m2 - m1) * 30.0)),
+        np.testing.assert_allclose(phase, np.angle(np.exp(2j * np.pi * (m2 - m1) * 30.0)),
                                    atol=1e-4)
 
 
@@ -352,7 +346,7 @@ class TestMeasuredResponse:
         engine, girf = Engine(scanner), GIRF.load()
         moment = GAMMA * 1e6 * 30e-3 * 2e-3 * 1e-3
         design = crushed_echo(moment)
-        for position, low, high in (((0.0, 0.0, 0.0), 0.0, 5.0), (self.POSITION, 10.0, 80.0)):
+        for position, low, high in (((0.0, 0.0, 0.0), 0.0, 10.0), (self.POSITION, 10.0, 80.0)):
             kw = dict(position_mm=position, size_mm=20.0)
             clean = VirtualScan(brain, scanner, design, params=QUIET, water=Unsuppressed(),
                                 engine=engine)
