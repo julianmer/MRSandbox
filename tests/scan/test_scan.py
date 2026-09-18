@@ -212,6 +212,27 @@ class TestAcquisitionImperfections:
         expected = fid0 * np.exp(1j * (2.0 * np.pi * 5.0 * t + np.pi / 2.0))
         assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
 
+    #**************************#
+    #   compiled ensembles     #
+    #**************************#
+    def test_a_shaped_ensemble_design_compiles_per_metabolite_to_the_same_fid(self, scan):
+        # shaped pulses on an isochromat ensemble compile one graph per metabolite (a
+        # graph holds its intermediates); the FID is the plain path's
+        from mrsandbox import CoherenceFilter, Delay, Gradient, Projection, Sequence, ShapedPulse
+
+        design = Sequence(
+            ShapedPulse.sinc(90.0, 0.002, offset_ppm=3.0, steps=32, gradient_hz_per_mm=150.0,
+                             gradient_axis="z", extent_mm=40.0),
+            Gradient(-0.5 * 150.0 * 0.002, 40.0, axis="z"), CoherenceFilter(-1), Projection(2.0),
+            Delay(0.004))
+        quiet = Params(noise=dict(sigma=0.0))
+        source = VirtualScan(scan.brain, scan.scanner, design, params=quiet, isochromats=16)
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        _, plain = source.voxel(**kw).fid(seed=5, npoints=256)
+        _, fast = source.voxel(**kw, compiled=True).fid(seed=5, npoints=256)
+        assert len(source.engine._compiled) >= len(source.params.conc)
+        np.testing.assert_allclose(fast, plain, atol=1e-4 * np.abs(plain).max())
+
     #*******************#
     #   temperature     #
     #*******************#
