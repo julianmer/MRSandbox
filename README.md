@@ -69,8 +69,8 @@ This repository consists of the following main structures:
   map, from the tissue fractions to a user's T1 or transmit map, answers box queries with exact
   partial volume weights. ICBM152 (TemplateFlow) and BigBrain-MR (Sainz Martinez et al. 2023)
   are fetched on first use; the QSM challenge 2.0 head (Marques et al. 2021), a whole head with
-  skull, air, and scalp, may not be redistributed and is placed in the cache by hand. The wheel
-  ships no data.
+  skull, air, and scalp, may not be redistributed and is placed in the cache by hand; its scalp
+  can be carried onto the other two brains as their fat layer. The wheel ships no data.
 * The `mrsandbox/resources/` folder pulls large named datasets from their canonical homes on
   first use into a local, checksum verified cache, so the package itself stays lightweight,
   and derives the hMRI demo subject's quantitative 3 T stack (R1, PD, MT saturation, R2*,

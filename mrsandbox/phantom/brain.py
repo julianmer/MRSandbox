@@ -37,8 +37,9 @@ class Brain:
         gm, wm, csf: Probability volumes with a shared shape, values in [0, 1].
         affine: 4x4 voxel-to-world matrix (world coordinates in mm).
         name: Identifier stored in provenance.
-        fat: Optional map of the fat-bearing tissue around the skull on the same grid;
-            with it the lipid layer is that tissue, without it the brain boundary.
+        fat: Optional map of the fat-bearing tissue around the skull, an array on the
+            same grid or a Volume on its own; with it the lipid layer is that tissue,
+            without it the brain boundary.
     """
 
     PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2")
@@ -65,8 +66,8 @@ class Brain:
         maps = tuple(np.asarray(m, dtype=np.float32) for m in (gm, wm, csf))
         if not (maps[0].shape == maps[1].shape == maps[2].shape):
             raise ValueError("gm, wm, and csf maps must share one shape")
-        self.fat = None if fat is None else Volume(np.asarray(fat, dtype=np.float32), affine,
-                                                   name=name)
+        self.fat = (fat if fat is None or isinstance(fat, Volume)
+                    else Volume(np.asarray(fat, dtype=np.float32), affine, name=name))
         self.maps = Volume(np.stack(maps, axis=-1), affine, name=name)
         self.gm, self.wm, self.csf = (self.maps.data[..., i] for i in range(3))
         self.affine = self.maps.affine
@@ -76,10 +77,22 @@ class Brain:
     #   loading   #
     #*************#
     @classmethod
-    def load(cls, name="icbm152"):
-        """Load a named brain preset; its maps are fetched on first use and cached."""
+    def load(cls, name="icbm152", fat=None):
+        """Load a named brain preset; its maps are fetched on first use and cached.
+        `fat="qsm_rc2"` lends a preset without a scalp the fat-bearing layer of the QSM
+        challenge head, carried into its world (resources.QSMHead.fat; the head's
+        files are placed by hand)."""
         if name not in cls.PRESETS:
             raise KeyError(f"unknown brain {name!r}; known: {', '.join(cls.PRESETS)}")
+        if fat is not None:
+            from mrsandbox.resources.qsm import QSMHead
+
+            if fat != "qsm_rc2" or name == "qsm_rc2":
+                raise KeyError(f"unknown fat layer {fat!r} for {name!r}; known: qsm_rc2, for "
+                               f"icbm152 and bigbrain_mr")
+            brain = cls.load(name)
+            brain.fat = QSMHead.fat(name)
+            return brain
         if name == "bigbrain_mr":
             return cls._load_bigbrain()
         if name == "qsm_rc2":
@@ -218,5 +231,5 @@ class Brain:
         outside = weights * (values.sum(axis=-1) < 0.1 if self.fat is None else values)
         if outside.sum() <= 0.0:
             return np.zeros(3)
-        centres = self.maps.centres(position_mm, size_mm).reshape(-1, 3)
+        centres = source.centres(position_mm, size_mm).reshape(-1, 3)
         return np.average(centres, axis=0, weights=outside.ravel()) - np.asarray(position_mm, dtype=np.float64)

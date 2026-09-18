@@ -85,3 +85,77 @@ class QSMHead:
         if name == "T1map":
             data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0), 0.0).astype(np.float32)
         return Volume(data, volume.affine, name="qsm_rc2/" + name)
+
+    #******************#
+    #   registration   #
+    #******************#
+    @classmethod
+    def registration(cls, space):
+        """The world-to-world affine carrying the head into the world of another brain
+        preset ("icbm152" or "bigbrain_mr"), fitted once and cached: a shape fit
+        (phantom.registration.register) of the head's brain, its labels 1 to 10,
+        against the preset's brain tissue. Another subject's head on this brain: an
+        affine follows the size and the pose, not the folds (stated)."""
+        from mrsandbox.phantom.brain import Brain
+        from mrsandbox.phantom.registration import register
+        from mrsandbox.phantom.volume import Volume
+        from mrsandbox.resources import Resources
+
+        if space not in ("icbm152", "bigbrain_mr"):
+            raise KeyError(f"unknown space {space!r}; known: icbm152, bigbrain_mr")
+        cache = Resources.cache_dir() / f"qsm_rc2/to_{space}.npy"
+        if not cache.exists():
+            labels = Volume.load("qsm_rc2/labels")
+            # halved to 1.28 mm cells for the fit
+            head = (labels.data[::2, ::2, ::2] >= 1) & (labels.data[::2, ::2, ::2] <= 10)
+            halved = labels.affine @ np.diag([2.0, 2.0, 2.0, 1.0])
+            target = Brain.load(space)
+            tissue = (target.maps.data.sum(axis=-1) > 0.5).astype(np.float32)
+            np.save(cache, register(Volume(head.astype(np.float32), halved),
+                                    Volume(tissue, target.affine)))
+        return np.load(cache)
+
+    #*********#
+    #   fat   #
+    #*********#
+    @classmethod
+    def fat(cls, space, cell_mm=1.0):
+        """The head's fat-bearing layer (label 15, Brain.QSM_TISSUES) carried into
+        another brain preset's world and resampled there, linearly, onto an
+        axis-aligned grid of `cell_mm` cells (so box queries stay exact), as a Volume
+        of fractions, less what the preset's own tissue already fills there (two heads
+        under one affine overlap by a few percent of the layer; a place is tissue or
+        fat, and the brain is the preset's); derived once and cached beside the head's
+        files, never shipped.
+        It lends the presets without a scalp, ICBM152 and BigBrain-MR, the geometry
+        of a fat layer: `Brain.load(space, fat="qsm_rc2")`."""
+        import scipy.ndimage
+
+        from mrsandbox.phantom.brain import Brain
+        from mrsandbox.phantom.volume import Volume
+        from mrsandbox.resources import Resources
+
+        cache = Resources.cache_dir() / f"qsm_rc2/fat_in_{space}_{cell_mm:g}mm.npz"
+        if not cache.exists():
+            labels = Volume.load("qsm_rc2/labels")
+            layer = np.isin(labels.data, Brain.QSM_TISSUES["fat"]).astype(np.float32)
+            carried = cls.registration(space) @ labels.affine
+            corners = np.array([[i, j, k, 1.0] for i in (0, labels.shape[0] - 1)
+                                for j in (0, labels.shape[1] - 1) for k in (0, labels.shape[2] - 1)])
+            world = (carried @ corners.T)[:3]
+            low, high = np.floor(world.min(axis=1)), np.ceil(world.max(axis=1))
+            shape = tuple(int(n) for n in np.rint((high - low) / cell_mm) + 1)
+            affine = np.diag([cell_mm, cell_mm, cell_mm, 1.0])
+            affine[:3, 3] = low
+            index = np.linalg.inv(carried) @ affine  # target index to head index
+            data = scipy.ndimage.affine_transform(layer, index[:3, :3], offset=index[:3, 3],
+                                                  output_shape=shape, order=1, cval=0.0)
+            brain = Brain.load(space)
+            index = np.linalg.inv(brain.affine) @ affine  # target index to brain index
+            tissue = scipy.ndimage.affine_transform(
+                brain.maps.data.sum(axis=-1), index[:3, :3], offset=index[:3, 3],
+                output_shape=shape, order=1, cval=0.0)
+            data = np.minimum(data, 1.0 - np.clip(tissue, 0.0, 1.0))
+            np.savez_compressed(cache, data=data.astype(np.float32), affine=affine)
+        stored = np.load(cache)
+        return Volume(stored["data"], stored["affine"], name=f"qsm_rc2/fat_in_{space}")

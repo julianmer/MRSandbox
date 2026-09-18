@@ -142,6 +142,24 @@ class TestFatLayer:
         assert layered.lipid_weight((3.5, 3.5, 3.5), 4.0) == 0.0
         assert layered.lipid_weight((8.5, 3.5, 3.5), 1.0) == 0.0
 
+    def test_a_fat_volume_keeps_its_own_grid(self):
+        # the layer may come as a Volume of another grid (another head carried here):
+        # half-millimetre cells from x = 9.5 to 11.5, the same layer as above
+        from mrsandbox import Volume
+
+        gm = np.zeros((16, 8, 8), dtype=np.float32)
+        gm[:8] = 1.0
+        zeros = np.zeros_like(gm)
+        fine = np.zeros((40, 20, 20), dtype=np.float32)
+        fine[20:24] = 1.0
+        affine = np.diag([0.5, 0.5, 0.5, 1.0])
+        affine[:3, 3] = (-0.25, -0.75, -0.75)
+        brain = Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=np.eye(4), fat=Volume(fine, affine))
+        assert brain.lipid_weight((8.5, 3.5, 3.5), 4.0) == pytest.approx(0.25)
+        np.testing.assert_allclose(brain.lipid_offset((8.5, 3.5, 3.5), 4.0), (1.5, 0.0, 0.0), atol=1e-6)
+        offsets, volumes = brain.lipid_cells((8.5, 3.5, 3.5), 4.0)
+        assert volumes.sum() == pytest.approx(16.0) and np.all(offsets[:, 0] > 1.0)
+
 
 #**************************************************************************************************#
 #                                         Class TestQsmHead                                        #
@@ -186,3 +204,19 @@ class TestQsmHead:
         assert local == pytest.approx(white, rel=1e-6)
         with pytest.raises(KeyError):
             QSMHead.volume("T2map")
+
+
+    def test_the_heads_scalp_lends_the_other_brains_a_fat_layer(self):
+        # carried by a shape fit of the two brains and cleared of the preset's own
+        # tissue: going up from the brain, tissue, then a skull's gap, then the layer
+        brain = Brain.load("icbm152", fat="qsm_rc2")
+        assert Brain.load("icbm152").fat is None and brain.fat is not None
+        held = [(sum(brain.fractions((0.0, 0.0, z), 6.0)), brain.lipid_weight((0.0, 0.0, z), 6.0))
+                for z in range(10, 121, 6)]
+        tissue, fat = np.array(held).T
+        assert tissue[0] > 0.99 and fat[0] == 0.0 and fat.max() > 0.4 and fat[-1] == 0.0
+        assert np.all(tissue + fat <= 1.0 + 1e-3)  # a place is tissue or fat, never both
+        first_fat, last_tissue = np.argmax(fat > 0.1), np.nonzero(tissue > 0.1)[0].max()
+        assert first_fat > last_tissue  # the skull lies between
+        with pytest.raises(KeyError):
+            Brain.load("qsm_rc2", fat="qsm_rc2")
