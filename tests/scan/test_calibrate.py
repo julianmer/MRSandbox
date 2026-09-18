@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading
+from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading
 from mrsandbox.scan.voxel import noise_scale
 
 
@@ -103,3 +103,41 @@ class TestCovarianceReading:
         plain.voxel((0.0, -45.0, 35.0), 30.0).acquire(seed=1, npoints=256).save(single)
         with pytest.raises(ValueError, match="channels"):
             CovarianceReading.from_nifti(single)
+
+
+#**************************************************************************************************#
+#                                    Class TestSpectrumReading                                     #
+#**************************************************************************************************#
+@pytest.mark.render
+class TestSpectrumReading:
+
+    def test_linewidth_and_creatine_read_the_same_off_data_and_twin(self):
+        # a virtual two-channel acquisition of one subject, the carrier on water: what the
+        # reader finds in the raw data is what the twin shows for that subject, and a subject
+        # with half the creatine reads half the ratio
+        calm = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0,
+                                                                     eddy_std_rad=0.0))
+        pieces = (Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.024, tr_s=2.0))
+        voxel = VirtualScan(*pieces, params=calm).voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
+        n, dwell_s = 2048, 1.0 / 2000.0
+
+        def raw(subject):
+            _, fid = subject._clean_fid(subject.sample(0), n, dwell_s)
+            fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * subject._f0_mhz() * np.arange(n) * dwell_s)
+            rng = np.random.default_rng(4)
+            noise = 0.02 * np.abs(fid).max() * (rng.standard_normal((n, 2, 16)) + 1j * rng.standard_normal((n, 2, 16)))
+            return np.array([0.8, 0.6])[None, :, None] * fid[:, None, None] + noise
+
+        reading = SpectrumReading.from_arrays(raw(voxel), dwell_s, voxel._f0_mhz())
+        twin = reading.twin(voxel, seeds=1)
+        assert reading.coils == 2 and reading.transients == 16
+        assert abs(reading.naa_fwhm_hz / twin["naa_fwhm_hz"] - 1.0) < 0.05
+        assert abs(reading.creatine_over_naa / twin["creatine_over_naa"] - 1.0) < 0.03
+        truth = voxel.sample(0)
+        drawn = float(voxel.resolve(truth.conc.Cr)) + float(voxel.resolve(truth.conc.PCr))
+        assert abs(reading.total_creatine_mm(voxel, seeds=1) / drawn - 1.0) < 0.03
+        lean = VirtualScan(*pieces, params=calm | Params(conc=dict(Cr=0.5 * float(truth.conc.Cr),
+                                                                    PCr=0.5 * float(truth.conc.PCr))))
+        halved = SpectrumReading.from_arrays(raw(lean.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)),
+                                             dwell_s, voxel._f0_mhz())
+        assert 0.45 < halved.creatine_over_naa / reading.creatine_over_naa < 0.65

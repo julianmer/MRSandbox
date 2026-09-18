@@ -23,13 +23,93 @@ import numpy as np
 from mrsandbox.scan.calibrations import APODIZED, Calibration
 from mrsandbox.scan.voxel import noise_scale
 
+# what a NIfTI-MRS header says of the scanner, coil, and sequence
+HEADER = ("Manufacturer", "ManufacturersModelName", "SoftwareVersions", "ReceiveCoilName",
+          "SequenceName", "ProtocolName", "EchoTime", "RepetitionTime")
+
 # the apodization of the record's reading (scan.calibrations, the measure) and the NAA singlet
 APODIZATION_HZ, NAA_PPM, WATER_PPM = 10.0, 2.008, 4.65
+
+
+#**************#
+#   combine    #
+#**************#
+def _combined(data):
+    """(npoints, coils, transients) raw FIDs to (npoints, transients): the channels
+    whitened by the noise of the FIDs' last eighth and combined with the first singular
+    vector of the mean transient's start. The combined noise has unit variance per real
+    part."""
+    x = np.asarray(data)
+    n, coils, _ = x.shape
+    covariance = np.atleast_2d(np.cov(x[-n // 8:].reshape(-1, coils).T))
+    white = np.einsum("ck,nks->ncs", np.linalg.inv(np.linalg.cholesky(covariance)), x)
+    weights = np.conj(np.linalg.svd(white.mean(axis=2)[:64], full_matrices=False)[2][0])
+    return np.einsum("c,ncs->ns", weights, white)
+
+
+def _raw(source):
+    """A NIfTI-MRS file (a path or a loaded image) as ((npoints, coils, transients),
+    dwell_s, f0_mhz, header); the transients are needed apart."""
+    import json
+
+    import nibabel as nib
+
+    image = nib.load(str(source)) if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source
+    extension = json.loads(image.header.extensions[0].get_content())
+    tags = [extension.get(f"dim_{k}") for k in (5, 6, 7)]
+    data = np.asarray(image.dataobj)
+    if data.shape[:3] != (1, 1, 1):
+        raise ValueError("a single voxel is needed, not a lattice")
+    data = data[0, 0, 0].reshape(data.shape[3:] + (1,) * (4 - (data.ndim - 3)))
+    if "DIM_DYN" not in tags:
+        raise ValueError("the transients are needed apart (DIM_DYN); averaged data do not serve")
+    order = [0] + [1 + tags.index(tag) if tag in tags else None for tag in ("DIM_COIL", "DIM_DYN")]
+    if order[1] is None:
+        data, order[1] = data[..., None], data.ndim
+    rest = [axis for axis in range(1, data.ndim) if axis not in order[1:]]
+    if any(data.shape[axis] > 1 for axis in rest):
+        raise ValueError("only coils and transients are read; select the other dimension first")
+    x = np.transpose(data, order + rest).reshape(data.shape[0], data.shape[order[1]], data.shape[order[2]])
+    header = {key: extension[key] for key in HEADER if extension.get(key) not in (None, "")}
+    return x, float(image.header["pixdim"][4]), float(extension["SpectrometerFrequency"][0]), header
 
 
 #***********#
 #   read    #
 #***********#
+def _spectrum(fid, dwell_s, ppm_of, fill=4, apodization_hz=2.0):
+    """The real spectrum of a FID phased on the NAA singlet and referenced to it, as
+    (ppm ascending, real): zero filled `fill` times, lightly apodized; `ppm_of` maps
+    hertz to ppm and the sign of the frequency axis is the one that holds NAA."""
+    n = fid.shape[0]
+    padded = np.concatenate([np.asarray(fid) * np.exp(-np.pi * apodization_hz * np.arange(n) * dwell_s),
+                             np.zeros((fill - 1) * n, dtype=np.complex128)])
+    spectrum = np.fft.fftshift(np.fft.fft(padded))
+    hz = np.fft.fftshift(np.fft.fftfreq(fill * n, dwell_s))
+    ppm = max((ppm_of(sign * hz) for sign in (1.0, -1.0)),
+              key=lambda axis: np.abs(spectrum[np.abs(axis - NAA_PPM) < 0.15]).max())
+    peak = np.argmax(np.abs(spectrum) * (np.abs(ppm - NAA_PPM) < 0.15))
+    real = (spectrum * np.exp(-1j * np.angle(spectrum[peak]))).real
+    order = np.argsort(ppm - (ppm[peak] - NAA_PPM))
+    return (ppm - (ppm[peak] - NAA_PPM))[order], real[order]
+
+
+def _shape(ppm, real, f0_mhz):
+    """What a spectrum says without a fit: the NAA singlet's full width at half maximum
+    over the level at 1.6 ppm (hertz), and the height of the 3.03 ppm creatine singlet
+    over NAA's."""
+    near = np.abs(ppm - NAA_PPM) < 0.12
+    x, y = ppm[near], real[near]
+    top = int(np.argmax(y))
+    half = np.median(real[np.abs(ppm - 1.6) < 0.1]) + 0.5 * (y[top] - np.median(real[np.abs(ppm - 1.6) < 0.1]))
+    left = top - int(np.argmax(y[top::-1] < half))
+    right = top + int(np.argmax(y[top:] < half))
+    low = np.interp(half, [y[left], y[left + 1]], [x[left], x[left + 1]])
+    high = np.interp(half, [y[right], y[right - 1]], [x[right], x[right - 1]])
+    creatine = real[np.abs(ppm - 3.03) < 0.04].max() / real[np.abs(ppm - NAA_PPM) < 0.04].max()
+    return float((high - low) * f0_mhz), float(creatine)
+
+
 def _snr(fids, dwell_s, f0_mhz):
     """The consensus SNR of (npoints, transients) FIDs, plain and apodized, and the ppm
     the NAA singlet was found at: the real peak height over the standard deviation of a
@@ -99,9 +179,6 @@ class NoiseReading:
     excitations: int
     header: dict
 
-    HEADER = ("Manufacturer", "ManufacturersModelName", "SoftwareVersions", "ReceiveCoilName",
-              "SequenceName", "ProtocolName", "EchoTime", "RepetitionTime")
-
     #*****************#
     #   from arrays   #
     #*****************#
@@ -111,10 +188,7 @@ class NoiseReading:
         oversampled receiver band is left as it is)."""
         x = np.asarray(data)
         n, coils, transients = x.shape
-        covariance = np.atleast_2d(np.cov(x[-n // 8:].reshape(-1, coils).T))
-        white = np.einsum("ck,nks->ncs", np.linalg.inv(np.linalg.cholesky(covariance)), x)
-        weights = np.conj(np.linalg.svd(white.mean(axis=2)[:64], full_matrices=False)[2][0])
-        plain, apodized, at = _snr(np.einsum("c,ncs->ns", weights, white), dwell_s, f0_mhz)
+        plain, apodized, at = _snr(_combined(x), dwell_s, f0_mhz)
         return cls(snr=plain, snr_apodized=apodized, naa_ppm=at, transients=transients, coils=coils,
                    npoints=n, bandwidth_hz=1.0 / dwell_s, f0_mhz=float(f0_mhz),
                    excitations=int(excitations), header=dict(header or {}))
@@ -125,29 +199,8 @@ class NoiseReading:
     @classmethod
     def from_nifti(cls, source, excitations=1):
         """Read a NIfTI-MRS file (a path, or a loaded image) with DIM_COIL and DIM_DYN."""
-        import json
-
-        import nibabel as nib
-
-        image = nib.load(str(source)) if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source
-        extension = json.loads(image.header.extensions[0].get_content())
-        tags = [extension.get(f"dim_{k}") for k in (5, 6, 7)]
-        data = np.asarray(image.dataobj)
-        if data.shape[:3] != (1, 1, 1):
-            raise ValueError("a single voxel is needed, not a lattice")
-        data = data[0, 0, 0].reshape(data.shape[3:] + (1,) * (4 - (data.ndim - 3)))
-        if "DIM_DYN" not in tags:
-            raise ValueError("the transients are needed apart (DIM_DYN); averaged data do not serve")
-        order = [0] + [1 + tags.index(tag) if tag in tags else None for tag in ("DIM_COIL", "DIM_DYN")]
-        if order[1] is None:
-            data, order[1] = data[..., None], data.ndim
-        rest = [axis for axis in range(1, data.ndim) if axis not in order[1:]]
-        if any(data.shape[axis] > 1 for axis in rest):
-            raise ValueError("only coils and transients are read; select the other dimension first")
-        x = np.transpose(data, order + rest).reshape(data.shape[0], data.shape[order[1]], data.shape[order[2]])
-        header = {key: extension[key] for key in cls.HEADER if extension.get(key) not in (None, "")}
-        return cls.from_arrays(x, float(image.header["pixdim"][4]), float(extension["SpectrometerFrequency"][0]),
-                               header=header, excitations=excitations)
+        x, dwell_s, f0_mhz, header = _raw(source)
+        return cls.from_arrays(x, dwell_s, f0_mhz, header=header, excitations=excitations)
 
     #***********#
     #   sigma   #
@@ -216,6 +269,86 @@ class NoiseReading:
 
 
 #**************************************************************************************************#
+#                                      Class SpectrumReading                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# What the averaged spectrum of one raw acquisition says without a fit: linewidth and creatine.    #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class SpectrumReading:
+    """What the averaged spectrum of one raw acquisition says without a fit: the NAA
+    singlet's width, and the 3.03 ppm creatine singlet's height against NAA's.
+
+    The coils are combined as for the noise reading and the transients averaged as they
+    are: no frequency alignment, so a drifting scanner widens the line (stated). The
+    twin's spectrum is read the same way, noise off, so the two compare like for like:
+    the width checks the lineshape prior (lineshape.gauss_hz), the ratio the creatine
+    range (scan.calibrations CREATINE_THREE_DATASETS_3T).
+
+    Args:
+        naa_fwhm_hz: Full width at half maximum of the NAA singlet, under 2 Hz apodization.
+        creatine_over_naa: Height of the 3.03 ppm singlet over the NAA singlet's.
+        transients, coils, npoints, bandwidth_hz, f0_mhz: What the data held.
+        header: What the file says of the scanner, coil, and sequence.
+    """
+
+    naa_fwhm_hz: float
+    creatine_over_naa: float
+    transients: int
+    coils: int
+    npoints: int
+    bandwidth_hz: float
+    f0_mhz: float
+    header: dict
+
+    #*****************#
+    #   from arrays   #
+    #*****************#
+    @classmethod
+    def from_arrays(cls, data, dwell_s, f0_mhz, header=None):
+        """Read raw FIDs, (npoints, coils, transients) complex, the carrier on water."""
+        x = np.asarray(data)
+        ppm, real = _spectrum(_combined(x).mean(axis=1), dwell_s, lambda hz: WATER_PPM + hz / f0_mhz)
+        width, creatine = _shape(ppm, real, f0_mhz)
+        return cls(naa_fwhm_hz=width, creatine_over_naa=creatine, transients=x.shape[2], coils=x.shape[1],
+                   npoints=x.shape[0], bandwidth_hz=1.0 / dwell_s, f0_mhz=float(f0_mhz),
+                   header=dict(header or {}))
+
+    @classmethod
+    def from_nifti(cls, source):
+        """Read a NIfTI-MRS file (a path, or a loaded image) with DIM_COIL and DIM_DYN."""
+        x, dwell_s, f0_mhz, header = _raw(source)
+        return cls.from_arrays(x, dwell_s, f0_mhz, header=header)
+
+    #**********#
+    #   twin   #
+    #**********#
+    def twin(self, voxel, seeds=12):
+        """The same two readings of `voxel`, the acquisition's virtual twin, noise off:
+        {"naa_fwhm_hz": ..., "creatine_over_naa": ...}, each the median over `seeds`
+        drawn subjects."""
+        dwell_s, f0_mhz = 1.0 / self.bandwidth_hz, voxel._f0_mhz()
+        rows = []
+        for seed in range(seeds):
+            _, fid = voxel._clean_fid(voxel.sample(seed), self.npoints, dwell_s)
+            rows.append(_shape(*_spectrum(np.asarray(fid), dwell_s, lambda hz: hz / f0_mhz), f0_mhz))
+        width, creatine = np.median(np.array(rows), axis=0)
+        return {"naa_fwhm_hz": float(width), "creatine_over_naa": float(creatine)}
+
+    #**************#
+    #   creatine   #
+    #**************#
+    def total_creatine_mm(self, voxel, seeds=12):
+        """The total creatine (mM) at which the twin would show the measured ratio: the
+        twin's drawn median scaled by measured over simulated (the singlet's height is
+        linear in it, NAA held)."""
+        drawn = np.median([float(voxel.resolve(truth.conc.Cr)) + float(voxel.resolve(truth.conc.PCr))
+                           for truth in (voxel.sample(seed) for seed in range(seeds))])
+        return float(drawn * self.creatine_over_naa / self.twin(voxel, seeds)["creatine_over_naa"])
+
+
+#**************************************************************************************************#
 #                                     Class CovarianceReading                                      #
 #**************************************************************************************************#
 #                                                                                                  #
@@ -273,7 +406,7 @@ class CovarianceReading:
             raise ValueError("the channels are needed apart (DIM_COIL)")
         data = np.moveaxis(np.asarray(image.dataobj)[0, 0, 0], 1 + tags.index("DIM_COIL"), -1)
         start = int(round(data.shape[0] * (1.0 - tail)))
-        header = {key: extension[key] for key in NoiseReading.HEADER if extension.get(key) not in (None, "")}
+        header = {key: extension[key] for key in HEADER if extension.get(key) not in (None, "")}
         return cls.from_arrays(data[start:], header=header)
 
     #******************#

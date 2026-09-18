@@ -110,7 +110,9 @@ This repository consists of the following main structures:
   transients apart (spec2nii writes it from TWIX, P-files, and data/list), and
   `reading.record(voxel, ...)` returns the record of the virtual twin that reproduces it.
   `CovarianceReading` does the same for a receive array's noise covariance, from a noise-only
-  scan (ISMRMRD), a raw file's noise adjustment, or the tails of raw FIDs. The creatine range is calibrated the same way, on the
+  scan (ISMRMRD), a raw file's noise adjustment, or the tails of raw FIDs. `SpectrumReading` reads the
+  NAA linewidth and the creatine to NAA height off the averaged raw spectrum and off the
+  virtual twin alike. None of the readers fits anything. The creatine range is calibrated the same way, on the
   height of the 3.03 ppm singlet against NAA's in three datasets. Only quantities read off
   raw data enter a record, never concentrations a fitting program reported.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
