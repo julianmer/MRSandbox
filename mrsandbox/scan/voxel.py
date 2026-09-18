@@ -121,11 +121,15 @@ class Voxel:
     #**********#
     #   init   #
     #**********#
-    def __init__(self, scan, position_mm, size_mm, compiled=False, box_center_mm=None):
+    def __init__(self, scan, position_mm, size_mm, compiled=False, box_center_mm=None,
+                 box_axes="xyz"):
         self.scan = scan
         # a cell of a lattice inside the box a localized design selects: the design is
         # played confined to the cell, its ensemble shifted from the box's centre
+        # (along `box_axes`; the design keeps its own extent along the others, a slab
+        # the lattice does not resolve)
         self.box_center_mm = None if box_center_mm is None else tuple(float(x) for x in box_center_mm)
+        self.box_axes = box_axes
         self.position_mm = tuple(float(x) for x in position_mm)
         self.size_mm = (tuple(float(x) for x in size_mm) if hasattr(size_mm, "__len__")
                         else float(size_mm))
@@ -667,7 +671,8 @@ class Voxel:
             return self.scan.sequence
         if "confined" not in self._kernels:
             edges = np.asarray(self.size_mm, dtype=np.float64) * np.ones(3)
-            self._kernels["confined"] = self.scan.sequence.confined(edges)
+            self._kernels["confined"] = self.scan.sequence.confined(
+                [edge if axis in self.box_axes else None for axis, edge in zip("xyz", edges)])
         return self._kernels["confined"]
 
     def design(self, truth):

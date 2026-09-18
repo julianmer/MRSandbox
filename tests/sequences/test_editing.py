@@ -526,3 +526,37 @@ class TestLocalizedMegaPress:
             assert 0.5 < kept < 1.0 and leak < 0.05, (name, kept, leak)
         with pytest.raises(ValueError):
             LocalizedMegaPress((1.9, 4.56, 7.2), f0_mhz)
+
+    def test_mega_semi_laser_edits_with_its_pulses_at_opposite_signs(self):
+        # 90 - AFP - AFP - edit - AFP - edit - AFP: one refocusing pulse between the
+        # editing pulses, so their Bloch-Siegert phases cancel (water upright) and GABA
+        # is edited; the schedule closes at TE 80 ms and not at 40
+        from mrsandbox import LocalizedMegaSemiLaser, Pulse
+
+        f0_mhz = 3.0 * 42.5774785
+        engine = Engine(3.0, isochromats=32)
+        design = LocalizedMegaSemiLaser(1.88, f0_mhz)
+        assert abs(sum(design.taus_s) - 0.080) < 1e-12
+        assert abs((design.taus_s[3] + design.taus_s[4]) - 0.040) < 1e-12  # the edits TE/2 apart
+        assert design.feasible(Scanner.preset("siemens_prisma_3t"))
+        water = SpinSystem(name="water", nucleus="1H", shifts_ppm=(4.65,), j_hz=((0.0,),), scale=2.0,
+                           gamma_mhz_t=42.5774785)
+        off = np.asarray(ops.convert_to_numpy(engine.lines(
+            LocalizedMegaSemiLaser(7.5, f0_mhz, reference_ppm=4.65), water)[1]))
+        plain = np.asarray(ops.convert_to_numpy(engine.lines(
+            Sequence(Pulse(90.0), CoherenceFilter(-1)), water)[1]))
+        k = np.argmax(np.abs(plain))
+        assert 0.75 < abs(off[k] / plain[k]) < 0.95 and abs(np.degrees(np.angle(off[k] / plain[k]))) < 1.0
+        taus = (0.005, 0.015, 0.025, 0.015, 0.020)
+        edited = {}
+        for label, pair in (("ideal", MegaPress.pair(taus_s=taus)),
+                            ("laser", LocalizedMegaSemiLaser.pair(f0_mhz))):
+            spectra = {}
+            for condition, sequence in pair.items():
+                ppm, spectra[condition] = render(engine, sequence, "GABA")
+            window = np.abs(ppm - 3.01) < 0.2
+            edited[label] = (spectra["on"] - spectra["off"])[window]
+        assert 0.6 < edited["laser"].sum() / edited["ideal"].sum() < 1.0
+        assert np.corrcoef(edited["laser"], edited["ideal"])[0, 1] > 0.9
+        with pytest.raises(ValueError):
+            LocalizedMegaSemiLaser(1.88, f0_mhz, te_s=0.040)

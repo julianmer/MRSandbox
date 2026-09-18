@@ -1015,20 +1015,26 @@ class Sequence:
     #**************#
     def confined(self, extent_mm):
         """The same design with its isochromat ensemble confined to a box of `extent_mm`
-        (x, y, z) and every `Projection` a plain average (gain one): what the design
-        leaves of a small part of the object, a cell of a lattice inside the box it
-        selects, wherever the engine's shift places that part. The timings stay."""
-        extent = dict(zip("xyz", (float(e) for e in extent_mm)))
-        events = []
+        (x, y, z; None leaves an axis as it is) and the `Projection` of every confined
+        axis a plain average (gain one): what the design leaves of a small part of
+        the object, a cell of a lattice inside the box it selects, wherever the
+        engine's shift places that part. A Projection belongs to the axis of the
+        gradient played last before it. The timings stay."""
+        extent = dict(zip("xyz", (None if e is None else float(e) for e in extent_mm)))
+        events, last = [], None
         for event in self.events:
             if isinstance(event, Projection):
-                event = Projection(1.0)
+                event = Projection(1.0) if extent.get(last) is not None else event
             elif isinstance(event, Gradient):
-                event = copy.copy(event)
-                event.extent_mm = extent[event.axis]
+                last = event.axis
+                if extent[last] is not None:
+                    event = copy.copy(event)
+                    event.extent_mm = extent[last]
             elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
-                event = copy.copy(event)
-                event.extent_mm = extent[event.gradient_axis]
+                last = event.gradient_axis
+                if extent[last] is not None:
+                    event = copy.copy(event)
+                    event.extent_mm = extent[last]
             events.append(event)
         design = copy.copy(self)
         design.events = tuple(events)

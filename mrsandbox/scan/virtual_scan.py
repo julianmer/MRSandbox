@@ -139,7 +139,7 @@ class VirtualScan:
     #***********#
     #   voxel   #
     #***********#
-    def voxel(self, position_mm, size_mm, compiled=False, box_center_mm=None):
+    def voxel(self, position_mm, size_mm, compiled=False, box_center_mm=None, box_axes="xyz"):
         """Place a voxel (a size_mm cube, or an (x, y, z) box) and get its acquisition
         handle.
 
@@ -149,7 +149,8 @@ class VirtualScan:
         faster plain. `box_center_mm` makes the voxel a cell of the box a localized
         design selects about that centre (an MRSI lattice places its cells so).
         """
-        return Voxel(self, position_mm, size_mm, compiled=compiled, box_center_mm=box_center_mm)
+        return Voxel(self, position_mm, size_mm, compiled=compiled, box_center_mm=box_center_mm,
+                     box_axes=box_axes)
 
     #***********#
     #   mrsi    #

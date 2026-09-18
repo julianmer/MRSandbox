@@ -180,6 +180,31 @@ def slab_pulse(flip_deg, duration_s, time_bandwidth, axis, edge_mm, span, refere
     return pulse, slope
 
 
+#*******************#
+#   editing pulse   #
+#*******************#
+def editing_pulse(edit_ppm, f0_mhz, duration_s):
+    """The Gaussian editing 180 of the localized editing designs, its carrier reading
+    zero phase at the pulse's centre: one band at `edit_ppm`, or for two centres a
+    dual band, the Gaussian cosine-modulated about their middle at twice the single
+    band's amplitude (each band then turns its spins by 180 degrees)."""
+    centres = tuple(edit_ppm) if isinstance(edit_ppm, (tuple, list)) else (edit_ppm,)
+    if len(centres) > 2:
+        raise ValueError(f"an editing pulse carries one or two bands, got {len(centres)}")
+    middle = sum(centres) / len(centres)
+    pulse = ShapedPulse.gaussian(180.0, duration_s, offset_ppm=middle,
+                                 phase_deg=-180.0 * middle * f0_mhz * duration_s)
+    if len(centres) == 1:
+        return pulse
+    envelope = np.asarray(pulse.envelope, dtype=np.float64)
+    t = ((np.arange(envelope.size) + 0.5) / envelope.size - 0.5) * duration_s
+    split = np.cos(np.pi * (centres[0] - centres[1]) * f0_mhz * t)
+    single = 0.5 / (envelope.sum() * duration_s / envelope.size)  # a 180's peak in Hz
+    return ShapedPulse(None, duration_s, (envelope / envelope.max() * split).astype(np.float32),
+                       offset_ppm=middle, phase_deg=pulse.phase_deg,
+                       peak_hz=2.0 * single * envelope.max())
+
+
 #**************************************************************************************************#
 #                                       Class LocalizedPress                                       #
 #**************************************************************************************************#
@@ -310,20 +335,7 @@ class LocalizedMegaPress(Sequence):
         refocus_y, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "y", edges[1], *frame, 90.0)
         refocus_z, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "z", edges[2], *frame, 90.0)
         # one editing pulse object played twice: computed once per run
-        centres = tuple(edit_ppm) if isinstance(edit_ppm, (tuple, list)) else (edit_ppm,)
-        if len(centres) > 2:
-            raise ValueError(f"an editing pulse carries one or two bands, got {len(centres)}")
-        middle = sum(centres) / len(centres)
-        edit = ShapedPulse.gaussian(180.0, edit_s, offset_ppm=middle,
-                                    phase_deg=-180.0 * middle * f0_mhz * edit_s)
-        if len(centres) == 2:
-            envelope = np.asarray(edit.envelope, dtype=np.float64)
-            t = ((np.arange(envelope.size) + 0.5) / envelope.size - 0.5) * edit_s
-            split = np.cos(np.pi * (centres[0] - centres[1]) * f0_mhz * t)
-            single = 0.5 / (envelope.sum() * edit_s / envelope.size)  # a 180's peak in Hz
-            edit = ShapedPulse(None, edit_s, (envelope / envelope.max() * split).astype(np.float32),
-                               offset_ppm=middle, phase_deg=edit.phase_deg,
-                               peak_hz=2.0 * single * envelope.max())
+        edit = editing_pulse(edit_ppm, f0_mhz, edit_s)
         super().__init__(
             excitation, Gradient(-press.REPHASE * slope * t90, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
@@ -489,6 +501,103 @@ class LocalizedSemiLaser(Sequence):
             CoherenceFilter(+1), afp_z, CoherenceFilter(-1), Projection(span), Delay(tau),
             tr_s=tr_s,
         )
+
+
+#**************************************************************************************************#
+#                                  Class LocalizedMegaSemiLaser                                    #
+#**************************************************************************************************#
+#                                                                                                  #
+# MEGA editing on the semi-LASER localization, every pulse played.                                 #
+#                                                                                                  #
+#**************************************************************************************************#
+class LocalizedMegaSemiLaser(Sequence):
+    """MEGA editing on the semi-LASER localization, every pulse played: the
+    Shinnar-Le Roux excitation and the GOIA-WURST pairs of `LocalizedSemiLaser`, with
+    the Gaussian editing 180s after the first pair and inside the second (90 - AFP -
+    AFP - edit - AFP - edit - AFP): an odd number of refocusing pulses lies between
+    the two, so they meet the coherence with opposite signs, as in MEGA-PRESS, and
+    their Bloch-Siegert phases cancel (with an even number both add, and the editing
+    fails). The 10 kHz refocusing slabs move the coupled partners
+    apart by two percent of the voxel where PRESS's move them by fifteen, so the
+    spatial editing loss of `LocalizedMegaPress` all but goes.
+
+    The pulse centres follow from two conditions: the shifts refocus at TE when the
+    two pair spacings sum to TE/2, and the editing pulses refocus the J evolution of
+    the edited spins when they sit TE/2 apart. The first pair plays as early and as
+    tight as the pulses allow, the first editing pulse right after it, the second
+    TE/2 later with the last adiabatic pulse right behind it; the third follows from
+    the spacings (TE 80 ms: AFPs at 3.8, 8.6, 32.3, 67.6 ms, editing pulses at 18.1
+    and 58.1 ms; a stated schedule, the vendors' differ in the margins). Filters on
+    both sides of every adiabatic and editing pulse select what the crushers select;
+    each axis is averaged after its pair.
+
+    Args:
+        edit_ppm: Editing pulse centre, or a tuple of one or two centres.
+        f0_mhz: The spectrometer frequency.
+        te_s: Echo time in seconds.
+        size_mm: The voxel edge, or its (x, y, z) edges.
+        reference_ppm: The shift the three slabs are centred for; others displace.
+        edit_s: The editing pulse's duration.
+        span: The ensemble's extent per axis in voxel edges.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
+    """
+
+    MARGIN_S = 0.00025
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, edit_ppm, f0_mhz, te_s=0.080, size_mm=20.0, reference_ppm=3.0, edit_s=0.014,
+                 span=2.5, tr_s=None):
+        self.edit_ppm = edit_ppm
+        self.te_s = te_s
+        laser = LocalizedSemiLaser
+        t90, afp_s, gap = laser.EXCITATION_S, laser.AFP_S, self.MARGIN_S
+        # the pulse centres from the excitation's centre
+        a = t90 / 2.0 + afp_s / 2.0 + gap
+        b = a + afp_s + gap
+        e1 = b + afp_s / 2.0 + edit_s / 2.0 + gap
+        e2 = e1 + te_s / 2.0
+        d = e2 + edit_s / 2.0 + afp_s / 2.0 + gap
+        c = d - (te_s / 2.0 - (b - a))
+        self.taus_s = (a, b - a, e1 - b, c - e1, e2 - c, d - e2, te_s - d)
+        lengths = (t90 / 2.0 + afp_s / 2.0, afp_s, (afp_s + edit_s) / 2.0, (afp_s + edit_s) / 2.0,
+                   (afp_s + edit_s) / 2.0, (afp_s + edit_s) / 2.0, afp_s / 2.0)
+        delays = [tau - length for tau, length in zip(self.taus_s, lengths)]
+        if min(delays) < -1e-9:
+            raise ValueError(f"te_s {te_s} is too short for four {afp_s * 1e3:.1f} ms adiabatic and "
+                             f"two {edit_s * 1e3:.0f} ms editing pulses")
+        delays = [max(delay, 0.0) for delay in delays]
+        edges = voxel_edges(size_mm)
+        excitation, slope = slab_pulse(90, t90, laser.EXCITATION_TBW, "x", edges[0], span,
+                                       reference_ppm, f0_mhz)
+
+        def afp(axis, edge):
+            return ShapedPulse.goia_wurst(afp_s, laser.AFP_BANDWIDTH_HZ, laser.AFP_PEAK_HZ, steps=128,
+                                          offset_ppm=reference_ppm, extent_mm=span * edge,
+                                          gradient_hz_per_mm=laser.AFP_BANDWIDTH_HZ / edge,
+                                          gradient_axis=axis)
+
+        afp_y, afp_z, edit = afp("y", edges[1]), afp("z", edges[2]), editing_pulse(edit_ppm, f0_mhz, edit_s)
+        super().__init__(
+            excitation, Gradient(-laser.REPHASE * slope * t90, span * edges[0], axis="x"),
+            CoherenceFilter(-1), Projection(span), Delay(delays[0]),
+            CoherenceFilter(-1), afp_y, CoherenceFilter(+1), Delay(delays[1]),
+            CoherenceFilter(+1), afp_y, CoherenceFilter(-1), Projection(span), Delay(delays[2]),
+            CoherenceFilter(-1), edit, CoherenceFilter(-1), Delay(delays[3]),
+            CoherenceFilter(-1), afp_z, CoherenceFilter(+1), Delay(delays[4]),
+            CoherenceFilter(+1), edit, CoherenceFilter(+1), Delay(delays[5]),
+            CoherenceFilter(+1), afp_z, CoherenceFilter(-1), Projection(span), Delay(delays[6]),
+            tr_s=tr_s,
+        )
+
+    #**********#
+    #   pair   #
+    #**********#
+    @classmethod
+    def pair(cls, f0_mhz, on_ppm=1.88, off_ppm=7.5, **kwargs):
+        """The ON and OFF conditions of the editing experiment, as a named dict."""
+        return {"on": cls(on_ppm, f0_mhz, **kwargs), "off": cls(off_ppm, f0_mhz, **kwargs)}
 
 
 #**************************************************************************************************#

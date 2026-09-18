@@ -25,11 +25,11 @@ from mrsandbox.phantom import (Brain, ChallengeMM, CoupledMM, FieldMap, Measured
                                Skull, Suppressed, Unsuppressed, Volume)
 from mrsandbox.scan import MRSI, Generator, Multiplex, VirtualScan, Voxel
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cycled, Delay, Gradient, HadamardEditing,
-                                 Hercules, Hermes, InducedKick, LocalizedMegaPress, LocalizedPress,
-                                 LocalizedSemiLaser, LocalizedSteam, MegaPress,
-                                 OuterVolumeSuppression, Press, Projection, Pulse, PulseAcquire,
-                                 SelectivePulse, SemiLaser, Sequence, ShapedPulse, Steam,
-                                 SuppressionTrain, Vapor, Wet)
+                                 Hercules, Hermes, InducedKick, LocalizedMegaPress,
+                                 LocalizedMegaSemiLaser, LocalizedPress, LocalizedSemiLaser,
+                                 LocalizedSteam, MegaPress, OuterVolumeSuppression, Press,
+                                 Projection, Pulse, PulseAcquire, SelectivePulse, SemiLaser,
+                                 Sequence, ShapedPulse, Steam, SuppressionTrain, Vapor, Wet)
 from mrsandbox.spins import Operators, SpinSystem
 
 __version__ = "0.0.1"

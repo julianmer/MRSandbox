@@ -153,15 +153,19 @@ class MRSI:
             events: its size is the box the lattice is excited in, as in PRESS or
             semi-LASER MRSI), the centre of that box; None takes the lattice's
             centre. Every cell then plays the design confined to itself, at its own
-            place in the box: cells where every pulse profile is flat share the
-            centre's response (within FLAT of one; the passband ripple of a percent
-            or two is not followed, stated), cells where a profile has died (under
-            SILENT) stay silent, and the cells at the box's edge, where the
-            transition bands and the chemical shift displacement are, are each
-            simulated. Other designs excite every cell alike, as before.
+            place in the box, sorted axis by axis: along an axis where the two ends of
+            the spectrum see the same pulse profile over the cell (within SAME of
+            each other: no chemical shift displacement there) the cell is the box's
+            centre times that profile, one complex factor with the passband's ripple
+            in it, so cells that differ only there share their lines; a cell where a
+            profile has died (under SILENT) stays silent; what remains, the cells at
+            the box's edge where the displaced slabs part, is simulated place by
+            place. An axis the lattice does not
+            resolve (the slab of a slice) is one place for every cell. Other designs
+            excite every cell alike, as before.
     """
 
-    FLAT, SILENT = 0.03, 0.01
+    SAME, SILENT = 0.01, 0.01
 
     #**********#
     #   init   #
@@ -226,9 +230,9 @@ class MRSI:
         localized = any(isinstance(event, Projection) for event in scan.sequence.events)
         self.box_center_mm = (tuple(float(c) for c in (box_center_mm if box_center_mm is not None
                                                        else center_mm)) if localized else None)
-        kind = self._excitation(scan, sub) if localized else (lambda position: "whole")
+        kind = self._excitation(scan, sub) if localized else (lambda position: ("whole", None, 1.0))
         self.cells = {"whole": 0, "interior": 0, "edge": 0, "silent": 0}
-        self.silent = set()
+        self.silent, self.gains = set(), {}
 
         def cell(i, j):
             x, y, z0 = self.source_position(i, j)
@@ -236,11 +240,11 @@ class MRSI:
             voxels = []
             for z in centres:
                 position = (x, y, float(z))
-                found = kind(position)
+                found, centre, gain = kind(position)
                 self.cells[found] += 1
-                # an interior cell sits at the box's centre as far as the design goes
-                centre = {"whole": None, "interior": position}.get(found, self.box_center_mm)
-                voxels.append(scan.voxel(position, sub, compiled=True, box_center_mm=centre))
+                voxels.append(scan.voxel(position, sub, compiled=True, box_center_mm=centre,
+                                         box_axes="xyz" if self.partitions > 1 else "xy"))
+                self.gains[voxels[-1]] = np.complex64(gain)
                 if found == "silent":
                     self.silent.add(voxels[-1])
             return voxels
@@ -427,7 +431,9 @@ class MRSI:
                         names += [n for n in fids if n not in names]
                     else:
                         fids = {"": voxel._clean_fid(truth, fine, step, basis=basis)[1]}
-                    cells[i, j].append(fids)
+                    gain = self.gains[voxel]
+                    cells[i, j].append(fids if gain == 1.0 else
+                                       {name: fid * gain for name, fid in fids.items()})
         components_names = names
         names = names or [""]
         zero = np.zeros(fine, dtype=np.complex64)
@@ -640,10 +646,13 @@ class MRSI:
     def _excitation(self, scan, size_mm):
         """What a localized design leaves along each of its axes, probed once with
         uncoupled spins at the two ends of the spectrum (0.9 and 4.7 ppm, so the
-        displaced slabs of both count), as a function sorting a cell at `position`
-        into "interior" (every profile within FLAT of the centre's over the cell, for
-        both probes), "silent" (some profile under SILENT of it all over the cell,
-        for both), or "edge"."""
+        displaced slabs of both count), as a function giving a cell at `position` its
+        kind, the box centre it plays the design about, and its factor on the result:
+        "silent" (some profile under SILENT of the centre's all over the cell, for
+        both probes), "edge" (along a resolved axis the two probes' profiles differ
+        by more than SAME over the cell), else "interior"; along an axis where the
+        probes agree the centre is the cell's own coordinate (no shift there) and
+        the factor takes the profile's mean over the cell."""
         from mrsandbox.spins import SpinSystem
 
         engine, design = scan.engine, scan.sequence
@@ -660,20 +669,26 @@ class MRSI:
                                    scale=1.0, gamma_mhz_t=gamma)
                 _, amps = engine.profile(design, probe, axis, grid)
                 line = np.argmax(np.abs(amps[-1]))
-                kept.append(np.abs(amps[:-1, line] / amps[-1, line]))
+                kept.append(amps[:-1, line] / amps[-1, line])
             tables[axis] = (grid[:-1], np.array(kept))
 
         def kind(position):
-            flat, silent = True, False
+            centre, edges, gain = list(position), 0, 1.0
             for axis, (grid, kept) in tables.items():
                 k = "xyz".index(axis)
                 place = position[k] - self.box_center_mm[k]
                 inside = np.abs(grid - place) <= size_mm[k] / 2.0
-                if not inside.any():  # beyond the probed reach: nothing is left there
-                    return "silent"
-                flat = flat and bool(np.all(np.abs(kept[:, inside] - 1.0) < self.FLAT))
-                silent = silent or bool(np.all(kept[:, inside] < self.SILENT))
-            return "silent" if silent else "interior" if flat else "edge"
+                if not inside.any() or np.all(np.abs(kept[:, inside]) < self.SILENT):
+                    return "silent", self.box_center_mm, 0.0  # nothing is left there
+                if k == 2 and self.partitions == 1:
+                    # the slab of a slice: not resolved, the design keeps its own extent
+                    centre[k] = self.box_center_mm[k]
+                elif np.all(np.abs(kept[0, inside] - kept[1, inside]) < self.SAME):
+                    gain = gain * kept[:, inside].mean()
+                else:
+                    centre[k] = self.box_center_mm[k]
+                    edges += 1
+            return ("edge" if edges else "interior"), tuple(centre), gain
 
         return kind
 
