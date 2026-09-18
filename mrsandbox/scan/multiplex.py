@@ -191,7 +191,7 @@ class Multiplex:
     #   transients   #
     #****************#
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
-                   npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None):
+                   npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
@@ -215,6 +215,14 @@ class Multiplex:
             synthesis: Keyword arguments for Augmentrum's TransientSynthesizer (its
                 ranges, e.g. drift_hz_per_min=0.0 and events_per_min=0.0 for a still
                 scanner and subject); the transient count, TR, and seed are set here.
+            displacement_mm: Where the head is at every transient, (transients, 3) in
+                mm from its planned place, or None for a head that stays. The voxel
+                stays where the scanner put it, so a displaced transient is rendered
+                at the planned position minus the displacement: its tissue fractions,
+                water, fat, field, and transmit map are the moved head's, the truth is
+                the one subject's (a rigid translation; rotations, the shim the move
+                spoils, and motion within a transient are not modelled). Recorded in
+                the header.
         """
         try:
             import augmentrum
@@ -231,12 +239,15 @@ class Multiplex:
         schedule = list(schedule)
         seed, truth, rng = draw(self.params, seed)
 
-        clean = {}
-        for name in set(schedule):
-            voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
-            _, clean[name] = voxel._clean_fid(truth, npoints, dwell_s)
-
         n = len(schedule)
+        moved = (np.zeros((n, 3)) if displacement_mm is None
+                 else np.asarray(displacement_mm, dtype=np.float64).reshape(n, 3))
+        clean = {}
+        for name, shift in set(zip(schedule, map(tuple, moved))):
+            voxel = self.scans[name].voxel(tuple(np.asarray(position_mm, dtype=np.float64) - shift),
+                                           size_mm, compiled=self.compiled)
+            _, clean[name, shift] = voxel._clean_fid(truth, npoints, dwell_s)
+
         synthesis = dict(synthesis or {})
         synth_seed = int(rng.integers(2 ** 31))
         synth = TransientSynthesizer(n_transients=n, tr_s=float(tr_s), seed=synth_seed,
@@ -249,7 +260,7 @@ class Multiplex:
         for k, name in enumerate(schedule):
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
-            fid = clean[name] * modulation
+            fid = clean[name, tuple(moved[k])] * modulation
             sigma = voxel.noise_sigma(truth, dwell_s)
             if sigma > 0.0:
                 fid = fid + receiver_noise(rng, sigma, npoints, voxel.scan.receiver)
@@ -274,7 +285,8 @@ class Multiplex:
              "frequency_hz": [float(x) for x in freq_hz],
              "phase_deg": [float(np.degrees(x)) for x in phase_rad],
              "amplitude": [float(x) for x in amplitude],
-             "broadening_hz": [float(x) for x in broaden_hz]},
+             "broadening_hz": [float(x) for x in broaden_hz],
+             "displacement_mm": None if displacement_mm is None else moved.tolist()},
             "MRSandbox: per transient condition and the realized Augmentrum instability "
             "tracks.",
         )

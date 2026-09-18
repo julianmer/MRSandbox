@@ -337,6 +337,29 @@ class TestTransients:
             np.testing.assert_array_equal(volume[:, k], volume[:, 0])
 
     #*************#
+    #   motion    #
+    #*************#
+    def test_a_displaced_head_changes_what_the_voxel_holds(self):
+        # the head moves 8 mm after the second transient and comes back for the last:
+        # the moved transients are the acquisition of the voxel placed 8 mm the other
+        # way on the same subject, the others repeat the planned one exactly
+        multiplex = self.multiplex()
+        moved = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (8.0, 0.0, 0.0), (0.0, 0.0, 0.0)]
+        data = multiplex.transients((10, -20, 5), 20.0, schedule=4, seed=3, npoints=256,
+                                    synthesis=self.still(), displacement_mm=moved)
+        volume = np.asarray(data[:])[0, 0, 0]
+        np.testing.assert_array_equal(volume[:, 1], volume[:, 0])
+        np.testing.assert_array_equal(volume[:, 3], volume[:, 0])
+        elsewhere = multiplex.transients((2, -20, 5), 20.0, schedule=1, seed=3, npoints=256,
+                                         synthesis=self.still())
+        np.testing.assert_array_equal(volume[:, 2], np.asarray(elsewhere[:])[0, 0, 0])
+        assert np.abs(volume[:, 2] - volume[:, 0]).max() > 1e-3 * np.abs(volume[:, 0]).max()
+        assert data.hdr_ext["SimulationSchedule"]["displacement_mm"][2] == [8.0, 0.0, 0.0]
+        still = multiplex.transients((10, -20, 5), 20.0, schedule=2, seed=3, npoints=256,
+                                     synthesis=self.still())
+        assert still.hdr_ext["SimulationSchedule"]["displacement_mm"] is None
+
+    #*************#
     #   drift     #
     #*************#
     def test_drift_accumulates_on_the_acquisition_clock(self):
