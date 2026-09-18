@@ -140,6 +140,14 @@ class MRSI:
         trajectory_params: Parameters of the Augmentrum trajectory.
         dead_time_s: Flyback or turnaround time at the end of every trajectory sweep,
             quantized to fine-grid samples; 0 idealizes it away.
+        odd_sweeps: What sets the odd sweeps of "epsi-bidirectional" apart from the
+            even ones beyond their direction, dict(delay_s, gain, phase_deg): a
+            timing offset between the readout and its gradient (the k line is read
+            that much off its nominal place, a linear phase across x), an amplitude
+            factor, and a zero-order phase. They feed the ghost at half the spectral
+            width; the ranges Weis et al. (Sci Rep 2025, s41598-025-28277-y)
+            simulate between echo trains are 1 to 3.5 us, 0.7 to 1.3, and 20 to 60
+            degrees, the phase the one that matters. None idealizes them away.
     """
 
     #**********#
@@ -148,7 +156,7 @@ class MRSI:
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
                  thickness_mm=None, oversampling=1, weighting=None, sampling=None,
                  profile=None, averages=None, trajectory=None, trajectory_params=None,
-                 dead_time_s=0.0):
+                 dead_time_s=0.0, odd_sweeps=None):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
         if averages is not None and (not isinstance(averages, numbers.Real)
@@ -230,6 +238,15 @@ class MRSI:
         if dead_time_s < 0.0:
             raise ValueError(f"dead_time_s must be non-negative, got {dead_time_s!r}")
         self.dead_time_s = float(dead_time_s)
+        if odd_sweeps is not None and trajectory != "epsi-bidirectional":
+            raise ValueError("odd_sweeps needs the epsi-bidirectional trajectory: the other "
+                             "readouts have no odd sweeps")
+        unknown = set(odd_sweeps or {}) - {"delay_s", "gain", "phase_deg"}
+        if unknown:
+            raise ValueError(f"unknown odd_sweeps keys {sorted(unknown)}; known: delay_s, gain, "
+                             f"phase_deg")
+        self.odd_sweeps = None if odd_sweeps is None else {
+            "delay_s": 0.0, "gain": 1.0, "phase_deg": 0.0, **odd_sweeps}
 
     #**************#
     #   geometry   #
@@ -407,7 +424,7 @@ class MRSI:
         if self.trajectory is None:
             encoded = self._encode(source)
         elif self.shots is None:
-            encoded = self._sample_trajectory(source, npoints, n_dead)
+            encoded = self._sample_trajectory(source, npoints, n_dead, dwell_s)
         else:
             encoded = self._sample_nonuniform(source, npoints, n_dead)
         data = np.zeros((nx, ny, nz) + tail + (len(names),), dtype=np.complex64)
@@ -487,6 +504,7 @@ class MRSI:
              "averages": self.averages, "trajectory": self.trajectory,
              **({"dead_time_s": n_dead * dwell_s / period}
                 if self.trajectory is not None else {}),
+             **({"odd_sweeps": self.odd_sweeps} if self.odd_sweeps is not None else {}),
              **({"visit_order": self._visit_order(0).tolist(),
                  "visit_order_odd": self._visit_order(1).tolist()}
                 if self.trajectory is not None and self.shots is None else {}),
@@ -601,7 +619,7 @@ class MRSI:
             return order[::-1].copy()
         return order
 
-    def _sample_trajectory(self, source, npoints, n_dead=0):
+    def _sample_trajectory(self, source, npoints, n_dead=0, dwell_s=None):
         """Sample the EPSI readout and decode it the standard way.
 
         The fine-grid sources are spatially Fourier transformed, every kx line is
@@ -627,6 +645,16 @@ class MRSI:
             else:
                 kdata[:, :, :, n] = k[rows[:, None, None], cols[None, :, None],
                                       np.arange(nz)[None, None, :], slots[:, None, None]]
+        if self.odd_sweeps is not None:
+            # the odd sweeps' own gain and phase, and their k lines read off place by
+            # the delay over the time one k step takes (a linear phase across x)
+            odd = (slice(None),) * len(self.dims) + (slice(1, None, 2),)
+            factor = self.odd_sweeps["gain"] * np.exp(1j * np.radians(self.odd_sweeps["phase_deg"]))
+            steps = self.odd_sweeps["delay_s"] / (dwell_s / period)  # in k steps
+            ramp = np.exp(2j * np.pi * steps * np.fft.fftfreq(nx))
+            ramp = ramp.reshape((nx,) + (1,) * (kdata[odd].ndim - 1))
+            lines = np.fft.ifft(np.fft.ifftshift(kdata[odd], axes=0), axis=0) * ramp
+            kdata[odd] = factor * np.fft.fftshift(np.fft.fft(lines, axis=0), axes=0)
         decoded = np.fft.ifftn(np.fft.ifftshift(kdata, axes=axes), axes=axes)
         return decoded.astype(np.complex64)
 

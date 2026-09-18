@@ -571,6 +571,35 @@ class TestTrajectory:
         assert bid[peak] > bid[ghost]  # the main line still dominates
         assert bid[ghost] > 10.0 * fly[ghost]  # the odd-even ghost is bidirectional only
 
+    #*****************#
+    #   odd sweeps    #
+    #*****************#
+    def test_odd_sweeps_carry_their_own_gain_phase_and_delay(self):
+        # the decode is linear per spectral period: a gain and a phase on the odd
+        # sweeps multiply the odd FID points and leave the even ones, a delay turns
+        # them by a linear phase across x, and the ghost at half the width grows
+        scan = self.singlet_scan()
+        _, plain = self.acquired(scan, trajectory="epsi-bidirectional")
+        mrsi, off = self.acquired(scan, trajectory="epsi-bidirectional",
+                                  odd_sweeps=dict(gain=0.9, phase_deg=40.0))
+        np.testing.assert_array_equal(off[..., 0::2], plain[..., 0::2])
+        np.testing.assert_allclose(off[..., 1::2], 0.9 * np.exp(1j * np.radians(40.0)) * plain[..., 1::2],
+                                   atol=1e-5 * np.abs(plain).max())
+        peak = int(np.argmax(np.abs(np.fft.fft(plain[2, 2]))))
+        ghost = (peak + 32) % 64
+        assert np.abs(np.fft.fft(off[2, 2]))[ghost] > 2.0 * np.abs(np.fft.fft(plain[2, 2]))[ghost]
+        assert mrsi.acquire(seed=3, npoints=8).hdr_ext["SimulationGrid"]["odd_sweeps"] == {
+            "delay_s": 0.0, "gain": 0.9, "phase_deg": 40.0}
+        # a delay of half a k step (the k step takes dwell / nx here)
+        _, late = self.acquired(scan, trajectory="epsi-bidirectional",
+                                odd_sweeps=dict(delay_s=0.5 * (1.0 / 4000.0) / 4))
+        np.testing.assert_array_equal(late[..., 0::2], plain[..., 0::2])
+        ramp = np.exp(2j * np.pi * 0.5 * np.fft.fftfreq(4))
+        np.testing.assert_allclose(late[..., 1::2], ramp[:, None, None] * plain[..., 1::2],
+                                   atol=1e-5 * np.abs(plain).max())
+        with pytest.raises(ValueError):
+            scan.mrsi(matrix=(4, 4), voxel_mm=4.0, trajectory="epsi", odd_sweeps=dict(gain=0.9))
+
     #*******************#
     #   finite flyback  #
     #*******************#

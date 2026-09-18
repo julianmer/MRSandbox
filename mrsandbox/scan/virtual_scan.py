@@ -141,7 +141,7 @@ class VirtualScan:
     def mrsi(self, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
              thickness_mm=None, oversampling=1, weighting=None, sampling=None,
              profile=None, averages=None, trajectory=None, trajectory_params=None,
-             dead_time_s=0.0):
+             dead_time_s=0.0, odd_sweeps=None):
         """Place an MRSI slice lattice and get its acquisition handle; see scan.mrsi.MRSI."""
         from mrsandbox.scan.mrsi import MRSI
 
@@ -149,7 +149,8 @@ class VirtualScan:
                     thickness_mm=thickness_mm, oversampling=oversampling,
                     weighting=weighting, sampling=sampling, profile=profile,
                     averages=averages, trajectory=trajectory,
-                    trajectory_params=trajectory_params, dead_time_s=dead_time_s)
+                    trajectory_params=trajectory_params, dead_time_s=dead_time_s,
+                    odd_sweeps=odd_sweeps)
 
     #*****************#
     #   training      #
