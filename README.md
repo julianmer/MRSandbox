@@ -104,8 +104,11 @@ This repository consists of the following main structures:
   takes it: the Trio and the GE from Big GABA's raw sites, the Prisma from COWS, the Achieva
   from fMRS in pain, 7 T from NeuroMET; every other scanner falls back to the Trio's, and
   records that are not in use stay as checks. The noise records read the NAA signal to
-  noise ratio of single transients under a common apodization, which takes the in vivo
-  linewidth out of the receive chain's number. The creatine range is calibrated the same way, on the
+  noise ratio of single transients twice, plain and under a common apodization, and take
+  the mean of the two noise levels they imply. `scan/calibrate.py` makes such a record from
+  a scanner's own raw data: `NoiseReading.from_nifti(path)` reads NIfTI-MRS with coils and
+  transients apart (spec2nii writes it from TWIX, P-files, and data/list), and
+  `reading.record(voxel, ...)` returns the record of the virtual twin that reproduces it. The creatine range is calibrated the same way, on the
   height of the 3.03 ppm singlet against NAA's in three datasets. Only quantities read off
   raw data enter a record, never concentrations a fitting program reported.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,

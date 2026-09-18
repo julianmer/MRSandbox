@@ -188,29 +188,17 @@ def default_params(database=None, b0_t=3.0, scanner=None):
         # noise: complex Gaussian per FID point of ONE transient of the reference
         #   acquisition, a 20 mm cube (8 mL) at 3 T sampled at 5 kHz (scan.voxel
         #   NOISE_REFERENCE); every acquisition scales it by its volume, field,
-        #   receiver bandwidth, and averages. Calibrated 18/09/26 against Big GABA
-        #   (Mikkelsen et al. 2017, NeuroImage 159:32; the PRESS arm, TE 35 ms, TR 2 s,
-        #   a 30 mm cube in the medial parietal lobe, 2048 points at 2 kHz, 64
-        #   transients), its three Siemens sites with the raw coils and transients
-        #   kept, 36 subjects: the single-transient NAA SNR by the consensus
-        #   definition (Near et al. 2021: the real NAA peak height over the noise
-        #   standard deviation of a signal-free stretch after a linear detrend, no
-        #   apodization), after a noise-whitened SVD coil combination, has a median
-        #   of 36.4 (site medians 38.5, 33.8, 36.7; 5th to 95th percentile 28.8 to
-        #   43.6). The simulator at the same timings, TR, voxel, and grid (ICBM152
-        #   at (0, -45, 35) mm) reaches 36.6 at a reference sigma of 6.3. The range is
-        #   the percentiles' (the subjects' own concentrations widen the simulated
-        #   spread beyond it; stated). History, because it matters: a first
-        #   calibration (17/09/26, sigma 5.2) used one dataset whose SNR was read as
-        #   6.7, and read the simulated spectrum conjugated with a 4.65 ppm carrier,
-        #   which measures the multiplets near 2.64 ppm; the two errors nearly
-        #   cancelled. Read on the raw coils like the others, that dataset gives 10,
-        #   a quarter of Big GABA's: an outlier, not a reference. `Voxel.fid` is
-        #   referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
-        #   (tests/scan/test_scan TestNoiseModel gates the calibration). The record
-        #   with the exact conditions is scan.calibrations, and every acquisition's
-        #   header names it and the conditions the scan departs from. A scanner preset
-        #   with its own record takes that one (scan.calibrations: the Prisma, the Achieva, the GE).
+        #   receiver bandwidth, and averages. The range is calibrated on raw in vivo
+        #   data, coils and transients apart, and belongs to the receive chain:
+        #   scan.calibrations holds one record per scanner preset with its exact
+        #   conditions (the Trio of Big GABA's Siemens sites, which every scanner
+        #   without its own record falls back to; the Prisma, the GE, the Achieva with
+        #   its one-channel coil, 7 T), scan.calibrate makes such a record from a
+        #   scanner's own data, and every acquisition's header names the record it got
+        #   and the conditions it departs from. `Voxel.fid` is referenced to 0 ppm, a
+        #   line at f hertz is exp(+i 2 pi f t): the plain transform puts NAA at
+        #   2.01 ppm (a first calibration read the conjugate with a 4.65 ppm carrier,
+        #   the multiplets near 2.64 ppm). tests/scan/test_scan TestNoiseModel gates it.
         noise=dict(sigma=calibrations(scanner)["noise.sigma"].prior),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.

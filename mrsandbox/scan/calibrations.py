@@ -106,12 +106,18 @@ class Calibration:
 #*****************#
 #   the measure   #
 #*****************#
-# The noise records read the single-transient NAA SNR twice: plain (Near et al. 2021) and
-# under a 10 Hz exponential apodization of data and simulation alike. The plain height
-# follows the in vivo linewidth and lineshape, which belong to the shim and the eddy
-# currents and not to the receive chain; apodized it hardly does (simulated at the Big
-# GABA conditions: halving the line doubles the plain SNR, 35.6 to 73.9, and moves the
-# apodized one from 116.2 to 120.9). The value of a record is the apodized reading.
+# The noise records read the single-transient NAA SNR twice, through scan.calibrate
+# NoiseReading: plain (Near et al. 2021) and under a 10 Hz exponential apodization of data
+# and simulation alike, and each reading gives the sigma at which the virtual twin
+# reproduces it. The plain height follows the in vivo linewidth and lineshape (shim, eddy
+# currents), the apodized one the broad signal under the singlet (the macromolecule at
+# 2.04 ppm the default model is short of): neither belongs to the receive chain, they err
+# in opposite directions, and they agree within 25 percent, mostly within 7. The value of a
+# record is the median over subjects of the two sigmas' mean, the prior its 5th to 95th
+# percentile. (A first round read the apodized floor off oversampled data cropped to the
+# receiver's band, where the window sat at the band's edge and read up to twice the
+# floor; the reader now carries the plain floor to the apodized spectrum as for white
+# noise. Values of that round: 6.3, 3.9, 10.1, 5.3, 2.5.)
 APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodization of data and "
             "simulation alike")
 
@@ -121,15 +127,14 @@ APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodiza
 #********************#
 NOISE_BIG_GABA_SIEMENS_3T = Calibration(
     leaf="noise.sigma",
-    value=6.3,
-    prior=(5.3, 8.0),
+    value=5.5,
+    prior=(4.3, 6.9),
     measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
                            "the noise standard deviation of a signal-free stretch after a linear "
-                           "detrend, no apodization)",
-              "median": 36.4, "site_medians": (38.5, 33.8, 36.7), "p5_p95": (28.8, 43.6),
-              "subjects": 36, "simulated_at_value": 36.6,
-              "apodized": {"statistic": APODIZED, "median": 116.4, "simulated_at_value": 116.2,
-                           "implied_value": 6.29}},
+                           "detrend, no apodization), median over subjects",
+              "median": 36.5, "implied_value": 6.16,
+              "site_medians": ((39.5, 149.4), (34.5, 166.7), (36.8, 125.1)), "subjects": 36,
+              "apodized": {"statistic": APODIZED, "median": 143.3, "implied_value": 4.78}},
     source={"dataset": "Big GABA, PRESS arm, sites S1, S5, S6",
             "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
             "url": "https://www.nitrc.org/projects/biggaba/"},
@@ -152,26 +157,22 @@ NOISE_BIG_GABA_SIEMENS_3T = Calibration(
 #***************************#
 #   noise, prisma, slaser   #
 #***************************#
-# serves the siemens_prisma_3t preset. At sigma 6.3 the simulator gives an apodized SNR of
-# 37.5 where the 29 spectra give 60.5: the Prisma with its 32-channel array and semi-LASER
-# is 1.6 times quieter than the Trio sites with PRESS. The plain reading says 1.4 (15.0
-# against 21.1, sigma 4.5). (A first reading, sigma 3.2, was made while the ideal SemiLaser
-# played its four pulses on top of the echo time, 50 ms for 26: found through the
-# macromolecules' doublet phases and fixed the same day.) By region, plain: prefrontal 23.7, occipital 22.2, posterior
-# frontal near the vertex 16.3, where the simulated places give 14.0, 15.0, 14.0: the
-# place under the array, which the pooled value does not carry.
+# serves the siemens_prisma_3t preset: the Prisma with its 32-channel array is a tenth
+# quieter than the Trio sites (4.9 against 5.5), the two readings a few percent apart. By
+# region the SNR runs prefrontal 23.7, occipital 22.3, posterior frontal near the vertex
+# 16.3 (apodized 64.4, 57.1, 41.0): the place under the array, which the pooled value does
+# not carry (hardware.CoilArray.helmet is checked against it).
 NOISE_COWS_PRISMA_3T = Calibration(
     leaf="noise.sigma",
-    value=3.9,
-    prior=(3.0, 5.6),
-    measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 21.1,
-              "p5_p95": (14.1, 26.7), "region_medians": (23.7, 22.2, 16.3), "subjects": 10,
-              "spectra": 29, "naa_fwhm_hz": (4.9, 5.6, 4.6), "simulated_naa_fwhm_hz": 5.8,
-              "simulated_at_big_gaba_value": 15.0, "implied_value": 4.49,
-              "averaged_over_single": 5.55,
-              "apodized": {"statistic": APODIZED, "median": 60.5, "region_medians": (70.4, 64.0, 49.5),
-                           "simulated_at_big_gaba_value": 37.5, "implied_value": 3.91,
-                           "implied_p5_p95": (2.99, 5.64)}},
+    value=4.9,
+    prior=(3.7, 6.9),
+    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
+                           "the noise standard deviation of a signal-free stretch after a linear "
+                           "detrend, no apodization), median over subjects",
+              "median": 21.3, "implied_value": 5.07,
+              "region_medians": ((23.7, 64.4), (22.3, 57.1), (16.3, 41.0)), "subjects": 10, "spectra": 29,
+              "naa_fwhm_hz": (4.9, 5.6, 4.6), "simulated_naa_fwhm_hz": 5.8, "averaged_over_single": 5.55,
+              "apodized": {"statistic": APODIZED, "median": 57.1, "implied_value": 4.75}},
     source={"dataset": "COWS, OpenNeuro ds006812, the VAPOR metabolite scans of all subjects "
                        "and regions (one occipital file unreadable)",
             "citation": "Igwe et al. 2025, Magn Reson Med, doi 10.1002/mrm.30550",
@@ -202,22 +203,20 @@ NOISE_COWS_PRISMA_3T = Calibration(
 #*********************************#
 #   noise, 3 tesla, one channel   #
 #*********************************#
-# serves the philips_achieva_3t preset: a transmit-receive birdcage in place of an array.
-# The Big GABA value gives 20.4 where the 15 subjects give 13.0 (11.1 to 15.5), apodized
-# 72.1 against 45.1: both readings say 1.6. The
-# birdcage hears a medial frontal voxel 1.6 times worse than the arrays of Big GABA hear
-# a parietal one, the order an array's gain at that depth has. With COWS above (1.5 the
-# other way, a newer scanner and array) it says what the drawn sigma is: a property of
-# the receive chain, scanner and coil, that one prior per field does not carry.
+# serves the philips_achieva_3t preset: a transmit-receive birdcage in place of an array,
+# twice as noisy as the arrays above for a medial frontal voxel (10.3 against 4.9 to 5.5),
+# the order an array's gain at that depth has; both readings within two percent. The
+# drawn sigma is a property of the receive chain, scanner and coil, that one prior per
+# field does not carry.
 NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
     leaf="noise.sigma",
-    value=10.1,
-    prior=(8.1, 11.2),
-    measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 13.0,
-              "range": (11.1, 15.5), "subjects": 15, "simulated_at_big_gaba_value": 20.4,
-              "implied_value": 9.9,
-              "apodized": {"statistic": APODIZED, "median": 45.1, "simulated_at_big_gaba_value": 72.1,
-                           "implied_value": 10.07, "implied_p5_p95": (8.08, 11.19)}},
+    value=10.3,
+    prior=(8.8, 11.4),
+    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
+                           "the noise standard deviation of a signal-free stretch after a linear "
+                           "detrend, no apodization), median over subjects",
+              "median": 13.0, "implied_value": 10.08, "subjects": 15,
+              "apodized": {"statistic": APODIZED, "median": 44.9, "implied_value": 10.24}},
     source={"dataset": "fMRS in pain, the functional runs",
             "citation": "Archibald et al. 2020, Sci Rep 10:19218",
             "url": "https://www.nitrc.org/projects/fmrs_2020"},
@@ -244,23 +243,22 @@ NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
 #   noise, ge, press   #
 #**********************#
 # serves the ge_mr750_3t preset: the two GE sites of Big GABA whose P-files hold the 64
-# transients apart (psd jpress). Apodized 137.8 against the simulated 116.2: the 8-channel
-# array is 1.2 times quieter than the Trio sites. Plain, the same data read 27.7 against
-# 35.6, the other way: the GE lines are broad and misshapen before an eddy current
-# correction, which is what the apodized reading is for. The four other GE sites store
-# frames of 2 or 8 summed excitations; divided by the square root of that they read 78 to
-# 101 apodized where these two read 138: a frame is not its excitations' ideal sum, and
-# no record is built on one.
+# transients apart (psd jpress), an 8-channel array: 7.0 against the 32-channel Siemens
+# sites' 5.5 under the same protocol. The readings stand furthest apart here (8.2 plain,
+# 5.9 apodized): the GE lines are broad and misshapen before an eddy current correction,
+# which pulls the plain height down. The four other GE sites store frames of 2 or 8 summed
+# excitations; divided by the square root of that they read a quarter below these two: a
+# frame is not its excitations' ideal sum, and no record is built on one.
 NOISE_BIG_GABA_GE_3T = Calibration(
     leaf="noise.sigma",
-    value=5.3,
-    prior=(4.5, 8.8),
-    measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 27.7,
-              "subjects": 24, "simulated_at_big_gaba_value": 35.6, "implied_value": 8.08,
-              "apodized": {"statistic": APODIZED, "median": 137.8, "site_medians": (136.7, 139.0),
-                           "simulated_at_big_gaba_value": 116.2, "implied_value": 5.31,
-                           "implied_p5_p95": (4.48, 8.84)},
-              "summed_frame_sites_apodized": {"G1": 91.8, "G4": 89.9, "G5": 78.4, "G6": 100.6}},
+    value=7.0,
+    prior=(6.0, 10.3),
+    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
+                           "the noise standard deviation of a signal-free stretch after a linear "
+                           "detrend, no apodization), median over subjects",
+              "median": 27.7, "implied_value": 8.21,
+              "site_medians": ((28.9, 128.7), (27.7, 120.0)), "subjects": 24,
+              "apodized": {"statistic": APODIZED, "median": 120.5, "implied_value": 5.93}},
     source={"dataset": "Big GABA, PRESS arm, sites G7, G8",
             "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
             "url": "https://www.nitrc.org/projects/biggaba/"},
@@ -286,23 +284,20 @@ NOISE_BIG_GABA_GE_3T = Calibration(
 #********************#
 # serves the generic_7t preset, and is the first test of the field term of noise_scale
 # (sigma over B0, a signal-to-noise ratio linear in the field). The value is in the units of
-# the 3 T reference: 6.3 carried to 7 T gives an apodized pair SNR of 55.1 where the nine
-# subjects give 137.4, 2.5 times more. A 32-channel array of the Prisma's generation
-# (sigma 3.9 above) explains 1.6 of it; the rest fits a field exponent of about 1.5 in
-# place of 1 (the literature's is 1.65: Pohmann et al. 2016, Magn Reson Med 75:801), which
-# one 7 T site cannot separate from its coil. The law stays linear and the record carries
-# the difference (stated).
+# the 3 T reference: were the law exact, a 32-channel array of the Prisma's generation
+# would read 4.9 here too; it reads 3.6, which a field exponent of about 1.4 in place of 1
+# would give (the literature's is 1.65: Pohmann et al. 2016, Magn Reson Med 75:801). One
+# 7 T site cannot part the field from its coil, so the law stays linear and the record
+# carries the difference (stated). Both readings within three percent.
 NOISE_NEUROMET_7T = Calibration(
     leaf="noise.sigma",
-    value=2.5,
-    prior=(2.3, 2.9),
-    measured={"statistic": "NAA SNR of one add-subtract pair (SPECIAL's unit: two excitations), "
-                           "read as the single-transient SNR of the other records",
-              "median": 56.9, "range": (40.4, 70.6), "subjects": 9,
-              "simulated_at_big_gaba_value": 30.9, "implied_value": 3.42,
-              "apodized": {"statistic": APODIZED, "median": 137.4, "range": (118.6, 153.1),
-                           "simulated_at_big_gaba_value": 55.1, "implied_value": 2.53,
-                           "implied_range": (2.27, 2.93)}},
+    value=3.6,
+    prior=(3.3, 5.1),
+    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
+                           "the noise standard deviation of a signal-free stretch after a linear "
+                           "detrend, no apodization), median over subjects",
+              "median": 60.3, "implied_value": 3.66, "subjects": 9, "unit": "one add-subtract pair, two excitations",
+              "apodized": {"statistic": APODIZED, "median": 218.3, "implied_value": 3.57}},
     source={"dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of "
                        "each subject's first session (CC BY-NC-SA 4.0)",
             "citation": "Riemann et al. 2022, Magn Reson Med 87:1119, doi 10.1002/mrm.29034",

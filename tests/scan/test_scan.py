@@ -566,7 +566,7 @@ class TestNoiseModel:
         # the 7 T preset has its own record, so its field is no departure any more
         seven = calibrations(other.scanner)["noise.sigma"]
         assert seven.scanner["field_t"] > 6.9 and set(seven.departures(other)) == {"sequence"}
-        assert other.params["noise"]["sigma"].high < 3.0
+        assert other.params["noise"]["sigma"].low < record.prior[0]  # quieter than the 3 T law gives
         philips = VirtualScan(brain, Scanner.preset("philips_elition_3t"), Press(0.011, 0.024))
         assert record.departures(philips) == {"vendor": ("siemens", "philips")}
         # a preset with its own record takes it: the Prisma's is COWS, semi-LASER
@@ -617,7 +617,9 @@ class TestNoiseModel:
         # the calibration of the noise prior (scan.defaults): at Big GABA's PRESS
         # conditions (3 T, TE 35 ms, TR 2 s, a 30 mm cube, 2048 points at 2 kHz, one
         # transient) the default draws give the single-transient NAA SNR measured on
-        # its 36 Siemens subjects, 36.4 (28.8 to 43.6), by the consensus definition
+        # its 36 Siemens subjects, 36.5 (28.8 to 43.6), by the consensus definition; the record's
+        # sigma is the mean of what the plain and the apodized reading imply, so the simulated
+        # SNR lies a little above the plain one and a little below the apodized one
         calm = Params(spurious=dict(amplitude=0.0),
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
                       gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
@@ -644,7 +646,7 @@ class TestNoiseModel:
             floor = broad[noise] - np.polyval(np.polyfit(ppm[noise], broad[noise], 1), ppm[noise])
             apodized.append(broad[near].max() / floor.std())
         assert 28.8 < np.median(snrs) < 48.0, snrs  # 36.4 and the simulated draws' spread
-        assert 95.0 < np.median(apodized) < 140.0, apodized  # 116.4 measured
+        assert 100.0 < np.median(apodized) < 180.0, apodized  # 143.3 measured
 
     def test_total_creatine_stands_to_naa_as_in_vivo(self, scan):
         # scan.calibrations CREATINE_THREE_DATASETS_3T: at Big GABA's conditions the 3.03 ppm
