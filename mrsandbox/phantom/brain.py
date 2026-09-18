@@ -56,8 +56,13 @@ class Brain:
     # QSM challenge 2.0 head labels (resources.qsm LABELS) grouped by tissue. Stated:
     # the deep nuclei count as gray matter, blood and calcification as no tissue, and
     # the extracranial soft tissue (the deposit's "muscle"; its "fat" label holds no
-    # voxels, so scalp fat and muscle are one class) is the fat-bearing layer.
+    # voxels, so scalp fat and muscle are one class) is the fat-bearing layer, beyond
+    # the bone only: over the calvarium the same label also lines the brain (the first
+    # 3 mm, the meninges), then come 6 mm of bone, and the scalp fills 9 to 15 mm from
+    # the brain (measured on the head's labels). SCALP_FROM_MM parts the two sheets and
+    # SCALP_MM is where a brain without a fat map takes its scalp to lie.
     QSM_TISSUES = {"gm": (1, 2, 3, 4, 5, 6, 7, 9), "wm": (8,), "csf": (10,), "fat": (15,)}
+    SCALP_FROM_MM, SCALP_MM = 6.0, (9.0, 15.0)
 
     #**********#
     #   init   #
@@ -72,6 +77,7 @@ class Brain:
         self.gm, self.wm, self.csf = (self.maps.data[..., i] for i in range(3))
         self.affine = self.maps.affine
         self.name = name
+        self._shell = None
 
     #*************#
     #   loading   #
@@ -143,7 +149,21 @@ class Brain:
         labels = np.asarray(volume.data, dtype=np.uint8)
         masks = {tissue: np.isin(labels, members).astype(np.float32)
                  for tissue, members in cls.QSM_TISSUES.items()}
+        masks["fat"] = cls.scalp(masks["fat"], masks["gm"] + masks["wm"] + masks["csf"], volume.affine)
         return cls(affine=volume.affine, name="qsm_rc2", **masks)
+
+    #***********#
+    #   scalp   #
+    #***********#
+    @classmethod
+    def scalp(cls, layer, brain, affine):
+        """The part of a soft tissue layer that lies beyond the bone, SCALP_FROM_MM or
+        more from the brain: the sheet that lines the brain is not fat."""
+        import scipy.ndimage
+
+        cell = np.linalg.norm(np.asarray(affine)[:3, :3], axis=0)
+        distance = scipy.ndimage.distance_transform_edt(brain < 0.5, sampling=cell)
+        return (layer * (distance >= cls.SCALP_FROM_MM)).astype(np.float32)
 
     @classmethod
     def from_maps(cls, gm, wm, csf, affine, name="custom", fat=None):
@@ -183,52 +203,59 @@ class Brain:
     #   lipid weight    #
     #*******************#
     def lipid_weight(self, position_mm, size_mm):
-        """Fraction of the voxel box beyond the brain boundary, the v1 proxy for the
-        fat layer.
+        """Fraction of the voxel box that holds scalp, the fat layer.
 
-        Counted only when the box straddles the boundary (it holds solid tissue and
-        empty space at once): a box fully inside the brain weighs exactly zero, a box
-        fully outside weighs zero too, and a box clipping the skull weighs the clipped
-        fraction. The tissue probability maps carry no scalp, so the boundary stands in
-        for the fat layer until segmented skull maps arrive. A brain with a `fat`
-        map weighs the box by that tissue instead.
+        A brain with a `fat` map weighs the box by that tissue. The tissue probability
+        maps of the other presets carry no scalp, so the shell SCALP_MM from the brain
+        stands in for it (the distance the scalp keeps on the QSM head, beyond the
+        meninges and the bone): a voxel that touches the cortex holds none, as in vivo,
+        and one that reaches a centimetre beyond the brain clips it. Counted only when
+        the box holds brain as well.
         """
+        if self.fat is None:
+            values, weights = self.maps.box(position_mm, size_mm)
+            if weights.sum() <= 0.0 or not bool((values.sum(axis=-1)[weights > 0.0] > 0.5).any()):
+                return 0.0
+        mean = self.layer.mean(position_mm, size_mm)
+        return 0.0 if mean is None else float(mean)
+
+    @property
+    def layer(self):
+        """The fat layer as a Volume: the `fat` map, or without one the shell SCALP_MM
+        from the brain, built on first use."""
         if self.fat is not None:
-            mean = self.fat.mean(position_mm, size_mm)
-            return 0.0 if mean is None else float(mean)
-        values, weights = self.maps.box(position_mm, size_mm)
-        if weights.sum() <= 0.0:
-            return 0.0
-        total = values.sum(axis=-1)
-        if not bool((total[weights > 0.0] > 0.5).any()):
-            return 0.0
-        return float((weights * (total < 0.1)).sum() / weights.sum())
+            return self.fat
+        if self._shell is None:
+            import scipy.ndimage
+
+            cell = np.linalg.norm(self.affine[:3, :3], axis=0)
+            distance = scipy.ndimage.distance_transform_edt(self.maps.data.sum(axis=-1) < 0.5, sampling=cell)
+            shell = (distance >= self.SCALP_MM[0]) & (distance <= self.SCALP_MM[1])
+            self._shell = Volume(shell.astype(np.float32), self.affine, name=self.name + "/scalp")
+        return self._shell
 
     def lipid_cells(self, position_mm, size_mm):
         """The fat inside a box, cell by cell: (offsets, volumes) with the cell centres
         in mm from the box centre, (n, 3), and the fat each holds inside the box in
-        cubic mm, (n,); empty without a `fat` map or outside it."""
-        if self.fat is None:
-            return np.empty((0, 3)), np.empty(0)
-        values, weights = self.fat.box(position_mm, size_mm)
+        cubic mm, (n,); empty outside the layer."""
+        values, weights = self.layer.box(position_mm, size_mm)
         held = (values * weights).ravel()
         if held.size == 0 or held.sum() <= 0.0:
             return np.empty((0, 3)), np.empty(0)
         keep = held > 0.0
-        centres = self.fat.centres(position_mm, size_mm).reshape(-1, 3)[keep]
-        cell_mm3 = abs(float(np.linalg.det(self.fat.affine[:3, :3])))
+        centres = self.layer.centres(position_mm, size_mm).reshape(-1, 3)[keep]
+        cell_mm3 = abs(float(np.linalg.det(self.layer.affine[:3, :3])))
         return centres - np.asarray(position_mm, dtype=np.float64), held[keep] * cell_mm3
 
     def lipid_offset(self, position_mm, size_mm):
-        """Where the fat layer sits: the centroid of the box's beyond-the-brain content
-        (the cells `lipid_weight` counts) relative to the voxel centre, (x, y, z) in
-        millimetres; zeros when the box holds none. With a `fat` map the content is
-        that tissue."""
-        source = self.maps if self.fat is None else self.fat
+        """Where the fat layer sits: the centroid of the box's fat (the `layer` cells
+        `lipid_weight` counts) relative to the voxel centre, (x, y, z) in millimetres;
+        zeros when the box holds none."""
+        source = self.layer
         values, weights = source.box(position_mm, size_mm)
         if weights.sum() <= 0.0:
             return np.zeros(3)
-        outside = weights * (values.sum(axis=-1) < 0.1 if self.fat is None else values)
+        outside = weights * values
         if outside.sum() <= 0.0:
             return np.zeros(3)
         centres = source.centres(position_mm, size_mm).reshape(-1, 3)

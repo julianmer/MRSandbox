@@ -174,10 +174,12 @@ class QSMHead:
         from mrsandbox.phantom.volume import Volume
         from mrsandbox.resources import Resources
 
-        cache = Resources.cache_dir() / f"qsm_rc2/fat_in_{space}_{cell_mm:g}mm.npz"
+        cache = Resources.cache_dir() / f"qsm_rc2/scalp_in_{space}_{cell_mm:g}mm.npz"
         if not cache.exists():
             labels = Volume.load("qsm_rc2/labels")
             layer = np.isin(labels.data, Brain.QSM_TISSUES["fat"]).astype(np.float32)
+            inside = np.isin(labels.data, sum((Brain.QSM_TISSUES[t] for t in ("gm", "wm", "csf")), ()))
+            layer = Brain.scalp(layer, inside.astype(np.float32), labels.affine)
             carried = cls.registration(space) @ labels.affine
             corners = np.array([[i, j, k, 1.0] for i in (0, labels.shape[0] - 1)
                                 for j in (0, labels.shape[1] - 1) for k in (0, labels.shape[2] - 1)])

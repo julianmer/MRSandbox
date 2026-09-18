@@ -192,7 +192,7 @@ class TestLipidModel:
                              VirtualScan.default_params().conc})
         scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
                            params=quiet, water=NoWater(), mm=NoMM())
-        edge = (0.0, 60.0, 5.0)  # a voxel straddling the boundary carries lipids
+        edge = (0.0, 72.0, 5.0)  # a voxel reaching a centimetre beyond the brain clips the scalp
         assert brain.lipid_weight(edge, 25.0) > 0.0
         ppm, spec = scan.voxel(position_mm=edge, size_mm=25.0).spectrum(seed=7, npoints=8192)
         ppm, real = np.asarray(ppm), np.real(spec)

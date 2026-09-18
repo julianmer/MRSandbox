@@ -34,14 +34,15 @@ QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0
 
 
 def half_brain():
-    """Grey matter for x below zero, nothing beyond: the brain boundary is the plane x = 0."""
+    """Grey matter for x below zero and fat everywhere beyond (a fat map: these gates are
+    about what the lipids do where they sit, not about where a head keeps its scalp)."""
     shape = (24, 24, 24)
     affine = np.diag([2.0, 2.0, 2.0, 1.0])
     affine[:3, 3] = -23.0
     x = affine[0, 0] * np.arange(shape[0]) + affine[0, 3]
     gm = np.broadcast_to((x < 0.0)[:, None, None], shape).astype(np.float32)
     zeros = np.zeros(shape, dtype=np.float32)
-    return Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=affine)
+    return Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=affine, fat=1.0 - gm)
 
 
 def slab_echo(thickness_mm=20.0):
@@ -84,6 +85,18 @@ class TestShift:
         assert brain.lipid_weight((-5.0, 0.0, 0.0), 20.0) == pytest.approx(0.25, abs=0.05)
         np.testing.assert_allclose(brain.lipid_offset((-5.0, 0.0, 0.0), 20.0), [7.5, 0.0, 0.0], atol=0.6)
         np.testing.assert_array_equal(brain.lipid_offset((-15.0, 0.0, 0.0), 10.0), [0.0, 0.0, 0.0])
+
+    def test_without_a_fat_map_the_scalp_lies_a_centimetre_beyond_the_brain(self):
+        # Brain.SCALP_MM, measured on the QSM head: meninges and bone come first, so a voxel
+        # that only touches the brain's edge holds no fat, and one reaching 9 to 15 mm beyond
+        # it holds the shell (the 2 mm cells at 9, 11, 13 mm here, 10 to 14 mm from the last
+        # brain cell's centre)
+        plain = half_brain()
+        bare = Brain.from_maps(gm=plain.gm, wm=plain.wm, csf=plain.csf, affine=plain.affine)
+        assert bare.lipid_weight((-5.0, 0.0, 0.0), 20.0) == 0.0
+        assert bare.lipid_weight((5.0, 0.0, 0.0), 20.0) == pytest.approx(0.3, abs=0.02)
+        np.testing.assert_allclose(bare.lipid_offset((5.0, 0.0, 0.0), 20.0), [6.0, 0.0, 0.0], atol=0.1)
+        assert bare.lipid_weight((12.0, 0.0, 0.0), 6.0) == 0.0  # no brain in the box: not a voxel
 
 
 #**************************************************************************************************#

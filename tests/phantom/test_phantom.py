@@ -135,7 +135,7 @@ class TestFatLayer:
         boundary = Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=affine)
         # a 4 mm box over x in 6.5 to 10.5: a quarter brain, the bone, a quarter scalp
         position = (8.5, 3.5, 3.5)
-        assert boundary.lipid_weight(position, 4.0) == pytest.approx(0.75)  # bone counted as fat
+        assert boundary.lipid_weight(position, 4.0) == 0.0  # no map: the scalp is 9 mm out
         assert layered.lipid_weight(position, 4.0) == pytest.approx(0.25)
         np.testing.assert_allclose(layered.lipid_offset(position, 4.0), (1.5, 0.0, 0.0), atol=1e-6)
         # inside the brain and in the bone alone there is no fat
@@ -183,7 +183,7 @@ class TestQsmHead:
         assert brain.fractions((0.0, 0.0, 80.0), 10.0) == Tissues(gm=0.0, wm=0.0, csf=0.0)
         assert brain.lipid_weight((0.0, 0.0, 95.0), 10.0) == 0.0
         # the scalp sits outward of a voxel that clips it from inside
-        assert brain.lipid_offset((60.0, 0.0, 20.0), 10.0)[0] > 1.0
+        assert brain.lipid_offset((65.0, 0.0, 20.0), 10.0)[0] > 1.0
 
     def test_the_heads_maps_make_one_coherent_subject(self):
         # labels, field, and relaxation of one 7 T subject: the water T1 a voxel
