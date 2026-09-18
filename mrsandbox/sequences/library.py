@@ -907,10 +907,12 @@ class SemiLaser(Sequence):
     to the transmit field, the refocusing chain keeps its efficiency where PRESS loses
     it; only the excitation retains B1 dependence.
 
-    CPMG-style spacing: te/8 either side of the chain, te/4 between refocusing pulses.
+    CPMG-style spacing, the pulses counted into the echo time: with tau an eighth of what
+    te_s leaves beside the four pulses, tau either side of the chain and 2 tau between the
+    refocusing pulses.
 
     Args:
-        te_s: Echo time in seconds.
+        te_s: Echo time in seconds, at least the four pulses' durations.
         afp_duration_s: Duration of each adiabatic pulse.
         afp_bandwidth_hz: Sweep bandwidth of each adiabatic pulse.
         afp_peak_hz: Peak RF amplitude; must sit above the adiabatic threshold.
@@ -936,7 +938,10 @@ class SemiLaser(Sequence):
         # one pulse object played four times: its propagator is computed once per run
         afp = ShapedPulse.hyperbolic_secant(afp_duration_s, afp_bandwidth_hz, afp_peak_hz,
                                             offset_ppm=4.65)
-        tau = te_s / 8.0
+        tau = (te_s - 4.0 * afp_duration_s) / 8.0
+        if tau < 0.0:
+            raise ValueError(f"te_s {te_s} is too short for four {afp_duration_s * 1e3:.1f} ms refocusing "
+                             "pulses")
         super().__init__(
             Pulse(90.0),
             CoherenceFilter(-1),

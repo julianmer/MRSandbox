@@ -439,6 +439,25 @@ class TestAdiabatic:
     #*******************#
     #   semi-laser      #
     #*******************#
+    def test_the_semi_laser_echo_time_counts_its_pulses(self):
+        # the events of a 30 ms semi-LASER last 30 ms, its four adiabatic pulses included,
+        # and a weakly coupled doublet has evolved for that long: each line by pi J TE
+        # (41.6 degrees at 7.7 Hz), not by the 24 ms of pulses more (74.8)
+        from mrsandbox import SemiLaser
+        from mrsandbox.sequences.events import Delay
+
+        design = SemiLaser(te_s=0.030)
+        played = sum(float(e.t_s) if isinstance(e, Delay) else float(getattr(e, "duration_s", 0.0))
+                     for e in design.events)
+        assert abs(played - 0.030) < 1e-9
+        pair = SpinSystem(name="ax", nucleus="1H", shifts_ppm=(0.91, 2.04),
+                          j_hz=((0.0, 7.7), (7.7, 0.0)), scale=1.0, gamma_mhz_t=GAMMA)
+        f, a = (np.asarray(ops.convert_to_numpy(x)) for x in Engine(3.0).lines(design, pair))
+        strong = (f / (3.0 * GAMMA) < 1.2) & (np.abs(a) > 0.2 * np.abs(a).max())
+        assert np.all(np.abs(np.abs(np.degrees(np.angle(a[strong]))) - 41.6) < 8.0)
+        with pytest.raises(ValueError):
+            SemiLaser(te_s=0.020)
+
     def test_semi_laser_keeps_the_echo_where_press_loses_it(self, engine):
         from mrsandbox import Press, SemiLaser
 
