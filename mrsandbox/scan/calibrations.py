@@ -326,7 +326,9 @@ NOISE_NEUROMET_7T = Calibration(
 #   array noise correlation   #
 #*****************************#
 # the share of a channel's noise that is its own, hardware.CoilArray.loaded(own_noise):
-# read off the noise adjustment measurement in the COWS file, the array on a head
+# read off the noise adjustment measurement in the COWS file, the array on a head, by
+# scan.calibrate CovarianceReading. The tails of the FIDs of a Big GABA Trio subject (a
+# 32-channel head array too, no noise adjustment in those files) give 0.27 the same way.
 COIL_OWN_NOISE_PRISMA_3T = Calibration(
     leaf="coils.loaded.own_noise",
     value=0.25,

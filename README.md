@@ -108,7 +108,9 @@ This repository consists of the following main structures:
   the mean of the two noise levels they imply. `scan/calibrate.py` makes such a record from
   a scanner's own raw data: `NoiseReading.from_nifti(path)` reads NIfTI-MRS with coils and
   transients apart (spec2nii writes it from TWIX, P-files, and data/list), and
-  `reading.record(voxel, ...)` returns the record of the virtual twin that reproduces it. The creatine range is calibrated the same way, on the
+  `reading.record(voxel, ...)` returns the record of the virtual twin that reproduces it.
+  `CovarianceReading` does the same for a receive array's noise covariance, from a noise-only
+  scan (ISMRMRD), a raw file's noise adjustment, or the tails of raw FIDs. The creatine range is calibrated the same way, on the
   height of the 3.03 ppm singlet against NAA's in three datasets. Only quantities read off
   raw data enter a record, never concentrations a fitting program reported.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,

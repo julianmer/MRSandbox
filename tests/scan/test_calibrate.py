@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import NoiseReading
+from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading
 from mrsandbox.scan.voxel import noise_scale
 
 
@@ -65,3 +65,41 @@ class TestNoiseReading:
         data.save(path)
         with pytest.raises(ValueError, match="transients"):
             NoiseReading.from_nifti(path)
+
+
+#**************************************************************************************************#
+#                                   Class TestCovarianceReading                                    #
+#**************************************************************************************************#
+class TestCovarianceReading:
+
+    def test_the_reading_recovers_the_array_it_was_drawn_from(self):
+        # channel noise of a loaded helmet whose channels keep 0.4 of their noise to themselves:
+        # the covariance comes back, and with it the share
+        from mrsandbox import CoilArray
+
+        array = CoilArray.helmet().loaded(own_noise=0.4)
+        noise = array.noise(np.random.default_rng(2), 3.0, 1 << 16)            # (coils, samples)
+        reading = CovarianceReading.from_arrays(noise.T, header={"Manufacturer": "virtual"})
+        assert reading.coils == 32 and reading.samples == 1 << 16
+        r = array.noise_resistance
+        np.testing.assert_allclose(np.abs(reading.resistance()), np.abs(r / np.diag(r).mean()), atol=0.03)
+        assert abs(reading.own_noise(CoilArray.helmet()) - 0.4) < 0.03
+        record = reading.record(CoilArray.helmet(), "a virtual noise scan", load="the model's head sphere")
+        assert record.leaf == "coils.loaded.own_noise" and abs(record.value - 0.4) < 0.03
+        assert record.measured["strongest_pair"] > record.measured["strongest_partner_mean"] > record.measured["median_pair"]
+
+    def test_the_tails_of_raw_fids_serve_and_combined_data_do_not(self, tmp_path):
+        from mrsandbox import CoilArray
+
+        scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.024),
+                           coils=CoilArray.ring(8).loaded(own_noise=0.5))
+        data = scan.voxel((0.0, -45.0, 35.0), 30.0).acquire(seed=1, npoints=4096)
+        path = tmp_path / "channels.nii.gz"
+        data.save(path)
+        reading = CovarianceReading.from_nifti(path)
+        assert reading.coils == 8 and reading.statistics()["strongest_pair"] < 0.9
+        plain = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.024))
+        single = tmp_path / "single.nii.gz"
+        plain.voxel((0.0, -45.0, 35.0), 30.0).acquire(seed=1, npoints=256).save(single)
+        with pytest.raises(ValueError, match="channels"):
+            CovarianceReading.from_nifti(single)

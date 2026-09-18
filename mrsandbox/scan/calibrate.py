@@ -6,9 +6,9 @@
 #                                                                                                  #
 # Created: 19/09/26                                                                                #
 #                                                                                                  #
-# Purpose: A scanner's own data in, a calibration record out: the reading of the single-transient #
-#          NAA signal to noise ratio off raw NIfTI-MRS (coils and transients apart), and the      #
-#          noise level of the virtual scan that reproduces it (scan.calibrations).                 #
+# Purpose: A scanner's own data in, a calibration record out: the single-transient NAA signal to   #
+#          noise ratio off raw data and the noise level of the virtual scan that reproduces it,    #
+#          and the noise covariance of a receive array's channels (scan.calibrations).             #
 #                                                                                                  #
 ####################################################################################################
 
@@ -212,4 +212,174 @@ class NoiseReading:
             processing="NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
             date=datetime.date.today().strftime("%d/%m/%y"), presets=tuple(presets),
             note="one acquisition; made by scan.calibrate",
+        )
+
+
+#**************************************************************************************************#
+#                                     Class CovarianceReading                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The noise covariance of a receive array's channels, read off samples that hold no signal.        #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class CovarianceReading:
+    """The noise covariance of a receive array's channels, read off samples that hold no
+    signal: a noise-only scan, the noise adjustment a raw file carries, or the tail of
+    long FIDs.
+
+    What it says depends on the load: a head shares more noise between channels than a
+    small phantom (scan.calibrations, the array noise correlation records), so a reading
+    for in vivo use wants a head in the coil.
+
+    Args:
+        covariance: (coils, coils) complex, Hermitian.
+        samples: Complex samples per channel behind it.
+        header: What the file says of the scanner and coil.
+    """
+
+    covariance: np.ndarray
+    samples: int
+    header: dict
+
+    #*****************#
+    #   from arrays   #
+    #*****************#
+    @classmethod
+    def from_arrays(cls, noise, header=None):
+        """Read noise samples, (..., coils) complex: everything before the last axis is
+        pooled."""
+        x = np.asarray(noise).reshape(-1, np.shape(noise)[-1])
+        x = x - x.mean(axis=0)
+        return cls(covariance=(x.T @ x.conj()) / (x.shape[0] - 1), samples=x.shape[0],
+                   header=dict(header or {}))
+
+    #****************#
+    #   from nifti   #
+    #****************#
+    @classmethod
+    def from_nifti(cls, source, tail=0.125):
+        """Read the last `tail` of the FIDs of a NIfTI-MRS file with a DIM_COIL (long
+        acquisitions have decayed there; a residual signal would show as one strongly
+        correlated mode)."""
+        import json
+
+        import nibabel as nib
+
+        image = nib.load(str(source)) if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source
+        extension = json.loads(image.header.extensions[0].get_content())
+        tags = [extension.get(f"dim_{k}") for k in (5, 6, 7)]
+        if "DIM_COIL" not in tags:
+            raise ValueError("the channels are needed apart (DIM_COIL)")
+        data = np.moveaxis(np.asarray(image.dataobj)[0, 0, 0], 1 + tags.index("DIM_COIL"), -1)
+        start = int(round(data.shape[0] * (1.0 - tail)))
+        header = {key: extension[key] for key in NoiseReading.HEADER if extension.get(key) not in (None, "")}
+        return cls.from_arrays(data[start:], header=header)
+
+    #******************#
+    #   from ismrmrd   #
+    #******************#
+    @classmethod
+    def from_ismrmrd(cls, path, lines=None):
+        """Read an ISMRMRD (.mrd, .h5) file whose acquisitions hold noise only: all of
+        them, or the acquisitions `lines` indexes. Needs h5py."""
+        import re
+
+        import h5py
+
+        with h5py.File(str(path), "r") as file:
+            table = file["dataset/data"]
+            chosen = range(len(table)) if lines is None else lines
+            total, count, coils = None, 0, None
+            for index in chosen:
+                row = table[index]
+                coils = int(row["head"]["active_channels"])
+                raw = row["data"].view(np.float32)
+                x = (raw[0::2] + 1j * raw[1::2]).reshape(coils, -1)
+                total = (x @ x.conj().T) if total is None else total + x @ x.conj().T
+                count += x.shape[1]
+            xml = file["dataset/xml"][0]
+        xml = xml.decode() if isinstance(xml, bytes) else xml
+        found = {tag: re.search(rf"<{tag}>(.*?)</{tag}>", xml) for tag in ("systemVendor", "systemModel", "systemFieldStrength_T")}
+        header = {tag: match.group(1) for tag, match in found.items() if match}
+        return cls(covariance=total.conj() / count, samples=count, header=header)
+
+    #*****************#
+    #   correlation   #
+    #*****************#
+    @property
+    def coils(self):
+        return self.covariance.shape[0]
+
+    @property
+    def correlation(self):
+        """The magnitude of the channels' noise correlation, zero on the diagonal."""
+        level = np.sqrt(np.real(np.diag(self.covariance)))
+        return np.abs(self.covariance / np.outer(level, level)) - np.eye(self.coils)
+
+    def statistics(self):
+        """What the array noise records hold: the mean over channels of the strongest
+        partner, the strongest pair, the median pair, and the spread of the channels'
+        noise levels (largest over smallest standard deviation)."""
+        c, level = self.correlation, np.sqrt(np.real(np.diag(self.covariance)))
+        return {"strongest_partner_mean": float(c.max(axis=1).mean()), "strongest_pair": float(c.max()),
+                "median_pair": float(np.median(c[np.triu_indices(self.coils, 1)])),
+                "level_spread": float(level.max() / level.min())}
+
+    #****************#
+    #   resistance   #
+    #****************#
+    def resistance(self):
+        """The covariance scaled to a mean diagonal of one: the `noise_resistance` of a
+        hardware.CoilArray with as many channels, in the file's channel order (which a
+        geometric array does not share; a mapped array of the same coil does)."""
+        return self.covariance / np.real(np.diag(self.covariance)).mean()
+
+    #***************#
+    #   own noise   #
+    #***************#
+    def own_noise(self, array):
+        """The share of a channel's noise that is its own, at which the geometric `array`
+        (a hardware.CoilArray of loops) has this reading's mean strongest partner: the
+        sample's share of the resistance comes from the geometry (`CoilArray.loaded`),
+        the rest is the identity."""
+        sample = array.loaded(own_noise=0.0).noise_resistance
+        target = self.statistics()["strongest_partner_mean"]
+
+        def strongest(share):
+            r = (1.0 - share) * sample + share * np.eye(len(array))
+            level = np.sqrt(np.diag(r))
+            return float((np.abs(r / np.outer(level, level)) - np.eye(len(array))).max(axis=1).mean())
+
+        low, high = 0.0, 0.999
+        if strongest(low) <= target:
+            return 0.0
+        for _ in range(40):
+            middle = 0.5 * (low + high)
+            low, high = (middle, high) if strongest(middle) > target else (low, middle)
+        return float(0.5 * (low + high))
+
+    #************#
+    #   record   #
+    #************#
+    def record(self, array, dataset, load, citation=None, url=None):
+        """The Calibration of coils.loaded.own_noise this reading makes with `array`;
+        `load` says what was in the coil."""
+        share = round(self.own_noise(array), 2)
+        return Calibration(
+            leaf="coils.loaded.own_noise", value=share, prior=(share, share),
+            measured={"statistic": "magnitude of the noise correlation between channels "
+                                   "(scan.calibrate.CovarianceReading.statistics)",
+                      **{key: round(value, 3) for key, value in self.statistics().items()},
+                      "samples": self.samples},
+            source={"dataset": dataset, "citation": citation, "url": url},
+            scanner={"vendor": str(self.header.get("Manufacturer", self.header.get("systemVendor", ""))).lower() or None,
+                     "model": self.header.get("ManufacturersModelName", self.header.get("systemModel")),
+                     "software": self.header.get("SoftwareVersions"),
+                     "field_t": self.header.get("systemFieldStrength_T")},
+            coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+            sequence={"name": "noise", "family": ""}, acquisition={"channels": self.coils, "rf": "no signal"},
+            voxel={"load": load}, processing="sample covariance of the channels over all samples",
+            date=datetime.date.today().strftime("%d/%m/%y"),
+            note="the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
         )
