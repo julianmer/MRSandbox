@@ -58,7 +58,10 @@ This repository consists of the following main structures:
   from the Gudmundson database in `externals/`, per metabolite T1 typed from Mlynarik 2001,
   Ethofer 2003, and Traber 2004, the published WET and VAPOR suppression series, and the de Graaf
   RF pulse characteristics, and the published functions by which the metabolite shifts and
-  couplings move with temperature and pH (Wermter et al. 2026). Pooling across sources is code, never data.
+  couplings move with temperature and pH (Wermter et al. 2026). Pooling across sources is code, never data. A survey of the acquisition headers of the public
+  OpenNeuro datasets (`database/scanners.py`) lists per scanner model the software releases,
+  the receive coils, and the spread of the transmitter reference amplitude and the shim
+  currents: what the scanners the presets stand for are configured as in the field.
 * The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
   any position, together with swappable water, lipid, macromolecule, and downfield sources
   (coupled mini spin systems, LCModel style Gaussians, the measured consensus spectrum, or the

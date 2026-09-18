@@ -187,6 +187,24 @@ class TestFieldPriors:
 
 
 #**************************************************************************************************#
+#                                     Class TestScannerSurvey                                      #
+#**************************************************************************************************#
+class TestScannerSurvey:
+
+    def test_the_survey_names_the_scanners_the_presets_stand_for(self):
+        from mrsandbox.database.scanners import OPENNEURO_SURVEY
+
+        prisma, trio = OPENNEURO_SURVEY[("siemens", "Prisma", 3.0)], OPENNEURO_SURVEY[("siemens", "TrioTim", 3.0)]
+        assert prisma["datasets"] > 100 and "HeadNeck_64" in prisma["receive_coils"]
+        # the reference amplitude: the Prisma's body coil needs three quarters of the Trio's
+        assert prisma["tx_ref_amp_v"]["median"] < 0.8 * trio["tx_ref_amp_v"]["median"]
+        assert len(prisma["shim_setting"]["median"]) == 8
+        assert any("DV24" in release for release in OPENNEURO_SURVEY[("ge", "DISCOVERY MR750", 3.0)]["software"])
+        for (vendor, model, field), row in OPENNEURO_SURVEY.items():
+            assert vendor in ("siemens", "ge", "philips", "bruker") and row["datasets"] >= 3
+
+
+#**************************************************************************************************#
 #                                        Class TestShifts                                          #
 #**************************************************************************************************#
 #                                                                                                  #

@@ -264,8 +264,9 @@ NOISE_BIG_GABA_GE_3T = Calibration(
     source={"dataset": "Big GABA, PRESS arm, sites G7, G8",
             "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
             "url": "https://www.nitrc.org/projects/biggaba/"},
-    scanner={"vendor": "ge", "model": None, "software": "P-file revision 24 (DV24, the MR750 "
-             "generation); the model is not in the files", "field_t": 3.0},
+    scanner={"vendor": "ge", "model": None, "software": "P-file revision 24; the model is not in the "
+             "files (in database.scanners OPENNEURO_SURVEY the release 24 LX, DV24.0, belongs to "
+             "the Discovery MR750)", "field_t": 3.0},
     coil={"channels": (8, 8), "name": "8HRBRAIN"},
     sequence={"name": "PRESS", "product": "jpress", "te_s": 0.035, "tr_s": 2.0,
               "simulated_as": "Press(te1_s=0.011, te2_s=0.024, tr_s=2.0)"},
