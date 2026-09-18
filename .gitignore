@@ -5,6 +5,13 @@
 info/
 
 # ---------------------------------------------------------------------------------------------- #
+#   data that may not be shared                                                                    #
+# ---------------------------------------------------------------------------------------------- #
+# the QSM challenge 2.0 deposit (Donders data use agreement: no redistribution); the files in
+# use live in the cache, placed by hand
+data/qsm/
+
+# ---------------------------------------------------------------------------------------------- #
 #   held back for now                                                                              #
 # ---------------------------------------------------------------------------------------------- #
 # logo variants; only logo.png ships until the branding settles
