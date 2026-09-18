@@ -45,3 +45,40 @@ QSM_RC2 = {
         ("chi", "data/chimodel/Chi.nii.gz", "ppm"),
     )
 }
+
+
+#**************************************************************************************************#
+#                                          Class QSMHead                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# The quantitative maps of the QSM challenge 2.0 head, served on the head's own grid.              #
+#                                                                                                  #
+#**************************************************************************************************#
+class QSMHead:
+    """The quantitative maps of the QSM challenge 2.0 head, served on the head's own
+    grid: one subject at 7 T whose labels are the `Brain.load("qsm_rc2")` brain and
+    whose susceptibility is the `FieldMap.load("qsm_rc2")` field, so tissue, field,
+    and relaxation maps are one coherent subject. Names follow qMRI-BIDS; T1map is
+    the reciprocal of R1map where that is positive, zero elsewhere (air and bone).
+    """
+
+    MAPS = {"R1map": "qsm_rc2/r1", "T1map": "qsm_rc2/r1", "R2starmap": "qsm_rc2/r2star",
+            "M0map": "qsm_rc2/m0", "Chimap": "qsm_rc2/chi"}
+
+    #*************#
+    #   volumes   #
+    #*************#
+    @classmethod
+    def volume(cls, name):
+        """One map as a Volume in the head's world (mm from the brain's centre)."""
+        import numpy as np
+
+        from mrsandbox.phantom.volume import Volume
+
+        if name not in cls.MAPS:
+            raise KeyError(f"unknown QSM head map {name!r}; known: {', '.join(cls.MAPS)}")
+        volume = Volume.load(cls.MAPS[name])
+        data = volume.data
+        if name == "T1map":
+            data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0), 0.0).astype(np.float32)
+        return Volume(data, volume.affine, name="qsm_rc2/" + name)

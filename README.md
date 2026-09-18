@@ -75,7 +75,9 @@ This repository consists of the following main structures:
   first use into a local, checksum verified cache, so the package itself stays lightweight,
   and derives the hMRI demo subject's quantitative 3 T stack (R1, PD, MT saturation, R2*,
   transmit field, B0) and the UK7T travelling head's 7 T stack (DREAM transmit field, B0, R2*
-  on five scanners) from their raw scans in cited numpy.
+  on five scanners) from their raw scans in cited numpy. The QSM challenge head serves its R1,
+  R2*, M0, and susceptibility maps on the grid of its own labels: tissue, field, and relaxation
+  of one 7 T subject.
 * The `mrsandbox/hardware/` folder describes scanners, the digital receiver, and receive coil
   arrays. Scanner presets carry the peak B1, gradient, and slew limits a design is checked
   against (generic field classes and three 3 T systems). The receiver samples faster than the

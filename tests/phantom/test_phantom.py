@@ -166,3 +166,23 @@ class TestQsmHead:
         assert brain.lipid_weight((0.0, 0.0, 95.0), 10.0) == 0.0
         # the scalp sits outward of a voxel that clips it from inside
         assert brain.lipid_offset((60.0, 0.0, 20.0), 10.0)[0] > 1.0
+
+    def test_the_heads_maps_make_one_coherent_subject(self):
+        # labels, field, and relaxation of one 7 T subject: the water T1 a voxel
+        # resolves is the head's own R1 there, white-matter rich voxels read shorter
+        from mrsandbox import FieldMap, Params, Press, Scanner, VirtualScan
+        from mrsandbox.params import Mapped
+        from mrsandbox.resources import QSMHead
+
+        t1 = QSMHead.volume("T1map")
+        assert t1.shape == (256, 320, 320) and QSMHead.volume("Chimap").shape == t1.shape
+        grey, white = float(t1.mean((0.0, -40.0, 0.0), 20.0)), float(t1.mean((25.0, 10.0, 30.0), 20.0))
+        assert 1.6 < grey < 2.3 and 1.1 < white < 1.6  # 7 T
+        scan = VirtualScan(Brain.load("qsm_rc2"), Scanner.preset("generic_7t"),
+                           Press(te1_s=0.011, te2_s=0.019), field=FieldMap.load("qsm_rc2", b0_t=7.0),
+                           params=Params(water=dict(t1_s=Mapped(t1))))
+        data = scan.voxel(position_mm=(25.0, 10.0, 30.0), size_mm=20.0).acquire(seed=3, npoints=128)
+        local = data.hdr_ext["SimulationGroundTruth"]["local"]["water.t1_s"]
+        assert local == pytest.approx(white, rel=1e-6)
+        with pytest.raises(KeyError):
+            QSMHead.volume("T2map")
