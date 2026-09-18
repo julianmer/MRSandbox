@@ -91,10 +91,15 @@ class ParameterizedDownfield(DownfieldSource):
     `replaces_above_ppm` (6.5, stated: below the 6.83 ppm first peak and above the
     upfield spectrum) are dropped from the render in its favour.
 
-    Stated limits: the peaks render as static Gaussians (no echo time or sequence
-    response, like the measured MM shapes), the retention assumes complete water
-    saturation, and exchange dynamics (lineshape, TE loss during exchange) are not
-    modelled.
+    The published levels are what a spin echo at 22 ms leaves (Ozdemir 2023, no T2
+    correction), so every peak scales by exp(-(TE - 22 ms) / T2) with its apparent T2,
+    exchange included (`T2_MS`). No apparent T2 of these peaks is measured at 3 T: the
+    7 T value serves where 7 T resolves the peak (Fichtner 2017), the 9.4 T value for
+    the rest (Borbath 2021), at every field. The apparent T2 shortens with the field,
+    so at 3 T the loss with the echo time is an upper bound (stated).
+
+    Stated limits: the peaks render as static Gaussians, the retention assumes
+    complete water saturation, and the exchange lineshape is not modelled.
     """
 
     replaces_above_ppm = 6.5
@@ -104,16 +109,32 @@ class ParameterizedDownfield(DownfieldSource):
                 "df790": 7.86, "df818": 8.24, "df824": 8.24, "df837": 8.24,
                 "df849": 8.50}
 
+    # the echo time the published levels belong to, and each peak's apparent T2
+    LEVEL_TE_S = 0.022
+    T2_MS = {"df683": downfield.FICHTNER_2017["t2_ms"][6.81][0],
+             "df709": downfield.FICHTNER_2017["t2_ms"][7.06][0],
+             "df730": downfield.FICHTNER_2017["t2_ms"][7.29][0],
+             "df748": downfield.BORBATH_2021["t2_ms"][7.48][0],
+             "df790": downfield.FICHTNER_2017["t2_ms"][7.82][0],
+             "df818": downfield.BORBATH_2021["t2_ms"][8.18][0],
+             "df824": downfield.BORBATH_2021["t2_ms"][8.24][0],
+             "df837": downfield.BORBATH_2021["t2_ms"][8.37][0],
+             "df849": downfield.BORBATH_2021["t2_ms"][8.49][0]}
+
     #***********#
     #   lines   #
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        from mrsandbox.phantom.macromolecules import _echo_time_s
+
         tissue = voxel.fractions.gm + voxel.fractions.wm
         if tissue <= 0.0:
             return None
+        later_s = _echo_time_s(sequence) - self.LEVEL_TE_S
         freqs, amps, gauss = [], [], []
         for name, peak in downfield.OZDEMIR.items():
             level = truth.downfield.level[name] * tissue
+            level *= np.exp(-later_s * 1000.0 / self.T2_MS[name])
             if truth.downfield.presaturated:
                 level *= self.retention(name)
             freqs.append(peak["ppm"] * f0_mhz)

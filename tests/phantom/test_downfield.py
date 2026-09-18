@@ -25,6 +25,8 @@ from mrsandbox import (Brain, NoDownfield, ParameterizedDownfield, Params, Press
 from mrsandbox.database import downfield
 
 F0_MHZ = 42.5774785 * 3.0
+# the echo time the published levels belong to (Ozdemir 2023): no echo loss there
+AT_LEVEL_TE = Press(te1_s=0.011, te2_s=0.011)
 
 
 #*************#
@@ -52,7 +54,7 @@ class TestDownfieldLines:
     #*****************#
     def test_nine_peaks_at_their_published_positions(self):
         truth = realize(presaturated=False)
-        freqs, amps, gauss = ParameterizedDownfield().lines(None, None, FakeVoxel(), truth, F0_MHZ)
+        freqs, amps, gauss = ParameterizedDownfield().lines(None, AT_LEVEL_TE, FakeVoxel(), truth, F0_MHZ)
         expected = sorted(peak["ppm"] * F0_MHZ for peak in downfield.OZDEMIR.values())
         np.testing.assert_allclose(sorted(freqs), expected, rtol=1e-6)
         assert amps.size == 9 and np.all(amps.real > 0.0)
@@ -60,6 +62,24 @@ class TestDownfieldLines:
         widths = [downfield.POVAZAN_WIDTHS[name]["fwhm_hz"] for name in downfield.OZDEMIR]
         np.testing.assert_allclose(gauss, np.array(widths) * truth.downfield.width_scale, rtol=1e-6)
         assert 14.0 <= min(widths) and max(widths) <= 32.0
+
+    #***************#
+    #   echo time   #
+    #***************#
+    def test_a_later_echo_costs_each_peak_its_apparent_t2(self):
+        # the levels are what is left at 22 ms; 30 ms later the 6.83 ppm peak (24.4 ms
+        # at 7 T, Fichtner 2017) keeps exp(-30 / 24.4) and the 8.37 ppm amide (16.3 ms
+        # at 9.4 T, Borbath 2021) exp(-30 / 16.3); an earlier echo holds more
+        truth = realize(presaturated=False)
+        source = ParameterizedDownfield()
+        _, at, _ = source.lines(None, AT_LEVEL_TE, FakeVoxel(), truth, F0_MHZ)
+        _, later, _ = source.lines(None, Press(te1_s=0.022, te2_s=0.030), FakeVoxel(), truth, F0_MHZ)
+        _, earlier, _ = source.lines(None, Press(te1_s=0.006, te2_s=0.006), FakeVoxel(), truth, F0_MHZ)
+        names = list(downfield.OZDEMIR)
+        ratio = (later / at).real
+        assert abs(ratio[names.index("df683")] - np.exp(-30.0 / 24.4)) < 1e-6
+        assert abs(ratio[names.index("df837")] - np.exp(-30.0 / 16.3)) < 1e-6
+        assert np.all((earlier / at).real > 1.0)
 
     #*****************#
     #   presaturation #
@@ -69,8 +89,8 @@ class TestDownfieldLines:
         # so the amplitude ratio isolates the retention factor exactly
         voxel = FakeVoxel()
         source = ParameterizedDownfield()
-        _, full, _ = source.lines(None, None, voxel, realize(presaturated=False), F0_MHZ)
-        _, saturated, _ = source.lines(None, None, voxel, realize(presaturated=True), F0_MHZ)
+        _, full, _ = source.lines(None, AT_LEVEL_TE, voxel, realize(presaturated=False), F0_MHZ)
+        _, saturated, _ = source.lines(None, AT_LEVEL_TE, voxel, realize(presaturated=True), F0_MHZ)
         expected = [source.retention(name) for name in downfield.OZDEMIR]
         np.testing.assert_allclose((saturated / full).real, expected, rtol=1e-6)
         # spot checks against the published MacMillan medians
@@ -85,11 +105,11 @@ class TestDownfieldLines:
     def test_tissue_scales_and_empty_voxels_are_silent(self):
         truth = realize(presaturated=False)
         source = ParameterizedDownfield()
-        _, half, _ = source.lines(None, None, FakeVoxel(gm=0.3, wm=0.2), truth, F0_MHZ)
-        _, full, _ = source.lines(None, None, FakeVoxel(gm=0.6, wm=0.4), truth, F0_MHZ)
+        _, half, _ = source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.3, wm=0.2), truth, F0_MHZ)
+        _, full, _ = source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.6, wm=0.4), truth, F0_MHZ)
         np.testing.assert_allclose(2.0 * half.real, full.real, rtol=1e-6)
-        assert source.lines(None, None, FakeVoxel(gm=0.0, wm=0.0, csf=1.0), truth, F0_MHZ) is None
-        assert NoDownfield().lines(None, None, FakeVoxel(), truth, F0_MHZ) is None
+        assert source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.0, wm=0.0, csf=1.0), truth, F0_MHZ) is None
+        assert NoDownfield().lines(None, AT_LEVEL_TE, FakeVoxel(), truth, F0_MHZ) is None
 
 
 #**************************************************************************************************#

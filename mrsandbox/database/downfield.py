@@ -91,3 +91,35 @@ MACMILLAN = {
     "t1_ms": {8.50: 176.0, 8.24: 254.0, 7.86: 525.0, 7.32: 195.0, 7.09: 315.0, 6.84: 178.0},
     "kex_hz": {8.50: 8.9, 8.24: 7.5, 7.86: 0.5, 7.32: 1.3, 7.09: 0.9, 6.84: 4.2},
 }
+
+#***********************#
+#   apparent t2, 7 t    #
+#***********************#
+# Source: Fichtner, N. D., Henning, A., Zoelch, N., Boesch, C., Kreis, R. Elucidation of the
+#         downfield spectrum of human brain at 7 T using multiple inversion recovery delays and
+#         echo times. Magn Reson Med 78 (2017) 11-19, Table 1: mean T2 over the volunteers.
+# Data:   per fitted peak position: the apparent T2 (exchange included) and its SD.
+# Units:  ppm; milliseconds.
+# Notes:  8.08 is the paper's broad amide component (a); homocarnosine (158 +- 87), 6.11,
+#         5.97, and 5.73 ppm lie outside the nine peaks or carry no usable precision.
+FICHTNER_2017 = {
+    "field_t": 7.0,
+    "t2_ms": {8.08: (38.0, 7.1), 7.87: (40.3, 6.3), 7.82: (28.0, 2.4), 7.29: (30.4, 4.8),
+              7.06: (35.9, 5.4), 6.81: (24.4, 1.8)},
+}  # 7.82 is the NAA amide
+
+#************************#
+#   apparent t2, 9.4 t   #
+#************************#
+# Source: Borbath, T., Murali-Manohar, S., Wright, A. M., Henning, A. In vivo characterization
+#         of downfield peaks at 9.4 T: T2 relaxation times, quantification, pH estimation, and
+#         assignments. Magn Reson Med 85 (2021) 587-600, Table 2: apparent T2, metabolite-cycled
+#         semi-LASER echo time series.
+# Units:  ppm; milliseconds (mean, SD).
+BORBATH_2021 = {
+    "field_t": 9.4,
+    "t2_ms": {6.83: (21.5, 2.6), 7.04: (30.8, 7.1), 7.30: (31.9, 10.2), 7.48: (23.6, 7.6),
+              7.82: (31.6, 11.0), 8.18: (18.8, 6.4), 8.24: (20.1, 5.7), 8.37: (16.3, 4.3),
+              8.49: (23.3, 6.2)},
+}  # 7.82 is the NAA amide
+
