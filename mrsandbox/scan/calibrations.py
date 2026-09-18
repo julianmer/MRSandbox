@@ -124,6 +124,8 @@ NOISE_BIG_GABA_SIEMENS_3T = Calibration(
     processing="raw TWIX, receiver oversampling removed, noise-whitened SVD coil combination "
                "(weights from the mean transient), SNR per transient, median per subject",
     date="18/09/26",
+    presets=("siemens_trio_3t",),
+    note="the first record of its leaf: the fallback of every scanner without its own",
 )
 
 
@@ -171,16 +173,16 @@ NOISE_COWS_PRISMA_3T = Calibration(
 #*********************************#
 #   noise, 3 tesla, one channel   #
 #*********************************#
-# not in use either: a transmit-receive birdcage in place of an array. The 3 T prior
-# gives 19.2 where the 15 subjects give 13.0 (11.1 to 15.5): the birdcage hears a
-# medial frontal voxel 1.5 times worse than the arrays of Big GABA hear a parietal one,
-# the order an array's gain at that depth has. With COWS above (1.9 the other way, a
-# newer scanner and array) it says what the drawn sigma is: a property of the receive
-# chain, scanner and coil, that one prior per field does not carry.
+# serves the philips_achieva_3t preset: a transmit-receive birdcage in place of an array.
+# The Big GABA value gives 19.2 where the 15 subjects give 13.0 (11.1 to 15.5): the
+# birdcage hears a medial frontal voxel 1.5 times worse than the arrays of Big GABA hear
+# a parietal one, the order an array's gain at that depth has. With COWS above (1.5 the
+# other way, a newer scanner and array) it says what the drawn sigma is: a property of
+# the receive chain, scanner and coil, that one prior per field does not carry.
 NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
     leaf="noise.sigma",
     value=9.3,
-    prior=(9.3, 9.3),
+    prior=(7.8, 10.9),
     measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 13.0,
               "range": (11.1, 15.5), "subjects": 15, "simulated_at_big_gaba_value": 19.2},
     source={"dataset": "fMRS in pain, the functional runs",
@@ -199,7 +201,8 @@ NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
     processing="raw .data/.list, one channel, the list's sign applied per phase cycle step, "
                "SNR per transient, median per subject",
     date="18/09/26",
-    note="a check of the scaling law across vendor and coil; the voxel's place a stand-in; not in use",
+    presets=("philips_achieva_3t",),
+    note="the voxel's place and the echo's split are stand-ins; the prior is the subjects' range",
 )
 
 
@@ -230,9 +233,9 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
 #   catalogue   #
 #***************#
 # the calibrations in use. A record serves the scanner presets it names; the first record
-# of a leaf without presets is the fallback for every other scanner, and a scan's header
+# of a leaf is the fallback for every other scanner, and a scan's header
 # says where it departs from the record it got (`Calibration.departures`)
-CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T)
+CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T)
 
 
 def calibrations(scanner=None):
@@ -241,10 +244,12 @@ def calibrations(scanner=None):
     name = getattr(scanner, "name", scanner)
     chosen = {}
     for record in CALIBRATIONS:
-        if name in record.presets or (not record.presets and record.leaf not in chosen):
+        chosen.setdefault(record.leaf, record)
+    for record in CALIBRATIONS:
+        if name in record.presets:
             chosen[record.leaf] = record
     return chosen
 # records read the same way under other conditions, kept to test what carries a number there
-CHECKS = (NOISE_FMRS_PAIN_ACHIEVA_3T)
+CHECKS = ()
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}

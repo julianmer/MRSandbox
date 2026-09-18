@@ -80,4 +80,13 @@ PRESETS = {
                            max_slew_t_m_s=200.0),
     "philips_elition_3t": Scanner("philips_elition_3t", 3.0, peak_b1_ut=15.0, max_grad_mt_m=45.0,
                                   max_slew_t_m_s=220.0),
+    # the two systems the noise is calibrated on besides the Prisma (scan.calibrations): the
+    # Trio of Big GABA's Siemens sites with its head arrays, and the Achieva of the fMRS in
+    # pain data with its one-channel transmit-receive head coil, which is part of what the
+    # preset stands for. Peak B1 as the generic 3 T and the Philips default above, gradients
+    # from the vendors' specifications (Trio TQ 40/200, Achieva Quasar Dual 40/200); stated.
+    "siemens_trio_3t": Scanner("siemens_trio_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=40.0,
+                               max_slew_t_m_s=200.0),
+    "philips_achieva_3t": Scanner("philips_achieva_3t", 3.0, peak_b1_ut=13.5, max_grad_mt_m=40.0,
+                                  max_slew_t_m_s=200.0),
 }

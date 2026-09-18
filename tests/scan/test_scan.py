@@ -571,6 +571,11 @@ class TestNoiseModel:
         assert served.source["dataset"].startswith("COWS")
         assert (prisma.params["noise"]["sigma"].low, prisma.params["noise"]["sigma"].high) == served.prior
         assert served.departures(prisma) == {}
+        achieva = VirtualScan(brain, Scanner.preset("philips_achieva_3t"), Press(0.009, 0.013))
+        birdcage = calibrations(achieva.scanner)["noise.sigma"]
+        assert birdcage.coil["channels"] == (1,) and birdcage.departures(achieva) == {}
+        assert achieva.params["noise"]["sigma"].low > prisma.params["noise"]["sigma"].high
+        assert calibrations("siemens_trio_3t")["noise.sigma"] is record
 
     def test_averages_volume_field_and_bandwidth_scale_the_noise(self, scan):
         from mrsandbox.scan.voxel import noise_scale
