@@ -92,6 +92,11 @@ def default_params(database=None, b0_t=3.0, scanner=None):
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
     names = [name for name in db.metabolites() if name in concentrations.DE_GRAAF]
     conc = Priors.de_graaf(metabolites=names, database=db)
+    # creatine: the de Graaf creatine range stacked on the phosphocreatine one overshoots
+    # the total creatine of three in vivo datasets; the calibrated range replaces it
+    # (scan.calibrations CREATINE_THREE_DATASETS_3T)
+    if "Cr" in conc:
+        conc = conc | Params(Cr=calibrations(scanner)["conc.Cr"].prior)
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
     water_t1, water_t2 = _water_relaxation(tesla)
     # background signal inherent to the voxel: residual water, lipids, and the
@@ -124,7 +129,9 @@ def default_params(database=None, b0_t=3.0, scanner=None):
         #     (the CoupledMM default). The challenge's own 0.4 normalizes its
         #     measured basis, not concentration units, so kappa is recalibrated
         #     (stated) to land the short-TE MM area fraction in the consensus
-        #     10 to 25 percent ballpark.
+        #     10 to 25 percent ballpark. It rose by 11.75 / 8.5 with the calibrated
+        #     creatine range (the middle of total creatine fell by that much), so
+        #     the background stayed where it was.
         #   level_mm: drives the ParameterizedMM alternative.
         #   t1, t2: per component, typed from the consensus Appendix S1 3 T human
         #     columns (T2: Landheer 2020, else Hoefemann 2020; T1: Hoefemann 2020,
@@ -136,7 +143,7 @@ def default_params(database=None, b0_t=3.0, scanner=None):
         #     3 T the T1 of the components with a human row at that field (Xin 2013
         #     at 7 T, Kreis 2005 at 1.5 T; M0.94 and M1.22 only) replaces the 3 T
         #     value; T2 has no human rows off 3 T and keeps them (stated).
-        mm=dict(level_mm=(1.5, 4.0), kappa=(5.5, 9.5),
+        mm=dict(level_mm=(1.5, 4.0), kappa=(7.6, 13.1),
                 t1={**dict(mm091=0.290, mm121=0.309, mm143=0.400, mm167=0.225,
                            mm226=0.263, mm321=0.400, mm377=0.400),
                     **_mm_t1(tesla)},

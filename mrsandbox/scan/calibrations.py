@@ -49,6 +49,8 @@ class Calibration:
         voxel: Place, size, and the simulator's stand-in for the place.
         processing: How the measured number was read off the data.
         date: When the calibration was made.
+        carried_by: "scanner" for a number of the hardware, whose departures a scan names;
+            "subject" for one of the tissue, which no scanner or sequence changes.
         presets: The hardware.Scanner presets the record serves; none makes it the
             fallback of its leaf or a check.
         note: What the record is good for and what it is not.
@@ -66,6 +68,7 @@ class Calibration:
     voxel: dict
     processing: str
     date: str
+    carried_by: str = "scanner"
     presets: tuple = ()
     note: str = ""
 
@@ -76,6 +79,8 @@ class Calibration:
         """The conditions under which `scan` departs from the calibration, as
         {condition: (calibrated, scan's)}: there the number is extrapolated."""
         found = {}
+        if self.carried_by != "scanner":
+            return found
         if abs(scan.engine.b0_t - self.scanner["field_t"]) > 0.2:
             found["field_t"] = (self.scanner["field_t"], float(scan.engine.b0_t))
         vendor = getattr(scan.scanner, "name", "").split("_")[0]
@@ -344,6 +349,41 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
     date="18/09/26",
     note="the modelled array is CoilArray.helmet(), not this coil's geometry (not published)",
 )
+#**************#
+#   creatine   #
+#**************#
+# the de Graaf ranges give creatine 4.5 to 10.5 and phosphocreatine 3.0 to 5.5 mM; drawn side
+# by side they put total creatine at 11.7 mM in the middle, as much as NAA plus NAAG, and the
+# 3.03 ppm singlet at 0.76 to 0.85 of the NAA singlet's height where three datasets show 0.56
+# to 0.62 (sequence, timings, and voxel matched; relaxation moves the ratio by 0.97 only,
+# the creatine lines' greater width by 0.66). Matched, the data put total creatine at 0.8
+# to 1.0 of NAA, about 8.5 mM, the cortical value of the literature. The creatine range is
+# therefore the phosphocreatine one, 3.0 to 5.5: a total of 6 to 11 mM, half of it
+# phosphorylated in the middle (the split hardly shows at 3 T; stated).
+CREATINE_THREE_DATASETS_3T = Calibration(
+    leaf="conc.Cr",
+    value=4.25,
+    prior=(3.0, 5.5),
+    measured={"statistic": "height of the 3.03 ppm singlet over the NAA singlet's in the median "
+                           "averaged spectrum (2 Hz apodization, NAA phased)",
+              "big_gaba_siemens": 0.616, "cows_prefrontal": 0.560, "fmrs_in_pain": 0.625,
+              "simulated_with_de_graaf": (0.792, 0.847, 0.762),
+              "simulated_total_creatine_over_naa": 1.19, "implied_total_creatine_over_naa": 0.90},
+    source={"dataset": "Big GABA sites S1, S5, S6; COWS prefrontal; fMRS in pain (the noise "
+                       "records above)", "citation": None, "url": None},
+    scanner={"vendor": "siemens and philips", "model": "TrioTim, Prisma, Achieva", "software": None,
+             "field_t": 3.0},
+    coil={"channels": (32, 4, 1), "name": None},
+    sequence={"name": "PRESS and sLASER", "family": "", "te_s": (0.035, 0.026, 0.022)},
+    acquisition={"subjects": (36, 10, 15), "measured_on": "the average"},
+    voxel={"region": "medial parietal, prefrontal, anterior cingulate"},
+    processing="as the noise records, the transients averaged, the subjects' median spectrum",
+    date="18/09/26",
+    carried_by="subject",
+    note="sets the creatine range only; NAA, NAAG, and phosphocreatine keep the de Graaf ranges",
+)
+
+
 #***************#
 #   catalogue   #
 #***************#
@@ -351,7 +391,7 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
 # of a leaf is the fallback for every other scanner, and a scan's header
 # says where it departs from the record it got (`Calibration.departures`)
 CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
-                NOISE_BIG_GABA_GE_3T, NOISE_NEUROMET_7T)
+                NOISE_BIG_GABA_GE_3T, NOISE_NEUROMET_7T, CREATINE_THREE_DATASETS_3T)
 
 
 def calibrations(scanner=None):

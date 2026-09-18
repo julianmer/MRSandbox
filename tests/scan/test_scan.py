@@ -646,6 +646,24 @@ class TestNoiseModel:
         assert 28.8 < np.median(snrs) < 48.0, snrs  # 36.4 and the simulated draws' spread
         assert 95.0 < np.median(apodized) < 140.0, apodized  # 116.4 measured
 
+    def test_total_creatine_stands_to_naa_as_in_vivo(self, scan):
+        # scan.calibrations CREATINE_THREE_DATASETS_3T: at Big GABA's conditions the 3.03 ppm
+        # singlet reaches 0.62 of the NAA singlet's height in vivo (0.56 to 0.63 over three
+        # datasets); the de Graaf creatine range on top of phosphocreatine gave 0.79
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        voxel = VirtualScan(scan.brain, scan.scanner, Press(te1_s=0.011, te2_s=0.024, tr_s=2.0),
+                            params=quiet).voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
+        n, bw = 2048, 2000.0
+        ppm = np.fft.fftshift(np.fft.fftfreq(4 * n, 1.0 / bw)) / voxel._f0_mhz()
+        ratios = []
+        for seed in range(8):
+            _, fid = voxel.fid(seed=seed, npoints=n, dwell_s=1.0 / bw)
+            fid = np.asarray(fid) * np.exp(-np.pi * 2.0 * np.arange(n) / bw)
+            real = np.fft.fftshift(np.fft.fft(np.concatenate([fid, np.zeros(3 * n, dtype=fid.dtype)]))).real
+            ratios.append(real[np.abs(ppm - 3.03) < 0.04].max() / real[np.abs(ppm - 2.01) < 0.04].max())
+        assert 0.5 < np.median(ratios) < 0.72, ratios
+
     def test_a_step_is_fresh_noise_on_the_same_subject(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         first = voxel.acquire(seed=11, npoints=256, step=0)
