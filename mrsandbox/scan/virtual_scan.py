@@ -110,7 +110,7 @@ class VirtualScan:
         self.receiver = receiver
         self.temperature_c = float(temperature_c)
         self.ph = float(ph)
-        self.params = (default_params(self.database, b0_t=self.engine.b0_t)
+        self.params = (default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner)
                        | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
         self._lines = None

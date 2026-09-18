@@ -22,7 +22,7 @@ from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
-from mrsandbox.scan.calibrations import CALIBRATIONS
+from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
 
 
@@ -69,7 +69,7 @@ def _gm_wm_ratio(name):
 #**********************#
 #   default catalogue  #
 #**********************#
-def default_params(database=None, b0_t=3.0):
+def default_params(database=None, b0_t=3.0, scanner=None):
     """Concentration priors and pooled literature relaxation for every metabolite that
     has both a spin system and a de Graaf range. Total choline is covered by GPC and
     PCho, its two constituents, so there is no separate Cho entry.
@@ -84,6 +84,9 @@ def default_params(database=None, b0_t=3.0):
     Args:
         database: Database instance; defaults to the packaged one.
         b0_t: The scanner field in tesla.
+        scanner: The hardware.Scanner (or its preset name); a leaf calibrated on in vivo
+            data takes the record that serves the preset, else the leaf's fallback
+            (scan.calibrations).
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
@@ -199,8 +202,9 @@ def default_params(database=None, b0_t=3.0):
         #   referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
         #   (tests/scan/test_scan TestNoiseModel gates the calibration). The record
         #   with the exact conditions is scan.calibrations, and every acquisition's
-        #   header names it and the conditions the scan departs from.
-        noise=dict(sigma=CALIBRATIONS["noise.sigma"].prior),
+        #   header names it and the conditions the scan departs from. A scanner preset
+        #   with its own record takes that one (siemens_prisma_3t: COWS, sigma 4.3).
+        noise=dict(sigma=calibrations(scanner)["noise.sigma"].prior),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),

@@ -24,7 +24,7 @@ from keras import ops
 from mrsandbox.database.tissue import CADY_1995
 from mrsandbox.params import Params, Tissues
 from mrsandbox.phantom.volume import Volume
-from mrsandbox.scan.calibrations import CALIBRATIONS
+from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.sequences.events import ShapedPulse
 
 
@@ -850,7 +850,8 @@ class Voxel:
              "receiver": None if self.scan.receiver is None
              else dataclasses.asdict(self.scan.receiver),
              "noise_place": float(self.noise_place()),
-             "calibrations": {leaf: c.record(self.scan) for leaf, c in CALIBRATIONS.items()}},
+             "calibrations": {leaf: c.record(self.scan)
+                              for leaf, c in calibrations(self.scan.scanner).items()}},
             "MRSandbox: the virtual brain, the transmit map, the receiver, and the voxel "
             "placement.",
         )

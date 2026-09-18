@@ -551,11 +551,13 @@ class TestNoiseModel:
         # the prior comes from the record, and a scan away from the record's scanner,
         # field, or sequence says so
         from mrsandbox import Steam
-        from mrsandbox.scan.calibrations import CALIBRATIONS
+        from mrsandbox import SemiLaser
+        from mrsandbox.scan.calibrations import calibrations
 
-        record = CALIBRATIONS["noise.sigma"]
+        record = calibrations()["noise.sigma"]
+        assert record.source["dataset"].startswith("Big GABA")
         brain = Brain.load("icbm152")
-        same = VirtualScan(brain, Scanner.preset("siemens_prisma_3t"), Press(0.011, 0.024))
+        same = VirtualScan(brain, Scanner.preset("generic_3t"), Press(0.011, 0.024))
         prior = same.params["noise"]["sigma"]
         assert (prior.low, prior.high) == record.prior
         assert record.departures(same) == {}
@@ -563,6 +565,12 @@ class TestNoiseModel:
         assert set(record.departures(other)) == {"field_t", "sequence"}
         philips = VirtualScan(brain, Scanner.preset("philips_elition_3t"), Press(0.011, 0.024))
         assert record.departures(philips) == {"vendor": ("siemens", "philips")}
+        # a preset with its own record takes it: the Prisma's is COWS, semi-LASER
+        prisma = VirtualScan(brain, Scanner.preset("siemens_prisma_3t"), SemiLaser(te_s=0.026))
+        served = calibrations(prisma.scanner)["noise.sigma"]
+        assert served.source["dataset"].startswith("COWS")
+        assert (prisma.params["noise"]["sigma"].low, prisma.params["noise"]["sigma"].high) == served.prior
+        assert served.departures(prisma) == {}
 
     def test_averages_volume_field_and_bandwidth_scale_the_noise(self, scan):
         from mrsandbox.scan.voxel import noise_scale

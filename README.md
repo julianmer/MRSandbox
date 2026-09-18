@@ -96,7 +96,9 @@ This repository consists of the following main structures:
   the exact conditions of the measurement (dataset, scanner, software, coil, sequence, timings,
   bandwidth, voxel, processing). Every acquisition's header names the calibrations it used and
   the conditions it departs from (another field, vendor, or sequence), where the number is
-  carried by the simulator's scaling law and not by data.
+  carried by the simulator's scaling law and not by data. A scanner preset with its own record
+  takes it (the Prisma's noise comes from the COWS semi-LASER data, every other scanner falls
+  back to Big GABA), and records that are not in use stay as checks of the scaling law.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
   and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
   hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled
