@@ -17,7 +17,9 @@
 #*************#
 #   imports   #
 #*************#
+import concurrent.futures
 import numbers
+import os
 
 import numpy as np
 
@@ -166,6 +168,7 @@ class MRSI:
     """
 
     SAME, SILENT = 0.01, 0.01
+    WORKERS = 2
 
     #**********#
     #   init   #
@@ -417,6 +420,7 @@ class MRSI:
         # every cell's FIDs, {component: fid} per voxel of the cell (one component,
         # the sum, without `components`), the metabolites rendered once per truth
         # (and resolved frame) as unit FIDs every voxel forms its own from
+        self._warm(truth, fine, step)
         cells, names = {}, []
         for i in range(sx):
             for j in range(sy):
@@ -473,6 +477,33 @@ class MRSI:
             data[:] = encoded
         return (data if components else data[..., 0]), components_names, n_dead
 
+    #*************#
+    #   warm up   #
+    #*************#
+    def _warm(self, truth, npoints, dwell_s):
+        """The cells of an excited box each play the design at their own place, the
+        whole cost of such a lattice, and they are independent: after the first (it
+        compiles and opens the truth's cache) the rest render side by side in
+        `WORKERS` threads, the backends releasing the interpreter while they compute.
+        Two is the measured optimum (jax, ten cores, 34 GB, 16 cells of a full
+        metabolite set: 4.7 s a cell with one thread, 3.7 with two, 4.4 with four, 6.2
+        with eight, at 8.5, 12.9, 19.5, and 22.1 GB): a cell is bound by memory
+        traffic, not by cores, so more threads only crowd it. The numbers are the same
+        to the last bit. `_decoded` then finds every cell's basis in the cache. Without
+        a box the cells share one rendering and there is nothing to spread."""
+        if self.box_center_mm is None:
+            return
+        live = [voxel for row in self.voxels for cell in row for voxel in cell
+                if voxel not in self.silent]
+        if len(live) < 2:
+            return
+        live[0].metabolite_basis(truth, npoints, dwell_s)
+        with concurrent.futures.ThreadPoolExecutor(min(self.WORKERS, os.cpu_count() or 1)) as pool:
+            list(pool.map(lambda voxel: voxel.metabolite_basis(truth, npoints, dwell_s), live[1:]))
+
+    #***********#
+    #   noise   #
+    #***********#
     def _noise(self, truth, rng, npoints, dwell_s):
         """The receiver noise of one acquisition, (nx, ny, nz, npoints[, coils]), or
         None when the drawn sigma is zero."""
