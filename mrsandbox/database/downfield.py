@@ -28,6 +28,9 @@
 #         2 i.u.; the per-amide ranges below are stated so their sum lands in the reported
 #         combined range.
 # Units:  ppm; institutional units (approximately concentration equivalent mM, stated).
+# Echo:   the levels belong to a spin echo at TE 22 ms (TR 287 ms, flip 78 degrees, 1331
+#         excitation at 7.4 ppm, an 11 ms sinc-Gauss refocusing pulse at 7.8 ppm), with no
+#         correction for T2 or exchange: a level is what is left at that echo time.
 # Notes:  assignments per Povazan 2022: DF7.90 is the NAA amide (plus other amines),
 #         DF8.18/8.24/8.37 are predominantly protein amides, DF8.24 and DF8.49 include ATP,
 #         DF8.24 may include the glutathione glycine, DF7.09 likely homocarnosine.

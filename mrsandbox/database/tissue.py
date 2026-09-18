@@ -37,3 +37,21 @@ MRSI_CHALLENGE = {
 #         own shifts move at most 7.6e-4 ppm/K against each other (Wermter et al. 2017, MAGMA
 #         30:579, Table 1), fourteen times less.
 CADY_1995 = {"intercept_c": 286.9, "c_per_ppm": 94.0}
+
+#***************************#
+#   metabolite diffusion    #
+#***************************#
+# Source: Deelchand, D. K., Auerbach, E. J., Marjanska, M. Apparent diffusion coefficients of
+#         the five major metabolites measured in the human brain in vivo at 3T. Magn Reson Med
+#         79 (2018) 2896-2901, Table 1: trace/3 ADC with STEAM (TE/TM 21.2/105 ms), the
+#         cross-terms removed, five subjects, a prefrontal voxel of 64 % grey matter, 23 %
+#         white matter, 13 % CSF.
+# Units:  um^2/ms (water 0.70 in the same table).
+# Notes:  PRESS (TE 54.2 ms) gave 0.16, 0.14, 0.14, 0.15, 0.16 in the same order, not
+#         significantly different. "members" are this database's metabolites behind each total.
+DEELCHAND_2018 = {
+    "adc_um2_ms": {"tNAA": 0.13, "tCr": 0.13, "tCho": 0.12, "Glu": 0.15, "mIns": 0.11},
+    "sd_um2_ms": {"tNAA": 0.01, "tCr": 0.01, "tCho": 0.01, "Glu": 0.03, "mIns": 0.02},
+    "members": {"tNAA": ("NAA", "NAAG"), "tCr": ("Cr", "PCr"), "tCho": ("GPC", "PCho", "Cho"),
+                "Glu": ("Glu",), "mIns": ("Ins",)},
+}

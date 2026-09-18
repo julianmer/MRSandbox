@@ -20,6 +20,7 @@
 from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
+from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
 from mrsandbox.scan.calibrations import CALIBRATIONS
 from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
@@ -35,6 +36,19 @@ FIELDS_T = (1.5, 3.0, 7.0)
 # (the only human rows the consensus table carries off 3 T; the rest keep the 3 T values)
 MM_T1_STUDIES = {1.5: "kreis_2005", 7.0: "xin_2013"}
 MM_T1_PEAKS = {"mm091": "M0.94", "mm121": "M1.22"}
+
+
+#***************#
+#   adc ratio   #
+#***************#
+def _adc_ratio(name):
+    """A metabolite's measured ADC over the mean of the five measured ones (Deelchand
+    et al. 2018); one for a metabolite without a row."""
+    table = DEELCHAND_2018["adc_um2_ms"]
+    for total, members in DEELCHAND_2018["members"].items():
+        if name in members:
+            return table[total] / (sum(table.values()) / len(table))
+    return 1.0
 
 
 #********************#
@@ -255,11 +269,16 @@ def default_params(database=None, b0_t=3.0):
     #     0.10 in grey and 0.15 in white matter, weighted per voxel); under the
     #     sticks model this low-b ADC is D_intra / 3 (consensus section 5.1), so
     #     the intracellular diffusivity is 3 ADC, 0.3 to 0.45 um^2/ms, inside the
-    #     0.2 to 0.5 range the consensus simulates.
+    #     0.2 to 0.5 range the consensus simulates. The five major metabolites
+    #     scale both tissues by their measured ADC over the five's mean (Deelchand
+    #     et al. 2018, database.tissue DEELCHAND_2018: Glu fastest at 1.17, mIns
+    #     slowest at 0.86); the tissue contrast per metabolite is not measured, so
+    #     one ratio serves grey and white matter, and the others stay at 1 (stated).
     #   mm: the consensus's own range. water, lipids: stated.
     diffusion = Params(diffusion=dict(
         model="sticks",
-        adc={name: PerTissue(gm=0.10, wm=0.15, csf=0.10) for name in names},
+        adc={name: PerTissue(gm=0.10 * _adc_ratio(name), wm=0.15 * _adc_ratio(name),
+                             csf=0.10 * _adc_ratio(name)) for name in names},
         water=0.75,
         mm=(0.005, 0.01),
         lipids=0.0))

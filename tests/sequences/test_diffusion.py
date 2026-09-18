@@ -126,3 +126,15 @@ class TestAttenuation:
         low = 0.05 * adc
         assert abs(math.sqrt(math.pi / (12.0 * low)) * math.erf(math.sqrt(3.0 * low))
                    - math.exp(-low)) < 1e-3
+
+    #**************************#
+    #   per metabolite adcs    #
+    #**************************#
+    def test_the_major_metabolites_carry_their_measured_adc_ratios(self):
+        # Deelchand et al. 2018: tNAA 0.13, tCr 0.13, tCho 0.12, Glu 0.15, mIns 0.11
+        # over their mean 0.128 scale the tissue ADCs; a metabolite without a row keeps them
+        adc = VirtualScan.default_params().sample(0).diffusion.adc
+        assert abs(adc["GABA"].gm - 0.10) < 1e-12 and abs(adc["GABA"].wm - 0.15) < 1e-12
+        assert abs(adc["Glu"].gm / adc["Ins"].gm - 0.15 / 0.11) < 1e-9
+        assert adc["NAA"].wm == adc["NAAG"].wm == adc["PCr"].wm
+        assert abs(adc["GPC"].wm - 0.15 * 0.12 / 0.128) < 1e-9
