@@ -122,8 +122,6 @@ This repository consists of the following main structures:
   through the engine unchanged.
 * The `externals/` folder pins third party resources as git submodules, such as the Gudmundson
   MRS database behind AGNOSTIC.
-* The `examples/` folder demonstrates the pieces with small runnable scripts.
-* The `scripts/` folder holds larger workflows such as dataset generation.
 * The `tests/` folder mirrors the package layout and asserts the physics.
 
 ## Validation
