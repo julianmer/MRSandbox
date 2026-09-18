@@ -272,6 +272,9 @@ class ShapedPulse(Event):
     free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz",
             "phase_deg", "induced", "gradient_shape")
 
+    # complex elements of step propagators held at once (2**24 is 128 MB in complex64)
+    STEP_BLOCK_ELEMENTS = 2 ** 24
+
     #**********#
     #   init   #
     #**********#
@@ -489,14 +492,23 @@ class ShapedPulse(Event):
         theta = ops.expand_dims(phase, 1) - 2.0 * math.pi * turns
         angle = -ops.expand_dims(theta, -1) * m  # (steps, isochromats or 1, d)
         d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
-        u = ops.expand_dims(d, -1) * w * ops.expand_dims(ops.conj(d), -2)
-        if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
-            u = u[:, 0]
-        while int(u.shape[0]) > 1:
-            n = int(u.shape[0])
-            pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
-            u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
-        rho = self._sandwich(u[0], rho)
+        # the step propagators of an ensemble of a large system do not fit at once
+        # (steps x isochromats x d x d): they are formed and collapsed in blocks of
+        # steps that hold STEP_BLOCK_ELEMENTS, and the blocks multiply in order
+        size = int(d.shape[1]) * int(d.shape[2]) ** 2
+        block = max(1, min(steps, self.STEP_BLOCK_ELEMENTS // size))
+        propagator = None
+        for start in range(0, steps, block):
+            rows = d[start:start + block]
+            u = ops.expand_dims(rows, -1) * w[start:start + block] * ops.expand_dims(ops.conj(rows), -2)
+            if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
+                u = u[:, 0]
+            while int(u.shape[0]) > 1:
+                n = int(u.shape[0])
+                pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
+                u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
+            propagator = u[0] if propagator is None else ops.matmul(u[0], propagator)
+        rho = self._sandwich(propagator, rho)
         frame = -2.0 * math.pi * total
         if ops.ndim(total) > 0:
             frame = ops.reshape(frame, (-1, 1, 1))
@@ -670,6 +682,50 @@ class InducedKick(Event):
             angle = angle - 2.0 * math.pi * moment * x
         angle = angle * ops.cast(ctx.q, "float32")
         return rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
+
+
+#**************************************************************************************************#
+#                                         Class Projection                                         #
+#**************************************************************************************************#
+#                                                                                                  #
+# Average the density matrix over the isochromat ensemble: one axis of a localization is done.     #
+#                                                                                                  #
+#**************************************************************************************************#
+class Projection(Event):
+    """Average the density matrix over the isochromat ensemble: one axis of a
+    localization is done.
+
+    The one-dimensional projection of Zhang, An, and Shen (Med Phys 44 (2017) 4169):
+    a slice-selective pulse depends on the position along its own axis alone, so the
+    sum over a three-dimensional voxel factorizes, sum_y P(y) [sum_x P(x) rho P(x)^H]
+    P(y)^H, and the density matrix may be averaged over an axis as soon as the pulses
+    on that axis (a refocusing pair counts as one) have played and their unwanted
+    coherences are gone. The cost of a voxel of n^3 positions falls to 3 n with the
+    same result. It holds while nothing later addresses that axis again and nothing
+    before addressed another one, so coherence filters select the pathway here, not
+    crushers on the other axes.
+
+    Args:
+        gain: The factor on the average: the ensemble's extent over the nominal slab
+            thickness makes the result the signal per nominal voxel, one for an ideal
+            profile.
+    """
+
+    free = ("gain",)
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, gain=1.0):
+        self.gain = gain
+
+    #***********#
+    #   apply   #
+    #***********#
+    def apply(self, rho, ctx):
+        if ops.ndim(rho) == 3:
+            rho = ops.mean(rho, axis=0)
+        return rho * nops.cast(ops.convert_to_tensor(self.gain, dtype="float32"), "complex64")
 
 
 #**************************************************************************************************#

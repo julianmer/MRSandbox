@@ -15,9 +15,11 @@
 #*************#
 #   imports   #
 #*************#
+import numpy as np
+
 from mrsandbox.database import pulses, suppression
-from mrsandbox.sequences.events import (CoherenceFilter, Delay, Pulse, SelectivePulse,
-                                        Sequence, ShapedPulse)
+from mrsandbox.sequences.events import (CoherenceFilter, Delay, Gradient, Projection, Pulse,
+                                        SelectivePulse, Sequence, ShapedPulse)
 
 
 #**************************************************************************************************#
@@ -146,6 +148,78 @@ class SuppressionTrain(Sequence):
             if delay:
                 events.append(Delay(delay))
         super().__init__(*events)
+
+
+#**************************************************************************************************#
+#                                     Class LocalizedSemiLaser                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# Semi-LASER with its localization played: a slice-selective 90 and GOIA-WURST pairs on two axes.  #
+#                                                                                                  #
+#**************************************************************************************************#
+class LocalizedSemiLaser(Sequence):
+    """Semi-LASER with its localization played: a slice-selective 90 and GOIA-WURST
+    pairs on two axes, so the voxel's profile, the chemical shift displacement, and
+    the transmit field's hold on the excitation emerge.
+
+    The design of the across-vendor 3 T semi-LASER (Deelchand et al. 2021, NMR Biomed
+    34:e4218): GOIA-W(16,4) refocusing pulses of 4.5 ms and 10 kHz at 15 uT; the
+    excitation here is a three-lobe sinc of their 2.6 ms (theirs is an asymmetric
+    Shinnar-Le Roux pulse, stated) under its slice gradient on x with the rephasing
+    lobe, the pairs play on y and z. Each axis is averaged over its isochromats as
+    soon as its pulses have played (`Projection`, the one-dimensional projection of
+    Zhang et al. 2017), coherence filters select the echo pathway (the idealization
+    of the crushers, as in the other designs), and the ensemble spans `span` voxel
+    edges per axis so the profiles' feet and the displaced slabs stay inside it. The
+    echo time runs from the excitation's centre: the delays are what te_s leaves
+    after the four refocusing pulses, the first one shortened by the half of the
+    excitation the shifts already evolve through.
+
+    Args:
+        te_s: Echo time in seconds.
+        f0_mhz: The spectrometer frequency: the excitation's phase is set so its
+            carrier, a phase ramp from the pulse's start, reads zero at the pulse's
+            centre, as a receiver locked to the transmitter sees it.
+        size_mm: The voxel edge, or its (x, y, z) edges.
+        reference_ppm: The shift the three slabs are centred for; others displace.
+        span: The ensemble's extent per axis in voxel edges.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
+    """
+
+    EXCITATION_S = 0.0026
+    AFP_S, AFP_BANDWIDTH_HZ, AFP_PEAK_HZ = 0.0045, 10000.0, 15.0 * 42.5774785
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, te_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None):
+        self.te_s = te_s
+        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        tau = (te_s - 4.0 * self.AFP_S) / 8.0
+        if tau <= self.EXCITATION_S / 2.0:
+            raise ValueError(f"te_s {te_s} is too short for the excitation and four "
+                             f"{self.AFP_S * 1e3:.1f} ms refocusing pulses")
+        slope = pulses.DE_GRAAF[("sinc", 90)]["r_bw"] / self.EXCITATION_S / edges[0]  # Hz per mm
+
+        def afp(axis, edge):
+            return ShapedPulse.goia_wurst(self.AFP_S, self.AFP_BANDWIDTH_HZ, self.AFP_PEAK_HZ,
+                                          offset_ppm=reference_ppm, extent_mm=span * edge,
+                                          gradient_hz_per_mm=self.AFP_BANDWIDTH_HZ / edge,
+                                          gradient_axis=axis)
+
+        super().__init__(
+            ShapedPulse.sinc(90.0, self.EXCITATION_S, offset_ppm=reference_ppm,
+                             phase_deg=-180.0 * reference_ppm * f0_mhz * self.EXCITATION_S,
+                             gradient_hz_per_mm=slope, gradient_axis="x", extent_mm=span * edges[0]),
+            Gradient(-0.5 * slope * self.EXCITATION_S, span * edges[0], axis="x"),
+            CoherenceFilter(-1), Projection(span),
+            Delay(tau - self.EXCITATION_S / 2.0),
+            afp("y", edges[1]), CoherenceFilter(+1), Delay(2.0 * tau),
+            afp("y", edges[1]), CoherenceFilter(-1), Projection(span), Delay(2.0 * tau),
+            afp("z", edges[2]), CoherenceFilter(+1), Delay(2.0 * tau),
+            afp("z", edges[2]), CoherenceFilter(-1), Projection(span), Delay(tau),
+            tr_s=tr_s,
+        )
 
 
 #**************************************************************************************************#

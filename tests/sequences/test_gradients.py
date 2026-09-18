@@ -308,3 +308,88 @@ class TestInducedKick:
         assert field.events[0].structure() == Sequence(ShapedPulse.gaussian(
             90.0, duration, offset_ppm=1.3, induced=2.0 * track)).events[0].structure()
 
+
+
+#**************************************************************************************************#
+#                                       Class TestProjection                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# Averaging the density matrix axis by axis is the full voxel sum (Zhang, An, Shen 2017).          #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestProjection:
+
+    def test_two_axes_projected_in_turn_are_the_full_two_dimensional_sum(self):
+        # a slice-selective 90 on x and a refocusing 180 on y act on lactate: the
+        # design that averages over x after the 90 and over y after the 180 (8 + 8
+        # positions) equals the mean over all 64 (x, y) pairs, each played with the
+        # field of its position typed into the pulses (their `induced` tracks)
+        from mrsandbox import Projection, ShapedPulse, SpinSystem
+
+        lac = SpinSystem.from_database("Lac")[0]
+        n, extent, g = 8, 40.0, 110.0
+        engine = Engine(3.0, isochromats=n)
+        kw = dict(offset_ppm=1.3, steps=64)
+        short = 0.002
+
+        def lines(sequence):
+            return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lac)[1]))
+
+        projected = Sequence(
+            ShapedPulse.sinc(90.0, short, gradient_hz_per_mm=g, gradient_axis="x", extent_mm=extent, **kw),
+            Gradient(-0.5 * g * short, extent, axis="x"), CoherenceFilter(+1), Projection(),
+            Delay(0.004),
+            ShapedPulse.sinc(180.0, short, gradient_hz_per_mm=g, gradient_axis="y", extent_mm=extent, **kw),
+            CoherenceFilter(-1), Projection(), Delay(0.004))
+        t = np.append((np.arange(64) + 0.5) * short / 64, short)
+
+        def track(position_mm):
+            field = np.zeros((4, 65), dtype=np.float32)
+            field[0] = g * position_mm * t
+            return field
+
+        grid = ((np.arange(n) + 0.5) / n - 0.5) * extent
+        total = 0.0
+        for x in grid:
+            for y in grid:
+                total = total + lines(Sequence(
+                    ShapedPulse.sinc(90.0, short, induced=track(x), **kw),
+                    InducedKick(-0.5 * g * x * short), CoherenceFilter(+1), Delay(0.004),
+                    ShapedPulse.sinc(180.0, short, induced=track(y), **kw),
+                    CoherenceFilter(-1), Delay(0.004)))
+        full = total / n ** 2
+        assert np.abs(full).max() > 0.01
+        np.testing.assert_allclose(lines(projected), full, atol=2e-5)
+        # the gain is a timing and scales the average
+        assert Projection(1.0).structure() == Projection(2.5).structure()
+
+
+#**************************************************************************************************#
+#                                   Class TestLocalizedSemiLaser                                   #
+#**************************************************************************************************#
+class TestLocalizedSemiLaser:
+
+    def test_the_voxel_keeps_its_profiles_and_its_phase(self):
+        from mrsandbox import LocalizedSemiLaser
+
+        f0_mhz = 3.0 * 42.5774785
+        water = WaterSource.system(gamma_mhz_t=42.5774785)
+        engine = Engine(3.0, isochromats=64)
+
+        def line(sequence):
+            a = np.asarray(ops.convert_to_numpy(engine.lines(sequence, water)[1]))
+            return a[np.argmax(np.abs(a))]
+
+        plain = line(Sequence(Pulse(90.0), CoherenceFilter(-1)))
+        voxel = line(LocalizedSemiLaser(0.030, f0_mhz, reference_ppm=4.65))
+        # the signal per nominal voxel: the slab integrals of a three-lobe sinc and two
+        # GOIA pairs (0.93 x 0.93 x 0.93), in phase with a plain excitation
+        assert 0.75 < abs(voxel / plain) < 0.88
+        assert abs(np.degrees(np.angle(voxel / plain))) < 0.5
+        # a transmit field 20 percent low costs the excitation its sine and the
+        # adiabatic pairs a little
+        engine_low = np.asarray(ops.convert_to_numpy(engine.lines(
+            LocalizedSemiLaser(0.030, f0_mhz, reference_ppm=4.65), water, b1_scale=0.8)[1]))
+        assert 0.75 < np.abs(engine_low).max() / abs(voxel) < 0.97
+        with pytest.raises(ValueError):
+            LocalizedSemiLaser(0.020, f0_mhz)
