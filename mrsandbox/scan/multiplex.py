@@ -191,7 +191,8 @@ class Multiplex:
     #   transients   #
     #****************#
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
-                   npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None):
+                   npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None,
+                   motion_mm=None):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
@@ -223,6 +224,13 @@ class Multiplex:
                 the one subject's (a rigid translation; rotations, the shim the move
                 spoils, and motion within a transient are not modelled). Recorded in
                 the header.
+            motion_mm: A (low, high) range in mm, or None: every motion event of the
+                synthesizer (the ones that kick its frequency, phase, and amplitude
+                tracks) also moves the head by a step of that size in a random
+                direction, for the event's transients, and for good when the event is
+                persistent. The range is the user's (stated: no measured distribution
+                is typed); the steps add to `displacement_mm` and are drawn after
+                everything else, so a run without them is unchanged.
         """
         try:
             import augmentrum
@@ -240,20 +248,29 @@ class Multiplex:
         seed, truth, rng = draw(self.params, seed)
 
         n = len(schedule)
-        moved = (np.zeros((n, 3)) if displacement_mm is None
-                 else np.asarray(displacement_mm, dtype=np.float64).reshape(n, 3))
-        clean = {}
-        for name, shift in set(zip(schedule, map(tuple, moved))):
-            voxel = self.scans[name].voxel(tuple(np.asarray(position_mm, dtype=np.float64) - shift),
-                                           size_mm, compiled=self.compiled)
-            _, clean[name, shift] = voxel._clean_fid(truth, npoints, dwell_s)
-
         synthesis = dict(synthesis or {})
         synth_seed = int(rng.integers(2 ** 31))
         synth = TransientSynthesizer(n_transients=n, tr_s=float(tr_s), seed=synth_seed,
                                      **synthesis)
         # the realized tracks, which Augmentrum applies through the same factor
         freq_hz, phase_rad, amplitude, broaden_hz = synth.tracks(synth.rng.numpy_rng())
+
+        moved = (np.zeros((n, 3)) if displacement_mm is None
+                 else np.asarray(displacement_mm, dtype=np.float64).reshape(n, 3).copy())
+        if motion_mm is not None:
+            if not hasattr(synth, "last_events_"):
+                raise ImportError("motion_mm needs an Augmentrum whose TransientSynthesizer "
+                                  "records its motion events (last_events_)")
+            steps = np.random.default_rng([synth_seed, 1])
+            for event in synth.last_events_:
+                direction = steps.standard_normal(3)
+                step = steps.uniform(*motion_mm) * direction / np.linalg.norm(direction)
+                moved[event["start"]:n if event["persistent"] else event["stop"]] += step
+        clean = {}
+        for name, shift in set(zip(schedule, map(tuple, moved))):
+            voxel = self.scans[name].voxel(tuple(np.asarray(position_mm, dtype=np.float64) - shift),
+                                           size_mm, compiled=self.compiled)
+            _, clean[name, shift] = voxel._clean_fid(truth, npoints, dwell_s)
 
         grid = np.arange(npoints) * dwell_s
         data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
@@ -286,7 +303,9 @@ class Multiplex:
              "phase_deg": [float(np.degrees(x)) for x in phase_rad],
              "amplitude": [float(x) for x in amplitude],
              "broadening_hz": [float(x) for x in broaden_hz],
-             "displacement_mm": None if displacement_mm is None else moved.tolist()},
+             "displacement_mm": (None if displacement_mm is None and motion_mm is None
+                                 else moved.tolist()),
+             "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm]},
             "MRSandbox: per transient condition and the realized Augmentrum instability "
             "tracks.",
         )

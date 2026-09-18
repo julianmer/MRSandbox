@@ -359,6 +359,29 @@ class TestTransients:
                                      synthesis=self.still())
         assert still.hdr_ext["SimulationSchedule"]["displacement_mm"] is None
 
+    def test_motion_events_move_the_head_with_their_kicks(self):
+        from augmentrum.augmentation import TransientSynthesizer
+
+        if not hasattr(TransientSynthesizer(n_transients=2, tr_s=2.0), "last_events_"):
+            pytest.skip("this Augmentrum does not record its motion events yet")
+        # one event process: where Augmentrum's tracks kick, the head steps by the
+        # asked size, for good after a persistent event; the header carries the path,
+        # and a run without motion_mm is the run it always was
+        multiplex = self.multiplex()
+        kw = dict(schedule=24, seed=3, npoints=128, synthesis=self.still(events_per_min=6.0))
+        plain = multiplex.transients((10, -20, 5), 20.0, **kw)
+        moving = multiplex.transients((10, -20, 5), 20.0, motion_mm=(4.0, 4.0), **kw)
+        record = moving.hdr_ext["SimulationSchedule"]
+        assert record["frequency_hz"] == plain.hdr_ext["SimulationSchedule"]["frequency_hz"]
+        path = np.asarray(record["displacement_mm"])
+        assert path.shape == (24, 3) and record["motion_mm"] == [4.0, 4.0]
+        kicked = np.asarray(record["frequency_hz"]) != 0.0
+        assert kicked.any() and np.all(np.linalg.norm(path[~kicked], axis=1) == 0.0)
+        assert np.linalg.norm(path[kicked], axis=1).max() >= 4.0 - 1e-9
+        a, b = np.asarray(plain[:])[0, 0, 0], np.asarray(moving[:])[0, 0, 0]
+        np.testing.assert_array_equal(b[:, ~kicked], a[:, ~kicked])
+        assert np.abs(b[:, kicked] - a[:, kicked]).max() > 0.0
+
     #*************#
     #   drift     #
     #*************#
