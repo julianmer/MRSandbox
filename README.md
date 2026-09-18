@@ -97,8 +97,11 @@ This repository consists of the following main structures:
   bandwidth, voxel, processing). Every acquisition's header names the calibrations it used and
   the conditions it departs from (another field, vendor, or sequence), where the number is
   carried by the simulator's scaling law and not by data. A scanner preset with its own record
-  takes it (the Prisma's noise comes from the COWS semi-LASER data, every other scanner falls
-  back to Big GABA), and records that are not in use stay as checks of the scaling law.
+  takes it: the Trio and the GE from Big GABA's raw sites, the Prisma from COWS, the Achieva
+  from fMRS in pain, 7 T from NeuroMET; every other scanner falls back to the Trio's, and
+  records that are not in use stay as checks. The noise records read the NAA signal to
+  noise ratio of single transients under a common apodization, which takes the in vivo
+  linewidth out of the receive chain's number.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
   and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
   hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled

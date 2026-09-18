@@ -563,6 +563,10 @@ class TestNoiseModel:
         assert record.departures(same) == {}
         other = VirtualScan(brain, Scanner.preset("generic_7t"), Steam(te_s=0.01, tm_s=0.02))
         assert set(record.departures(other)) == {"field_t", "sequence"}
+        # the 7 T preset has its own record, so its field is no departure any more
+        seven = calibrations(other.scanner)["noise.sigma"]
+        assert seven.scanner["field_t"] > 6.9 and set(seven.departures(other)) == {"sequence"}
+        assert other.params["noise"]["sigma"].high < 3.0
         philips = VirtualScan(brain, Scanner.preset("philips_elition_3t"), Press(0.011, 0.024))
         assert record.departures(philips) == {"vendor": ("siemens", "philips")}
         # a preset with its own record takes it: the Prisma's is COWS, semi-LASER

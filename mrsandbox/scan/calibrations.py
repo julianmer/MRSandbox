@@ -275,6 +275,52 @@ NOISE_BIG_GABA_GE_3T = Calibration(
 )
 
 
+#********************#
+#   noise, 7 tesla   #
+#********************#
+# serves the generic_7t preset, and is the first test of the field term of noise_scale
+# (sigma over B0, a signal-to-noise ratio linear in the field). The value is in the units of
+# the 3 T reference: 6.3 carried to 7 T gives an apodized pair SNR of 55.1 where the nine
+# subjects give 137.4, 2.5 times more. A 32-channel array of the Prisma's generation
+# (sigma 3.2 above) explains 2.0 of it; the rest fits a field exponent of about 1.3 in
+# place of 1 (the literature's is 1.65: Pohmann et al. 2016, Magn Reson Med 75:801), which
+# one 7 T site cannot separate from its coil. The law stays linear and the record carries
+# the difference (stated).
+NOISE_NEUROMET_7T = Calibration(
+    leaf="noise.sigma",
+    value=2.5,
+    prior=(2.3, 2.9),
+    measured={"statistic": "NAA SNR of one add-subtract pair (SPECIAL's unit: two excitations), "
+                           "read as the single-transient SNR of the other records",
+              "median": 56.9, "range": (40.4, 70.6), "subjects": 9,
+              "simulated_at_big_gaba_value": 30.9, "implied_value": 3.42,
+              "apodized": {"statistic": APODIZED, "median": 137.4, "range": (118.6, 153.1),
+                           "simulated_at_big_gaba_value": 55.1, "implied_value": 2.53,
+                           "implied_range": (2.27, 2.93)}},
+    source={"dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of "
+                       "each subject's first session (CC BY-NC-SA 4.0)",
+            "citation": "Riemann et al. 2022, Magn Reson Med 87:1119, doi 10.1002/mrm.29034",
+            "url": "https://zenodo.org/record/5500320"},
+    scanner={"vendor": "siemens", "model": "Magnetom 7T (Investigational_Device_7T)",
+             "software": "syngo MR B17", "field_t": 6.98},
+    coil={"channels": (32,), "name": None},
+    sequence={"name": "SPECIAL", "product": "lr_2special (customer sequence)", "te_s": 0.009,
+              "tr_s": 6.5, "simulated_as": "Press(te1_s=0.0045, te2_s=0.0045, tr_s=6.5) with "
+              "averages=2: an ideal echo of that time, the pair as two averaged excitations"},
+    acquisition={"npoints": 2048, "bandwidth_hz": 4000.0, "transients": 64, "measured_on": 2,
+                 "water_suppressed": True},
+    voxel={"region": None, "size_mm": (20.0, 20.0, 20.0), "simulated_brain": "icbm152",
+           "simulated_position_mm": (0.0, -45.0, 35.0),
+           "region_note": "the region is in the paper, not in the files; the place is a stand-in"},
+    processing="raw TWIX streamed member by member from the archive, receiver oversampling "
+               "removed, pairs summed, noise-whitened SVD coil combination, SNR per pair, "
+               "median per subject",
+    date="18/09/26",
+    presets=("generic_7t",),
+    note="the prior is the subjects' range, apodized; one site",
+)
+
+
 #*****************************#
 #   array noise correlation   #
 #*****************************#
@@ -305,7 +351,7 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
 # of a leaf is the fallback for every other scanner, and a scan's header
 # says where it departs from the record it got (`Calibration.departures`)
 CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
-                NOISE_BIG_GABA_GE_3T)
+                NOISE_BIG_GABA_GE_3T, NOISE_NEUROMET_7T)
 
 
 def calibrations(scanner=None):
