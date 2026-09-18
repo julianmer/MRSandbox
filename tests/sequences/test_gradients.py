@@ -424,3 +424,44 @@ class TestLocalizedSemiLaser:
         separate = Sequence(*[copy.copy(e) for e in design.events])
         np.testing.assert_allclose(shared, np.asarray(ops.convert_to_numpy(
             engine.lines(separate, lac)[1])), atol=1e-6)
+
+
+#**************************************************************************************************#
+#                                     Class TestLocalizedPress                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# The narrow refocusing slabs of PRESS displace coupled partners: lactate pays at TE 144.          #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestLocalizedPress:
+
+    def test_lactate_loses_its_inverted_doublet_to_the_displacement(self):
+        from mrsandbox import LocalizedPress, Press, SpinSystem
+
+        lac = SpinSystem.from_database("Lac")[0]
+        water = WaterSource.system(gamma_mhz_t=42.5774785)
+
+        def doublet(b0_t, te1_s, te2_s):
+            engine, f0_mhz = Engine(b0_t, isochromats=32), b0_t * 42.5774785
+            kept = []
+            for design in (LocalizedPress(te1_s, te2_s, f0_mhz), Press(te1_s=te1_s, te2_s=te2_s)):
+                freqs, a = (np.asarray(ops.convert_to_numpy(x)) for x in engine.lines(design, lac))
+                kept.append(np.real(a[freqs < 2.5 * f0_mhz].sum()))
+            return kept[0] / kept[1]
+
+        # at TE 144 the methine and the methyl are refocused together in part of the
+        # voxel only, more so as the shift difference grows with the field; at TE 30
+        # and at TE 288 the doublet is upright either way and keeps its signal
+        assert 0.25 < doublet(1.5, 0.030, 0.114) < 0.55
+        assert doublet(3.0, 0.030, 0.114) < 0.25
+        assert doublet(3.0, 0.015, 0.015) > 0.9
+        assert doublet(3.0, 0.030, 0.258) > 0.7
+        # an uncoupled line keeps the three slab integrals, in phase with the ideal echo
+        engine = Engine(3.0, isochromats=32)
+        a = np.asarray(ops.convert_to_numpy(engine.lines(
+            LocalizedPress(0.015, 0.015, 3.0 * 42.5774785, reference_ppm=4.65), water)[1]))
+        b = np.asarray(ops.convert_to_numpy(engine.lines(Press(te1_s=0.015, te2_s=0.015), water)[1]))
+        k = np.argmax(np.abs(b))
+        assert 0.8 < abs(a[k] / b[k]) < 0.95 and abs(np.degrees(np.angle(a[k] / b[k]))) < 0.5
+        with pytest.raises(ValueError):
+            LocalizedPress(0.004, 0.010, 3.0 * 42.5774785)

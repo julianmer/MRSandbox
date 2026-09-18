@@ -151,6 +151,70 @@ class SuppressionTrain(Sequence):
 
 
 #**************************************************************************************************#
+#                                       Class LocalizedPress                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# PRESS with its localization played: three slice-selective sinc pulses on three axes.             #
+#                                                                                                  #
+#**************************************************************************************************#
+class LocalizedPress(Sequence):
+    """PRESS with its localization played: a slice-selective 90 on x and slice-selective
+    180s on y and z, so the voxel's profile and, above all, the chemical shift
+    displacement of the narrow refocusing pulses emerge: coupled partners whose
+    slabs do not coincide are refocused in part of the voxel only, which is what
+    costs lactate its inverted doublet at TE 144 ms at 3 T and above.
+
+    The pulses are three-lobe sincs with the bandwidths of de Graaf Table 5.1 (R of
+    5.95 for the 90, 4.45 for the 180); the default durations give 2.3 kHz and 0.86
+    kHz, the narrow end of what scanners play (their optimized 180s reach 1.2 to 1.4
+    kHz; stated). Each axis is averaged as soon as its pulse has played
+    (`Projection`), coherence filters select the pathway, and every pulse's phase
+    sets its carrier, a ramp from the pulse's start, to read its nominal phase at the
+    pulse's centre. The echo times run between the pulse centres.
+
+    Args:
+        te1_s, te2_s: The two echo times in seconds, as for Press.
+        f0_mhz: The spectrometer frequency (the carrier phases need it).
+        size_mm: The voxel edge, or its (x, y, z) edges.
+        reference_ppm: The shift the three slabs are centred for; others displace.
+        excitation_s, refocusing_s: The durations of the 90 and of each 180.
+        span: The ensemble's extent per axis in voxel edges.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
+    """
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, te1_s, te2_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, excitation_s=0.0026,
+                 refocusing_s=0.0052, span=2.5, tr_s=None):
+        self.te1_s = te1_s
+        self.te2_s = te2_s
+        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        delays = (te1_s / 2.0 - excitation_s / 2.0 - refocusing_s / 2.0,
+                  (te1_s + te2_s) / 2.0 - refocusing_s, te2_s / 2.0 - refocusing_s / 2.0)
+        if min(delays) <= 0.0:
+            raise ValueError(f"te1_s {te1_s} and te2_s {te2_s} are too short for the pulses")
+
+        def slab(flip_deg, duration_s, axis, edge, phase_deg):
+            slope = pulses.DE_GRAAF[("sinc", flip_deg)]["r_bw"] / duration_s / edge  # Hz per mm
+            carrier = -180.0 * reference_ppm * f0_mhz * duration_s
+            return slope, ShapedPulse.sinc(float(flip_deg), duration_s, offset_ppm=reference_ppm,
+                                           phase_deg=phase_deg + carrier, gradient_hz_per_mm=slope,
+                                           gradient_axis=axis, extent_mm=span * edge)
+
+        slope, excitation = slab(90, excitation_s, "x", edges[0], 0.0)
+        super().__init__(
+            excitation, Gradient(-0.5 * slope * excitation_s, span * edges[0], axis="x"),
+            CoherenceFilter(-1), Projection(span), Delay(delays[0]),
+            slab(180, refocusing_s, "y", edges[1], 90.0)[1], CoherenceFilter(+1), Projection(span),
+            Delay(delays[1]),
+            slab(180, refocusing_s, "z", edges[2], 90.0)[1], CoherenceFilter(-1), Projection(span),
+            Delay(delays[2]),
+            tr_s=tr_s,
+        )
+
+
+#**************************************************************************************************#
 #                                     Class LocalizedSemiLaser                                     #
 #**************************************************************************************************#
 #                                                                                                  #
