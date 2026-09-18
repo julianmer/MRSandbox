@@ -252,9 +252,17 @@ class LocalizedMegaPress(Sequence):
     across an editing pulse, so spins inside the editing band, which it turns over
     too, are dephased, as on a scanner (the NAA methyl leaves the ON spectrum).
 
+    Two editing centres make a dual-band pulse, the Gaussian cosine-modulated about
+    their middle at twice the single band's amplitude (each band then turns its
+    spins by 180 degrees; the bands of the Hadamard schemes lie hundreds of hertz
+    apart against a width of tens, so they do not disturb each other), and
+    `scheme` builds the sub-experiments of a Hadamard scheme with it.
+
     Args:
-        edit_ppm: Editing pulse centre (1.88 for ON, 7.5 for OFF).
-        f0_mhz: The spectrometer frequency (the carrier phases need it).
+        edit_ppm: Editing pulse centre (1.88 for ON, 7.5 for OFF), or a tuple of one
+            or two centres.
+        f0_mhz: The spectrometer frequency (the carrier phases and a dual band's
+            modulation need it).
         taus_s: The five delays between pulse centres in seconds; their sum is TE.
         size_mm: The voxel edge, or its (x, y, z) edges.
         reference_ppm: The shift the three slabs are centred for; others displace.
@@ -292,8 +300,20 @@ class LocalizedMegaPress(Sequence):
                                           extent_mm=span * edge)
 
         # one editing pulse object played twice: computed once per run
-        edit = ShapedPulse.gaussian(180.0, edit_s, offset_ppm=edit_ppm,
-                                    phase_deg=-180.0 * edit_ppm * f0_mhz * edit_s)
+        centres = tuple(edit_ppm) if isinstance(edit_ppm, (tuple, list)) else (edit_ppm,)
+        if len(centres) > 2:
+            raise ValueError(f"an editing pulse carries one or two bands, got {len(centres)}")
+        middle = sum(centres) / len(centres)
+        edit = ShapedPulse.gaussian(180.0, edit_s, offset_ppm=middle,
+                                    phase_deg=-180.0 * middle * f0_mhz * edit_s)
+        if len(centres) == 2:
+            envelope = np.asarray(edit.envelope, dtype=np.float64)
+            t = ((np.arange(envelope.size) + 0.5) / envelope.size - 0.5) * edit_s
+            split = np.cos(np.pi * (centres[0] - centres[1]) * f0_mhz * t)
+            single = 0.5 / (envelope.sum() * edit_s / envelope.size)  # a 180's peak in Hz
+            edit = ShapedPulse(None, edit_s, (envelope / envelope.max() * split).astype(np.float32),
+                               offset_ppm=middle, phase_deg=edit.phase_deg,
+                               peak_hz=2.0 * single * envelope.max())
         slope, excitation = slab(90, t90, "x", edges[0], 0.0)
         super().__init__(
             excitation, Gradient(-press.REPHASE * slope * t90, span * edges[0], axis="x"),
@@ -314,6 +334,18 @@ class LocalizedMegaPress(Sequence):
     def pair(cls, f0_mhz, on_ppm=1.88, off_ppm=7.5, **kwargs):
         """The ON and OFF conditions of the editing experiment, as a named dict."""
         return {"on": cls(on_ppm, f0_mhz, **kwargs), "off": cls(off_ppm, f0_mhz, **kwargs)}
+
+    #************#
+    #   scheme   #
+    #************#
+    @classmethod
+    def scheme(cls, editing, f0_mhz, taus_s=(0.005, 0.015, 0.025, 0.015, 0.020), edit_s=0.020,
+               **kwargs):
+        """The sub-experiments of a Hadamard scheme (`Hermes`, `Hercules`) with the
+        localization played, as Multiplex consumes them beside `editing.combinations`:
+        the scheme's bands at its TE 80 ms timing and 20 ms editing pulses."""
+        return {name: cls(centres, f0_mhz, taus_s=taus_s, edit_s=edit_s, **kwargs)
+                for name, centres in editing.bands.items()}
 
 
 #**************************************************************************************************#

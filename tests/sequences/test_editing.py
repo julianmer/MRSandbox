@@ -499,3 +499,28 @@ class TestLocalizedMegaPress:
         assert np.real(on)[methyl].max() < 0.2 * np.real(spectrum(pair["off"], naa)[1])[methyl].max()
         with pytest.raises(ValueError):
             LocalizedMegaPress(1.88, f0_mhz, taus_s=(0.003, 0.017, 0.017, 0.017, 0.012))
+
+    def test_a_localized_hermes_still_separates_gaba_and_gsh(self):
+        # dual-band Gaussians turn both bands over and nothing between them; with real
+        # pulses and a real voxel the Hadamard combinations keep most of the edited
+        # signal and leak a percent or so into each other, where ideal bands leak none
+        from mrsandbox import LocalizedMegaPress
+
+        f0_mhz = 3.0 * 42.5774785
+        engine = Engine(3.0, isochromats=32)
+        schemes = {"ideal": Hermes.scheme(), "localized": LocalizedMegaPress.scheme(Hermes, f0_mhz)}
+        assert list(schemes["localized"]) == ["a", "b", "c", "d"]
+        for name, target, other, centre in (("GABA", "gaba", "gsh", 3.01), ("GSH", "gsh", "gaba", 2.95)):
+            edited = {}
+            for label, scheme in schemes.items():
+                spectra = {}
+                for condition, sequence in scheme.items():
+                    ppm, spectra[condition] = render(engine, sequence, name)
+                window = np.abs(ppm - centre) < 0.15
+                edited[label] = {k: sum(w[c] * spectra[c] for c in spectra)[window]
+                                 for k, w in Hermes.combinations.items()}
+            kept = edited["localized"][target].sum() / edited["ideal"][target].sum()
+            leak = np.abs(edited["localized"][other]).max() / np.abs(edited["localized"][target]).max()
+            assert 0.5 < kept < 1.0 and leak < 0.05, (name, kept, leak)
+        with pytest.raises(ValueError):
+            LocalizedMegaPress((1.9, 4.56, 7.2), f0_mhz)
