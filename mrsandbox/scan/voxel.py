@@ -618,7 +618,9 @@ class Voxel:
                  (float(g.linear_short), float(g.linear_long)))
         if not any(terms[1]) and not any(terms[2]):
             return None
-        return ("gradients",) + terms, exponential_response(*terms)
+        tr_s = self.scan.sequence.tr_s
+        tr_s = None if tr_s is None else float(tr_s)
+        return ("gradients", tr_s) + terms, exponential_response(*terms, tr_s=tr_s)
 
     def _scanner(self):
         """The scan's scanner with its limits (a bare field strength gets the generic

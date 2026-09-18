@@ -38,7 +38,7 @@ INDUCED_BANDWIDTH_HZ = 20000.0
 #*************************#
 #   exponential response  #
 #*************************#
-def induced_fields(waveform_mt_m, dt_s, taus_s, b0_hz_per_mt_m, linear_fractions):
+def induced_fields(waveform_mt_m, dt_s, taus_s, b0_hz_per_mt_m, linear_fractions, tr_s=None):
     """The B0 offset (Hz) and the gradient error (mT/m) one axis's waveform induces
     through a sum of exponential eddy-current terms: every step of the gradient
     excites, per term k, a field decaying as exp(-t / tau_k), of b0_k hertz per
@@ -46,23 +46,35 @@ def induced_fields(waveform_mt_m, dt_s, taus_s, b0_hz_per_mt_m, linear_fractions
     opposing it, in the term along the axis itself (the classic multi-exponential
     eddy-current model, de Graaf 2019 section 10.5; the response of an ideal
     pre-emphasis leaves only such residuals). Cross-axis terms are not modelled
-    (stated)."""
+    (stated).
+
+    With a repetition time the waveform repeats every `tr_s` and the fields are the
+    steady state of the train, not the first repetition's: what one repetition
+    leaves of a term at the next one's start, D, arrives there from every earlier
+    repetition too, D / (1 - exp(-tr_s / tau)) in all, and decays through this one.
+    A term of seconds under a TR of two keeps most of itself that way."""
     steps = np.diff(waveform_mt_m, prepend=0.0)
     b0, error = np.zeros_like(waveform_mt_m), np.zeros_like(waveform_mt_m)
+    t = np.arange(steps.size) * dt_s
     for tau, b0_k, linear_k in zip(taus_s, b0_hz_per_mt_m, linear_fractions):
         decayed = scipy.signal.lfilter([1.0], [1.0, -np.exp(-dt_s / tau)], steps)
+        if tr_s is not None:
+            left = decayed[-1] * np.exp(-(tr_s - t[-1]) / tau)
+            decayed = decayed + left / (1.0 - np.exp(-tr_s / tau)) * np.exp(-t / tau)
         b0 = b0 + b0_k * decayed
         error = error - linear_k * decayed
     return b0, error
 
 
-def exponential_response(taus_s, b0_hz_per_mt_m, linear_fractions):
+def exponential_response(taus_s, b0_hz_per_mt_m, linear_fractions, tr_s=None):
     """The exponential terms as the response `readout_kernel` takes: called as
     (axis, waveform_mt_m, dt_s, bandwidth_hz) it returns {"b0": Hz, axis: mT/m},
     the two fields of `induced_fields` (no cross terms; the receiver's band plays no
-    part, the residuals being smooth)."""
+    part, the residuals being smooth), in the steady state of a train repeating
+    every `tr_s` when one is given."""
     def response(axis, waveform_mt_m, dt_s, bandwidth_hz):
-        b0, error = induced_fields(waveform_mt_m, dt_s, taus_s, b0_hz_per_mt_m, linear_fractions)
+        b0, error = induced_fields(waveform_mt_m, dt_s, taus_s, b0_hz_per_mt_m, linear_fractions,
+                                   tr_s)
         return {"b0": b0, axis: error}
     return response
 
@@ -101,7 +113,8 @@ def induced_sequence(sequence, scanner, response, position_mm, gamma_mhz_t=42.57
     the first-order terms at the voxel as uniform cycles and the first-order terms as
     moments across the box, as an InducedKick after every delay and as the `induced`
     track of every shaped pulse, whose spins run off resonance by the field while it
-    plays. The fields of earlier repetitions are not carried into the next (stated).
+    plays. With a TR an exponential response carries the fields of the earlier
+    repetitions (`induced_fields`); a measured one remembers 200 ms and needs none.
     The copy keeps the design's own attributes."""
     spans = event_spans(sequence)
     t, cycles, moments = induced_phase(sequence, scanner, response, spans[-1][1], gamma_mhz_t)

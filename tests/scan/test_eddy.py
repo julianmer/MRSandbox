@@ -105,6 +105,24 @@ class TestResponse:
         np.testing.assert_allclose(error[after], -0.01 * 20.0 * np.exp(-t[after] / 0.003), rtol=1e-6)
         assert np.all(b0[~after] == 0.0)
 
+    def test_a_train_carries_its_long_terms_into_every_repetition(self):
+        # the steady state of a train against its brute force: five seconds of a
+        # 0.5 s repetition played out, the last repetition is the one-repetition
+        # response plus what the earlier ones left, D / (1 - exp(-TR / tau)) decaying
+        dt, tr, tau = 1e-4, 0.5, 1.2
+        one = np.zeros(int(round(tr / dt)))
+        one[100:300] = 20.0  # a 20 mT/m, 20 ms lobe per repetition
+        train = np.tile(one, 40)
+        b0_train, error_train = induced_fields(train, dt, [tau], [0.4], [0.01])
+        window = one[:1500]
+        b0, error = induced_fields(window, dt, [tau], [0.4], [0.01], tr_s=tr)
+        last = slice(39 * one.size, 39 * one.size + window.size)
+        np.testing.assert_allclose(b0, b0_train[last], atol=2e-6 * np.abs(b0_train).max() + 1e-9)
+        np.testing.assert_allclose(error, error_train[last], atol=1e-6)
+        alone, _ = induced_fields(window, dt, [tau], [0.4], [0.01])
+        # and it matters: the carried field is twice what the lone lobe leaves behind it
+        assert np.abs(b0 - alone)[-1] > 1.5 * np.abs(alone[-1])
+
 
 #**************************************************************************************************#
 #                                         Class TestKernel                                         #
