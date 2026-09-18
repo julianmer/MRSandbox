@@ -206,6 +206,24 @@ class TestQsmHead:
             QSMHead.volume("T2map")
 
 
+    def test_the_heads_maps_drive_the_water_t1_and_the_line_width(self):
+        # QSMHead.params: water T1 from R1 and the Gaussian width from R2' = R2* - R2; white
+        # matter reads a shorter T1 than a voxel with CSF, and both widths sit in the 7 T
+        # default range, the cells without brain neutral in the box means
+        from mrsandbox import Press, Scanner, VirtualScan
+        from mrsandbox.resources import QSMHead
+
+        scan = VirtualScan(Brain.load("qsm_rc2"), Scanner.preset("generic_7t"),
+                           Press(te1_s=0.011, te2_s=0.019), params=QSMHead.params())
+        local = {}
+        for name, place in (("white", (25.0, 10.0, 25.0)), ("mixed", (0.0, -45.0, 35.0))):
+            voxel = scan.voxel(position_mm=place, size_mm=20.0)
+            local[name] = voxel.local(voxel.sample(seed=1))
+        assert 1.1 < local["white"]["water.t1_s"] < 1.5 < local["mixed"]["water.t1_s"] < 2.6
+        for name in local:
+            assert 3.0 < local[name]["lineshape.gauss_hz"] < 14.0
+
+
     def test_the_heads_scalp_lends_the_other_brains_a_fat_layer(self):
         # carried by a shape fit of the two brains and cleared of the preset's own
         # tissue: going up from the brain, tissue, then a skull's gap, then the layer
