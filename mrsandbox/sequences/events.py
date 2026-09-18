@@ -260,17 +260,22 @@ class ShapedPulse(Event):
         peak_hz: Optional peak RF amplitude in Hz; when set the envelope is scaled to
             it directly instead of being flip calibrated (adiabatic pulses are defined
             by their peak B1, not a nutation angle; flip_deg is ignored then).
+        induced: Optional (4, steps + 1) track of the phase an induced field builds up
+            from the pulse's start, as an InducedKick counts it: the uniform cycles
+            and the moments along x, y, z in cycles per millimetre, at the step
+            midpoints and, last, at the pulse's end. The spins then run off resonance
+            during the pulse by that field (scan.eddy fills it).
     """
 
     free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz",
-            "phase_deg")
+            "phase_deg", "induced")
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, flip_deg, duration_s, envelope, offset_ppm=0.0, phase_deg=0.0,
                  gradient_hz_per_mm=0.0, gradient_axis="x", extent_mm=20.0,
-                 frequency_hz=None, peak_hz=None):
+                 frequency_hz=None, peak_hz=None, induced=None):
         if gradient_axis not in ("x", "y", "z"):
             raise ValueError(f"unknown gradient axis {gradient_axis!r}; known: x, y, z")
         self.flip_deg = flip_deg
@@ -283,6 +288,7 @@ class ShapedPulse(Event):
         self.extent_mm = extent_mm
         self.frequency_hz = frequency_hz
         self.peak_hz = peak_hz
+        self.induced = induced
 
     #***************#
     #   gaussian    #
@@ -421,23 +427,35 @@ class ShapedPulse(Event):
         if ops.ndim(b1) == 0:
             w = ops.expand_dims(w, 1)
         m = ops.sum(ctx.mz, axis=0)
+        # the frame term in cycles, at the step midpoints and over the whole pulse
         if ops.ndim(delta) > 0:  # a vector of positions batches the ensemble
-            theta = (ops.expand_dims(phase, 1)
-                     - 2.0 * math.pi * ops.expand_dims(delta, 0) * ops.expand_dims(t_mid, 1))
+            turns = ops.expand_dims(delta, 0) * ops.expand_dims(t_mid, 1)
         else:
-            theta = ops.expand_dims(phase - 2.0 * math.pi * delta * t_mid, 1)
+            turns = ops.expand_dims(delta * t_mid, 1)
+        total = ops.convert_to_tensor(self.duration_s, dtype="float32") * delta
+        if self.induced is not None:
+            # an induced field is one more frame term, its cycles given per step
+            induced = ops.cast(ops.convert_to_tensor(self.induced), "float32")
+            turns = turns + ops.expand_dims(induced[0, :-1], 1)
+            total = total + induced[0, -1]
+            for k, axis in enumerate("xyz"):
+                x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype="float32")
+                if ops.ndim(x) > 0:
+                    turns = turns + ops.expand_dims(induced[k + 1, :-1], 1) * ops.expand_dims(x, 0)
+                    total = total + induced[k + 1, -1] * x
+        theta = ops.expand_dims(phase, 1) - 2.0 * math.pi * turns
         angle = -ops.expand_dims(theta, -1) * m  # (steps, isochromats or 1, d)
         d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         u = ops.expand_dims(d, -1) * w * ops.expand_dims(ops.conj(d), -2)
-        if ops.ndim(delta) == 0 and ops.ndim(b1) == 0:
+        if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
             u = u[:, 0]
         while int(u.shape[0]) > 1:
             n = int(u.shape[0])
             pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
             u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
         rho = self._sandwich(u[0], rho)
-        frame = -2.0 * math.pi * ops.convert_to_tensor(self.duration_s, dtype="float32") * delta
-        if ops.ndim(delta) > 0:
+        frame = -2.0 * math.pi * total
+        if ops.ndim(total) > 0:
             frame = ops.reshape(frame, (-1, 1, 1))
         frame = frame * ops.cast(ctx.q, "float32")
         return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))

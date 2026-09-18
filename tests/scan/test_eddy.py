@@ -227,6 +227,29 @@ class TestInducedDesign:
                                                    exponential_response((0.05,), (0.0,), (0.0,)),
                                                    (0.0, 0.0, 0.0)).events) == 6
 
+    def test_a_shaped_pulse_carries_the_field_as_its_track(self):
+        # the field over a shaped pulse rides on the pulse (the spins run off
+        # resonance while it plays), its end value the integral a kick would carry,
+        # and no kick follows the pulse
+        scanner = Scanner.preset("generic_3t")
+        moment = GAMMA * 1e6 * 30e-3 * 2e-3 * 1e-3
+        response = exponential_response((0.050,), (0.5,), (0.002,))
+        crusher = Gradient(moment, 20.0, axis="z")
+        plain = Sequence(Pulse(90.0), Delay(0.010), crusher, ShapedPulse.gaussian(180.0, 0.004),
+                         crusher, Delay(0.010))
+        design = induced_sequence(plain, scanner, response, (0.0, 0.0, 10.0))
+        assert [type(e).__name__ for e in design.events] == [
+            "Pulse", "Delay", "InducedKick", "Gradient", "ShapedPulse", "Gradient", "Delay",
+            "InducedKick"]
+        assert plain.events[3].induced is None  # the design itself is untouched
+        track = design.events[4].induced
+        assert track.shape == (4, 65)
+        t, cycles, moments = induced_phase(plain, scanner, response, 0.024)
+        over = lambda series: np.diff(np.interp([0.010, 0.014], t, series))[0]
+        np.testing.assert_allclose(track[3, -1], over(moments["z"]), rtol=1e-5)
+        np.testing.assert_allclose(track[0, -1], over(cycles) + 10.0 * over(moments["z"]), rtol=1e-5)
+        assert np.all(np.diff(track[0]) != 0.0) and np.all(track[1:3] == 0.0)
+
     def test_the_b0_term_phases_the_echo_by_the_difference_of_its_halves(self):
         # the detected coherence carries q Phi per interval with q flipping at the
         # 180, so the echo's phase is 2 pi (Phi2 - Phi1): a field after the 180

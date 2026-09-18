@@ -277,3 +277,34 @@ class TestInducedKick:
         assert InducedKick(0.1, moment_x=0.2).structure() == InducedKick(0.3, moment_x=0.4).structure()
         assert InducedKick(0.1, moment_x=0.2).timings() == (0.1, 0.2, 0.0, 0.0)
 
+    def test_a_field_during_a_shaped_pulse_runs_the_spins_off_resonance(self, engine):
+        # the `induced` track of a shaped pulse: a constant field is the scanner's
+        # frequency error of minus that field, and a constant first-order term across
+        # the ensemble is the pulse's own slice gradient
+        from mrsandbox import SpinSystem
+        from mrsandbox.sequences.events import ShapedPulse
+
+        lac = SpinSystem.from_database("Lac")[0]
+        steps, duration = 64, 0.004
+        t = np.append((np.arange(steps) + 0.5) * duration / steps, duration)
+
+        def lines(sequence, **kw):
+            return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lac, **kw)[1]))
+
+        track = np.zeros((4, steps + 1), dtype=np.float32)
+        track[0] = 40.0 * t
+        plain = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3))
+        field = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3, induced=track))
+        np.testing.assert_allclose(lines(field), lines(plain, offset_hz=-40.0), atol=1e-6)
+        assert np.abs(lines(field) - lines(plain)).max() > 0.05
+        track = np.zeros((4, steps + 1), dtype=np.float32)
+        track[3] = 25.0 * t
+        rephase = Gradient(-0.5 * 25.0 * duration, 20.0, axis="z")
+        slab = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3, gradient_hz_per_mm=25.0,
+                                             gradient_axis="z"), rephase)
+        field = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3, induced=track), rephase)
+        np.testing.assert_allclose(lines(field), lines(slab), atol=1e-6)
+        # the track is a timing: one compiled design replays at every voxel
+        assert field.events[0].structure() == Sequence(ShapedPulse.gaussian(
+            90.0, duration, offset_ppm=1.3, induced=2.0 * track)).events[0].structure()
+

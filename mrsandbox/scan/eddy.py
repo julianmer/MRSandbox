@@ -24,7 +24,7 @@ import copy
 import numpy as np
 import scipy.signal
 
-from mrsandbox.sequences.events import InducedKick
+from mrsandbox.sequences.events import InducedKick, ShapedPulse
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 TIME_STEP_S = 1e-5
@@ -97,27 +97,32 @@ def induced_phase(sequence, scanner, response, until_s, gamma_mhz_t=42.5774785,
 
 def induced_sequence(sequence, scanner, response, position_mm, gamma_mhz_t=42.5774785):
     """The design with the phase its own gradients induce before the readout, at a
-    voxel `position_mm` from the isocentre: after every event that takes time (a
-    delay, a shaped pulse) an InducedKick carrying the fields' integrals over it, the
-    B0 term plus the first-order terms at the voxel as its uniform cycles and the
-    first-order terms as its moments across the box. A field during a pulse acts
-    after it (stated), and the fields of earlier repetitions are not carried into
-    the next (stated). The copy keeps the design's own attributes."""
+    voxel `position_mm` from the isocentre: the fields' integrals, the B0 term plus
+    the first-order terms at the voxel as uniform cycles and the first-order terms as
+    moments across the box, as an InducedKick after every delay and as the `induced`
+    track of every shaped pulse, whose spins run off resonance by the field while it
+    plays. The fields of earlier repetitions are not carried into the next (stated).
+    The copy keeps the design's own attributes."""
     spans = event_spans(sequence)
     t, cycles, moments = induced_phase(sequence, scanner, response, spans[-1][1], gamma_mhz_t)
     if not any(np.any(m) for m in moments.values()) and not np.any(cycles):
         return sequence
+    def since(start, at):
+        # [uniform cycles, moment x, y, z] built up from `start` to the times `at`
+        rows = [np.interp(at, t, moments[axis]) - np.interp(start, t, moments[axis]) for axis in "xyz"]
+        uniform = np.interp(at, t, cycles) - np.interp(start, t, cycles)
+        return np.stack([uniform + sum(row * float(p) for row, p in zip(rows, position_mm))] + rows)
+
     events = []
     for event, (start, end) in zip(sequence.events, spans):
+        if isinstance(event, ShapedPulse):
+            steps = len(event.envelope)
+            at = start + (np.arange(steps) + 0.5) * (end - start) / steps
+            event = copy.copy(event)
+            event.induced = since(start, np.append(at, end)).astype(np.float32)
         events.append(event)
-        if end > start:
-            edges = np.array([start, end])
-            uniform = np.diff(np.interp(edges, t, cycles))[0]
-            kicks = {}
-            for k, axis in enumerate("xyz"):
-                kicks["moment_" + axis] = np.diff(np.interp(edges, t, moments[axis]))[0]
-                uniform = uniform + kicks["moment_" + axis] * float(position_mm[k])
-            events.append(InducedKick(float(uniform), **{name: float(v) for name, v in kicks.items()}))
+        if end > start and not isinstance(event, ShapedPulse):
+            events.append(InducedKick(*(float(v) for v in since(start, end))))
     design = copy.copy(sequence)
     design.events = tuple(events)
     return design
