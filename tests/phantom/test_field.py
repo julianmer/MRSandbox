@@ -227,6 +227,22 @@ class TestFieldGroups:
         np.testing.assert_allclose(sum(w * k for _, w, k in groups),
                                    field.kernel((0.0, 0.0, 0.0), 20.0, t), atol=1e-6)
 
+    def test_a_shim_kept_while_the_head_moves_is_spoiled_by_the_move(self):
+        # a linear field is shimmed away where the shim was fitted; the head moves 3 mm
+        # along the ramp and the shim stays in the scanner: what is left is the ramp
+        # times the move, one frequency, and a second-order field leaves its gradient
+        _, _, field = self.ramp(40.0)  # 4 Hz per mm along x
+        linear = FieldMap.from_map(field.offsets_hz, field.affine, shim="linear")
+        here, there = (0.0, 0.0, 0.0), (-3.0, 0.0, 0.0)  # the head moved +3 mm: the voxel reads x - 3
+        assert np.abs(linear.offsets(here, 10.0)).max() < 1e-6
+        assert np.abs(linear.offsets(there, 10.0)).max() < 1e-6  # reshimmed there
+        kept = linear.offsets(there, 10.0, shim_at_mm=here)
+        np.testing.assert_allclose(kept, -4.0 * 3.0, atol=1e-6)
+        x = (np.arange(40) - 19.5)[:, None, None] * np.ones((40, 40, 40))
+        bowl = FieldMap.from_map((0.5 * x * x).astype(np.float32), field.affine, shim="linear")
+        fresh, spoiled = bowl.offsets(there, 10.0), bowl.offsets(there, 10.0, shim_at_mm=here)
+        assert np.std(spoiled) > 2.0 * np.std(fresh)  # a gradient of 3 Hz per mm is back
+
     @pytest.mark.render
     def test_an_editing_pulse_misses_the_part_of_the_voxel_the_field_moves_away(self):
         # GABA alone under MEGA-PRESS: with the field on the FID only, a ramp broadens

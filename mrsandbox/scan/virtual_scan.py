@@ -139,7 +139,8 @@ class VirtualScan:
     #***********#
     #   voxel   #
     #***********#
-    def voxel(self, position_mm, size_mm, compiled=False, box_center_mm=None, box_axes="xyz"):
+    def voxel(self, position_mm, size_mm, compiled=False, box_center_mm=None, box_axes="xyz",
+              shim_at_mm=None):
         """Place a voxel (a size_mm cube, or an (x, y, z) box) and get its acquisition
         handle.
 
@@ -147,10 +148,11 @@ class VirtualScan:
         on the scan: the first draw compiles, every further draw replays. Worth it for
         many draws from one scan (the training mode turns it on); a one-shot look is
         faster plain. `box_center_mm` makes the voxel a cell of the box a localized
-        design selects about that centre (an MRSI lattice places its cells so).
+        design selects about that centre (an MRSI lattice places its cells so);
+        `shim_at_mm` keeps the shim fitted for that place (a head that moved since).
         """
         return Voxel(self, position_mm, size_mm, compiled=compiled, box_center_mm=box_center_mm,
-                     box_axes=box_axes)
+                     box_axes=box_axes, shim_at_mm=shim_at_mm)
 
     #***********#
     #   mrsi    #

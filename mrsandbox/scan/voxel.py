@@ -122,7 +122,7 @@ class Voxel:
     #   init   #
     #**********#
     def __init__(self, scan, position_mm, size_mm, compiled=False, box_center_mm=None,
-                 box_axes="xyz"):
+                 box_axes="xyz", shim_at_mm=None):
         self.scan = scan
         # a cell of a lattice inside the box a localized design selects: the design is
         # played confined to the cell, its ensemble shifted from the box's centre
@@ -130,6 +130,8 @@ class Voxel:
         # the lattice does not resolve)
         self.box_center_mm = None if box_center_mm is None else tuple(float(x) for x in box_center_mm)
         self.box_axes = box_axes
+        # a head that moved after the shim: the shim of the planned place stays
+        self.shim_at_mm = None if shim_at_mm is None else tuple(float(x) for x in shim_at_mm)
         self.position_mm = tuple(float(x) for x in position_mm)
         self.size_mm = (tuple(float(x) for x in size_mm) if hasattr(size_mm, "__len__")
                         else float(size_mm))
@@ -538,7 +540,8 @@ class Voxel:
             # plays the sequence at its own mean offset and dephases by its own kernel
             fids = {}
             for mean_hz, weight, kernel in self.scan.field.groups(
-                    self.position_mm, self.size_mm, grid, self.scan.field_groups):
+                    self.position_mm, self.size_mm, grid, self.scan.field_groups,
+                    shim_at_mm=self.shim_at_mm):
                 self._field_offset_hz = mean_hz
                 try:
                     part = sources(None if basis is None
@@ -627,7 +630,8 @@ class Voxel:
         key = (npoints, dwell_s, start_s)
         if key not in self._kernels:
             t = start_s + np.arange(npoints) * dwell_s
-            self._kernels[key] = self.scan.field.kernel(self.position_mm, self.size_mm, t)
+            self._kernels[key] = self.scan.field.kernel(self.position_mm, self.size_mm, t,
+                                                        shim_at_mm=self.shim_at_mm)
         return self._kernels[key]
 
     def _response(self, truth):

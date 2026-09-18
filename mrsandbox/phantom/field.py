@@ -136,7 +136,7 @@ class FieldMap:
     #**************#
     #   offsets    #
     #**************#
-    def offsets(self, position_mm, size_mm, shim=None):
+    def offsets(self, position_mm, size_mm, shim=None, shim_at_mm=None):
         """The Hz offsets of the map cells a voxel box (cubic, or per-axis edges)
         overlaps, after the voxel shim, flat.
 
@@ -150,37 +150,49 @@ class FieldMap:
         as it does on a scanner), every fit weighted by the cells' overlap with the
         box. None takes the map's own default. Empty outside the map.
         """
-        values, _ = self._shimmed(position_mm, size_mm, shim)
+        values, _ = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
         return values
 
-    def _shimmed(self, position_mm, size_mm, shim):
-        """The post-shim offsets of the overlapped cells and their overlap weights."""
+    def _shimmed(self, position_mm, size_mm, shim, shim_at_mm=None):
+        """The post-shim offsets of the overlapped cells and their overlap weights.
+        With `shim_at_mm` the shim is the one fitted for the box at that place and
+        kept in the scanner while the object moved: the box now at `position_mm` in
+        the object's frame sits under the shim fields of the planned place."""
         shim = self.shim if shim is None else shim
-        values, weights = self.volume.box(position_mm, size_mm)
-        keep = weights > 0.0
-        if not keep.any():
-            return np.empty(0), np.empty(0)
-        v, w = values[keep].astype(np.float64), weights[keep]
-        if shim == "none":
-            return v, w
-        if shim == "mean":
-            return v - np.average(v, weights=w), w
-        if shim in ("linear", "quadratic"):
-            xyz = self.volume.centres(position_mm, size_mm)[keep]
-            x, y, z = (xyz - np.average(xyz, axis=0, weights=w)).T
-            columns = [np.ones_like(v), x, y, z]
+        if shim not in self.SHIMS:
+            raise ValueError(f"unknown shim {shim!r}; known: {', '.join(self.SHIMS)}")
+
+        def cells(at):
+            values, weights = self.volume.box(at, size_mm)
+            keep = weights > 0.0
+            xyz = self.volume.centres(at, size_mm)[keep] if keep.any() else np.empty((0, 3))
+            return values[keep].astype(np.float64), weights[keep], xyz
+
+        def columns(xyz, centre):
+            x, y, z = (xyz - centre).T
+            out = [np.ones(len(xyz)), x, y, z]
             if shim == "quadratic":
-                columns += [2.0 * z * z - x * x - y * y, x * z, y * z, x * x - y * y, x * y]
-            design = np.stack(columns, axis=1)
-            root = np.sqrt(w)
-            fit, *_ = np.linalg.lstsq(design * root[:, None], v * root, rcond=None)
-            return v - design @ fit, w
-        raise ValueError(f"unknown shim {shim!r}; known: {', '.join(self.SHIMS)}")
+                out += [2.0 * z * z - x * x - y * y, x * z, y * z, x * x - y * y, x * y]
+            return np.stack(out if shim != "mean" else out[:1], axis=1)
+
+        v, w, xyz = cells(position_mm)
+        if v.size == 0 or shim == "none":
+            return v, w
+        planned = (v, w, xyz) if shim_at_mm is None else cells(shim_at_mm)
+        if planned[0].size == 0:
+            return v, w
+        centre = np.average(planned[2], axis=0, weights=planned[1])
+        root = np.sqrt(planned[1])
+        fit, *_ = np.linalg.lstsq(columns(planned[2], centre) * root[:, None], planned[0] * root,
+                                  rcond=None)
+        # the moved box's cells under the planned shim: where they sit in the scanner
+        moved = 0.0 if shim_at_mm is None else np.asarray(shim_at_mm, float) - np.asarray(position_mm, float)
+        return v - columns(xyz + moved, centre) @ fit, w
 
     #*************#
     #   kernel    #
     #*************#
-    def kernel(self, position_mm, size_mm, t_s, shim=None, bins=256):
+    def kernel(self, position_mm, size_mm, t_s, shim=None, bins=256, shim_at_mm=None):
         """The complex dephasing kernel k(t) of a voxel box on a time grid.
 
         The post-shim box offsets are histogrammed with their overlap weights (the
@@ -189,12 +201,12 @@ class FieldMap:
         nothing.
         """
         t = np.asarray(t_s, dtype=np.float64)
-        offsets, overlap = self._shimmed(position_mm, size_mm, shim)
+        offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
         if offsets.size == 0:
             return np.ones_like(t, dtype=np.complex64)
         return self._dephasing(offsets, overlap, t, bins)
 
-    def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256):
+    def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256, shim_at_mm=None):
         """The box's post-shim offsets split into `count` groups of equal weight along
         the offset axis, as [(mean_hz, weight, kernel)]: each group's mean offset, its
         share of the box, and its own dephasing kernel, so the weighted kernels sum
@@ -202,7 +214,7 @@ class FieldMap:
         band, a selective pulse off its line) can then be played per group at the
         group's mean. An empty box is one group at rest."""
         t = np.asarray(t_s, dtype=np.float64)
-        offsets, overlap = self._shimmed(position_mm, size_mm, shim)
+        offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
         if offsets.size == 0:
             return [(0.0, 1.0, np.ones_like(t, dtype=np.complex64))]
         order = np.argsort(offsets)

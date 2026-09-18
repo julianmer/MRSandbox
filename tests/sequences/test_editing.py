@@ -359,6 +359,21 @@ class TestTransients:
                                      synthesis=self.still())
         assert still.hdr_ext["SimulationSchedule"]["displacement_mm"] is None
 
+    def test_a_turned_head_is_read_where_the_voxel_now_lies_in_it(self):
+        # a quarter turn about z: the voxel at (10, -20, 5) reads the head at
+        # R^T p = (-20, -10, 5); then a displacement on top
+        multiplex = self.multiplex()
+        turned = multiplex.transients((10, -20, 5), 20.0, schedule=2, seed=3, npoints=128,
+                                      synthesis=self.still(), rotation_deg=[(0, 0, 0), (0, 0, 90)])
+        volume = np.asarray(turned[:])[0, 0, 0]
+        elsewhere = multiplex.transients((-20, -10, 5), 20.0, schedule=1, seed=3, npoints=128,
+                                         synthesis=self.still())
+        np.testing.assert_allclose(volume[:, 1], np.asarray(elsewhere[:])[0, 0, 0],
+                                   atol=1e-5 * np.abs(volume).max())
+        assert np.abs(volume[:, 1] - volume[:, 0]).max() > 1e-3 * np.abs(volume).max()
+        record = turned.hdr_ext["SimulationSchedule"]
+        assert record["rotation_deg"][1] == [0.0, 0.0, 90.0] and record["pivot_mm"] == [0.0, 0.0, 0.0]
+
     def test_motion_events_move_the_head_with_their_kicks(self):
         from augmentrum.augmentation import TransientSynthesizer
 

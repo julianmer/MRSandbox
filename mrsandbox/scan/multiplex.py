@@ -192,7 +192,7 @@ class Multiplex:
     #****************#
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
                    npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None,
-                   motion_mm=None):
+                   motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0)):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
@@ -221,9 +221,9 @@ class Multiplex:
                 stays where the scanner put it, so a displaced transient is rendered
                 at the planned position minus the displacement: its tissue fractions,
                 water, fat, field, and transmit map are the moved head's, the truth is
-                the one subject's (a rigid translation; rotations, the shim the move
-                spoils, and motion within a transient are not modelled). Recorded in
-                the header.
+                the one subject's, and the shim is still the one fitted for the planned
+                place, which the move spoils (motion within a transient is not
+                modelled). Recorded in the header.
             motion_mm: A (low, high) range in mm, or None: every motion event of the
                 synthesizer (the ones that kick its frequency, phase, and amplitude
                 tracks) also moves the head by a step of that size in a random
@@ -231,6 +231,12 @@ class Multiplex:
                 persistent. The range is the user's (stated: no measured distribution
                 is typed); the steps add to `displacement_mm` and are drawn after
                 everything else, so a run without them is unchanged.
+            rotation_deg: How the head is turned at every transient, (transients, 3)
+                angles about x, y, z in degrees (applied in that order) about
+                `pivot_mm`, the phantom's origin unless given, before the displacement;
+                None for a head that does not turn. The voxel's box stays aligned with
+                the head's axes (small angles; stated).
+            pivot_mm: The point the head turns about.
         """
         try:
             import augmentrum
@@ -266,18 +272,36 @@ class Multiplex:
                 direction = steps.standard_normal(3)
                 step = steps.uniform(*motion_mm) * direction / np.linalg.norm(direction)
                 moved[event["start"]:n if event["persistent"] else event["stop"]] += step
+        # where the voxel, fixed in the scanner, sits in the frame of the moved head:
+        # the head went p -> R (p - pivot) + pivot + d, so the voxel reads the head at
+        # R^T (p - pivot - d) + pivot
+        planned = np.asarray(position_mm, dtype=np.float64)
+        pivot = np.asarray(pivot_mm, dtype=np.float64)
+        turned = (np.zeros((n, 3)) if rotation_deg is None
+                  else np.asarray(rotation_deg, dtype=np.float64).reshape(n, 3))
+        places = []
+        for shift, angles in zip(moved, np.radians(turned)):
+            rotation = np.eye(3)
+            for axis, angle in enumerate(angles):
+                c, s = np.cos(angle), np.sin(angle)
+                i, j = [k for k in range(3) if k != axis]
+                turn = np.eye(3)
+                turn[i, i], turn[i, j], turn[j, i], turn[j, j] = c, -s, s, c
+                rotation = turn @ rotation
+            places.append(tuple(np.round(rotation.T @ (planned - pivot - shift) + pivot, 9)))
         clean = {}
-        for name, shift in set(zip(schedule, map(tuple, moved))):
-            voxel = self.scans[name].voxel(tuple(np.asarray(position_mm, dtype=np.float64) - shift),
-                                           size_mm, compiled=self.compiled)
-            _, clean[name, shift] = voxel._clean_fid(truth, npoints, dwell_s)
+        for name, place in set(zip(schedule, places)):
+            still = np.allclose(place, planned)
+            voxel = self.scans[name].voxel(place, size_mm, compiled=self.compiled,
+                                           shim_at_mm=None if still else tuple(planned))
+            _, clean[name, place] = voxel._clean_fid(truth, npoints, dwell_s)
 
         grid = np.arange(npoints) * dwell_s
         data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
         for k, name in enumerate(schedule):
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
-            fid = clean[name, tuple(moved[k])] * modulation
+            fid = clean[name, places[k]] * modulation
             sigma = voxel.noise_sigma(truth, dwell_s)
             if sigma > 0.0:
                 fid = fid + receiver_noise(rng, sigma, npoints, voxel.scan.receiver)
@@ -305,7 +329,9 @@ class Multiplex:
              "broadening_hz": [float(x) for x in broaden_hz],
              "displacement_mm": (None if displacement_mm is None and motion_mm is None
                                  else moved.tolist()),
-             "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm]},
+             "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm],
+             "rotation_deg": None if rotation_deg is None else turned.tolist(),
+             "pivot_mm": [float(x) for x in pivot]},
             "MRSandbox: per transient condition and the realized Augmentrum instability "
             "tracks.",
         )
