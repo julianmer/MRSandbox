@@ -456,6 +456,15 @@ class TestLocalizedPress:
         assert doublet(3.0, 0.030, 0.114) < 0.4
         assert doublet(3.0, 0.015, 0.015) > 0.9
         assert doublet(3.0, 0.030, 0.258) > 0.7
+        # the four compartments in closed form: with f the part of the voxel where a
+        # refocusing slab misses the methine (its 2.79 ppm from the methyl over the
+        # pulse's bandwidth), both hit on (1 - f)^2 of it (the doublet inverted), one
+        # misses on 2 f (1 - f) (J evolves over TE1 or TE2 alone: cos(pi J 30 ms) and
+        # cos(pi J 114 ms) cancel), both miss on f^2 (upright): -(1 - 2 f) in all
+        bandwidth_hz = LocalizedPress.REFOCUSING_TBW / 0.0065
+        for b0_t in (1.5, 3.0):
+            f = (4.0974 - 1.3142) * b0_t * 42.5774785 / bandwidth_hz
+            assert abs(doublet(b0_t, 0.030, 0.114) - (1.0 - 2.0 * f)) < 0.03
         # an uncoupled line keeps the three slab integrals (the Shinnar-Le Roux slabs
         # hold their nominal width), in phase with the ideal echo
         engine = Engine(3.0, isochromats=32)
@@ -497,3 +506,38 @@ class TestLocalizedSteam:
         assert LocalizedSteam(0.020, 0.010, f0_mhz).feasible(Scanner.preset("philips_elition_3t"))
         with pytest.raises(ValueError):
             LocalizedSteam(0.004, 0.010, f0_mhz)
+
+
+#**************************************************************************************************#
+#                                     Class TestDifferentiable                                     #
+#**************************************************************************************************#
+class TestDifferentiable:
+
+    def test_a_localized_design_is_differentiable_in_its_echo_time(self, needs_autograd):
+        # the projection, the shaped slabs, and the shift input leave the graph
+        # differentiable in a timing: the gradient of the lactate signal with respect
+        # to the first delay against a central difference
+        from nifti_mrs_plus.backend import value_and_grad
+
+        from mrsandbox import LocalizedPress, SpinSystem
+
+        f0_mhz = 3.0 * 42.5774785
+        engine = Engine(3.0, isochromats=8)
+        lac = SpinSystem.from_database("Lac")[0]
+        design = LocalizedPress(0.030, 0.040, f0_mhz)
+        fn, _ = engine.graph(design, ((lac,),))
+        args = [ops.convert_to_tensor(np.asarray(v, dtype=np.float32)) for v in ([1.2], [0.2], 1.0, 0.0)]
+        timings = Engine.tensors(design.timings())
+        delays = [k for k, event in enumerate(design.events) if isinstance(event, Delay)]
+
+        def observable(first_delay):
+            moved = list(timings)
+            moved[delays[0]] = (first_delay,)
+            _, amps = fn(*args, tuple(moved), ops.zeros((3,)))
+            return ops.sum(ops.real(amps) ** 2)
+
+        at = timings[delays[0]][0]
+        value, grad = value_and_grad(observable)(at)
+        h = 2e-5  # the signal curves within 0.1 ms: the difference converges to the gradient from 4e-4 down
+        finite = (float(observable(at + h)) - float(observable(at - h))) / (2.0 * h)
+        assert abs(finite) > 0.0 and abs(float(grad) - finite) < 0.02 * abs(finite)
