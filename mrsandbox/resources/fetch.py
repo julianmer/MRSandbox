@@ -21,7 +21,7 @@ import pathlib
 import shutil
 import urllib.request
 
-from mrsandbox.resources import bigbrain, girf, hmri, icbm, mrshub, uk7t
+from mrsandbox.resources import bigbrain, challenge, girf, hmri, icbm, mrshub, uk7t
 
 
 #**************************************************************************************************#
@@ -38,7 +38,9 @@ class Resources:
     downloading it into the cache on first use and verifying the publisher's checksum.
     Data whose terms do not allow redistribution, or whose host wants every user to
     accept them, is registered with a "page" in place of a "url": it is never
-    fetched, and `path` says where to download it and where to place it.
+    fetched, and `path` says where to download it and where to place it. Small data
+    kept in this repository's data/ folder carries a "repo" path: a source checkout
+    copies it from there, an installed package fetches it; the wheel ships no data.
     The cache defaults to ~/.cache/mrsandbox and can be moved with the MRSANDBOX_CACHE
     environment variable.
     """
@@ -47,7 +49,7 @@ class Resources:
 
     # one dict per data source, each in its own cited module
     REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO,
-                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT}
+                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **challenge.MRSI_CHALLENGE}
 
     #*************#
     #   lookup    #
@@ -64,7 +66,9 @@ class Resources:
             if "url" not in entry:
                 raise FileNotFoundError(f"{name} is not redistributed: download it from "
                                         f"{entry['page']} and place it at {local}")
-            cls._fetch(entry["url"], local, entry["md5"])
+            checkout = pathlib.Path(__file__).parents[2] / entry.get("repo", "")
+            source = checkout.as_uri() if "repo" in entry and checkout.is_file() else entry["url"]
+            cls._fetch(source, local, entry["md5"])
         return local
 
     @classmethod

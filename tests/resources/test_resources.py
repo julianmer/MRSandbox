@@ -17,6 +17,7 @@
 #   imports   #
 #*************#
 import hashlib
+import pathlib
 import re
 
 import pytest
@@ -57,6 +58,10 @@ class TestRegistry:
                 continue
             assert entry["url"].startswith("https://"), name
             assert re.fullmatch(r"[0-9a-f]{32}", entry["md5"]), name
+            if "repo" in entry:  # kept in this repository's data/ folder, never in the wheel
+                source = pathlib.Path(__file__).parents[2] / entry["repo"]
+                assert entry["repo"].startswith("data/") and entry["url"].endswith(entry["repo"]), name
+                assert Resources._md5(source) == entry["md5"], name
 
     def test_unknown_name_is_a_clear_error(self):
         with pytest.raises(KeyError, match="unknown resource"):

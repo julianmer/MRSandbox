@@ -308,7 +308,7 @@ class ChallengeMM(MeasuredMM):
     MRSI_CHALLENGE), the drawn creatine plus phosphocreatine as c_tCr.
 
     The basis is the public example dataset of the challenge (LaMaster et al.,
-    arXiv:2609.02637; basis_macromol_3T, shipped gzipped with the package): one FID
+    arXiv:2609.02637; basis_macromol_3T, the mrsi_challenge resources): one FID
     per component, 32768 points of 80.389 us, linewidths adjusted to typical in vivo
     MM spectra at 3 T, scaled in the proton units of the challenge's metabolite basis
     (a first point of three for the creatine methyl), which are the engine's. The
@@ -366,13 +366,12 @@ class ChallengeMM(MeasuredMM):
     #**********#
     def _load(self):
         if self._measured is None:
-            import importlib.resources
-
             import nibabel
 
-            folder = importlib.resources.files("mrsandbox.resources") / "data" / "mrsi_challenge"
+            from mrsandbox.resources import Resources
+
             self._measured = np.stack([
-                np.asarray(nibabel.load(str(folder / f"{stem}.nii.gz")).dataobj).squeeze()
+                np.asarray(nibabel.load(Resources.path(f"mrsi_challenge/{stem}")).dataobj).squeeze()
                 for stem in self.FILES.values()])
         return self._measured
 
