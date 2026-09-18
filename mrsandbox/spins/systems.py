@@ -70,8 +70,9 @@ class SpinSystem:
         """All coupled groups of `metabolite` as SpinSystems - simulate each, sum the
         lines. `source` names the table (the 1H Govindaraju set, or "dmi" for the
         deuterium set); the nucleus comes from the record. Away from 37 C and pH 7,
-        where the shifts are typed, every proton moves by the published change of its
-        group (Database.shift_change; the couplings stay, stated)."""
+        where the values are typed, every proton moves by the published change of its
+        group and every coupling the table holds by its own (Database.shift_change and
+        coupling_change)."""
         db = database if database is not None else Database()
         record = db.spin_system(metabolite, source=source)
         nucleus = record.get("nucleus", "1H")
@@ -82,9 +83,14 @@ class SpinSystem:
             j = np.zeros((len(labels), len(labels)))
             for a, b, value in group.get("j", ()):
                 j[index[a], index[b]] = j[index[b], index[a]] = value
-            shifts = [float(group["spins"][label]) for label in labels]
+            typed = [float(group["spins"][label]) for label in labels]
+            for a in range(len(labels)):
+                for b in range(a + 1, len(labels)):
+                    if j[a, b] != 0.0:
+                        j[a, b] = j[b, a] = j[a, b] + db.coupling_change(
+                            metabolite, typed[a], typed[b], temperature_c, ph)
             shifts = [shift + db.shift_change(metabolite, shift, temperature_c, ph)
-                      for shift in shifts]
+                      for shift in typed]
             # spins that no coupling connects evolve on their own, and their signals
             # add: every J-connected part is its own system (the dimension is 2^n),
             # and uncoupled spins at one shift are one spin counted that many times

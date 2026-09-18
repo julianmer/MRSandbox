@@ -14,6 +14,7 @@
 #*************#
 #   imports   #
 #*************#
+import numpy as np
 import pytest
 
 from mrsandbox import Database, Fixed, Params, Priors, Uniform
@@ -221,6 +222,27 @@ class TestShifts:
         # the GABA 4CH2 row as printed contradicts that table (a misprinted sign, see the
         # card) and sits 0.06 ppm off the typed shift: the match leaves it alone
         assert database.shift_change("GABA", 3.013, 32.0, 7.0) == 0.0
+
+    def test_the_couplings_the_table_holds_move_too(self):
+        from mrsandbox import SpinSystem
+
+        database = Database()
+        # the function itself at 37 C and pH 7 is the typed coupling to a tenth of a hertz
+        from mrsandbox.database.shifts import WERMTER_2026_J
+
+        assert database._titration(WERMTER_2026_J["NAA"]["2-3"], 37.0, 7.0) == pytest.approx(3.861, abs=0.12)
+        assert database.coupling_change("NAA", 4.3817, 2.6727, 37.0, 7.0) == 0.0
+        assert database.coupling_change("Glu", 3.7433, 2.0375, 32.0, 7.0) == 0.0  # not in the table
+        assert database.coupling_change("NAA", 7.8205, 4.3817, 32.0, 7.0) == 0.0  # the NH's is not
+        moved = database.coupling_change("NAA", 4.3817, 2.6727, 32.0, 6.8)
+        assert 0.01 < abs(moved) < 0.2
+        typed = SpinSystem.from_database("NAA")[1]
+        cold = SpinSystem.from_database("NAA", temperature_c=32.0, ph=6.8)[1]
+        assert cold.j_hz[1][2] == pytest.approx(typed.j_hz[1][2] + moved)
+        # GABA's one function serves all four 2-3 couplings
+        gaba = SpinSystem.from_database("GABA", temperature_c=32.0)[0]
+        changed = np.asarray(gaba.j_hz) - np.asarray(SpinSystem.from_database("GABA")[0].j_hz)
+        assert np.count_nonzero(np.triu(changed)) == 4
 
     def test_a_scan_moves_its_systems_and_its_water_with_the_temperature(self):
         from mrsandbox import Brain, Press, Scanner, VirtualScan

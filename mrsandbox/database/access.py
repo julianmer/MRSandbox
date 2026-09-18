@@ -96,18 +96,47 @@ class Database:
         group whose own shift at 37 C and pH 7 lies nearest, within `within_ppm`,
         evaluated at the conditions minus at the reference. Zero where the table has
         no such group (compounds it did not measure, the phosphorus dummies)."""
+        group = self._shift_group(metabolite, shift_ppm, within_ppm)
+        if group is None or (temperature_c == 37.0 and ph == 7.0):
+            return 0.0
+        abc = shifts.WERMTER_2026[metabolite][group]
+        return self._titration(abc, temperature_c, ph) - self._titration(abc, 37.0, 7.0)
+
+    def coupling_change(self, metabolite, shift_a_ppm, shift_b_ppm, temperature_c, ph):
+        """How far the coupling between two protons of `metabolite`, named by their
+        typed shifts, moves at another temperature and pH, in Hz: the WERMTER_2026_J
+        function of the coupling between the two protons' groups, at the conditions
+        minus at 37 C and pH 7. Zero where the table has none (it holds what the
+        authors could read off the multiplets: NAA, GABA's 2-3, Asp, Lac)."""
+        table = shifts.WERMTER_2026_J.get(metabolite)
+        groups = [self._shift_group(metabolite, shift) for shift in (shift_a_ppm, shift_b_ppm)]
+        if (table is None or None in groups or (temperature_c == 37.0 and ph == 7.0)
+                or not all("C" in group for group in groups)):  # an NH has no carbon number
+            return 0.0
+        # a group's number: its carbon and the prime of a CH2's second proton
+        numbers = [group[:group.index("C")] for group in groups]
+        for label, abc in table.items():
+            for coupling in label.replace(" ", "").split(","):
+                if sorted(coupling.split("-")) == sorted(numbers):
+                    return self._titration(abc, temperature_c, ph) - self._titration(abc, 37.0, 7.0)
+        return 0.0
+
+    @staticmethod
+    def _titration(abc, temperature_c, ph):
+        """a + (b - a) / (1 + 10^(c - pH)) with a, b, c quadratic in the Celsius
+        temperature, the model function of the WERMTER_2026 tables."""
+        a, b, c = (p[0] + p[1] * temperature_c + p[2] * temperature_c ** 2 for p in abc)
+        return a + (b - a) / (1.0 + 10.0 ** (c - ph))
+
+    def _shift_group(self, metabolite, shift_ppm, within_ppm=0.05):
+        """The WERMTER_2026 group of `metabolite` whose shift at 37 C and pH 7 lies
+        nearest `shift_ppm`, within `within_ppm`; None without one."""
         groups = shifts.WERMTER_2026.get(metabolite)
-        if groups is None or (temperature_c == 37.0 and ph == 7.0):
-            return 0.0
-
-        def delta(abc, t_c, at_ph):
-            a, b, c = (p[0] + p[1] * t_c + p[2] * t_c * t_c for p in abc)
-            return a + (b - a) / (1.0 + 10.0 ** (c - at_ph))
-
-        nearest = min(groups.values(), key=lambda abc: abs(delta(abc, 37.0, 7.0) - shift_ppm))
-        if abs(delta(nearest, 37.0, 7.0) - shift_ppm) > within_ppm:
-            return 0.0
-        return delta(nearest, temperature_c, ph) - delta(nearest, 37.0, 7.0)
+        if groups is None:
+            return None
+        at = {name: self._titration(abc, 37.0, 7.0) for name, abc in groups.items()}
+        nearest = min(at, key=lambda name: abs(at[name] - shift_ppm))
+        return nearest if abs(at[nearest] - shift_ppm) <= within_ppm else None
 
     def concentration(self, metabolite, source="de_graaf"):
         """Concentration entry of one metabolite from one source, exactly as published."""

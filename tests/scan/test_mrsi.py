@@ -776,3 +776,51 @@ class TestBasis:
                 _, formed = voxel._clean_fid(truth, 256, 1.0 / 4000.0, basis=basis)
                 np.testing.assert_allclose(formed, plain, atol=1e-4 * np.abs(plain).max())
         assert len(scan._basis[1]) > 1
+
+
+#**************************************************************************************************#
+#                                       Class TestExcitedBox                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# A localized design on the scan is the box the lattice is excited in: every cell plays it at      #
+# its own place.                                                                                   #
+#**************************************************************************************************#
+class TestExcitedBox:
+
+    def test_cells_inside_the_box_carry_signal_and_cells_beyond_it_do_not(self):
+        from mrsandbox import LocalizedPress, NoDownfield, NoLipids, NoMM, NoWater
+
+        shape = (60, 60, 30)
+        affine = np.eye(4)
+        affine[:3, 3] = (-29.5, -29.5, -14.5)
+        ones = np.ones(shape, dtype=np.float32)
+        brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
+        conc = {name: 0.0 for name in VirtualScan.default_params().conc}
+        conc["sIns"] = 5.0
+        params = QUIET | Params(conc=conc, b1_scale=1.0, gradients=dict(
+            b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0, linear_short=0.0, linear_long=0.0))
+        f0_mhz = 3.0 * 42.5774785
+        design = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(20.0, 20.0, 15.0))
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=params, water=NoWater(),
+                           lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), isochromats=8)
+        mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=10.0, thickness_mm=15.0)
+        data = mrsi.acquire(seed=3, npoints=64)
+        first = np.abs(np.asarray(data[:])[:, :, 0, 0])
+        inner, outer = first[1:3, 1:3], np.concatenate([first[0], first[3], first[1:3, 0], first[1:3, 3]])
+        # the four cells inside the 20 mm box hold the scyllo line, each its own share
+        # (its 3.34 ppm slab sits a little off the 3.0 ppm box), the twelve beyond hold
+        # what the transition bands leave
+        assert inner.min() > 0.6 * inner.max()
+        assert outer.max() < 0.3 * inner.max()
+        # a cell is the box's voxel at that place
+        cell = scan.voxel((5.0, 5.0, 0.0), (10.0, 10.0, 15.0), box_center_mm=(0.0, 0.0, 0.0),
+                          box_axes="xy").fid(seed=3, npoints=64)[1]
+        np.testing.assert_allclose(np.asarray(data[:])[2, 2, 0], cell, atol=1e-4 * np.abs(cell).max())
+        grid = data.hdr_ext["SimulationGrid"]
+        assert grid["box_center_mm"] == [0.0, 0.0, 0.0] and sum(grid["cells"].values()) == 16
+        # a design without a localization excites every cell alike, as before
+        plain = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015),
+                            params=params, water=NoWater(), lipids=NoLipids(), mm=NoMM(),
+                            downfield=NoDownfield())
+        lattice = plain.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=10.0, thickness_mm=15.0)
+        assert lattice.box_center_mm is None and lattice.cells["whole"] == 16
