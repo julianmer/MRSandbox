@@ -303,15 +303,15 @@ NOISE_NEUROMET_7T = Calibration(
             "url": "https://zenodo.org/record/5500320"},
     scanner={"vendor": "siemens", "model": "Magnetom 7T (Investigational_Device_7T)",
              "software": "syngo MR B17", "field_t": 6.98},
-    coil={"channels": (32,), "name": None},
+    coil={"channels": (32,), "name": "Nova Medical, birdcage transmit, 32 receive (the paper)"},
     sequence={"name": "SPECIAL", "product": "lr_2special (customer sequence)", "te_s": 0.009,
               "tr_s": 6.5, "simulated_as": "Press(te1_s=0.0045, te2_s=0.0045, tr_s=6.5) with "
               "averages=2: an ideal echo of that time, the pair as two averaged excitations"},
     acquisition={"npoints": 2048, "bandwidth_hz": 4000.0, "transients": 64, "measured_on": 2,
                  "water_suppressed": True},
-    voxel={"region": None, "size_mm": (20.0, 20.0, 20.0), "simulated_brain": "icbm152",
-           "simulated_position_mm": (0.0, -45.0, 35.0),
-           "region_note": "the region is in the paper, not in the files; the place is a stand-in"},
+    voxel={"region": "posterior cingulate cortex, on the midline (the paper)",
+           "size_mm": (20.0, 20.0, 20.0), "simulated_brain": "icbm152",
+           "simulated_position_mm": (0.0, -45.0, 35.0)},
     processing="raw TWIX streamed member by member from the archive, receiver oversampling "
                "removed, pairs summed, noise-whitened SVD coil combination, SNR per pair, "
                "median per subject",
