@@ -312,9 +312,14 @@ class HMRI:
         a shape fit of the brain tissue, the largest connected component of the
         voxels reading brain tissue in R1 (0.4 to 1.8 1/s) and MT saturation (0.3 to
         6 percent units) after a 2.4 mm erosion that cuts the brainstem's link to
-        the neck, dilated back, against the BigBrain-MR grey and white matter labels.
-        The R1 contrast itself does not refine it: the demo's MPM maps are too
-        speckled for the correlation to hold a 12-parameter fit (stated). Every map
+        the neck, dilated back, against the BigBrain-MR grey and white matter labels,
+        then a contrast fit on tissue classes from there: the session's grey and
+        white matter (R1 below and above 0.85 1/s inside that tissue, median
+        filtered) as a two-level image against the atlas's two-level labels. The R1
+        values themselves are too speckled to hold a 12-parameter fit (stated); the
+        classes are not, and the second stage turns the shape fit by a few degrees
+        and a millimetre. An affine between two subjects cannot follow the cortex,
+        so the classes still overlap only in part (stated). Every map
         of the session shares the transform: the MPM, B1, and B0 grids are
         co-registered by acquisition (stated)."""
         import scipy.ndimage
@@ -325,7 +330,7 @@ class HMRI:
 
         if space != "bigbrain_mr":
             raise KeyError(f"unknown space {space!r}; known: bigbrain_mr")
-        cache = Resources.cache_dir() / "hmri/to_bigbrain_mr.npy"
+        cache = Resources.cache_dir() / "hmri/to_bigbrain_mr_classes.npy"
         if not cache.exists():
             r1, mt = cls.volume("R1map"), cls.volume("MTsat")
             tissue = (np.isfinite(r1.data) & (r1.data > 0.4) & (r1.data < 1.8)
@@ -336,8 +341,14 @@ class HMRI:
             mask = scipy.ndimage.binary_dilation(largest, iterations=3) & tissue
             atlas = Volume.load("bigbrain_mr/labels_800um")
             brain = np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["wm"] + Brain.BIGBRAIN_TISSUES["gm"])
-            np.save(cache, register(Volume(mask.astype(np.float32), r1.affine),
-                                    Volume(brain.astype(np.float32), atlas.affine)))
+            shape = register(Volume(mask.astype(np.float32), r1.affine),
+                             Volume(brain.astype(np.float32), atlas.affine))
+            classes = np.where(tissue, np.where(r1.data > 0.85, 2.0, 1.0), 0.0).astype(np.float32)
+            classes = scipy.ndimage.median_filter(classes, size=3)
+            levels = (1.0 * np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["gm"])
+                      + 2.0 * np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["wm"])).astype(np.float32)
+            refined = register(Volume(classes, shape @ r1.affine), Volume(levels, atlas.affine))
+            np.save(cache, refined @ shape)
         return np.load(cache)
 
     @classmethod

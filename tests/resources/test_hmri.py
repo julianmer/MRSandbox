@@ -168,9 +168,10 @@ class TestStack:
         tissue = labels.data[tuple(grid)]
         white = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["wm"])])
         grey = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["gm"])])
-        # a shape fit of another subject: the tissues order as at 3 T, the medians
-        # blurred by the boundaries the affine cannot follow (stated)
-        assert 0.9 < white < 1.3 and 1.2 < grey < 1.8 and grey - white > 0.15, (white, grey)
+        # an affine fit of another subject (shape, then tissue classes): the tissues
+        # order as at 3 T, the medians blurred by the boundaries the affine cannot
+        # follow (stated)
+        assert 0.9 < white < 1.3 and 1.2 < grey < 1.8 and grey - white > 0.2, (white, grey)
         transmit = HMRI.volume("TB1map", space="bigbrain_mr")
         np.testing.assert_allclose(transmit.affine, HMRI.registration() @ HMRI.volume("TB1map").affine)
         assert 0.7 < transmit.mean((0.0, 0.0, 0.0), 20.0) < 1.3
