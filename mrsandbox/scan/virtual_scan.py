@@ -46,6 +46,11 @@ class VirtualScan:
         coils: A hardware.CoilArray for multi-channel reception; None gives one ideal
             channel.
         field: A phantom.FieldMap for B0 inhomogeneity; None gives a uniform field.
+        field_groups: How many groups of the voxel's post-shim field distribution play
+            the sequence at their own offset. One (the default) lets the field act on
+            the FID alone; more put it into the pulses too, so an editing or a
+            suppression pulse sits off its band in the part of the voxel where the
+            field is off, at that many times the simulation per voxel.
         transmit: A phantom.Volume of the relative transmit field B1+ (1.0 nominal);
             every voxel runs its pulses at the drawn b1_scale times its local value.
             None gives the nominal field everywhere.
@@ -75,7 +80,7 @@ class VirtualScan:
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=37.0,
-                 ph=7.0):
+                 ph=7.0, field_groups=1):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -87,6 +92,7 @@ class VirtualScan:
         self.downfield = downfield if downfield is not None else ParameterizedDownfield()
         self.coils = coils
         self.field = field
+        self.field_groups = int(field_groups)
         self.transmit = transmit
         self.girf = girf
         self.receiver = receiver

@@ -63,7 +63,9 @@ This repository consists of the following main structures:
   any position, together with swappable water, lipid, macromolecule, and downfield sources
   (coupled mini spin systems, LCModel style Gaussians, the measured consensus spectrum, or the
   2024 MRSI challenge basis) and B0 field maps that dephase each voxel physically (after a voxel
-  shim up to second order, as a real acquisition would). A field map is measured, or computed
+  shim up to second order, as a real acquisition would) and, on request, puts the field into the
+  pulses as well, so an editing pulse misses the part of a voxel the field moves away. A field
+  map is measured, or computed
   from a susceptibility distribution by the dipole model, so a whole head carries the fields of
   its sinuses and its skull at any field strength. `Volume` is the one spatial container: every
   map, from the tissue fractions to a user's T1 or transmit map, answers box queries with exact

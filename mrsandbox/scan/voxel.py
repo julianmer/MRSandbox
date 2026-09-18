@@ -129,6 +129,7 @@ class Voxel:
         self.fractions = scan.brain.fractions(position_mm, self.size_mm)
         self.compiled = compiled
         self._kernels = {}
+        self._field_offset_hz = 0.0  # the field group the sequence is being played for
         self._locals = {}
         self._transmit = 1.0 if scan.transmit is None else self.resolve(scan.transmit)
 
@@ -199,7 +200,7 @@ class Voxel:
         """The frequency offset the sequence runs at in this voxel: the drawn scanner
         frequency error, which the selective, shaped, and suppression pulses see; the
         readout shifts by the same value afterwards (the acquisition modulation)."""
-        return self.resolve(truth.acquisition.shift_hz)
+        return self.resolve(truth.acquisition.shift_hz) - self._field_offset_hz
 
     def frame(self, truth):
         """The resolved frame the metabolite lines and basis are rendered in at this
@@ -501,25 +502,44 @@ class Voxel:
         # components (the measured MM and downfield widths already carry theirs)
         gauss_hz = self.resolve(truth.lineshape.gauss_hz)
         envelope = np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0)) * grid * grid).astype(np.float32)
-        fids = {}
-        if basis is not None:
-            fids["metabolites"] = (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope
-        for name, parts in self._grouped(truth, metabolites=basis is None).items():
-            lorentzian, voigt = self._flat_lines(parts)
-            fid = np.zeros(npoints, dtype=np.complex64)
-            if lorentzian is not None:
-                fid = fid + self._render_lines(lorentzian, npoints, dwell_s, start_s) * envelope
-            if voigt is not None:
-                fid = fid + self._render_lines(voigt, npoints, dwell_s, start_s)
-            fids[name] = fid
-        mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
-                                  sequence=self.design(truth))
-        if mm_fid is not None:
-            fids["mm"] = fids.get("mm", 0.0) + mm_fid * np.float32(
-                self._diffusion_factor(truth)(truth.diffusion.mm))
-        if self.scan.field is not None:
+        def sources(basis):
+            fids = {}
+            if basis is not None:
+                fids["metabolites"] = (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope
+            for name, parts in self._grouped(truth, metabolites=basis is None).items():
+                lorentzian, voigt = self._flat_lines(parts)
+                fid = np.zeros(npoints, dtype=np.complex64)
+                if lorentzian is not None:
+                    fid = fid + self._render_lines(lorentzian, npoints, dwell_s, start_s) * envelope
+                if voigt is not None:
+                    fid = fid + self._render_lines(voigt, npoints, dwell_s, start_s)
+                fids[name] = fid
+            mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
+                                      sequence=self.design(truth))
+            if mm_fid is not None:
+                fids["mm"] = fids.get("mm", 0.0) + mm_fid * np.float32(
+                    self._diffusion_factor(truth)(truth.diffusion.mm))
+            return fids
+
+        if self.scan.field is None:
+            fids = sources(basis)
+        elif self.scan.field_groups == 1:
             kernel = self._field_kernel(npoints, dwell_s, start_s)
-            fids = {name: fid * kernel for name, fid in fids.items()}
+            fids = {name: fid * kernel for name, fid in sources(basis).items()}
+        else:
+            # the field inside the pulses: every group of the voxel's field distribution
+            # plays the sequence at its own mean offset and dephases by its own kernel
+            fids = {}
+            for mean_hz, weight, kernel in self.scan.field.groups(
+                    self.position_mm, self.size_mm, grid, self.scan.field_groups):
+                self._field_offset_hz = mean_hz
+                try:
+                    part = sources(None if basis is None
+                                   else self.metabolite_basis(truth, npoints, dwell_s))
+                finally:
+                    self._field_offset_hz = 0.0
+                for name, fid in part.items():
+                    fids[name] = fids.get(name, 0.0) + np.float32(weight) * fid * kernel
         kernel = self._gradient_kernel(truth, npoints, dwell_s, start_s)
         if kernel is not None:
             fids = {name: fid * kernel for name, fid in fids.items()}

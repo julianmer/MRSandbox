@@ -192,6 +192,35 @@ class FieldMap:
         offsets, overlap = self._shimmed(position_mm, size_mm, shim)
         if offsets.size == 0:
             return np.ones_like(t, dtype=np.complex64)
+        return self._dephasing(offsets, overlap, t, bins)
+
+    def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256):
+        """The box's post-shim offsets split into `count` groups of equal weight along
+        the offset axis, as [(mean_hz, weight, kernel)]: each group's mean offset, its
+        share of the box, and its own dephasing kernel, so the weighted kernels sum
+        to `kernel`. What a sequence does at an offset (an editing pulse off its
+        band, a selective pulse off its line) can then be played per group at the
+        group's mean. An empty box is one group at rest."""
+        t = np.asarray(t_s, dtype=np.float64)
+        offsets, overlap = self._shimmed(position_mm, size_mm, shim)
+        if offsets.size == 0:
+            return [(0.0, 1.0, np.ones_like(t, dtype=np.complex64))]
+        order = np.argsort(offsets)
+        offsets, overlap = offsets[order], overlap[order]
+        share = np.cumsum(overlap) / overlap.sum()
+        member = np.minimum((share * count).astype(int), count - 1)
+        out = []
+        for g in range(count):
+            inside = member == g
+            if inside.any():
+                weight = overlap[inside].sum() / overlap.sum()
+                out.append((float(np.average(offsets[inside], weights=overlap[inside])), float(weight),
+                            self._dephasing(offsets[inside], overlap[inside], t, bins)))
+        return out
+
+    @staticmethod
+    def _dephasing(offsets, overlap, t, bins):
+        """sum_b w_b exp(i 2 pi f_b t) over a weighted histogram of the offsets."""
         counts, edges = np.histogram(offsets, bins=bins, weights=overlap)
         sums, _ = np.histogram(offsets, bins=edges, weights=overlap * offsets)
         filled = counts > 0

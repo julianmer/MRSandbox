@@ -196,3 +196,64 @@ class TestQsmField:
         seven = FieldMap.load("qsm_rc2", b0_t=7.0)
         np.testing.assert_allclose(np.std(seven.offsets((0.0, 45.0, -5.0), 20.0, shim="linear")),
                                    spread((0.0, 45.0, -5.0)) * 7.0 / 3.0, rtol=1e-4)
+
+
+#**************************************************************************************************#
+#                                       Class TestFieldGroups                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The field inside the pulses: groups of the voxel's field distribution play the sequence at       #
+# their own offset.                                                                                #
+#**************************************************************************************************#
+class TestFieldGroups:
+
+    @staticmethod
+    def ramp(half_hz):
+        """A field rising linearly by +-half_hz across a 20 mm voxel at the origin."""
+        shape = (40, 40, 40)
+        affine = np.eye(4)
+        affine[:3, 3] = -19.5
+        x = (np.arange(40) - 19.5)[:, None, None] * np.ones(shape)
+        return shape, affine, FieldMap.from_map((x * half_hz / 10.0).astype(np.float32), affine,
+                                                shim="mean")
+
+    def test_groups_split_the_distribution_and_sum_to_its_kernel(self):
+        _, _, field = self.ramp(40.0)
+        t = np.arange(512) / 4000.0
+        groups = field.groups((0.0, 0.0, 0.0), 20.0, t, 8)
+        means, weights = [g[0] for g in groups], [g[1] for g in groups]
+        assert means == sorted(means) and abs(sum(weights) - 1.0) < 1e-9
+        np.testing.assert_allclose(weights, 1.0 / 8.0, atol=0.01)
+        np.testing.assert_allclose(sum(w * k for _, w, k in groups),
+                                   field.kernel((0.0, 0.0, 0.0), 20.0, t), atol=1e-6)
+
+    @pytest.mark.render
+    def test_an_editing_pulse_misses_the_part_of_the_voxel_the_field_moves_away(self):
+        # GABA alone under MEGA-PRESS: with the field on the FID only, a ramp broadens
+        # the edited line and keeps its area; played per group, the part of the voxel
+        # beyond the 60 Hz editing band is not edited (and where the band reaches the
+        # 2.28 ppm protons, 52 Hz from its centre, the pattern changes), a small ramp
+        # changes nothing
+        from mrsandbox import (MegaPress, Multiplex, NoDownfield, NoLipids, NoMM, NoWater, Params)
+
+        conc = {name: 0.0 for name in VirtualScan.default_params().conc}
+        conc["GABA"] = 2.0
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), conc=conc, b1_scale=1.0,
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        ppm = np.fft.fftshift(np.fft.fftfreq(1024, 1.0 / 4000.0)) / (3.0 * 42.5774785)
+        window = (ppm > 2.6) & (ppm < 3.4)
+
+        def edited(half_hz, groups):
+            shape, affine, field = self.ramp(half_hz)
+            ones = np.ones(shape, dtype=np.float32)
+            brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
+            multiplex = Multiplex(brain, Scanner.preset("generic_3t"), MegaPress.pair(), params=quiet,
+                                  field=field, field_groups=groups, water=NoWater(),
+                                  lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield())
+            data = np.asarray(multiplex.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=1024)[:])[0, 0, 0]
+            return np.real(np.fft.fftshift(np.fft.fft(np.conj(data[:, 0] - data[:, 1]))))[window].sum()
+
+        uniform = edited(0.0, 1)
+        assert abs(edited(40.0, 1) / uniform - 1.0) < 0.01
+        assert abs(edited(10.0, 8) / uniform - 1.0) < 0.01
+        assert 0.5 < edited(40.0, 16) / uniform < 0.8
