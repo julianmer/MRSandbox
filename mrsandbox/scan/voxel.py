@@ -80,11 +80,19 @@ def noise_scale(volume_ml, b0_t, dwell_s, averages=1):
 #**********************#
 #   receiver noise     #
 #**********************#
-def receiver_noise(rng, sigma, npoints):
+def receiver_noise(rng, sigma, npoints, receiver=None, coils=None):
     """One draw of the receiver's complex Gaussian noise: standard deviation `sigma`
-    per real and imaginary FID point, complex64."""
-    return sigma * (rng.standard_normal(npoints)
-                    + 1j * rng.standard_normal(npoints)).astype(np.complex64)
+    per real and imaginary FID point, complex64; with `coils` the array's correlated
+    channels, (n_coils, npoints). With a hardware.Receiver the white noise is drawn
+    on the receiver's grid at the same density (the root of the oversampling more per
+    point) and passes its filter."""
+    n = npoints if receiver is None else receiver.noise_points(npoints)
+    scale = sigma if receiver is None else sigma * np.sqrt(receiver.oversampling)
+    if coils is not None:
+        noise = coils.noise(rng, scale, n)
+    else:
+        noise = scale * (rng.standard_normal(n) + 1j * rng.standard_normal(n)).astype(np.complex64)
+    return noise if receiver is None else receiver.colour(noise)
 
 
 #**************************************************************************************************#
@@ -427,7 +435,7 @@ class Voxel:
         t, fid = self._clean_fid(truth, npoints, dwell_s)
         sigma = self.noise_sigma(truth, dwell_s, averages)
         if sigma > 0.0:
-            fid = fid + receiver_noise(rng, sigma, npoints)
+            fid = fid + receiver_noise(rng, sigma, npoints, self.scan.receiver)
         return t, fid
 
     def _clean_fid(self, truth, npoints, dwell_s, basis=None):
@@ -682,7 +690,7 @@ class Voxel:
             _, fid = self._clean_fid(truth, npoints, dwell_s)
             channels = coils.sensitivities(self.position_mm, self.size_mm)[:, None] * fid[None, :]
             if sigma > 0.0:
-                channels = channels + coils.noise(rng, sigma, npoints)
+                channels = channels + receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
             data = np.transpose(channels.astype(np.complex64)).reshape(1, 1, 1, npoints, len(coils))
         hdr = self._header(seed, step, averages, truth)
         if coils is not None:
@@ -710,13 +718,14 @@ class Voxel:
         names = list(fids)
         stack = [fids[name] for name in names]
         if coils is None:
-            stack.append(receiver_noise(rng, sigma, npoints) if sigma > 0.0
+            stack.append(receiver_noise(rng, sigma, npoints, self.scan.receiver) if sigma > 0.0
                          else np.zeros(npoints, dtype=np.complex64))
             data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(stack))
         else:
             sensitivities = coils.sensitivities(self.position_mm, self.size_mm)
             channels = [sensitivities[:, None] * fid[None, :] for fid in stack]
-            channels.append(coils.noise(rng, sigma, npoints) if sigma > 0.0
+            channels.append(receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
+                            if sigma > 0.0
                             else np.zeros((len(coils), npoints), dtype=np.complex64))
             data = np.stack([np.transpose(c.astype(np.complex64)) for c in channels], axis=-1)
             data = data.reshape(1, 1, 1, npoints, len(coils), len(channels))

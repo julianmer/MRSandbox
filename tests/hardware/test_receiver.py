@@ -48,6 +48,33 @@ class TestFilter:
         assert np.abs(np.angle(out[16:64] / line(256, 2.5e-4)[16:64])).max() < 1e-4
 
 
+    def test_noise_keeps_its_density_and_rolls_off_at_the_band_edges(self):
+        # white noise at the receiver's rate, filtered with no onset: the centre of
+        # the spectrum keeps the density of the unfiltered draw, the very edge holds
+        # half (the cut passes a quarter of the power there, and decimation folds the
+        # quarter from beyond it back in)
+        from mrsandbox.scan.voxel import receiver_noise
+
+        receiver, n = Receiver(), 4096
+        floors = []
+        for chosen in (None, receiver):
+            power = np.zeros(n)
+            for seed in range(16):
+                noise = receiver_noise(np.random.default_rng(seed), 2.0, n, chosen)
+                assert noise.shape == (n,)
+                power += np.abs(np.fft.fftshift(np.fft.fft(noise))) ** 2
+            floors.append(power)
+        white, coloured = floors
+        centre, edge = slice(n // 2 - n // 8, n // 2 + n // 8), slice(0, n // 64)
+        assert abs(coloured[centre].sum() / white[centre].sum() - 1.0) < 0.05
+        assert 0.4 < coloured[edge].sum() / white[edge].sum() < 0.6
+        # the array's correlated channels pass the same filter
+        from mrsandbox import CoilArray
+
+        coils = CoilArray.ring(4)
+        assert receiver_noise(np.random.default_rng(0), 2.0, 64, receiver, coils).shape == (4, 64)
+
+
 #**************************************************************************************************#
 #                                          Class TestScan                                          #
 #**************************************************************************************************#

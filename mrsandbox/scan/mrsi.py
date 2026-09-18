@@ -434,10 +434,8 @@ class MRSI:
         noise = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
         if self.averages is None:
             for index in np.ndindex(nx, ny, nz):
-                if coils is None:
-                    noise[index] = receiver_noise(rng, sigma, npoints)
-                else:
-                    noise[index] = np.transpose(coils.noise(rng, sigma, npoints))
+                drawn = receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
+                noise[index] = drawn if coils is None else np.transpose(drawn)
             return noise
         # per-encode noise, summed over the NA(k) transients and normalized by
         # the centre count like the signal: std sigma sqrt(prod(dims)) sqrt(NA)
@@ -445,16 +443,21 @@ class MRSI:
         counts = self._averages_map()
         centre = tuple(n // 2 for n in self.dims)
         scale = sigma * np.sqrt(float(np.prod(self.dims))) * np.sqrt(counts) / counts[centre]
+        receiver = self.scan.receiver
         if coils is None:
+            # the draw of `receiver_noise`, every encode at once
+            n = npoints if receiver is None else receiver.noise_points(npoints)
             noise_k = scale[..., None] * (
-                rng.standard_normal(self.dims + (npoints,))
-                + 1j * rng.standard_normal(self.dims + (npoints,)))
+                rng.standard_normal(self.dims + (n,))
+                + 1j * rng.standard_normal(self.dims + (n,)))
+            if receiver is not None:
+                noise_k = receiver.colour(noise_k * np.sqrt(receiver.oversampling))
         else:
             noise_k = np.zeros(self.dims + (npoints, len(coils)), dtype=np.complex64)
             for index in np.ndindex(*self.dims):
                 if counts[index] > 0:
                     noise_k[index] = np.transpose(
-                        coils.noise(rng, float(scale[index]), npoints))
+                        receiver_noise(rng, float(scale[index]), npoints, receiver, coils))
         axes = tuple(range(len(self.dims)))
         image = np.fft.ifftn(np.fft.ifftshift(noise_k, axes=axes), axes=axes)
         return image.reshape((nx, ny, nz) + tail).astype(np.complex64)

@@ -58,7 +58,7 @@ class VirtualScan:
             gradients leaves. None draws those terms.
         receiver: A hardware.Receiver, the digital receiver every FID passes through
             (oversampled, filtered, decimated: the first points carry the filter's
-            onset). None samples the ideal FID. The noise stays white (stated).
+            onset, the noise its band edges). None samples the ideal FID.
         isochromats: Ensemble size for gradient-bearing sequences, handed to the
             engine; raise it for dense multi-axis gradient schemes.
         engine: An Engine to share (its compiled graphs and renderers) between scans

@@ -141,7 +141,7 @@ class Multiplex:
     def _noise(voxel, truth, rng, npoints, dwell_s, averages):
         """One condition's receiver noise of `averages` transients, zeros when silent."""
         sigma = voxel.noise_sigma(truth, dwell_s, averages)
-        return (receiver_noise(rng, sigma, npoints) if sigma > 0.0
+        return (receiver_noise(rng, sigma, npoints, voxel.scan.receiver) if sigma > 0.0
                 else np.zeros(npoints, dtype=np.complex64))
 
     def _header(self, conditions, position_mm, size_mm, seed, step, averages, truth):
@@ -252,7 +252,7 @@ class Multiplex:
             fid = clean[name] * modulation
             sigma = voxel.noise_sigma(truth, dwell_s)
             if sigma > 0.0:
-                fid = fid + receiver_noise(rng, sigma, npoints)
+                fid = fid + receiver_noise(rng, sigma, npoints, voxel.scan.receiver)
             data[0, 0, 0, :, k] = fid
 
         voxel = self.scans[schedule[0]].voxel(position_mm, size_mm)

@@ -44,7 +44,8 @@ class Receiver:
     so the first point loses about half its amplitude and the next ones ring, within
     about `span_dwells` points. Both numbers are stated assumptions: vendors do not
     publish their filters, and their group delays run from a few to some seventy
-    points.
+    points. The receiver's noise passes the same filter with no onset (it was there
+    before the acquisition), so it rolls off toward the edges of the spectrum.
 
     Args:
         oversampling: Receiver samples per spectral dwell.
@@ -63,6 +64,31 @@ class Receiver:
         half = self.oversampling * self.span_dwells
         return (npoints - 1) * self.oversampling + half + 1, dwell_s / self.oversampling
 
+    #**********#
+    #   taps   #
+    #**********#
+    @property
+    def taps(self):
+        """The filter on the receiver's grid: a Hamming windowed sinc cut at the output
+        Nyquist frequency, unit gain at DC."""
+        return signal.firwin(2 * self.oversampling * self.span_dwells + 1, 1.0 / self.oversampling,
+                             window="hamming")
+
+    #***********#
+    #   noise   #
+    #***********#
+    def noise_points(self, npoints):
+        """The white samples on the receiver's grid behind `npoints` of filtered noise:
+        the filter's full length around every output point."""
+        return (npoints - 1) * self.oversampling + 2 * self.oversampling * self.span_dwells + 1
+
+    def colour(self, white):
+        """White noise on the receiver's grid (time last, `noise_points` long), filtered
+        and decimated."""
+        taps = self.taps.reshape((1,) * (white.ndim - 1) + (-1,))
+        filtered = signal.fftconvolve(white, taps, mode="valid", axes=-1)
+        return filtered[..., ::self.oversampling].astype(np.complex64)
+
     #**************#
     #   decimate   #
     #**************#
@@ -70,6 +96,5 @@ class Receiver:
         """Filter a FID on the receiver's grid and keep the `npoints` output samples,
         the group delay removed."""
         half = self.oversampling * self.span_dwells
-        taps = signal.firwin(2 * half + 1, 1.0 / self.oversampling, window="hamming")
-        filtered = np.convolve(fid, taps)[half::self.oversampling][:npoints]
+        filtered = np.convolve(fid, self.taps)[half::self.oversampling][:npoints]
         return filtered.astype(np.complex64)
