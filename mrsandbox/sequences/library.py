@@ -168,7 +168,10 @@ class LocalizedPress(Sequence):
     5.95 for the 90, 4.45 for the 180); the default durations give 2.3 kHz and 0.86
     kHz, the narrow end of what scanners play (their optimized 180s reach 1.2 to 1.4
     kHz; stated). Each axis is averaged as soon as its pulse has played
-    (`Projection`), coherence filters select the pathway, and every pulse's phase
+    (`Projection`), and coherence filters on BOTH sides of every refocusing pulse
+    select the pathway, as its crusher pair does: only what was transverse before the
+    pulse may pass, not the magnetization that recovered during the delay and that
+    the pulse's edges excite. Every pulse's phase
     sets its carrier, a ramp from the pulse's start, to read its nominal phase at the
     pulse's centre. The echo times run between the pulse centres.
 
@@ -206,10 +209,10 @@ class LocalizedPress(Sequence):
         super().__init__(
             excitation, Gradient(-0.5 * slope * excitation_s, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
-            slab(180, refocusing_s, "y", edges[1], 90.0)[1], CoherenceFilter(+1), Projection(span),
-            Delay(delays[1]),
-            slab(180, refocusing_s, "z", edges[2], 90.0)[1], CoherenceFilter(-1), Projection(span),
-            Delay(delays[2]),
+            CoherenceFilter(-1), slab(180, refocusing_s, "y", edges[1], 90.0)[1],
+            CoherenceFilter(+1), Projection(span), Delay(delays[1]),
+            CoherenceFilter(+1), slab(180, refocusing_s, "z", edges[2], 90.0)[1],
+            CoherenceFilter(-1), Projection(span), Delay(delays[2]),
             tr_s=tr_s,
         )
 
@@ -232,8 +235,9 @@ class LocalizedSemiLaser(Sequence):
     Shinnar-Le Roux pulse, stated) under its slice gradient on x with the rephasing
     lobe, the pairs play on y and z. Each axis is averaged over its isochromats as
     soon as its pulses have played (`Projection`, the one-dimensional projection of
-    Zhang et al. 2017), coherence filters select the echo pathway (the idealization
-    of the crushers, as in the other designs), and the ensemble spans `span` voxel
+    Zhang et al. 2017), coherence filters on both sides of every refocusing pulse
+    select the echo pathway as its crusher pair does (what recovered during a delay
+    does not pass), and the ensemble spans `span` voxel
     edges per axis so the profiles' feet and the displaced slabs stay inside it. The
     echo time runs from the excitation's centre: the delays are what te_s leaves
     after the four refocusing pulses, the first one shortened by the half of the
@@ -281,10 +285,10 @@ class LocalizedSemiLaser(Sequence):
             Gradient(-0.5 * slope * self.EXCITATION_S, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span),
             Delay(tau - self.EXCITATION_S / 2.0),
-            afp_y, CoherenceFilter(+1), Delay(2.0 * tau),
-            afp_y, CoherenceFilter(-1), Projection(span), Delay(2.0 * tau),
-            afp_z, CoherenceFilter(+1), Delay(2.0 * tau),
-            afp_z, CoherenceFilter(-1), Projection(span), Delay(tau),
+            CoherenceFilter(-1), afp_y, CoherenceFilter(+1), Delay(2.0 * tau),
+            CoherenceFilter(+1), afp_y, CoherenceFilter(-1), Projection(span), Delay(2.0 * tau),
+            CoherenceFilter(-1), afp_z, CoherenceFilter(+1), Delay(2.0 * tau),
+            CoherenceFilter(+1), afp_z, CoherenceFilter(-1), Projection(span), Delay(tau),
             tr_s=tr_s,
         )
 

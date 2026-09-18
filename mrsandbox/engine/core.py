@@ -203,16 +203,8 @@ class Engine:
         decorrelates the axes so cross-axis moments dephase instead of spuriously
         refocusing. Cross-axis combinations are thereby sampled along a torus line,
         a stated approximation; raise `isochromats` for dense multi-axis schemes."""
-        from mrsandbox.sequences.events import Gradient, ShapedPulse
-
         isochromats = isochromats if isochromats is not None else self.isochromats
-        extents = {}
-        for event in sequence.events:
-            if isinstance(event, Gradient):
-                extents[event.axis] = max(extents.get(event.axis, 0.0), event.extent_mm)
-            elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
-                extents[event.gradient_axis] = max(extents.get(event.gradient_axis, 0.0),
-                                                   event.extent_mm)
+        extents = self.extents(sequence)
         grid = (np.arange(isochromats) + 0.5) / isochromats - 0.5
         positions = {}
         for order, axis in enumerate(sorted(extents)):
@@ -220,6 +212,49 @@ class Engine:
             positions[axis] = (grid[(np.arange(isochromats) * stride) % isochromats]
                                * extents[axis]).astype(np.float32)
         return positions
+
+    @staticmethod
+    def extents(sequence):
+        """The span of the isochromat ensemble per axis in mm, {axis: extent} over the
+        axes a design's gradients use: the largest extent its events name."""
+        from mrsandbox.sequences.events import Gradient, ShapedPulse
+
+        extents = {}
+        for event in sequence.events:
+            if isinstance(event, Gradient):
+                extents[event.axis] = max(extents.get(event.axis, 0.0), event.extent_mm)
+            elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
+                extents[event.gradient_axis] = max(extents.get(event.gradient_axis, 0.0),
+                                                   event.extent_mm)
+        return extents
+
+    #*************#
+    #   profile   #
+    #*************#
+    def profile(self, sequence, system, axis, positions_mm, b1_scale=1.0, offset_hz=0.0):
+        """What a projected design leaves of a system at single positions along one
+        axis, the other axes at the voxel centre: (freqs, amps) with amps of shape
+        (positions, lines), nothing averaged (the design's `Projection` events are
+        left out). For an uncoupled spin the response of a localization is the product
+        of its three axis profiles over the centre's, which is how pulse design papers
+        build a voxel from one-dimensional Bloch profiles; for coupled spins the
+        profile along one axis is exact and the product is not."""
+        from mrsandbox.sequences.events import Projection, Sequence
+
+        played = Sequence(*(e for e in sequence.events if not isinstance(e, Projection)),
+                          tr_s=sequence.tr_s, cycles=sequence.cycles)
+        ctx = dataclasses.replace(
+            self.context(system, b1_scale=b1_scale, offset_hz=offset_hz),
+            **{"gradient_" + axis: ops.convert_to_tensor(np.asarray(positions_mm, dtype=np.float32))})
+        rho = played.run(ctx.rho_eq, ctx)
+        rho_e = ops.einsum("ai,...ab,bj->...ij", ops.conj(ctx.v), rho, ctx.v)
+        det_e = ops.einsum("ai,ab,bj->ij", ops.conj(ctx.v), ctx.fplus, ctx.v)
+        freqs = ops.expand_dims(ctx.lam, 1) - ops.expand_dims(ctx.lam, 0)
+        phase = math.radians(self.receiver_phase_deg)
+        receiver = complex(math.cos(phase), math.sin(phase))
+        amps = np.asarray(ops.convert_to_numpy(det_e * ops.einsum("...ij->...ji", rho_e)))
+        return (np.asarray(ops.convert_to_numpy(ops.reshape(freqs, (-1,)))),
+                receiver * amps.reshape(len(positions_mm), -1))
 
     def _ensemble_context(self, sequence, ctx, isochromats, shift_mm=None):
         """The context with the isochromat position vectors a gradient-bearing sequence

@@ -22,6 +22,7 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.database import lipids as lipid_table
+from mrsandbox.sequences.events import Projection
 from mrsandbox.spins import SpinSystem
 
 
@@ -96,12 +97,24 @@ class Skull(LipidSource):
     chemical shift displacement, and an outer-volume saturation band act on the fat
     where it is; the ensemble keeps the voxel's extent about that centroid (a stated
     approximation of the layer's true shape).
+
+    A projected design (one with `Projection` events: the localized designs) on a
+    brain with a fat map takes the layer's true shape instead: the lipid peaks are
+    uncoupled, so what the localization leaves of them at a position is the product
+    of its three axis profiles (Engine.profile) over the centre's, and the signal is
+    that response summed over every fat cell inside the ensemble's span, in units of
+    the nominal voxel volume. Fat outside the nominal box that a profile's foot or a
+    displaced slab reaches is then in the spectrum, as on a scanner.
     """
+
+    PROFILE_POINTS = 129
 
     #***********#
     #   lines   #
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
+        if voxel.scan.brain.fat is not None and any(isinstance(e, Projection) for e in sequence.events):
+            return self._profiled(engine, sequence, voxel, truth, f0_mhz)
         weight = voxel.scan.brain.lipid_weight(voxel.position_mm, voxel.size_mm)
         if weight == 0.0:
             return None
@@ -117,3 +130,35 @@ class Skull(LipidSource):
             freqs_all.append(freqs)
             amps_all.append(amps * complex(amplitude))
         return ops.concatenate(freqs_all), ops.concatenate(amps_all)
+
+    #**************#
+    #   profiled   #
+    #**************#
+    def _profiled(self, engine, sequence, voxel, truth, f0_mhz):
+        """The fat layer through a projected design's voxel profile, cell by cell."""
+        extents = engine.extents(sequence)
+        edges = np.asarray(voxel.size_mm, dtype=np.float64) * np.ones(3)
+        span = [extents.get(axis, edges[k]) for k, axis in enumerate("xyz")]
+        offsets, volumes = voxel.scan.brain.lipid_cells(voxel.position_mm, span)
+        if volumes.size == 0:
+            return None
+        b1_scale, offset_hz = voxel.b1_scale(truth), voxel.offset_hz(truth)
+        freqs_all, amps_all = [], []
+        for system in self.systems(f0_mhz / engine.b0_t):
+            system = system.with_relaxation(t1_s=truth.lipids.t1_s, t2_s=truth.lipids.t2_s)
+            response, centre = np.ones(volumes.size, dtype=np.complex128), None
+            for k, axis in enumerate("xyz"):
+                if axis not in extents:
+                    continue
+                grid = np.linspace(-span[k] / 2.0, span[k] / 2.0, self.PROFILE_POINTS)
+                freqs, amps = engine.profile(sequence, system, axis, grid, b1_scale, offset_hz)
+                line = np.argmax(np.abs(amps).max(axis=0))
+                centre = amps[self.PROFILE_POINTS // 2]
+                along = amps[:, line] / centre[line]
+                response *= (np.interp(offsets[:, k], grid, along.real)
+                             + 1j * np.interp(offsets[:, k], grid, along.imag))
+            seen = (response * volumes).sum() / float(np.prod(edges))
+            freqs_all.append(freqs.astype(np.float32))
+            amps_all.append((centre * seen * truth.lipids.amplitude_mm).astype(np.complex64))
+        return (ops.convert_to_tensor(np.concatenate(freqs_all)),
+                ops.convert_to_tensor(np.concatenate(amps_all)))

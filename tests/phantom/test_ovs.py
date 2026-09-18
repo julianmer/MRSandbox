@@ -149,3 +149,65 @@ class TestLipids:
         assert fat_wide < fat_over, (fat_wide, fat_over)
         # every band is a physical event: playable on the scanner
         assert (over + design).feasible(Scanner.preset("generic_3t"))
+
+
+#**************************************************************************************************#
+#                                    Class TestProfiledLipids                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# A projected design sees the fat layer cell by cell through the product of its axis profiles.     #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestProfiledLipids:
+
+    @staticmethod
+    def head(fat):
+        """A 1 mm grid of 80 mm, grey matter everywhere, `fat` a function of the z centres."""
+        shape = (80, 80, 80)
+        affine = np.eye(4)
+        affine[:3, 3] = -39.5
+        z = np.arange(shape[2]) - 39.5
+        ones = np.ones(shape, dtype=np.float32)
+        layer = np.broadcast_to(fat(z).astype(np.float32)[None, None, :], shape)
+        return Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine, fat=layer)
+
+    @staticmethod
+    def lipids(brain, design):
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=QUIET, isochromats=32)
+        voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
+        truth = voxel.sample(seed=3)
+        lines = scan.lipids.lines(scan.engine, voxel.design(truth), voxel, truth, F0)
+        amps = np.zeros(1) if lines is None else np.asarray(ops.convert_to_numpy(lines[1]))
+        return amps, truth, scan
+
+    def test_fat_everywhere_is_the_projected_design_itself(self):
+        # the identity behind the product of profiles: with fat filling the ensemble's
+        # span, the cell sum is the average the design's own Projections take
+        from mrsandbox import LocalizedPress
+        from mrsandbox.phantom.lipids import Skull
+
+        design = LocalizedPress(0.015, 0.015, F0)
+        amps, truth, scan = self.lipids(self.head(lambda z: np.ones_like(z)), design)
+        expected = []
+        for system in Skull.systems(GAMMA):
+            system = system.with_relaxation(t1_s=truth.lipids.t1_s, t2_s=truth.lipids.t2_s)
+            _, a = Engine(3.0, isochromats=128).lines(design, system)
+            expected.append(np.asarray(ops.convert_to_numpy(a)) * truth.lipids.amplitude_mm)
+        expected = np.concatenate(expected)
+        np.testing.assert_allclose(amps, expected, atol=0.02 * np.abs(expected).max())
+
+    def test_fat_beyond_the_box_reaches_press_and_hardly_semi_laser(self):
+        from mrsandbox import LocalizedPress, LocalizedSemiLaser, Press
+
+        # a fat layer from 12 to 20 mm along z, in both directions: the nominal 20 mm
+        # box (to 10 mm) holds none, the ideal design sees none
+        brain = self.head(lambda z: (np.abs(z) > 12.0) & (np.abs(z) < 20.0))
+        assert brain.lipid_weight((0.0, 0.0, 0.0), 20.0) == 0.0
+        ideal = np.abs(self.lipids(brain, Press(te1_s=0.015, te2_s=0.015))[0]).sum()
+        press = np.abs(self.lipids(brain, LocalizedPress(0.015, 0.015, F0))[0]).sum()
+        laser = np.abs(self.lipids(brain, LocalizedSemiLaser(0.030, F0))[0]).sum()
+        assert ideal == 0.0
+        # the 0.86 kHz refocusing slab of the fat's 1.3 ppm sits 5 mm off the 3.0 ppm
+        # reference and its feet reach further; the 10 kHz GOIA slab moves 0.4 mm
+        assert press > 100.0
+        assert laser < 0.05 * press

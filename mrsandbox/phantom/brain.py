@@ -191,6 +191,21 @@ class Brain:
             return 0.0
         return float((weights * (total < 0.1)).sum() / weights.sum())
 
+    def lipid_cells(self, position_mm, size_mm):
+        """The fat inside a box, cell by cell: (offsets, volumes) with the cell centres
+        in mm from the box centre, (n, 3), and the fat each holds inside the box in
+        cubic mm, (n,); empty without a `fat` map or outside it."""
+        if self.fat is None:
+            return np.empty((0, 3)), np.empty(0)
+        values, weights = self.fat.box(position_mm, size_mm)
+        held = (values * weights).ravel()
+        if held.size == 0 or held.sum() <= 0.0:
+            return np.empty((0, 3)), np.empty(0)
+        keep = held > 0.0
+        centres = self.fat.centres(position_mm, size_mm).reshape(-1, 3)[keep]
+        cell_mm3 = abs(float(np.linalg.det(self.fat.affine[:3, :3])))
+        return centres - np.asarray(position_mm, dtype=np.float64), held[keep] * cell_mm3
+
     def lipid_offset(self, position_mm, size_mm):
         """Where the fat layer sits: the centroid of the box's beyond-the-brain content
         (the cells `lipid_weight` counts) relative to the voxel centre, (x, y, z) in
