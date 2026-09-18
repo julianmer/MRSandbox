@@ -228,6 +228,95 @@ class LocalizedPress(Sequence):
 
 
 #**************************************************************************************************#
+#                                     Class LocalizedMegaPress                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# MEGA-PRESS with its localization and its editing pulses played.                                  #
+#                                                                                                  #
+#**************************************************************************************************#
+class LocalizedMegaPress(Sequence):
+    """MEGA-PRESS with its localization and its editing pulses played: the
+    slice-selective Shinnar-Le Roux pulses of `LocalizedPress` on x, y, and z, and two
+    Gaussian editing 180s of finite length between them, so the edited multiplet
+    carries the voxel's profile, the chemical shift displacement between the coupled
+    partners (GABA's 3.0 and 1.9 ppm slabs do not coincide under 0.96 kHz pulses), and
+    the editing pulse's real inversion profile with what it does to its neighbours.
+
+    The timing is `MegaPress`'s, between pulse centres: 90 - 5 - 180 - 17 - edit - 17 -
+    180 - 17 - edit - 12 ms, TE 68 ms. The editing pulses are 14 ms Gaussians (the
+    length in common use at 3 T, Mullins et al. 2014, NeuroImage 86:43; de Graaf
+    Table 5.1 gives them 88 Hz at half maximum of the inversion), played without a
+    gradient on the voxel already averaged over the axes before them. Coherence
+    filters on both sides of every refocusing and editing pulse select what the
+    crusher pairs select: the order turns over at a refocusing pulse and stays
+    across an editing pulse, so spins inside the editing band, which it turns over
+    too, are dephased, as on a scanner (the NAA methyl leaves the ON spectrum).
+
+    Args:
+        edit_ppm: Editing pulse centre (1.88 for ON, 7.5 for OFF).
+        f0_mhz: The spectrometer frequency (the carrier phases need it).
+        taus_s: The five delays between pulse centres in seconds; their sum is TE.
+        size_mm: The voxel edge, or its (x, y, z) edges.
+        reference_ppm: The shift the three slabs are centred for; others displace.
+        edit_s: The editing pulse's duration.
+        span: The ensemble's extent per axis in voxel edges.
+        tr_s: Repetition time; None is fully relaxed (see Sequence).
+    """
+
+    EXCITATION_S, REFOCUSING_S = 0.0026, 0.0065
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, edit_ppm, f0_mhz, taus_s=(0.005, 0.017, 0.017, 0.017, 0.012), size_mm=20.0,
+                 reference_ppm=3.0, edit_s=0.014, span=2.5, tr_s=None):
+        self.edit_ppm = edit_ppm
+        self.taus_s = tuple(taus_s)
+        edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
+        t90, t180 = self.EXCITATION_S, self.REFOCUSING_S
+        t1, t2, t3, t4, t5 = self.taus_s
+        delays = (t1 - t90 / 2.0 - t180 / 2.0, t2 - t180 / 2.0 - edit_s / 2.0,
+                  t3 - edit_s / 2.0 - t180 / 2.0, t4 - t180 / 2.0 - edit_s / 2.0, t5 - edit_s / 2.0)
+        if min(delays) <= 0.0:
+            raise ValueError(f"taus_s {self.taus_s} are too short for the pulses between them")
+        press = LocalizedPress
+
+        def slab(flip_deg, duration_s, axis, edge, phase_deg):
+            kind, tbw = (("excitation", press.EXCITATION_TBW) if flip_deg == 90
+                         else ("refocusing", press.REFOCUSING_TBW))
+            slope = tbw / duration_s / edge  # Hz per mm
+            carrier = -180.0 * reference_ppm * f0_mhz * duration_s
+            return slope, ShapedPulse.slr(float(flip_deg), duration_s, tbw, kind, steps=128,
+                                          offset_ppm=reference_ppm, phase_deg=phase_deg + carrier,
+                                          gradient_hz_per_mm=slope, gradient_axis=axis,
+                                          extent_mm=span * edge)
+
+        # one editing pulse object played twice: computed once per run
+        edit = ShapedPulse.gaussian(180.0, edit_s, offset_ppm=edit_ppm,
+                                    phase_deg=-180.0 * edit_ppm * f0_mhz * edit_s)
+        slope, excitation = slab(90, t90, "x", edges[0], 0.0)
+        super().__init__(
+            excitation, Gradient(-press.REPHASE * slope * t90, span * edges[0], axis="x"),
+            CoherenceFilter(-1), Projection(span), Delay(delays[0]),
+            CoherenceFilter(-1), slab(180, t180, "y", edges[1], 90.0)[1],
+            CoherenceFilter(+1), Projection(span), Delay(delays[1]),
+            CoherenceFilter(+1), edit, CoherenceFilter(+1), Delay(delays[2]),
+            CoherenceFilter(+1), slab(180, t180, "z", edges[2], 90.0)[1],
+            CoherenceFilter(-1), Projection(span), Delay(delays[3]),
+            CoherenceFilter(-1), edit, CoherenceFilter(-1), Delay(delays[4]),
+            tr_s=tr_s,
+        )
+
+    #**********#
+    #   pair   #
+    #**********#
+    @classmethod
+    def pair(cls, f0_mhz, on_ppm=1.88, off_ppm=7.5, **kwargs):
+        """The ON and OFF conditions of the editing experiment, as a named dict."""
+        return {"on": cls(on_ppm, f0_mhz, **kwargs), "off": cls(off_ppm, f0_mhz, **kwargs)}
+
+
+#**************************************************************************************************#
 #                                       Class LocalizedSteam                                       #
 #**************************************************************************************************#
 #                                                                                                  #

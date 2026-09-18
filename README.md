@@ -93,8 +93,8 @@ This repository consists of the following main structures:
   isochromat ensemble physically, and named designs compose from the same events: PRESS, STEAM,
   semi-LASER, CHESS, WET, and VAPOR ship with their published series, and J-difference editing
   spans MEGA-PRESS plus the Hadamard-encoded HERMES and HERCULES schemes, whose dual-band editing
-  pulses and combination weights ship as typed tables. PRESS, STEAM, and semi-LASER also ship
-  with their localization played: slice-selective pulses on three axes, the voxel summed by
+  pulses and combination weights ship as typed tables. PRESS, STEAM, semi-LASER, and MEGA-PRESS
+  also ship with their localization played: slice-selective pulses on three axes, the voxel summed by
   one-dimensional projection (Zhang et al. 2017), so the voxel profile, the chemical shift
   displacement (lactate's lost doublet at TE 144 ms), and the scalp fat a profile reaches
   outside the nominal box all emerge. The b-value of any sequence follows from its own gradient events. Every timing and
