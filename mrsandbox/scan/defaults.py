@@ -21,6 +21,7 @@ from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
+from mrsandbox.scan.calibrations import CALIBRATIONS
 from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
 
 
@@ -182,8 +183,10 @@ def default_params(database=None, b0_t=3.0):
         #   cancelled. Read on the raw coils like the others, that dataset gives 10,
         #   a quarter of Big GABA's: an outlier, not a reference. `Voxel.fid` is
         #   referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
-        #   (tests/scan/test_scan TestNoiseModel gates the calibration).
-        noise=dict(sigma=(5.3, 8.0)),
+        #   (tests/scan/test_scan TestNoiseModel gates the calibration). The record
+        #   with the exact conditions is scan.calibrations, and every acquisition's
+        #   header names it and the conditions the scan departs from.
+        noise=dict(sigma=CALIBRATIONS["noise.sigma"].prior),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),
