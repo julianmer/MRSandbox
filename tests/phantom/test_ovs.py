@@ -75,7 +75,7 @@ class TestShift:
                                    np.asarray(ops.convert_to_numpy(manual)), atol=1e-5)
         assert len(engine._compiled) == 1
         engine.compiled(design, lac)(*args)
-        assert len(engine._compiled) == 2  # the shift is part of the key
+        assert len(engine._compiled) == 1  # the shift is an input: one graph for every place
 
     def test_the_fat_centroid_sits_beyond_the_boundary(self):
         brain = half_brain()

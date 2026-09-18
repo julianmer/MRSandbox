@@ -166,7 +166,8 @@ class Engine:
     #***********#
     #   lines   #
     #***********#
-    def lines(self, sequence, *systems, b1_scale=1.0, offset_hz=0.0, isochromats=None):
+    def lines(self, sequence, *systems, b1_scale=1.0, offset_hz=0.0, isochromats=None,
+              shift_mm=None):
         """Transition lines of `sequence` run on each system, concatenated.
 
         The pre-readout density matrix is projected onto the Hamiltonian eigenbasis, where
@@ -176,6 +177,7 @@ class Engine:
         spanning the gradient extent, so crusher pairs rephase coherently and
         unbalanced moments dephase physically. `offset_hz` runs the sequence off
         resonance (see Context); the returned frequencies stay in the nominal frame.
+        `shift_mm` ({axis: mm}) moves the ensemble off the design's centre.
 
         Returns:
             (freqs_hz, amps): flat complex64-compatible tensors over all d*d elements of
@@ -186,7 +188,7 @@ class Engine:
         for system in systems:
             ctx = self._ensemble_context(
                 sequence, self.context(system, b1_scale=b1_scale, offset_hz=offset_hz),
-                isochromats)
+                isochromats, shift_mm)
             freqs, amps = self._system_lines(sequence, ctx)
             all_freqs.append(freqs)
             all_amps.append(amps)
@@ -289,7 +291,7 @@ class Engine:
     #**********#
     #   graph  #
     #**********#
-    def graph(self, sequence, groups, isochromats=None, shift_mm=None):
+    def graph(self, sequence, groups, isochromats=None):
         """The jit-compiled graph of a sequence design on many systems:
         (t1_s, t2_s, b1_scale, offset_hz, timings) -> (freqs, amps), with t1_s and
         t2_s one value per group, `timings` laid out as Sequence.timings (backend
@@ -304,30 +306,33 @@ class Engine:
         scale, the frequency offset, and every timing of the design are inputs, so
         the first call compiles and every further call replays, for any timings.
         Graphs are cached on the engine, keyed by the sequence structure, the
-        structural systems, the ensemble size, and the ensemble shift: two instances
-        of one design (a TE series, a candidate set of a closed loop) share one
-        compilation, and a gradient with respect to the timings flows through
-        `value_and_grad`. `shift_mm` ({axis: mm}) moves the ensemble off the voxel
-        centre, for content that sits elsewhere (the fat layer beyond the brain).
+        structural systems, and the ensemble size: two instances of one design (a TE
+        series, a candidate set of a closed loop) share one compilation, and a
+        gradient with respect to the timings flows through `value_and_grad`. The
+        graph takes a last input, the (3,) shift of the ensemble off the design's
+        centre in mm, for content that sits elsewhere (the fat layer beyond the
+        brain, a cell of an MRSI lattice inside a selected box): one compilation
+        serves every place.
         """
         from nifti_mrs_plus.backend import jit
 
         isochromats = isochromats if isochromats is not None else self.isochromats
-        shift = tuple(sorted((axis, float(mm)) for axis, mm in (shift_mm or {}).items()))
-        key = (sequence.structure(), groups, isochromats, shift)
+        key = (sequence.structure(), groups, isochromats)
         if key not in self._compiled:
-            contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats,
-                                                       dict(shift)))
+            contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
                         for index, group in enumerate(groups) for system in group]
+            axes = sorted(self.extents(sequence))
             bounds = np.cumsum([0] + [sum(system.dim ** 2 for system in group)
                                       for group in groups])
 
-            def fn(t1_s, t2_s, b1_scale, offset_hz, timings):
+            def fn(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
                 design = sequence.bound(timings)
                 freqs, amps = [], []
                 for index, ctx0 in contexts:
+                    moved = {"gradient_" + axis: getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
+                             for axis in axes}
                     ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
-                                              b1_scale=b1_scale, offset_hz=offset_hz)
+                                              b1_scale=b1_scale, offset_hz=offset_hz, **moved)
                     f, a = self._system_lines(design, ctx)
                     freqs.append(f)
                     amps.append(a)
@@ -381,9 +386,12 @@ class Engine:
         """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for many systems (t1_s
         and t2_s one value per group) plus the group bounds, replaying the design's
         graph with this sequence's own timings; see `graph`."""
-        fn, bounds = self.graph(sequence, groups, isochromats, shift_mm)
+        fn, bounds = self.graph(sequence, groups, isochromats)
         timings = self.tensors(sequence.timings())
-        return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings),
+        shift = ops.convert_to_tensor(np.asarray(
+            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
+        return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings,
+                                                           shift),
                 bounds)
 
     #**************#

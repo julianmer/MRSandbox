@@ -362,7 +362,7 @@ class TestGraph:
 
         def observable(te1):
             timings = Engine.tensors(Press(te1_s=te1, te2_s=0.019).timings())
-            _, amps = fn(*args, timings)
+            _, amps = fn(*args, timings, ops.zeros((3,)))
             return ops.sum(ops.abs(amps))
 
         te1 = ops.convert_to_tensor(np.float32(0.011))
