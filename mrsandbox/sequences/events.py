@@ -392,6 +392,63 @@ class ShapedPulse(Event):
                    frequency_hz=frequency.astype(np.float32), peak_hz=peak_hz,
                    gradient_shape=shape, **kwargs)
 
+    #**********#
+    #   slr    #
+    #**********#
+    @classmethod
+    def slr(cls, flip_deg, duration_s, time_bandwidth, kind, offset_ppm=0.0, phase_deg=0.0,
+            steps=256, ripples=(0.01, 0.01), **kwargs):
+        """A linear-phase Shinnar-Le Roux pulse, the design behind the slice-selective
+        pulses scanners play (Pauly, Le Roux, Nishimura, Macovski, IEEE Trans Med
+        Imaging 10 (1991) 53): the profile is an equiripple low-pass filter (Parks and
+        McClellan), here its beta polynomial, of `time_bandwidth` (the bandwidth is
+        that over the duration, between the half-amplitude points); the minimum-phase
+        alpha polynomial completes it, and the inverse transform peels the hard
+        pulses off one by one. `kind` sets how the passband and stopband `ripples`
+        of the magnetization map onto the filter's: "excitation" (a 90, rephased by
+        half its gradient moment) or "refocusing" (a spin-echo 180 between crushers).
+        """
+        from scipy import signal
+
+        d1, d2 = ripples
+        if kind == "excitation":
+            scale, d1, d2 = math.sqrt(0.5), math.sqrt(d1 / 2.0), d2 / math.sqrt(2.0)
+        elif kind == "refocusing":
+            scale, d1, d2 = 1.0, d1 / 4.0, math.sqrt(d2)
+        else:
+            raise ValueError(f"unknown kind {kind!r}; known: excitation, refocusing")
+        # the transition width of an equiripple filter for these ripples (their Eq. 23)
+        l1, l2 = math.log10(d1), math.log10(d2)
+        d_inf = ((5.309e-3 * l1 * l1 + 7.114e-2 * l1 - 4.761e-1) * l2
+                 - (2.66e-3 * l1 * l1 + 5.941e-1 * l1 + 4.278e-1))
+        width = d_inf / time_bandwidth
+        edges = np.array([0.0, (1.0 - width) * time_bandwidth / 2.0,
+                          (1.0 + width) * time_bandwidth / 2.0, steps / 2.0]) / steps
+        beta = scale * signal.remez(steps, edges, [1.0, 0.0], weight=[1.0, d1 / d2], fs=1.0)
+        # the minimum-phase alpha with |alpha|^2 + |beta|^2 = 1, by the cepstrum
+        pad = 16 * steps
+        response = np.fft.fft(beta, pad)
+        response = response / max(1.0, np.abs(response).max() + 1e-7)
+        log_mag = np.fft.fft(0.5 * np.log(1.0 - np.abs(response) ** 2))
+        log_mag[1:pad // 2] *= 2.0
+        log_mag[pad // 2 + 1:] = 0.0
+        alpha = (np.fft.fft(np.exp(np.fft.ifft(log_mag))) / pad)[:steps][::-1]
+        # the inverse transform: each step's rotation read off the leading coefficients
+        a, b = alpha.astype(np.complex128), beta.astype(np.complex128)
+        envelope = np.zeros(steps)
+        for k in range(steps - 1, -1, -1):
+            ratio = b[k] / a[k]
+            c = 1.0 / math.sqrt(1.0 + abs(ratio) ** 2)
+            sj = np.conj(c * ratio)
+            envelope[k] = 2.0 * math.atan2(abs(sj), c) * np.sign(sj.real if sj.real else 1.0)
+            a, b = (c * a + sj * b)[1:k + 1], (-np.conj(sj) * a + c * b)[:k]
+        # the hard pulses are the design: played at their own amplitude (rotations of
+        # `envelope` radians per step), not rescaled to a nominal flip, which the
+        # passband ripple at the centre would turn into a wrong one
+        peak = np.abs(envelope).max()
+        return cls(flip_deg, duration_s, (envelope / peak).astype(np.float32), offset_ppm=offset_ppm,
+                   phase_deg=phase_deg, peak_hz=peak / (2.0 * math.pi * duration_s / steps), **kwargs)
+
     #***********#
     #   sinc    #
     #***********#

@@ -382,8 +382,8 @@ class TestLocalizedSemiLaser:
 
         plain = line(Sequence(Pulse(90.0), CoherenceFilter(-1)))
         voxel = line(LocalizedSemiLaser(0.030, f0_mhz, reference_ppm=4.65))
-        # the signal per nominal voxel: the slab integrals of a three-lobe sinc and two
-        # GOIA pairs (0.93 x 0.93 x 0.93), in phase with a plain excitation
+        # the signal per nominal voxel: the slab integrals of the excitation and two
+        # GOIA pairs (0.98 x 0.93 x 0.93), in phase with a plain excitation
         assert 0.75 < abs(voxel / plain) < 0.88
         assert abs(np.degrees(np.angle(voxel / plain))) < 0.5
         # a transmit field 20 percent low costs the excitation its sine and the
@@ -452,16 +452,17 @@ class TestLocalizedPress:
         # at TE 144 the methine and the methyl are refocused together in part of the
         # voxel only, more so as the shift difference grows with the field; at TE 30
         # and at TE 288 the doublet is upright either way and keeps its signal
-        assert 0.25 < doublet(1.5, 0.030, 0.114) < 0.55
-        assert doublet(3.0, 0.030, 0.114) < 0.25
+        assert 0.45 < doublet(1.5, 0.030, 0.114) < 0.8
+        assert doublet(3.0, 0.030, 0.114) < 0.4
         assert doublet(3.0, 0.015, 0.015) > 0.9
         assert doublet(3.0, 0.030, 0.258) > 0.7
-        # an uncoupled line keeps the three slab integrals, in phase with the ideal echo
+        # an uncoupled line keeps the three slab integrals (the Shinnar-Le Roux slabs
+        # hold their nominal width), in phase with the ideal echo
         engine = Engine(3.0, isochromats=32)
         a = np.asarray(ops.convert_to_numpy(engine.lines(
             LocalizedPress(0.015, 0.015, 3.0 * 42.5774785, reference_ppm=4.65), water)[1]))
         b = np.asarray(ops.convert_to_numpy(engine.lines(Press(te1_s=0.015, te2_s=0.015), water)[1]))
         k = np.argmax(np.abs(b))
-        assert 0.8 < abs(a[k] / b[k]) < 0.95 and abs(np.degrees(np.angle(a[k] / b[k]))) < 0.5
+        assert 0.95 < abs(a[k] / b[k]) < 1.05 and abs(np.degrees(np.angle(a[k] / b[k]))) < 0.5
         with pytest.raises(ValueError):
             LocalizedPress(0.004, 0.010, 3.0 * 42.5774785)

@@ -164,10 +164,11 @@ class LocalizedPress(Sequence):
     slabs do not coincide are refocused in part of the voxel only, which is what
     costs lactate its inverted doublet at TE 144 ms at 3 T and above.
 
-    The pulses are three-lobe sincs with the bandwidths of de Graaf Table 5.1 (R of
-    5.95 for the 90, 4.45 for the 180); the default durations give 2.3 kHz and 0.86
-    kHz, the narrow end of what scanners play (their optimized 180s reach 1.2 to 1.4
-    kHz; stated). Each axis is averaged as soon as its pulse has played
+    The pulses are linear-phase Shinnar-Le Roux designs (`ShapedPulse.slr`), as on a
+    scanner: a 90 of 2.6 ms and 2.3 kHz (time-bandwidth 6, 14 uT) rephased by 0.52
+    of its gradient moment (where its slab integral peaks), and 180s of 6.5 ms and
+    0.96 kHz (time-bandwidth 6.24, 24.5 uT: what a 25 uT body coil allows; 1.2 kHz in
+    5.2 ms would take 31 uT). Each axis is averaged as soon as its pulse has played
     (`Projection`), and coherence filters on BOTH sides of every refocusing pulse
     select the pathway, as its crusher pair does: only what was transverse before the
     pulse may pass, not the magnetization that recovered during the delay and that
@@ -180,7 +181,8 @@ class LocalizedPress(Sequence):
         f0_mhz: The spectrometer frequency (the carrier phases need it).
         size_mm: The voxel edge, or its (x, y, z) edges.
         reference_ppm: The shift the three slabs are centred for; others displace.
-        excitation_s, refocusing_s: The durations of the 90 and of each 180.
+        excitation_s, refocusing_s: The durations of the 90 and of each 180; the
+            bandwidths are the time-bandwidth products over them.
         span: The ensemble's extent per axis in voxel edges.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
@@ -188,8 +190,10 @@ class LocalizedPress(Sequence):
     #**********#
     #   init   #
     #**********#
+    EXCITATION_TBW, REFOCUSING_TBW, REPHASE = 6.0, 6.24, 0.52
+
     def __init__(self, te1_s, te2_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, excitation_s=0.0026,
-                 refocusing_s=0.0052, span=2.5, tr_s=None):
+                 refocusing_s=0.0065, span=2.5, tr_s=None):
         self.te1_s = te1_s
         self.te2_s = te2_s
         edges = (float(size_mm),) * 3 if np.ndim(size_mm) == 0 else tuple(float(s) for s in size_mm)
@@ -199,15 +203,18 @@ class LocalizedPress(Sequence):
             raise ValueError(f"te1_s {te1_s} and te2_s {te2_s} are too short for the pulses")
 
         def slab(flip_deg, duration_s, axis, edge, phase_deg):
-            slope = pulses.DE_GRAAF[("sinc", flip_deg)]["r_bw"] / duration_s / edge  # Hz per mm
+            kind, tbw = (("excitation", self.EXCITATION_TBW) if flip_deg == 90
+                         else ("refocusing", self.REFOCUSING_TBW))
+            slope = tbw / duration_s / edge  # Hz per mm
             carrier = -180.0 * reference_ppm * f0_mhz * duration_s
-            return slope, ShapedPulse.sinc(float(flip_deg), duration_s, offset_ppm=reference_ppm,
-                                           phase_deg=phase_deg + carrier, gradient_hz_per_mm=slope,
-                                           gradient_axis=axis, extent_mm=span * edge)
+            return slope, ShapedPulse.slr(float(flip_deg), duration_s, tbw, kind, steps=128,
+                                          offset_ppm=reference_ppm, phase_deg=phase_deg + carrier,
+                                          gradient_hz_per_mm=slope, gradient_axis=axis,
+                                          extent_mm=span * edge)
 
         slope, excitation = slab(90, excitation_s, "x", edges[0], 0.0)
         super().__init__(
-            excitation, Gradient(-0.5 * slope * excitation_s, span * edges[0], axis="x"),
+            excitation, Gradient(-self.REPHASE * slope * excitation_s, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
             CoherenceFilter(-1), slab(180, refocusing_s, "y", edges[1], 90.0)[1],
             CoherenceFilter(+1), Projection(span), Delay(delays[1]),
@@ -231,9 +238,9 @@ class LocalizedSemiLaser(Sequence):
 
     The design of the across-vendor 3 T semi-LASER (Deelchand et al. 2021, NMR Biomed
     34:e4218): GOIA-W(16,4) refocusing pulses of 4.5 ms and 10 kHz at 15 uT; the
-    excitation here is a three-lobe sinc of their 2.6 ms (theirs is an asymmetric
-    Shinnar-Le Roux pulse, stated) under its slice gradient on x with the rephasing
-    lobe, the pairs play on y and z. Each axis is averaged over its isochromats as
+    excitation is a Shinnar-Le Roux 90 of their 2.6 ms and 2.6 kHz (linear phase
+    here, asymmetric in theirs, stated) under its slice gradient on x, rephased by
+    0.52 of its moment, the pairs play on y and z. Each axis is averaged over its isochromats as
     soon as its pulses have played (`Projection`, the one-dimensional projection of
     Zhang et al. 2017), coherence filters on both sides of every refocusing pulse
     select the echo pathway as its crusher pair does (what recovered during a delay
@@ -254,7 +261,7 @@ class LocalizedSemiLaser(Sequence):
         tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
 
-    EXCITATION_S = 0.0026
+    EXCITATION_S, EXCITATION_TBW, REPHASE = 0.0026, 6.76, 0.52
     AFP_S, AFP_BANDWIDTH_HZ, AFP_PEAK_HZ = 0.0045, 10000.0, 15.0 * 42.5774785
 
     #**********#
@@ -267,7 +274,7 @@ class LocalizedSemiLaser(Sequence):
         if tau <= self.EXCITATION_S / 2.0:
             raise ValueError(f"te_s {te_s} is too short for the excitation and four "
                              f"{self.AFP_S * 1e3:.1f} ms refocusing pulses")
-        slope = pulses.DE_GRAAF[("sinc", 90)]["r_bw"] / self.EXCITATION_S / edges[0]  # Hz per mm
+        slope = self.EXCITATION_TBW / self.EXCITATION_S / edges[0]  # Hz per mm
 
         def afp(axis, edge):
             # 128 steps: within 5e-4 of 512 on lactate, glutamate, and glucose
@@ -279,10 +286,11 @@ class LocalizedSemiLaser(Sequence):
         # one pulse object per pair: its propagator is computed once per run
         afp_y, afp_z = afp("y", edges[1]), afp("z", edges[2])
         super().__init__(
-            ShapedPulse.sinc(90.0, self.EXCITATION_S, offset_ppm=reference_ppm,
-                             phase_deg=-180.0 * reference_ppm * f0_mhz * self.EXCITATION_S,
-                             gradient_hz_per_mm=slope, gradient_axis="x", extent_mm=span * edges[0]),
-            Gradient(-0.5 * slope * self.EXCITATION_S, span * edges[0], axis="x"),
+            ShapedPulse.slr(90.0, self.EXCITATION_S, self.EXCITATION_TBW, "excitation", steps=128,
+                            offset_ppm=reference_ppm,
+                            phase_deg=-180.0 * reference_ppm * f0_mhz * self.EXCITATION_S,
+                            gradient_hz_per_mm=slope, gradient_axis="x", extent_mm=span * edges[0]),
+            Gradient(-self.REPHASE * slope * self.EXCITATION_S, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span),
             Delay(tau - self.EXCITATION_S / 2.0),
             CoherenceFilter(-1), afp_y, CoherenceFilter(+1), Delay(2.0 * tau),

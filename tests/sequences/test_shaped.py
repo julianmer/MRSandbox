@@ -355,6 +355,44 @@ class TestAdiabatic:
                 assert abs(mz[0] - mz[1]) < bound
 
     #*******************#
+    #   shinnar le roux #
+    #*******************#
+    def test_slr_pulses_hold_their_slab(self):
+        # a 90 of time-bandwidth 6 and a spin-echo 180 of 6.24 over a 20 mm slab: flat
+        # inside, half amplitude at the nominal edge, a clean stopband, and the slab
+        # integral of the nominal width; the peak B1 is the design's own
+        water = WaterSource.system(gamma_mhz_t=GAMMA)
+        engine = Engine(B0_T)
+        x = np.linspace(-25.0, 25.0, 201)
+        plain = np.abs(np.asarray(ops.convert_to_numpy(
+            engine.lines(Sequence(Pulse(90.0), CoherenceFilter(-1)), water)[1]))).max()
+
+        def profile(sequence):
+            _, amps = engine.profile(sequence, water, "x", x)
+            return np.abs(amps).max(axis=1) / plain
+
+        slope = 6.0 / 0.0026 / 20.0
+        ninety = ShapedPulse.slr(90.0, 0.0026, 6.0, "excitation", offset_ppm=4.65, steps=128,
+                                 gradient_hz_per_mm=slope, gradient_axis="x", extent_mm=50.0)
+        from mrsandbox import Gradient
+
+        excited = profile(Sequence(ninety, Gradient(-0.52 * slope * 0.0026, 50.0, axis="x"),
+                                   CoherenceFilter(-1)))
+        slope = 6.24 / 0.0065 / 20.0
+        one_eighty = ShapedPulse.slr(180.0, 0.0065, 6.24, "refocusing", offset_ppm=4.65,
+                                     phase_deg=90.0, steps=128, gradient_hz_per_mm=slope,
+                                     gradient_axis="x", extent_mm=50.0)
+        refocused = profile(Sequence(Pulse(90.0), CoherenceFilter(+1), one_eighty, CoherenceFilter(-1)))
+        for kept in (excited, refocused):
+            assert kept[100 - 28:100 + 29].min() > 0.95            # to 7 mm: the passband
+            assert 0.4 < kept[140] < 0.6 and 0.4 < kept[60] < 0.6  # the edge at 10 mm
+            assert kept[:40].max() < 0.02 and kept[161:].max() < 0.02  # beyond 15 mm
+            assert abs(kept[:-1].mean() * 2.5 - 1.0) < 0.05
+        assert abs(ninety.peak_hz / GAMMA - 13.9) < 0.5 and abs(one_eighty.peak_hz / GAMMA - 24.5) < 0.5
+        with pytest.raises(ValueError):
+            ShapedPulse.slr(90.0, 0.0026, 6.0, "inversion")
+
+    #*******************#
     #   goia wurst      #
     #*******************#
     def test_goia_wurst_inverts_a_10_khz_slab_at_15_ut(self):
