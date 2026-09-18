@@ -163,27 +163,27 @@ def default_params(database=None, b0_t=3.0):
         # noise: complex Gaussian per FID point of ONE transient of the reference
         #   acquisition, a 20 mm cube (8 mL) at 3 T sampled at 5 kHz (scan.voxel
         #   NOISE_REFERENCE); every acquisition scales it by its volume, field,
-        #   receiver bandwidth, and averages. Calibrated
-        #   17/09/26 against one in vivo 3 T dataset (Siemens Prisma, 64-channel head
-        #   coil, PRESS TE 35 ms, TR 2 s, a 30 mm cube, 4096 points at 5 kHz, 32
-        #   transients with the coils kept: dataset 28 of the BasisREMY REMY test
-        #   set, by its own NIfTI-MRS header): the single-transient NAA SNR by the
-        #   consensus definition (Near et al. 2021: the real NAA peak height over the
-        #   noise standard deviation of a signal-free region, here -5 to -1 ppm after
-        #   a linear detrend, no apodization) is 6.7 +- 1.2 over the 32 transients
-        #   after an SVD coil combination, 28.1 for their aligned average; the
-        #   simulator at the same voxel, timings, and grid (ICBM mixed tissue, the
-        #   default lineshape, whose NAA width of 6 to 7 Hz brackets the measured 5)
-        #   reaches it at a reference sigma of 47 (median SNR 6.6 over 32 subjects,
-        #   IQR 5.8 to 8.1, the spread being the concentration prior). Recalibrated
-        #   18/09/26: the first calibration (sigma 5.2) read the simulated spectrum
-        #   the way the NIfTI-MRS file of the dataset is read, conjugated and with a
-        #   4.65 ppm carrier, while `Voxel.fid` is referenced to 0 ppm with a line at
-        #   f hertz as exp(+i 2 pi f t); its "NAA" was the multiplets near 2.64 ppm,
-        #   a ninth as tall, and the noise came out that much too low. The range
-        #   around it is stated: 0.7 to 1.4 times, the site-to-site SNR scatter of
-        #   multi-site 3 T studies (tests/scan/test_scan TestNoiseModel gates it).
-        noise=dict(sigma=(33.0, 66.0)),
+        #   receiver bandwidth, and averages. Calibrated 18/09/26 against Big GABA
+        #   (Mikkelsen et al. 2017, NeuroImage 159:32; the PRESS arm, TE 35 ms, TR 2 s,
+        #   a 30 mm cube in the medial parietal lobe, 2048 points at 2 kHz, 64
+        #   transients), its three Siemens sites with the raw coils and transients
+        #   kept, 36 subjects: the single-transient NAA SNR by the consensus
+        #   definition (Near et al. 2021: the real NAA peak height over the noise
+        #   standard deviation of a signal-free stretch after a linear detrend, no
+        #   apodization), after a noise-whitened SVD coil combination, has a median
+        #   of 36.4 (site medians 38.5, 33.8, 36.7; 5th to 95th percentile 28.8 to
+        #   43.6). The simulator at the same timings, TR, voxel, and grid (ICBM152
+        #   at (0, -45, 35) mm) reaches 36.6 at a reference sigma of 6.3. The range is
+        #   the percentiles' (the subjects' own concentrations widen the simulated
+        #   spread beyond it; stated). History, because it matters: a first
+        #   calibration (17/09/26, sigma 5.2) used one dataset whose SNR was read as
+        #   6.7, and read the simulated spectrum conjugated with a 4.65 ppm carrier,
+        #   which measures the multiplets near 2.64 ppm; the two errors nearly
+        #   cancelled. Read on the raw coils like the others, that dataset gives 10,
+        #   a quarter of Big GABA's: an outlier, not a reference. `Voxel.fid` is
+        #   referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
+        #   (tests/scan/test_scan TestNoiseModel gates the calibration).
+        noise=dict(sigma=(5.3, 8.0)),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),

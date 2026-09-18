@@ -6,11 +6,12 @@ The format follows Keep a Changelog. Versions follow `mrsandbox.__version__`.
 
 ### Changed, and it changes seeded output
 
-* The noise prior is recalibrated. The first calibration read the simulated spectrum the way the
-  in vivo NIfTI-MRS file is read (conjugated, with a 4.65 ppm carrier), while `Voxel.fid` is
-  referenced to 0 ppm with a line at f hertz as exp(+i 2 pi f t). Its NAA peak was the multiplets
-  near 2.64 ppm, and the noise came out about seven times too low. `noise.sigma` is now
-  Uniform(33, 66), was (3.5, 7.5).
+* The noise prior is calibrated against Big GABA: the single-transient NAA SNR of 36 subjects at
+  its three Siemens sites, measured on the raw coils and transients (median 36.4), is reproduced
+  at a reference sigma of 6.3. `noise.sigma` is now Uniform(5.3, 8.0), was (3.5, 7.5). The first
+  calibration had read the simulated spectrum conjugated with a 4.65 ppm carrier (`Voxel.fid` is
+  referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)) and used one unusually noisy
+  dataset; the two errors nearly cancelled.
 * The receiver bandwidth enters the noise: the per-point sigma grows with the square root of the
   bandwidth, referenced to the 5 kHz of the calibration.
 * The ideal `Steam` keeps the stimulated echo pathway (+1, 0, -1). It had kept the anti-echo,

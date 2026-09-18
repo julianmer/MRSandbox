@@ -580,31 +580,32 @@ class TestNoiseModel:
         assert abs(wide_floor / narrow_floor - 1.0) < 0.1
 
     def test_the_default_noise_reproduces_the_in_vivo_naa_snr(self, scan):
-        # the calibration of the noise prior (scan.defaults): at the calibration
-        # dataset's conditions (3 T PRESS TE 35, a 30 mm cube, 4096 points at 5 kHz,
-        # one transient) the default draws give the measured single-transient NAA
-        # SNR of 6.7 +- 1.2 by the consensus peak-height-over-noise definition
+        # the calibration of the noise prior (scan.defaults): at Big GABA's PRESS
+        # conditions (3 T, TE 35 ms, TR 2 s, a 30 mm cube, 2048 points at 2 kHz, one
+        # transient) the default draws give the single-transient NAA SNR measured on
+        # its 36 Siemens subjects, 36.4 (28.8 to 43.6), by the consensus definition
         calm = Params(spurious=dict(amplitude=0.0),
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
                       gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                                      linear_short=0.0, linear_long=0.0))
-        calibration = VirtualScan(scan.brain, scan.scanner, Press(te1_s=0.011, te2_s=0.024), params=calm)
-        voxel = calibration.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=30.0)
-        n, bw, cf = 4096, 5000.0, voxel._f0_mhz()
+        calibration = VirtualScan(scan.brain, scan.scanner,
+                                  Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=calm)
+        voxel = calibration.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
+        n, bw, cf = 2048, 2000.0, voxel._f0_mhz()
         # the FID is referenced to 0 ppm and a line at f hertz is exp(+i 2 pi f t): the
         # plain transform puts NAA at 2.01 ppm (a conjugate and a 4.65 ppm carrier,
         # the NIfTI-MRS reading, would read the multiplets at 2.64 ppm in its place)
         ppm = np.fft.fftshift(np.fft.fftfreq(n, 1.0 / bw)) / cf
         snrs = []
-        for seed in range(8):
+        for seed in range(12):
             _, fid = voxel.fid(seed=seed, npoints=n, dwell_s=1.0 / bw)
             real = np.fft.fftshift(np.fft.fft(fid)).real
-            assert abs(ppm[np.abs(ppm - 2.01) < 0.1][np.argmax(real[np.abs(ppm - 2.01) < 0.1])] - 2.008) < 0.05
-            height = real[np.abs(ppm - 2.01) < 0.1].max()
-            noise = (ppm > 10.0) & (ppm < 14.0)  # downfield of every signal
+            near = np.abs(ppm - 2.01) < 0.05
+            assert abs(ppm[near][np.argmax(real[near])] - 2.008) < 0.02
+            noise = (ppm > -7.0) & (ppm < -3.0)  # upfield of every signal
             floor = real[noise] - np.polyval(np.polyfit(ppm[noise], real[noise], 1), ppm[noise])
-            snrs.append(height / floor.std())
-        assert 4.7 < np.median(snrs) < 9.4, snrs  # 6.7 within the stated 0.7 to 1.4 range
+            snrs.append(real[near].max() / floor.std())
+        assert 28.8 < np.median(snrs) < 48.0, snrs  # 36.4 and the simulated draws' spread
 
     def test_a_step_is_fresh_noise_on_the_same_subject(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
