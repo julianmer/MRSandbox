@@ -147,3 +147,52 @@ class TestBigBrainField:
         assert abs(raw_7t.mean() / raw_3t.mean() - 7.0 / 3.0) < 1e-3
         shimmed = at_3t.offsets((-30.0, 10.0, 10.0), 25.0)
         assert shimmed.std() < 0.5 * raw_3t.std()  # the shim removes most structure
+
+
+#**************************************************************************************************#
+#                                     Class TestSusceptibility                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# The k-space dipole model: a sphere's field is zero inside and its dipole outside.                #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestSusceptibility:
+
+    def test_a_sphere_makes_no_field_inside_and_a_dipole_outside(self):
+        # with the sphere of Lorentz a susceptible sphere leaves its inside alone and
+        # shows chi V (3 cos^2 - 1) / (4 pi r^3) outside: twice as strong and opposite
+        # on the field's axis as on the equator
+        n, radius = 96, 12.0
+        x = np.arange(n) - (n - 1) / 2.0
+        r2 = x[:, None, None] ** 2 + x[None, :, None] ** 2 + x[None, None, :] ** 2
+        chi = (r2 <= radius ** 2).astype(np.float32)
+        field = FieldMap.from_susceptibility(chi, np.eye(4), b0_t=1.0 / 42.5774785, shim="none")
+        c, far = n // 2, n // 2 + 24
+        ppm = field.offsets_hz  # one tesla-equivalent of 1 Hz per ppm
+        dipole = chi.sum() / (4.0 * np.pi * 24.5 ** 3)  # the cell centres sit half a cell off
+        assert abs(ppm[c, c, c]) < 1e-4
+        assert abs(ppm[c, c, far] - 2.0 * dipole) < 0.03 * 2.0 * dipole
+        assert abs(ppm[far, c, c] + dipole) < 0.03 * dipole
+        # the main field along another index axis turns the pattern with it
+        turned = FieldMap.from_susceptibility(chi, np.eye(4), b0_t=1.0 / 42.5774785, axis=0,
+                                              shim="none").offsets_hz
+        np.testing.assert_allclose(turned[far, c, c], ppm[c, c, far], rtol=1e-4)
+
+
+#**************************************************************************************************#
+#                                        Class TestQsmField                                        #
+#**************************************************************************************************#
+@pytest.mark.skipif(not Resources.cached("qsm_rc2/chi"),
+                    reason="the QSM challenge 2.0 head is not redistributed; place it by hand")
+class TestQsmField:
+
+    def test_the_sinuses_spoil_the_frontal_base_and_spare_the_rest(self):
+        field = FieldMap.load("qsm_rc2", b0_t=3.0)
+        spread = lambda position: float(np.std(field.offsets(position, 20.0, shim="linear")))
+        assert spread((0.0, 0.0, 30.0)) < 4.0         # mid brain: a few hertz at 3 T
+        assert spread((0.0, -45.0, -5.0)) < 4.0       # the occipital side
+        assert 6.0 < spread((0.0, 45.0, -5.0)) < 25.0  # above the sinuses
+        # susceptibility fields scale with the main field
+        seven = FieldMap.load("qsm_rc2", b0_t=7.0)
+        np.testing.assert_allclose(np.std(seven.offsets((0.0, 45.0, -5.0), 20.0, shim="linear")),
+                                   spread((0.0, 45.0, -5.0)) * 7.0 / 3.0, rtol=1e-4)

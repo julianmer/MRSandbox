@@ -17,6 +17,7 @@
 #   imports   #
 #*************#
 import numpy as np
+import scipy.fft
 
 from mrsandbox.phantom.volume import Volume
 
@@ -46,7 +47,7 @@ class FieldMap:
             the default), or "quadratic" (plus the five second-order shims).
     """
 
-    PRESETS = ("bigbrain_mr",)
+    PRESETS = ("bigbrain_mr", "qsm_rc2")
     SHIMS = ("none", "mean", "linear", "quadratic")
 
     #**********#
@@ -81,8 +82,50 @@ class FieldMap:
         """
         if name not in cls.PRESETS:
             raise KeyError(f"unknown field map {name!r}; known: {', '.join(cls.PRESETS)}")
+        if name == "qsm_rc2":
+            # the whole-head susceptibility model of the QSM challenge 2.0 head (air,
+            # bone, and tissue), halved to 1.28 mm cells; placed by hand (resources.qsm)
+            chi = Volume.load("qsm_rc2/chi")
+            nx, ny, nz = (n // 2 for n in chi.shape)
+            coarse = chi.data[:2 * nx, :2 * ny, :2 * nz].reshape(nx, 2, ny, 2, nz, 2).mean(axis=(1, 3, 5))
+            halved = chi.affine @ np.array([[2.0, 0.0, 0.0, 0.5], [0.0, 2.0, 0.0, 0.5],
+                                            [0.0, 0.0, 2.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
+            return cls.from_susceptibility(coarse, halved, b0_t, name=name, shim=shim)
         volume = Volume.load("bigbrain_mr/background_field_400um")
         return cls(offsets_hz=volume.data * np.float32(float(b0_t) / 7.0), affine=volume.affine,
+                   name=name, shim=shim)
+
+    @classmethod
+    def from_susceptibility(cls, chi_ppm, affine, b0_t, axis=2, gamma_mhz_t=42.5774785,
+                            name="custom", shim="linear"):
+        """The field a susceptibility distribution makes in a main field along the
+        index axis `axis`, by the k-space dipole model (Salomir et al. 2003, Concepts
+        Magn Reson B 19:26; Marques and Bowtell 2005, Concepts Magn Reson B 25:65):
+        the relative field is the inverse transform of (1/3 - k_B^2 / k^2) times the
+        transform of chi, the sphere of Lorentz included, zero at k = 0. The volume
+        is padded to twice its size with its corner value (the air around a head, as
+        the QSM challenge 2.0 simulation pads), so the periodic copies stay away, and
+        a whole head then carries the fields of its sinuses and its skull.
+
+        Args:
+            chi_ppm: Susceptibility volume in ppm, any reference.
+            affine: 4x4 voxel-to-world matrix (mm); the cell sizes set the kernel.
+            b0_t: Main field in tesla.
+            axis: The index axis the main field lies along (2: inferior to superior).
+        """
+        chi = np.asarray(chi_ppm, dtype=np.float32)
+        padded = np.full(tuple(2 * n for n in chi.shape), chi[-1, -1, -1], dtype=np.float32)
+        padded[:chi.shape[0], :chi.shape[1], :chi.shape[2]] = chi
+        cell = np.linalg.norm(np.asarray(affine, dtype=np.float64)[:3, :3], axis=0)
+        k = [np.fft.fftfreq(n, d=d).astype(np.float32) for n, d in zip(padded.shape, cell)]
+        k[2] = np.fft.rfftfreq(padded.shape[2], d=cell[2]).astype(np.float32)
+        k2 = k[0][:, None, None] ** 2 + k[1][None, :, None] ** 2 + k[2][None, None, :] ** 2
+        along = (k[axis] ** 2).reshape([-1 if a == axis else 1 for a in range(3)])
+        kernel = 1.0 / 3.0 - along / np.where(k2 > 0.0, k2, 1.0)
+        kernel[0, 0, 0] = 0.0
+        field = scipy.fft.irfftn(scipy.fft.rfftn(padded) * kernel, s=padded.shape)
+        field = field[:chi.shape[0], :chi.shape[1], :chi.shape[2]]
+        return cls(offsets_hz=field * np.float32(gamma_mhz_t * float(b0_t)), affine=affine,
                    name=name, shim=shim)
 
     @classmethod

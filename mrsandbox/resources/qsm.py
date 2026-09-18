@@ -24,8 +24,8 @@
 # Units:  labels 1 to 16 as the deposit's chimodel/paramaters.mat names them (LABELS; 12 has
 #         no voxels); R1 in 1/s, R2* in 1/s, M0 arbitrary, chi in ppm.
 # Notes:  the files carry no world origin; origin_index puts (0, 0, 0) at the centre of mass of
-#         the brain labels 1 to 10 (stated), the index axes are left-right, the
-#         anterior-posterior axis, and inferior to superior.
+#         the brain labels 1 to 10 (stated), the index axes are left-right, posterior to
+#         anterior (the field of the sinuses settles the sense), and inferior to superior.
 _PAGE = "https://doi.org/10.34973/m20r-jt17"
 _ORIGIN = (130.0, 143.0, 163.0)
 
