@@ -79,20 +79,51 @@ class SpinSystem:
             j = np.zeros((len(labels), len(labels)))
             for a, b, value in group.get("j", ()):
                 j[index[a], index[b]] = j[index[b], index[a]] = value
-            systems.append(
-                cls(
-                    name=f"{metabolite}.{group['name']}",
-                    nucleus=nucleus,
-                    shifts_ppm=tuple(float(group["spins"][label]) for label in labels),
-                    j_hz=tuple(map(tuple, j)),
-                    scale=float(group.get("scale", 1.0)),
-                    gamma_mhz_t=db.gamma(nucleus),
-                    spin=db.spin(nucleus),
-                    t1_s=record.get("t1_s"),
-                    t2_s=record.get("t2_s"),
+            shifts = [float(group["spins"][label]) for label in labels]
+            # spins that no coupling connects evolve on their own, and their signals
+            # add: every J-connected part is its own system (the dimension is 2^n),
+            # and uncoupled spins at one shift are one spin counted that many times
+            parts, singles = [], {}
+            for part in cls._connected(j):
+                if len(part) == 1:
+                    singles[shifts[part[0]]] = singles.get(shifts[part[0]], 0) + 1
+                else:
+                    parts.append((part, 1))
+            parts += [([shifts.index(shift)], count) for shift, count in singles.items()]
+            for k, (part, count) in enumerate(parts):
+                suffix = "" if len(parts) == 1 else f".{k}"
+                systems.append(
+                    cls(
+                        name=f"{metabolite}.{group['name']}{suffix}",
+                        nucleus=nucleus,
+                        shifts_ppm=tuple(shifts[i] for i in part),
+                        j_hz=tuple(map(tuple, j[np.ix_(part, part)])),
+                        scale=float(group.get("scale", 1.0)) * count,
+                        gamma_mhz_t=db.gamma(nucleus),
+                        spin=db.spin(nucleus),
+                        t1_s=record.get("t1_s"),
+                        t2_s=record.get("t2_s"),
+                    )
                 )
-            )
         return tuple(systems)
+
+    @staticmethod
+    def _connected(j):
+        """The J-connected parts of a coupling matrix, each a sorted index list, in
+        order of their first spin."""
+        n, seen, parts = len(j), set(), []
+        for start in range(n):
+            if start in seen:
+                continue
+            stack, part = [start], []
+            while stack:
+                a = stack.pop()
+                if a not in seen:
+                    seen.add(a)
+                    part.append(a)
+                    stack += [b for b in range(n) if j[a, b] != 0.0 and b not in seen]
+            parts.append(sorted(part))
+        return parts
 
     #***********#
     #   sizes   #

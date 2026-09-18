@@ -203,3 +203,47 @@ class TestHigherSpin:
         real = np.real(np.asarray(ops.convert_to_numpy(spec)))
         peaks = np.sort(np.asarray(ppm)[np.argsort(real)[-4:]])
         np.testing.assert_allclose(peaks, [1.4, 2.4, 3.8, 4.8], atol=0.01)
+
+
+#**************************************************************************************************#
+#                                      Class TestConnectedParts                                    #
+#**************************************************************************************************#
+#                                                                                                  #
+# Spins no coupling connects are their own systems, and the split changes no spectrum.             #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestConnectedParts:
+
+    def test_uncoupled_spins_split_and_merge_by_shift(self):
+        # creatine's record is six uncoupled spins: three one-spin systems counted
+        # 1, 2, and 3 times instead of one 64-dimensional system
+        parts = SpinSystem.from_database("Cr")
+        assert sorted((s.shifts_ppm, s.scale) for s in parts) == [
+            ((3.027,), 3.0), ((3.913,), 2.0), ((6.649,), 1.0)]
+        # a coupled group stays whole, its uncoupled amide leaves it
+        gsh = {s.name: s for s in SpinSystem.from_database("GSH")}
+        assert len(gsh["GSH.cyst.0"].shifts_ppm) == 3 and gsh["GSH.cyst.1"].shifts_ppm == (8.177,)
+        assert all(s.dim <= 2 ** 6 or s.name.startswith("Glc") for name in ("NAA", "Cr", "PCr", "GSH")
+                   for s in SpinSystem.from_database(name))
+
+    def test_the_split_renders_the_record_as_one_system_would(self):
+        from keras import ops
+
+        from mrsandbox import Engine, Press
+
+        engine, sequence = Engine(3.0), Press(te1_s=0.011, te2_s=0.019)
+
+        def spectrum(systems):
+            total = 0.0
+            for system in systems:
+                freqs, amps = engine.lines(sequence, system)
+                _, spec = engine.render_fid(freqs, amps, npoints=2048)
+                total = total + np.asarray(ops.convert_to_numpy(spec))
+            return total
+
+        whole = SpinSystem(name="Cr.whole", nucleus="1H",
+                           shifts_ppm=(6.649, 3.913, 3.913, 3.027, 3.027, 3.027),
+                           j_hz=tuple((0.0,) * 6 for _ in range(6)), scale=1.0,
+                           gamma_mhz_t=42.5774785)
+        split, one = spectrum(SpinSystem.from_database("Cr")), spectrum((whole,))
+        np.testing.assert_allclose(split, one, atol=1e-4 * np.abs(one).max())
