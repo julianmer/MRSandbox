@@ -51,9 +51,12 @@ class TestRegistry:
     #*****************#
     def test_entries_are_well_formed(self):
         for name, entry in Resources.REGISTRY.items():
+            assert entry["filename"], name
+            if "url" not in entry:  # placed by the user, never fetched
+                assert entry["page"].startswith("https://"), name
+                continue
             assert entry["url"].startswith("https://"), name
             assert re.fullmatch(r"[0-9a-f]{32}", entry["md5"]), name
-            assert entry["filename"], name
 
     def test_unknown_name_is_a_clear_error(self):
         with pytest.raises(KeyError, match="unknown resource"):
@@ -95,3 +98,18 @@ class TestFetch:
     def test_cache_honours_the_environment(self, tmp_path, monkeypatch):
         monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path / "elsewhere"))
         assert Resources.cache_dir() == tmp_path / "elsewhere"
+
+    #*******************#
+    #   placed by hand  #
+    #*******************#
+    def test_a_page_resource_is_never_fetched_and_says_where_to_put_it(self, tmp_path, monkeypatch):
+        monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path))
+        monkeypatch.setitem(Resources.REGISTRY, "test/placed",
+                            {"page": "https://example.org/terms", "filename": "test/placed.nii.gz"})
+        with pytest.raises(FileNotFoundError) as error:
+            Resources.path("test/placed")
+        assert "https://example.org/terms" in str(error.value)
+        assert str(tmp_path / "test" / "placed.nii.gz") in str(error.value)
+        (tmp_path / "test").mkdir()
+        (tmp_path / "test" / "placed.nii.gz").write_bytes(b"data")
+        assert Resources.path("test/placed") == tmp_path / "test" / "placed.nii.gz"

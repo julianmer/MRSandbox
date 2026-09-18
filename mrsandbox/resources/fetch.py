@@ -36,6 +36,9 @@ class Resources:
 
     `Resources.path(name)` returns the local file for a registered resource,
     downloading it into the cache on first use and verifying the publisher's checksum.
+    Data whose terms do not allow redistribution, or whose host wants every user to
+    accept them, is registered with a "page" in place of a "url": it is never
+    fetched, and `path` says where to download it and where to place it.
     The cache defaults to ~/.cache/mrsandbox and can be moved with the MRSANDBOX_CACHE
     environment variable.
     """
@@ -58,6 +61,9 @@ class Resources:
             raise KeyError(f"unknown resource {name!r}; known: {', '.join(sorted(cls.REGISTRY))}") from None
         local = cls.cache_dir() / entry["filename"]
         if not local.exists():
+            if "url" not in entry:
+                raise FileNotFoundError(f"{name} is not redistributed: download it from "
+                                        f"{entry['page']} and place it at {local}")
             cls._fetch(entry["url"], local, entry["md5"])
         return local
 
