@@ -140,10 +140,13 @@ NOISE_COWS_PRISMA_3T = Calibration(
     measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 26.0,
               "subjects": 1, "naa_fwhm_hz": 4.8, "simulated_at_big_gaba_value": 14.0,
               "simulated_naa_fwhm_hz": 5.8},
-    source={"dataset": "COWS, subject 2, prefrontal", "citation": None, "url": None},
+    source={"dataset": "COWS, subject 2, prefrontal",
+            "citation": "Igwe et al. 2025, Magn Reson Med, doi 10.1002/mrm.30550",
+            "url": "https://mrshub.org/datasets_svs/"},
     scanner={"vendor": "siemens", "model": "Prisma", "software": "syngo MR E11", "field_t": 2.89},
-    coil={"channels": (32,), "name": None},
-    sequence={"name": "sLASER", "product": "svs_slaser (CMRR)", "te_s": 0.026, "tr_s": 2.0,
+    coil={"channels": (32,), "name": "Siemens 32-channel head and neck (the paper)"},
+    sequence={"name": "sLASER", "product": "svs_slaser", "te_s": 0.026, "tr_s": 2.0,
+              "te_note": "26 ms in the file's header, 20 ms in the paper",
               "simulated_as": "SemiLaser(te_s=0.026, tr_s=2.0)"},
     acquisition={"npoints": 2048, "bandwidth_hz": 4000.0, "transients": 32, "measured_on": 1,
                  "water_suppressed": True},
@@ -155,6 +158,41 @@ NOISE_COWS_PRISMA_3T = Calibration(
 )
 
 
+#*********************************#
+#   noise, 3 tesla, one channel   #
+#*********************************#
+# not in use either: a transmit-receive birdcage in place of an array. The 3 T prior
+# gives 19.2 where the 15 subjects give 13.0 (11.1 to 15.5): the birdcage hears a
+# medial frontal voxel 1.5 times worse than the arrays of Big GABA hear a parietal one,
+# the order an array's gain at that depth has. With COWS above (1.9 the other way, a
+# newer scanner and array) it says what the drawn sigma is: a property of the receive
+# chain, scanner and coil, that one prior per field does not carry.
+NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
+    leaf="noise.sigma",
+    value=9.3,
+    prior=(9.3, 9.3),
+    measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 13.0,
+              "range": (11.1, 15.5), "subjects": 15, "simulated_at_big_gaba_value": 19.2},
+    source={"dataset": "fMRS in pain, the functional runs",
+            "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+            "url": "https://www.nitrc.org/projects/fmrs_2020"},
+    scanner={"vendor": "philips", "model": "Achieva", "software": None, "field_t": 3.0},
+    coil={"channels": (1,), "name": "transmit-receive head coil (the paper)"},
+    sequence={"name": "PRESS", "product": None, "te_s": 0.022, "tr_s": 4.0,
+              "simulated_as": "Press(te1_s=0.009, te2_s=0.013, tr_s=4.0), the split a stand-in"},
+    acquisition={"npoints": 2048, "bandwidth_hz": 2000.0, "transients": 320, "measured_on": 1,
+                 "water_suppressed": True,
+                 "bandwidth_note": "not in the files or the paper; fixed by the creatine to NAA "
+                                   "spacing in the data, 1.02 ppm at 2 kHz"},
+    voxel={"region": "anterior cingulate", "size_mm": (25.0, 30.0, 15.0),
+           "simulated_brain": "icbm152", "simulated_position_mm": (0.0, 35.0, 20.0)},
+    processing="raw .data/.list, one channel, the list's sign applied per phase cycle step, "
+               "SNR per transient, median per subject",
+    date="18/09/26",
+    note="a check of the scaling law across vendor and coil; the voxel's place a stand-in; not in use",
+)
+
+
 #***************#
 #   catalogue   #
 #***************#
@@ -163,4 +201,4 @@ NOISE_COWS_PRISMA_3T = Calibration(
 # belongs to default_params
 CALIBRATIONS = {c.leaf: c for c in (NOISE_BIG_GABA_SIEMENS_3T,)}
 # records read the same way under other conditions, kept to test what carries a number there
-CHECKS = (NOISE_COWS_PRISMA_3T,)
+CHECKS = (NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T)
