@@ -497,32 +497,42 @@ class TestLineshape:
 #                                        Class TestNoiseModel                                      #
 #**************************************************************************************************#
 #                                                                                                  #
-# The drawn sigma belongs to one transient of the 8 mL reference voxel at 3 T; averages, volume,   #
-# and field scale it, and a step of one seed is a fresh noise stream on the same subject.          #
+# The drawn sigma belongs to one transient of the 8 mL reference voxel at 3 T and 5 kHz; averages, #
+# volume, field, and bandwidth scale it, and a step of one seed is fresh noise on one subject.     #
 #**************************************************************************************************#
 class TestNoiseModel:
 
-    def test_averages_volume_and_field_scale_the_noise(self, scan):
+    def test_averages_volume_field_and_bandwidth_scale_the_noise(self, scan):
         from mrsandbox.scan.voxel import noise_scale
 
         truth = scan.params.sample(seed=3)
+        dwell = 1.0 / 5000.0  # the calibration's bandwidth
         reference = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
-        assert reference.noise_sigma(truth) == pytest.approx(truth.noise.sigma)
-        assert reference.noise_sigma(truth, averages=16) == pytest.approx(truth.noise.sigma / 4.0)
+        assert reference.noise_sigma(truth, dwell) == pytest.approx(truth.noise.sigma)
+        assert reference.noise_sigma(truth, dwell, averages=16) == pytest.approx(truth.noise.sigma / 4.0)
         small = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=10.0)
-        assert small.noise_sigma(truth) == pytest.approx(8.0 * truth.noise.sigma)
+        assert small.noise_sigma(truth, dwell) == pytest.approx(8.0 * truth.noise.sigma)
         slab = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=(20.0, 20.0, 10.0))
-        assert slab.noise_sigma(truth) == pytest.approx(2.0 * truth.noise.sigma)
-        assert noise_scale(8.0, 7.0) == pytest.approx(3.0 / 7.0)
+        assert slab.noise_sigma(truth, dwell) == pytest.approx(2.0 * truth.noise.sigma)
+        assert noise_scale(8.0, 7.0, dwell) == pytest.approx(3.0 / 7.0)
+        # white receiver noise: four times the bandwidth doubles the per-point sigma
+        assert reference.noise_sigma(truth, dwell / 4.0) == pytest.approx(2.0 * truth.noise.sigma)
         # the empirical check: sixteen averages quarter the added noise
         quiet = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=Params(noise=dict(sigma=0.0)))
         loud = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=Params(noise=dict(sigma=2.0)))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
-        _, clean = quiet.voxel(**kw).fid(seed=5, npoints=1024)
-        _, one = loud.voxel(**kw).fid(seed=5, npoints=1024)
-        _, sixteen = loud.voxel(**kw).fid(seed=5, npoints=1024, averages=16)
+        grid = dict(npoints=1024, dwell_s=dwell)
+        _, clean = quiet.voxel(**kw).fid(seed=5, **grid)
+        _, one = loud.voxel(**kw).fid(seed=5, **grid)
+        _, sixteen = loud.voxel(**kw).fid(seed=5, **grid, averages=16)
         assert abs(np.std((one - clean).real) - 2.0) < 0.2
         assert abs(np.std((sixteen - clean).real) - 0.5) < 0.05
+        # and the spectrum's noise at a fixed duration does not depend on the bandwidth
+        _, wide = loud.voxel(**kw).fid(seed=5, npoints=2048, dwell_s=dwell / 2.0)
+        _, calm = quiet.voxel(**kw).fid(seed=5, npoints=2048, dwell_s=dwell / 2.0)
+        narrow_floor = np.std(np.fft.fft(one - clean) * dwell)
+        wide_floor = np.std(np.fft.fft(wide - calm) * dwell / 2.0)
+        assert abs(wide_floor / narrow_floor - 1.0) < 0.1
 
     def test_the_default_noise_reproduces_the_in_vivo_naa_snr(self, scan):
         # the calibration of the noise prior (scan.defaults): at the calibration

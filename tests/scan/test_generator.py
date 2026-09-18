@@ -93,10 +93,11 @@ class TestGenerator:
         quiet, _ = next(quiet_scan.generator(**VOXEL, batch_size=1, seed=5, npoints=1024))
         loud, _ = next(loud_scan.generator(**VOXEL, batch_size=1, seed=5, npoints=1024))
         # same seed and identical draw order: the difference is exactly the added noise,
-        # whose real and imaginary channels each carry the sampled sigma
+        # whose real and imaginary channels each carry the sampled sigma at the
+        # default 4 kHz (the sigma belongs to 5 kHz and white noise scales by the root)
         noise = loud - quiet
         assert np.abs(noise).max() > 0.0
-        assert abs(np.std(noise) - 2.0) < 0.2
+        assert abs(np.std(noise) - 2.0 * np.sqrt(0.8)) < 0.2
 
     def test_noise_draws_never_shift_the_next_truth(self, scan):
         # every sample owns its generator, so a quiet and a noisy stream of one seed
@@ -112,4 +113,4 @@ class TestGenerator:
         for a, b in zip(quiet_gen.truths, loud_gen.truths):
             assert a.conc.to_dict() == b.conc.to_dict()
         for i in range(3):
-            assert abs(np.std(loud[i] - quiet[i]) - 2.0) < 0.2
+            assert abs(np.std(loud[i] - quiet[i]) - 2.0 * np.sqrt(0.8)) < 0.2  # 4 kHz

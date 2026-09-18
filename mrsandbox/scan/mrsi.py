@@ -314,7 +314,7 @@ class MRSI:
 
         seed, truth, rng = draw(self.scan.params, seed)
         data, _, n_dead = self._decoded(truth, npoints, dwell_s)
-        noise = self._noise(truth, rng, npoints)
+        noise = self._noise(truth, rng, npoints, dwell_s)
         if noise is not None:
             data = data + noise
         hdr = self._header(seed, truth, dwell_s, n_dead)
@@ -332,7 +332,7 @@ class MRSI:
 
         seed, truth, rng = draw(self.scan.params, seed)
         data, names, n_dead = self._decoded(truth, npoints, dwell_s, components=True)
-        noise = self._noise(truth, rng, npoints)
+        noise = self._noise(truth, rng, npoints, dwell_s)
         if noise is None:
             noise = np.zeros(data.shape[:-1], dtype=np.complex64)
         data = np.concatenate([data, noise[..., None]], axis=-1)
@@ -417,7 +417,7 @@ class MRSI:
             data[:] = encoded
         return (data if components else data[..., 0]), components_names, n_dead
 
-    def _noise(self, truth, rng, npoints):
+    def _noise(self, truth, rng, npoints, dwell_s):
         """The receiver noise of one acquisition, (nx, ny, nz, npoints[, coils]), or
         None when the drawn sigma is zero."""
         coils = self.scan.coils
@@ -425,9 +425,10 @@ class MRSI:
         nz = self.partitions
         tail = (npoints,) + ((len(coils),) if coils is not None else ())
         # the drawn sigma scaled to the acquired cell (its in-plane size times the
-        # slab thickness) and the field; the averages enter per encode below
+        # slab thickness), the field, and the spectral bandwidth; the averages enter
+        # per encode below
         sigma = truth.noise.sigma * noise_scale(
-            self.voxel_mm ** 2 * self.thickness_mm / 1000.0, self.scan.engine.b0_t)
+            self.voxel_mm ** 2 * self.thickness_mm / 1000.0, self.scan.engine.b0_t, dwell_s)
         if sigma <= 0.0:
             return None
         noise = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)

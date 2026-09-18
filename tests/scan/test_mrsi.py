@@ -437,7 +437,7 @@ class TestAcquisitionWeighting:
         # cube is 0.064 mL against the 8 mL reference), four transients halve it
         from mrsandbox.scan.voxel import noise_scale
 
-        sigma = 2.0 * noise_scale(0.064, 3.0)
+        sigma = 2.0 * noise_scale(0.064, 3.0, 1.0 / 4000.0)
         assert abs(np.std(single.real) - sigma) < 0.1 * sigma
         assert abs(np.std(four.real) - sigma / 2.0) < 0.05 * sigma
 

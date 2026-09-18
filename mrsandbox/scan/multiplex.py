@@ -100,7 +100,7 @@ class Multiplex:
         for name in conditions:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             _, fid = voxel._clean_fid(truth, npoints, dwell_s)
-            stack.append(fid + self._noise(voxel, truth, rng, npoints, averages))
+            stack.append(fid + self._noise(voxel, truth, rng, npoints, dwell_s, averages))
         data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(conditions))
         hdr = self._header(conditions, position_mm, size_mm, seed, step, averages, truth)
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
@@ -123,7 +123,7 @@ class Multiplex:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             fids = voxel._component_fids(truth, npoints, dwell_s)
             names += [n for n in fids if n not in names]
-            fids["noise"] = self._noise(voxel, truth, rng, npoints, averages)
+            fids["noise"] = self._noise(voxel, truth, rng, npoints, dwell_s, averages)
             parts.append(fids)
         names.append("noise")
         zero = np.zeros(npoints, dtype=np.complex64)
@@ -138,9 +138,9 @@ class Multiplex:
         return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
 
     @staticmethod
-    def _noise(voxel, truth, rng, npoints, averages):
+    def _noise(voxel, truth, rng, npoints, dwell_s, averages):
         """One condition's receiver noise of `averages` transients, zeros when silent."""
-        sigma = voxel.noise_sigma(truth, averages)
+        sigma = voxel.noise_sigma(truth, dwell_s, averages)
         return (receiver_noise(rng, sigma, npoints) if sigma > 0.0
                 else np.zeros(npoints, dtype=np.complex64))
 
@@ -250,7 +250,7 @@ class Multiplex:
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
             fid = clean[name] * modulation
-            sigma = voxel.noise_sigma(truth)
+            sigma = voxel.noise_sigma(truth, dwell_s)
             if sigma > 0.0:
                 fid = fid + receiver_noise(rng, sigma, npoints)
             data[0, 0, 0, :, k] = fid

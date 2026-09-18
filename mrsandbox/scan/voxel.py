@@ -60,16 +60,19 @@ def draw(params, seed, step=0):
 #   noise scale        #
 #**********************#
 # the reference acquisition the drawn noise sigma belongs to: one transient of a 20 mm
-# cube (8 mL) at 3 T; SNR scales with the voxel volume, with the field (body-noise
-# dominated, stated), and with the square root of the averages, so the per-point
-# sigma scales inversely
-NOISE_REFERENCE = {"volume_ml": 8.0, "b0_t": 3.0}
+# cube (8 mL) at 3 T sampled at 5 kHz (the calibration's receiver bandwidth); SNR
+# scales with the voxel volume, with the field (body-noise dominated, stated), and
+# with the square root of the averages, so the per-point sigma scales inversely, and
+# the receiver's noise is white, so the per-point sigma grows with the square root of
+# the bandwidth (the noise of a spectrum of fixed duration does not depend on it)
+NOISE_REFERENCE = {"volume_ml": 8.0, "b0_t": 3.0, "bandwidth_hz": 5000.0}
 
 
-def noise_scale(volume_ml, b0_t, averages=1):
+def noise_scale(volume_ml, b0_t, dwell_s, averages=1):
     """The factor on the drawn sigma for an acquisition of `volume_ml` at `b0_t` tesla
-    averaged `averages` times, one at the reference."""
-    return (NOISE_REFERENCE["volume_ml"] / volume_ml) * (NOISE_REFERENCE["b0_t"] / b0_t) / np.sqrt(averages)
+    sampled every `dwell_s` and averaged `averages` times, one at the reference."""
+    return ((NOISE_REFERENCE["volume_ml"] / volume_ml) * (NOISE_REFERENCE["b0_t"] / b0_t)
+            * np.sqrt(1.0 / (dwell_s * NOISE_REFERENCE["bandwidth_hz"]) / averages))
 
 
 #**********************#
@@ -211,11 +214,12 @@ class Voxel:
         size = np.asarray(self.size_mm, dtype=np.float64) * np.ones(3)
         return float(np.prod(size)) / 1000.0
 
-    def noise_sigma(self, truth, averages=1):
+    def noise_sigma(self, truth, dwell_s, averages=1):
         """The per-point receiver noise of this voxel's acquisition: the drawn sigma
-        (one transient of the reference 8 mL voxel at 3 T) scaled by the volume, the
-        field, and the averages (noise_scale)."""
-        return truth.noise.sigma * noise_scale(self.volume_ml, self.scan.engine.b0_t, averages)
+        (one transient of the reference 8 mL voxel at 3 T and 5 kHz) scaled by the
+        volume, the field, the receiver bandwidth, and the averages (noise_scale)."""
+        return truth.noise.sigma * noise_scale(self.volume_ml, self.scan.engine.b0_t, dwell_s,
+                                               averages)
 
     #*****************#
     #   realization   #
@@ -419,7 +423,7 @@ class Voxel:
         """Render all components in one call and add the sampled complex Gaussian noise
         of `averages` averaged transients."""
         t, fid = self._clean_fid(truth, npoints, dwell_s)
-        sigma = self.noise_sigma(truth, averages)
+        sigma = self.noise_sigma(truth, dwell_s, averages)
         if sigma > 0.0:
             fid = fid + receiver_noise(rng, sigma, npoints)
         return t, fid
@@ -654,7 +658,7 @@ class Voxel:
 
         seed, truth, rng = draw(self.scan.params, seed, step)
         coils = self.scan.coils
-        sigma = self.noise_sigma(truth, averages)
+        sigma = self.noise_sigma(truth, dwell_s, averages)
         if coils is None:
             _, fid = self._render(truth, rng, npoints, dwell_s, averages)
             data = fid.reshape(1, 1, 1, npoints)
@@ -685,7 +689,7 @@ class Voxel:
 
         seed, truth, rng = draw(self.scan.params, seed, step)
         coils = self.scan.coils
-        sigma = self.noise_sigma(truth, averages)
+        sigma = self.noise_sigma(truth, dwell_s, averages)
         fids = self._component_fids(truth, npoints, dwell_s)
         names = list(fids)
         stack = [fids[name] for name in names]

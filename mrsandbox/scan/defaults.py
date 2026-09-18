@@ -155,8 +155,9 @@ def default_params(database=None, b0_t=3.0):
     # instrumental and physiological imperfections and artifact signals
     imperfections = Params(
         # noise: complex Gaussian per FID point of ONE transient of the reference
-        #   acquisition, a 20 mm cube (8 mL) at 3 T (scan.voxel NOISE_REFERENCE); every
-        #   acquisition scales it by its volume, field, and averages. Calibrated
+        #   acquisition, a 20 mm cube (8 mL) at 3 T sampled at 5 kHz (scan.voxel
+        #   NOISE_REFERENCE); every acquisition scales it by its volume, field,
+        #   receiver bandwidth, and averages. Calibrated
         #   17/09/26 against one in vivo 3 T dataset (Siemens Prisma, 64-channel head
         #   coil, PRESS TE 35 ms, TR 2 s, a 30 mm cube, 4096 points at 5 kHz, 32
         #   transients with the coils kept: dataset 28 of the BasisREMY REMY test
