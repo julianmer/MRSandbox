@@ -626,7 +626,7 @@ class TestNoiseModel:
         # plain transform puts NAA at 2.01 ppm (a conjugate and a 4.65 ppm carrier,
         # the NIfTI-MRS reading, would read the multiplets at 2.64 ppm in its place)
         ppm = np.fft.fftshift(np.fft.fftfreq(n, 1.0 / bw)) / cf
-        snrs = []
+        snrs, apodized = [], []
         for seed in range(12):
             _, fid = voxel.fid(seed=seed, npoints=n, dwell_s=1.0 / bw)
             real = np.fft.fftshift(np.fft.fft(fid)).real
@@ -635,7 +635,12 @@ class TestNoiseModel:
             noise = (ppm > -7.0) & (ppm < -3.0)  # upfield of every signal
             floor = real[noise] - np.polyval(np.polyfit(ppm[noise], real[noise], 1), ppm[noise])
             snrs.append(real[near].max() / floor.std())
+            # the record's own reading: a 10 Hz apodization takes the linewidth out
+            broad = np.fft.fftshift(np.fft.fft(fid * np.exp(-np.pi * 10.0 * np.arange(n) / bw))).real
+            floor = broad[noise] - np.polyval(np.polyfit(ppm[noise], broad[noise], 1), ppm[noise])
+            apodized.append(broad[near].max() / floor.std())
         assert 28.8 < np.median(snrs) < 48.0, snrs  # 36.4 and the simulated draws' spread
+        assert 95.0 < np.median(apodized) < 140.0, apodized  # 116.4 measured
 
     def test_a_step_is_fresh_noise_on_the_same_subject(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)

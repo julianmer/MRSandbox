@@ -98,6 +98,19 @@ class Calibration:
                 "extrapolated": {k: list(v) for k, v in self.departures(scan).items()}}
 
 
+#*****************#
+#   the measure   #
+#*****************#
+# The noise records read the single-transient NAA SNR twice: plain (Near et al. 2021) and
+# under a 10 Hz exponential apodization of data and simulation alike. The plain height
+# follows the in vivo linewidth and lineshape, which belong to the shim and the eddy
+# currents and not to the receive chain; apodized it hardly does (simulated at the Big
+# GABA conditions: halving the line doubles the plain SNR, 35.6 to 73.9, and moves the
+# apodized one from 116.2 to 120.9). The value of a record is the apodized reading.
+APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodization of data and "
+            "simulation alike")
+
+
 #********************#
 #   noise, 3 tesla   #
 #********************#
@@ -109,7 +122,9 @@ NOISE_BIG_GABA_SIEMENS_3T = Calibration(
                            "the noise standard deviation of a signal-free stretch after a linear "
                            "detrend, no apodization)",
               "median": 36.4, "site_medians": (38.5, 33.8, 36.7), "p5_p95": (28.8, 43.6),
-              "subjects": 36, "simulated_at_value": 36.6},
+              "subjects": 36, "simulated_at_value": 36.6,
+              "apodized": {"statistic": APODIZED, "median": 116.4, "simulated_at_value": 116.2,
+                           "implied_value": 6.29}},
     source={"dataset": "Big GABA, PRESS arm, sites S1, S5, S6",
             "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
             "url": "https://www.nitrc.org/projects/biggaba/"},
@@ -132,21 +147,25 @@ NOISE_BIG_GABA_SIEMENS_3T = Calibration(
 #***************************#
 #   noise, prisma, slaser   #
 #***************************#
-# serves the siemens_prisma_3t preset. The 3 T prior above, carried here by noise_scale,
-# gives an SNR of 14.3 where the 29 spectra give 21.1: the Prisma with its 32-channel
-# array and semi-LASER is 1.5 times quieter than the Trio sites with PRESS. The narrower
-# in vivo line (4.6 to 5.5 Hz by region against the simulated 5.8) is a part of it and is
-# absorbed into the value (stated). By region: prefrontal 23.7, occipital 22.2, posterior
+# serves the siemens_prisma_3t preset. At sigma 6.3 the simulator gives an apodized SNR of
+# 30.6 where the 29 spectra give 60.5: the Prisma with its 32-channel array and semi-LASER
+# is twice as quiet as the Trio sites with PRESS. The plain reading says 1.6 (13.3 against
+# 21.1, sigma 4.0); the two readings agree for the PRESS records and not here, so part of
+# the gap may sit in the ideal SemiLaser against the played one (open). By region, plain: prefrontal 23.7, occipital 22.2, posterior
 # frontal near the vertex 16.3, where the simulated places give 14.0, 15.0, 14.0: the
 # place under the array, which the pooled value does not carry.
 NOISE_COWS_PRISMA_3T = Calibration(
     leaf="noise.sigma",
-    value=4.3,
-    prior=(3.4, 6.4),
+    value=3.2,
+    prior=(2.4, 4.6),
     measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 21.1,
               "p5_p95": (14.1, 26.7), "region_medians": (23.7, 22.2, 16.3), "subjects": 10,
               "spectra": 29, "naa_fwhm_hz": (4.9, 5.6, 4.6), "simulated_naa_fwhm_hz": 5.8,
-              "simulated_at_big_gaba_value": 14.3, "averaged_over_single": 5.55},
+              "simulated_at_big_gaba_value": 13.3, "implied_value": 3.98,
+              "averaged_over_single": 5.55,
+              "apodized": {"statistic": APODIZED, "median": 60.5, "region_medians": (70.4, 64.0, 49.5),
+                           "simulated_at_big_gaba_value": 30.6, "implied_value": 3.19,
+                           "implied_p5_p95": (2.44, 4.60)}},
     source={"dataset": "COWS, OpenNeuro ds006812, the VAPOR metabolite scans of all subjects "
                        "and regions (one occipital file unreadable)",
             "citation": "Igwe et al. 2025, Magn Reson Med, doi 10.1002/mrm.30550",
@@ -166,7 +185,7 @@ NOISE_COWS_PRISMA_3T = Calibration(
     processing=NOISE_BIG_GABA_SIEMENS_3T.processing,
     date="18/09/26",
     presets=("siemens_prisma_3t",),
-    note="the places are stand-ins; the prior is the spectra's 5th to 95th percentile",
+    note="the places are stand-ins; the prior is the spectra's 5th to 95th percentile, apodized",
 )
 
 
@@ -174,17 +193,21 @@ NOISE_COWS_PRISMA_3T = Calibration(
 #   noise, 3 tesla, one channel   #
 #*********************************#
 # serves the philips_achieva_3t preset: a transmit-receive birdcage in place of an array.
-# The Big GABA value gives 19.2 where the 15 subjects give 13.0 (11.1 to 15.5): the
-# birdcage hears a medial frontal voxel 1.5 times worse than the arrays of Big GABA hear
+# The Big GABA value gives 20.4 where the 15 subjects give 13.0 (11.1 to 15.5), apodized
+# 72.1 against 45.1: both readings say 1.6. The
+# birdcage hears a medial frontal voxel 1.6 times worse than the arrays of Big GABA hear
 # a parietal one, the order an array's gain at that depth has. With COWS above (1.5 the
 # other way, a newer scanner and array) it says what the drawn sigma is: a property of
 # the receive chain, scanner and coil, that one prior per field does not carry.
 NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
     leaf="noise.sigma",
-    value=9.3,
-    prior=(7.8, 10.9),
+    value=10.1,
+    prior=(8.1, 11.2),
     measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 13.0,
-              "range": (11.1, 15.5), "subjects": 15, "simulated_at_big_gaba_value": 19.2},
+              "range": (11.1, 15.5), "subjects": 15, "simulated_at_big_gaba_value": 20.4,
+              "implied_value": 9.9,
+              "apodized": {"statistic": APODIZED, "median": 45.1, "simulated_at_big_gaba_value": 72.1,
+                           "implied_value": 10.07, "implied_p5_p95": (8.08, 11.19)}},
     source={"dataset": "fMRS in pain, the functional runs",
             "citation": "Archibald et al. 2020, Sci Rep 10:19218",
             "url": "https://www.nitrc.org/projects/fmrs_2020"},
@@ -202,7 +225,48 @@ NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
                "SNR per transient, median per subject",
     date="18/09/26",
     presets=("philips_achieva_3t",),
-    note="the voxel's place and the echo's split are stand-ins; the prior is the subjects' range",
+    note="the voxel's place and the echo's split are stand-ins; the prior is the subjects' 5th "
+         "to 95th percentile, apodized",
+)
+
+
+#**********************#
+#   noise, ge, press   #
+#**********************#
+# serves the ge_mr750_3t preset: the two GE sites of Big GABA whose P-files hold the 64
+# transients apart (psd jpress). Apodized 137.8 against the simulated 116.2: the 8-channel
+# array is 1.2 times quieter than the Trio sites. Plain, the same data read 27.7 against
+# 35.6, the other way: the GE lines are broad and misshapen before an eddy current
+# correction, which is what the apodized reading is for. The four other GE sites store
+# frames of 2 or 8 summed excitations; divided by the square root of that they read 78 to
+# 101 apodized where these two read 138: a frame is not its excitations' ideal sum, and
+# no record is built on one.
+NOISE_BIG_GABA_GE_3T = Calibration(
+    leaf="noise.sigma",
+    value=5.3,
+    prior=(4.5, 8.8),
+    measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 27.7,
+              "subjects": 24, "simulated_at_big_gaba_value": 35.6, "implied_value": 8.08,
+              "apodized": {"statistic": APODIZED, "median": 137.8, "site_medians": (136.7, 139.0),
+                           "simulated_at_big_gaba_value": 116.2, "implied_value": 5.31,
+                           "implied_p5_p95": (4.48, 8.84)},
+              "summed_frame_sites_apodized": {"G1": 91.8, "G4": 89.9, "G5": 78.4, "G6": 100.6}},
+    source={"dataset": "Big GABA, PRESS arm, sites G7, G8",
+            "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+            "url": "https://www.nitrc.org/projects/biggaba/"},
+    scanner={"vendor": "ge", "model": None, "software": "P-file revision 24 (DV24, the MR750 "
+             "generation); the model is not in the files", "field_t": 3.0},
+    coil={"channels": (8, 8), "name": "8HRBRAIN"},
+    sequence={"name": "PRESS", "product": "jpress", "te_s": 0.035, "tr_s": 2.0,
+              "simulated_as": "Press(te1_s=0.011, te2_s=0.024, tr_s=2.0)"},
+    acquisition={"npoints": 2048, "bandwidth_hz": 2000.0, "transients": 64, "measured_on": 1,
+                 "water_suppressed": True},
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="P-files through spec2nii, noise-whitened SVD coil combination (weights from the "
+               "mean transient), SNR per transient, median per subject",
+    date="18/09/26",
+    presets=("ge_mr750_3t",),
+    note="the prior is the subjects' 5th to 95th percentile, apodized",
 )
 
 
@@ -235,7 +299,8 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
 # the calibrations in use. A record serves the scanner presets it names; the first record
 # of a leaf is the fallback for every other scanner, and a scan's header
 # says where it departs from the record it got (`Calibration.departures`)
-CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T)
+CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
+                NOISE_BIG_GABA_GE_3T)
 
 
 def calibrations(scanner=None):

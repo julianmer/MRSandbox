@@ -203,7 +203,7 @@ def default_params(database=None, b0_t=3.0, scanner=None):
         #   (tests/scan/test_scan TestNoiseModel gates the calibration). The record
         #   with the exact conditions is scan.calibrations, and every acquisition's
         #   header names it and the conditions the scan departs from. A scanner preset
-        #   with its own record takes that one (siemens_prisma_3t: COWS, sigma 4.3).
+        #   with its own record takes that one (scan.calibrations: the Prisma, the Achieva, the GE).
         noise=dict(sigma=calibrations(scanner)["noise.sigma"].prior),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
