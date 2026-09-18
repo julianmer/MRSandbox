@@ -53,9 +53,13 @@ class TestLimits:
         assert Press(te1_s=0.011, te2_s=0.019).feasible(scanner)
         assert not Press(te1_s=0.0002, te2_s=0.0002).feasible(scanner)
         # semi-LASER: the adiabatic pulses take their own time, the delays absorb the 90
-        assert SemiLaser(te_s=0.030, afp_peak_hz=GAMMA * 24.0).feasible(scanner)
-        # the library default peak (1500 Hz, 35 uT) is above the stated 3 T body coil limit
-        assert SemiLaser(te_s=0.030).violations(scanner)[0].startswith("shaped pulse peak 35.2 uT")
+        # and the library default (1000 Hz, 23.5 uT) fits the 3 T body coil, though not
+        # the 15 uT of the Philips preset
+        assert SemiLaser(te_s=0.030).feasible(scanner)
+        assert SemiLaser(te_s=0.030, afp_peak_hz=1500.0).violations(scanner)[0].startswith(
+            "shaped pulse peak 35.2 uT")
+        assert SemiLaser(te_s=0.030).violations(Scanner.preset("philips_elition_3t"))[0].startswith(
+            "shaped pulse peak 23.5 uT")
 
     def test_selective_bands_take_the_gaussian_length(self):
         scanner = Scanner.preset("generic_3t")

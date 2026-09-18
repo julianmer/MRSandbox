@@ -69,4 +69,15 @@ PRESETS = {
                           max_slew_t_m_s=200.0),
     "generic_7t": Scanner("generic_7t", 7.0, peak_b1_ut=30.0, max_grad_mt_m=70.0,
                           max_slew_t_m_s=200.0),
+    # the three 3 T systems of the across-vendor semi-LASER (Deelchand et al. 2021, NMR
+    # Biomed 34:e4218): the body coil peak B1 as the paper states it (GE and Siemens
+    # between 20 and 25 uT, the upper end typed; Philips 13.5 uT by default, raised to
+    # 15 uT for the study, 22 uT on later releases), the gradients from the vendors'
+    # specifications (Prisma XR 80/200, MR750 XRM 50/200, Elition Vega HP 45/220)
+    "siemens_prisma_3t": Scanner("siemens_prisma_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=80.0,
+                                 max_slew_t_m_s=200.0),
+    "ge_mr750_3t": Scanner("ge_mr750_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=50.0,
+                           max_slew_t_m_s=200.0),
+    "philips_elition_3t": Scanner("philips_elition_3t", 3.0, peak_b1_ut=15.0, max_grad_mt_m=45.0,
+                                  max_slew_t_m_s=220.0),
 }

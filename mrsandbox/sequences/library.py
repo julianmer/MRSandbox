@@ -463,12 +463,18 @@ class SemiLaser(Sequence):
         afp_bandwidth_hz: Sweep bandwidth of each adiabatic pulse.
         afp_peak_hz: Peak RF amplitude; must sit above the adiabatic threshold.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+
+    The defaults (6 ms, 1.5 kHz, 1000 Hz or 23.5 uT) stay within the 20 to 25 uT a 3 T
+    body coil delivers (Deelchand et al. 2021, NMR Biomed 34:e4218) and keep the echo
+    down to 70 percent of the nominal B1; the plain hyperbolic secant pays for that
+    with its bandwidth (the gradient-modulated pulses of that paper reach 10 kHz at
+    15 uT).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, afp_duration_s=0.005, afp_bandwidth_hz=2000.0, afp_peak_hz=1500.0,
+    def __init__(self, te_s, afp_duration_s=0.006, afp_bandwidth_hz=1500.0, afp_peak_hz=1000.0,
                  tr_s=None):
         self.te_s = te_s
         self.afp_duration_s = afp_duration_s
