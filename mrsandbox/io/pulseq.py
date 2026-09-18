@@ -260,6 +260,9 @@ def write_seq(sequence, path, npoints, dwell_s, f0_mhz, center_ppm=4.65,
                 signal=signal, flip_angle=2.0 * math.pi * np.abs(signal).sum() * dt,
                 dwell=dt, freq_offset=freq_offset, no_signal_scaling=True,
                 system=system, use=use)
+            if event.gradient_hz_per_mm and event.gradient_shape is not None:
+                raise ValueError("a modulated slice gradient (gradient_shape) does not export; "
+                                 "only flat slice gradients play as trapezoids")
             if event.gradient_hz_per_mm:
                 slab = pypulseq.make_trapezoid(
                     channel=event.gradient_axis, amplitude=float(event.gradient_hz_per_mm) * 1000.0,

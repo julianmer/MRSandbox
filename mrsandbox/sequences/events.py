@@ -255,6 +255,8 @@ class ShapedPulse(Event):
         phase_deg: RF phase at t = 0 in degrees (0 = x, 90 = y).
         gradient_hz_per_mm: Slice gradient strength; 0 plays without a gradient.
         gradient_axis: The slice gradient axis, "x", "y", or "z".
+        gradient_shape: Optional per-step modulation of the slice gradient, relative
+            to gradient_hz_per_mm (gradient-modulated pulses); None plays it flat.
         extent_mm: Isochromat span when a gradient is set.
         frequency_hz: Optional per-step frequency modulation (adiabatic sweeps).
         peak_hz: Optional peak RF amplitude in Hz; when set the envelope is scaled to
@@ -268,14 +270,14 @@ class ShapedPulse(Event):
     """
 
     free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz",
-            "phase_deg", "induced")
+            "phase_deg", "induced", "gradient_shape")
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, flip_deg, duration_s, envelope, offset_ppm=0.0, phase_deg=0.0,
                  gradient_hz_per_mm=0.0, gradient_axis="x", extent_mm=20.0,
-                 frequency_hz=None, peak_hz=None, induced=None):
+                 frequency_hz=None, peak_hz=None, induced=None, gradient_shape=None):
         if gradient_axis not in ("x", "y", "z"):
             raise ValueError(f"unknown gradient axis {gradient_axis!r}; known: x, y, z")
         self.flip_deg = flip_deg
@@ -289,6 +291,7 @@ class ShapedPulse(Event):
         self.frequency_hz = frequency_hz
         self.peak_hz = peak_hz
         self.induced = induced
+        self.gradient_shape = gradient_shape
 
     #***************#
     #   gaussian    #
@@ -354,6 +357,38 @@ class ShapedPulse(Event):
         return cls(None, duration_s, envelope, frequency_hz=frequency, peak_hz=peak_hz,
                    **kwargs)
 
+    #*****************#
+    #   goia wurst    #
+    #*****************#
+    @classmethod
+    def goia_wurst(cls, duration_s, bandwidth_hz, peak_hz, n=16, m=4, modulation=0.85, steps=256,
+                   **kwargs):
+        """A gradient-modulated adiabatic full passage, GOIA-W(n, m): the bandwidth of
+        a much stronger pulse at a peak B1 a body coil delivers.
+
+        Andronesi et al. (J Magn Reson 203 (2010) 283), Eq. 9 and 4: the amplitude is
+        1 - |sin(pi/2 (2t/T - 1))|^n, the slice gradient (1 - f) + f |sin(...)|^m
+        relative to its maximum (`modulation` is f: the gradient dips to 1 - f at the
+        pulse's centre, where the B1 peaks), and the frequency follows the gradient
+        times the running integral of B1^2 / G, scaled so the sweep spans the
+        bandwidth at the full gradient; the adiabatic factor is then the same at
+        every position of the slab. The defaults are the orders and the modulation of
+        the across-vendor 3 T semi-LASER (Deelchand et al. 2021, NMR Biomed 34:e4218:
+        4.5 ms, 10 kHz, 15 uT). Give gradient_hz_per_mm (the bandwidth over the slab
+        thickness) and the pulse plays under its modulated gradient; without one
+        only the sweep remains.
+        """
+        tau = np.abs(np.sin(0.5 * np.pi * (2.0 * (np.arange(steps) + 0.5) / steps - 1.0)))
+        amplitude = 1.0 - tau ** n
+        gradient = (1.0 - modulation) + modulation * tau ** m
+        sweep = np.cumsum(amplitude * amplitude / gradient)
+        sweep = sweep - 0.5 * amplitude * amplitude / gradient  # to the step midpoints
+        frequency = bandwidth_hz * gradient * (sweep / sweep[-1] - 0.5)
+        shape = gradient.astype(np.float32) if kwargs.get("gradient_hz_per_mm") else None
+        return cls(None, duration_s, amplitude.astype(np.float32),
+                   frequency_hz=frequency.astype(np.float32), peak_hz=peak_hz,
+                   gradient_shape=shape, **kwargs)
+
     #***********#
     #   sinc    #
     #***********#
@@ -397,7 +432,7 @@ class ShapedPulse(Event):
         # the frame: the offset and the slice gradient are one z term delta Fz, with
         # delta a scalar or one value per isochromat
         delta = -ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
-        if self.gradient_hz_per_mm:
+        if self.gradient_hz_per_mm and self.gradient_shape is None:
             delta = delta + self.gradient_hz_per_mm * ops.convert_to_tensor(
                 getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
         offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype="float32") * ctx.f0_mhz
@@ -433,6 +468,14 @@ class ShapedPulse(Event):
         else:
             turns = ops.expand_dims(delta * t_mid, 1)
         total = ops.convert_to_tensor(self.duration_s, dtype="float32") * delta
+        if self.gradient_hz_per_mm and self.gradient_shape is not None:
+            # a modulated slice gradient: its running integral at the step midpoints
+            shape = ops.cast(ops.convert_to_tensor(self.gradient_shape), "float32")
+            x = self.gradient_hz_per_mm * ops.convert_to_tensor(
+                getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
+            run = (ops.cumsum(shape) - shape / 2.0) * dt
+            turns = turns + ops.expand_dims(run, 1) * ops.expand_dims(x, 0)
+            total = total + ops.sum(shape) * dt * x
         if self.induced is not None:
             # an induced field is one more frame term, its cycles given per step
             induced = ops.cast(ops.convert_to_tensor(self.induced), "float32")

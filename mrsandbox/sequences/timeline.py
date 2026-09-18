@@ -50,8 +50,8 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
     moment under the scanner's gradient and slew limits, in the delay next to it
     (starting where the kick sits when a delay follows, ending there when a pulse
     follows, so a crusher pair straddles its refocusing pulse); a ShapedPulse's slice
-    gradient is flat for the pulse with its ramps just before and after (borrowed
-    from the surrounding delays); ideal pulses and coherence filters take no time
+    gradient is flat for the pulse (or follows its gradient_shape) with its ramps
+    just before and after (borrowed from the surrounding delays); ideal pulses and coherence filters take no time
     and play no gradient; the readout, from `sequence.duration_s` on, is
     ungradiented. Overlapping trapezoids add.
     """
@@ -80,4 +80,11 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
                 amplitude = float(event.gradient_hz_per_mm) / (gamma_mhz_t * 1e3)  # T/m
                 ramp = abs(amplitude) / max_slew
                 play(event.gradient_axis, now - ramp, amplitude, ramp, float(event.duration_s))
+                if event.gradient_shape is not None:
+                    # the modulation rides on the flat top
+                    shape = np.asarray(event.gradient_shape, dtype=np.float64)
+                    inside = (t >= now) & (t <= now + float(event.duration_s))
+                    at = (np.arange(shape.size) + 0.5) * float(event.duration_s) / shape.size
+                    waveforms[event.gradient_axis][inside] += amplitude * 1e3 * (
+                        np.interp(t[inside] - now, at, shape) - 1.0)
     return t, waveforms

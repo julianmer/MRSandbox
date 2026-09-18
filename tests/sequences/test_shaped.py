@@ -355,6 +355,37 @@ class TestAdiabatic:
                 assert abs(mz[0] - mz[1]) < bound
 
     #*******************#
+    #   goia wurst      #
+    #*******************#
+    def test_goia_wurst_inverts_a_10_khz_slab_at_15_ut(self):
+        # the across-vendor 3 T refocusing pulse (Deelchand 2021: GOIA-W(16,4), 4.5 ms,
+        # 10 kHz, 15 uT) under its modulated gradient: the slab inverts, three slab
+        # widths average to a third, and a plain hyperbolic secant of the same
+        # length, bandwidth, and peak under a flat gradient cannot follow
+        water = WaterSource.system(gamma_mhz_t=GAMMA)
+        slab = dict(offset_ppm=4.65, gradient_hz_per_mm=10000.0 / 20.0, gradient_axis="z")
+
+        def mz(pulse):
+            engine = Engine(B0_T, isochromats=64)
+            sequence = Sequence(pulse, CoherenceFilter(0), Pulse(90.0))
+            _, amps = engine.lines(sequence, water)
+            return float(np.real(ops.convert_to_numpy(amps)).sum())
+
+        full = mz(ShapedPulse.gaussian(1e-4, 0.001, offset_ppm=4.65))
+        goia = lambda extent: ShapedPulse.goia_wurst(0.0045, 10000.0, GAMMA * 15.0, extent_mm=extent,
+                                                     **slab)
+        assert mz(goia(16.0)) / full < -0.97
+        assert abs(mz(goia(60.0)) / full - 1.0 / 3.0) < 0.03
+        secant = ShapedPulse.hyperbolic_secant(0.0045, 10000.0, GAMMA * 15.0, extent_mm=16.0, **slab)
+        assert mz(secant) / full > -0.7
+        # the gradient dips to 1 - f where the B1 peaks, and both are timings
+        pulse = goia(16.0)
+        assert abs(float(np.min(pulse.gradient_shape)) - 0.15) < 1e-3
+        assert abs(float(np.max(pulse.gradient_shape)) - 1.0) < 1e-3
+        assert pulse.structure() == ShapedPulse.goia_wurst(0.004, 8000.0, 500.0, extent_mm=16.0,
+                                                           **slab).structure()
+
+    #*******************#
     #   semi-laser      #
     #*******************#
     def test_semi_laser_keeps_the_echo_where_press_loses_it(self, engine):

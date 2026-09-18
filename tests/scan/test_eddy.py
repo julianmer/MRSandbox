@@ -78,6 +78,17 @@ class TestTimeline:
         assert y[np.argmin(np.abs(t - (0.005 - rise / 2.0)))] < 6.0  # mid ramp
         assert y[t < 0.005 - rise - TIME_STEP_S].max() == 0.0
 
+    def test_a_modulated_slice_gradient_rides_on_the_flat_top(self):
+        scanner = Scanner.preset("generic_3t")
+        pulse = ShapedPulse.goia_wurst(0.0045, 10000.0, GAMMA * 15.0, gradient_hz_per_mm=GAMMA * 10.0,
+                                       gradient_axis="y")
+        t, waves = gradient_waveforms(Sequence(Delay(0.005), pulse, Delay(0.005)), scanner,
+                                      TIME_STEP_S, 0.015)
+        y = waves["y"]
+        assert abs(y[np.argmin(np.abs(t - 0.00725))] - 1.5) < 0.05  # 1 - f at the centre
+        assert abs(y[np.argmin(np.abs(t - 0.00502))] - 10.0) < 0.2  # the full gradient at the edge
+        assert y.max() <= 10.0 + 1e-6
+
 
 #**************************************************************************************************#
 #                                        Class TestResponse                                        #
