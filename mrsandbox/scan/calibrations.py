@@ -181,11 +181,16 @@ NOISE_COWS_PRISMA_3T = Calibration(
     voxel={"region": "prefrontal, occipital, posterior frontal", "size_mm": (20.0, 20.0, 20.0),
            "size_note": "20 mm in the headers, 25 mm in the dataset's README",
            "simulated_brain": "icbm152",
-           "simulated_position_mm": ((0.0, 50.0, 25.0), (0.0, -75.0, 10.0), (0.0, -10.0, 55.0))},
+           "simulated_position_mm": ((0.0, 50.0, 25.0), (0.0, -75.0, 10.0), (0.0, -10.0, 55.0)),
+           "registered_position_mm": ((-1.0, 51.0, 18.0), (0.0, -75.0, 21.0), (0.0, 4.0, 50.0)),
+           "registered_note": "the headers' voxel centres carried through an affine registration "
+                              "of each subject's T1 to the ICBM152 brain, medians over subjects; "
+                              "the file named Parietal of subject 1 lies occipital"},
     processing=NOISE_BIG_GABA_SIEMENS_3T.processing,
     date="18/09/26",
     presets=("siemens_prisma_3t",),
-    note="the places are stand-ins; the prior is the spectra's 5th to 95th percentile, apodized",
+    note="simulated at stand-in places within 15 mm of the registered ones; the prior is the "
+         "spectra's 5th to 95th percentile, apodized",
 )
 
 

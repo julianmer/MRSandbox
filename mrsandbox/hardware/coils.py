@@ -169,17 +169,29 @@ class CoilArray:
             loops.append(Loop(loop_radius_mm, center, normal=(-np.cos(phi), -np.sin(phi), 0.0)))
         return cls(loops)
 
+    # the centre of the brain in the phantoms' world (the box of the ICBM152 brain runs
+    # from -106 to 74 mm in y and -70 to 82 mm in z): a head array sits around the head,
+    # not around the world origin near the anterior commissure
+    HEAD_CENTER_MM = (0.0, -16.0, 6.0)
+
     #************#
     #   helmet   #
     #************#
     @classmethod
     def helmet(cls, rows=((0.0, 1), (35.0, 6), (65.0, 10), (95.0, 15)), radius_mm=110.0,
-               loop_radius_mm=38.0, center_mm=(0.0, 0.0, 0.0)):
+               loop_radius_mm=38.0, center_mm=HEAD_CENTER_MM):
         """Loops tiling a sphere about the head in rows, normals pointing inward: the
         close-fitting head arrays (the default rows, one loop on top and rings of 6,
         10, and 15 at 35, 65, and 95 degrees from the top, make 32 channels; stated
         layout, the vendors' differ in detail). `rows` is ((polar angle in degrees
-        from +z, loops in the ring), ...); alternate rings are turned by half a loop."""
+        from +z, loops in the ring), ...); alternate rings are turned by half a loop.
+
+        Checked on the COWS data (scan.calibrations, 10 subjects, a Prisma 32-channel
+        array, the voxels placed through each subject's T1): the apodized SNR of the
+        prefrontal, occipital, and posterior frontal voxels runs 1 : 0.91 : 0.69, this
+        helmet gives 1 : 0.74 : 0.49, the right order and too steep (about the world
+        origin it gave 1 : 2.31 : 0.81). A sphere around a head that is longer than
+        wide, stated."""
         loops = []
         for index, (polar_deg, count) in enumerate(rows):
             theta = np.radians(polar_deg)
@@ -202,7 +214,7 @@ class CoilArray:
     #************#
     #   loaded   #
     #************#
-    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=(0.0, 0.0, 0.0), own_noise=0.3):
+    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=HEAD_CENTER_MM, own_noise=0.3):
         """The same array with its noise resistance matrix computed from the geometry:
         R_ij is the volume integral of E_i . E_j over the conductive sample (Roemer
         Eq. [9]; sample noise dominant, uniform conductivity), with E of a loop

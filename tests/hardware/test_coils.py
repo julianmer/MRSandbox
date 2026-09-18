@@ -18,6 +18,7 @@
 #   imports   #
 #*************#
 import importlib.util
+import pathlib
 
 import numpy as np
 import pytest
@@ -184,7 +185,7 @@ class TestNoiseByPlace:
         assert abs(helmet.noise_gain(self.REFERENCE) - 1.0) < 1e-6
         assert abs(helmet.calibrated(self.REFERENCE).noise_gain(self.REFERENCE) - 1.0) < 1e-6
         centre, cortex = helmet.noise_gain((0.0, 0.0, 0.0)), helmet.noise_gain((0.0, -75.0, 20.0))
-        assert centre > 2.0 > 1.0 > cortex
+        assert centre > 1.4 > 1.0 > cortex
         # one occipital loop hears the back of the head and hardly the front
         loop = CoilArray.surface((0.0, -110.0, 20.0), (0.0, 1.0, 0.0)).calibrated(self.REFERENCE)
         assert loop.noise_gain((0.0, 60.0, 20.0)) > 5.0 * loop.noise_gain((0.0, -75.0, 20.0))
@@ -221,6 +222,24 @@ class TestNoiseByPlace:
         header = placed.acquire(seed=1, npoints=256).hdr_ext["SimulationPhantom"]
         assert header["calibrations"]["noise.sigma"]["extrapolated"] == {}
         assert abs(header["noise_place"] - ratio) < 1e-6
+
+
+    @pytest.mark.skipif(not (pathlib.Path(__file__).parents[2] / "data/noise_data/noise_10312025.nii").exists(),
+                        reason="the measured noise scan is placed by hand")
+    def test_a_measured_noise_scan_serves_as_the_map(self, pieces):
+        # a noise-only scan of a 32-channel GE array reconstructed by the scanner: the level
+        # rises toward the centre of the coil, away from the elements (scanner coordinates
+        # taken as the phantom's, stated)
+        import nibabel as nib
+
+        from mrsandbox.phantom.volume import Volume
+
+        image = nib.load(str(pathlib.Path(__file__).parents[2] / "data/noise_data/noise_10312025.nii"))
+        level = Volume(np.asarray(image.dataobj, dtype=np.float32), image.affine, name="noise_10312025")
+        scan = VirtualScan(*pieces, noise_map=level)
+        assert abs(scan.voxel(self.REFERENCE, 30.0).noise_place() - 1.0) < 1e-9
+        assert 1.2 < scan.voxel((0.0, 0.0, 0.0), 30.0).noise_place() < 1.7
+        assert scan.voxel((0.0, -75.0, 20.0), 30.0).noise_place() < 1.0
 
 
 #**************************************************************************************************#
