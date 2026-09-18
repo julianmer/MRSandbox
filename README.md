@@ -57,8 +57,8 @@ This repository consists of the following main structures:
   citation beside each dict, including the de Graaf concentration ranges, per metabolite T2 pooled
   from the Gudmundson database in `externals/`, per metabolite T1 typed from Mlynarik 2001,
   Ethofer 2003, and Traber 2004, the published WET and VAPOR suppression series, and the de Graaf
-  RF pulse characteristics, and the published functions by which every metabolite shift moves
-  with temperature and pH (Wermter et al. 2026). Pooling across sources is code, never data.
+  RF pulse characteristics, and the published functions by which the metabolite shifts and
+  couplings move with temperature and pH (Wermter et al. 2026). Pooling across sources is code, never data.
 * The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
   any position, together with swappable water, lipid, macromolecule, and downfield sources
   (coupled mini spin systems, LCModel style Gaussians, the measured consensus spectrum, or the
@@ -95,8 +95,8 @@ This repository consists of the following main structures:
   isochromat ensemble physically, and named designs compose from the same events: PRESS, STEAM,
   semi-LASER, CHESS, WET, and VAPOR ship with their published series, and J-difference editing
   spans MEGA-PRESS plus the Hadamard-encoded HERMES and HERCULES schemes, whose dual-band editing
-  pulses and combination weights ship as typed tables. PRESS, STEAM, semi-LASER, and MEGA-PRESS
-  also ship with their localization played: slice-selective pulses on three axes, the voxel summed by
+  pulses and combination weights ship as typed tables. PRESS, STEAM, semi-LASER, MEGA-PRESS,
+  MEGA-semi-LASER, and the Hadamard schemes also ship with their localization played: slice-selective pulses on three axes, the voxel summed by
   one-dimensional projection (Zhang et al. 2017), so the voxel profile, the chemical shift
   displacement (lactate's lost doublet at TE 144 ms), and the scalp fat a profile reaches
   outside the nominal box all emerge. The b-value of any sequence follows from its own gradient events. Every timing and
@@ -112,9 +112,12 @@ This repository consists of the following main structures:
   (jit, autograd) live upstream in NIfTI-MRS+ so that anyone can use them.
 * The `mrsandbox/scan/` folder composes everything into `VirtualScan` and `Voxel`, scales up to
   MRSI slices and slabs (a voxel lattice sharing one truth, spatial contrast from the anatomy,
-  Cartesian, EPSI, and non-Cartesian trajectories, NIfTI-MRS with real spatial dimensions),
-  multiplexes named conditions and transient schedules against one truth, and provides the on
-  the fly generators for training. The instrumental imperfections (spurious echoes, eddy
+  Cartesian, EPSI, and non-Cartesian trajectories, NIfTI-MRS with real spatial dimensions; with a
+  localized design the lattice is excited in that design's box, every cell at its own place in
+  it, so the chemical shift displacement runs across the grid),
+  multiplexes named conditions and transient schedules against one truth (a head that moves or
+  turns between transients is read where the voxel then lies in it, under the shim of the
+  planned place), and provides the on the fly generators for training. The instrumental imperfections (spurious echoes, eddy
   current phase, drift and motion across transients) are rendered by
   [Augmentrum](https://github.com/julianmer/Augmentrum), installed as the `augment` extra; the
   eddy currents a design's own gradients induce come from the scanner's gradient impulse
