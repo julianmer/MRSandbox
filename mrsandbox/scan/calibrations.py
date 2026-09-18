@@ -365,7 +365,36 @@ def calibrations(scanner=None):
         if name in record.presets:
             chosen[record.leaf] = record
     return chosen
+
+
+#***************#
+#   linewidth   #
+#***************#
+# a check of the stated lineshape prior (scan.defaults lineshape.gauss_hz, 2 to 6 Hz at 3 T):
+# the NAA singlet's width in the averaged spectra of the two Siemens datasets above against
+# the simulated one. The prior covers both; it is not fitted to them.
+LINEWIDTH_SIEMENS_3T = Calibration(
+    leaf="lineshape.gauss_hz",
+    value=4.0,
+    prior=(2.0, 6.0),
+    measured={"statistic": "full width at half maximum of the NAA singlet in the averaged, "
+                           "coil-combined spectrum, eightfold zero filled, no apodization, in Hz",
+              "big_gaba_siemens_median": 6.1, "cows_region_medians": (4.9, 5.6, 4.6),
+              "simulated_median": 5.8, "simulated_range": (3.4, 7.5)},
+    source={"dataset": "Big GABA sites S1, S5, S6 and COWS (the records above)",
+            "citation": None, "url": None},
+    scanner={"vendor": "siemens", "model": "TrioTim and Prisma", "software": None, "field_t": 2.89},
+    coil={"channels": (32, 4), "name": None},
+    sequence={"name": "PRESS", "family": "", "te_s": (0.035, 0.026)},
+    acquisition={"transients": (64, 32), "measured_on": "the average"},
+    voxel={"size_mm": ((30.0, 30.0, 30.0), (20.0, 20.0, 20.0))},
+    processing="as the noise records, then the average over transients; no frequency alignment, "
+               "so drift widens the measured line (stated)",
+    date="18/09/26",
+    note="a check, not a fit; other vendors' lines are not measured yet",
+)
+
 # records read the same way under other conditions, kept to test what carries a number there
-CHECKS = ()
+CHECKS = (LINEWIDTH_SIEMENS_3T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
