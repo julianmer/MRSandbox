@@ -174,11 +174,16 @@ def default_params(database=None, b0_t=3.0):
         #   after an SVD coil combination, 28.1 for their aligned average; the
         #   simulator at the same voxel, timings, and grid (ICBM mixed tissue, the
         #   default lineshape, whose NAA width of 6 to 7 Hz brackets the measured 5)
-        #   reaches 6.7 at a reference sigma of 5.2 (median over 24 subjects, IQR 4.6
-        #   to 5.5, the spread being the concentration prior). The range around it
-        #   is stated: 0.7 to 1.4 times, the site-to-site SNR scatter of multi-site
-        #   3 T studies (tests/scan/test_scan TestNoiseModel gates the calibration).
-        noise=dict(sigma=(3.5, 7.5)),
+        #   reaches it at a reference sigma of 47 (median SNR 6.6 over 32 subjects,
+        #   IQR 5.8 to 8.1, the spread being the concentration prior). Recalibrated
+        #   18/09/26: the first calibration (sigma 5.2) read the simulated spectrum
+        #   the way the NIfTI-MRS file of the dataset is read, conjugated and with a
+        #   4.65 ppm carrier, while `Voxel.fid` is referenced to 0 ppm with a line at
+        #   f hertz as exp(+i 2 pi f t); its "NAA" was the multiplets near 2.64 ppm,
+        #   a ninth as tall, and the noise came out that much too low. The range
+        #   around it is stated: 0.7 to 1.4 times, the site-to-site SNR scatter of
+        #   multi-site 3 T studies (tests/scan/test_scan TestNoiseModel gates it).
+        noise=dict(sigma=(33.0, 66.0)),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),

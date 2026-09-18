@@ -139,16 +139,17 @@ class VirtualScan:
     #***********#
     #   voxel   #
     #***********#
-    def voxel(self, position_mm, size_mm, compiled=False):
+    def voxel(self, position_mm, size_mm, compiled=False, box_center_mm=None):
         """Place a voxel (a size_mm cube, or an (x, y, z) box) and get its acquisition
         handle.
 
         With `compiled`, metabolite lines run through jitted per-system functions cached
         on the scan: the first draw compiles, every further draw replays. Worth it for
         many draws from one scan (the training mode turns it on); a one-shot look is
-        faster plain.
+        faster plain. `box_center_mm` makes the voxel a cell of the box a localized
+        design selects about that centre (an MRSI lattice places its cells so).
         """
-        return Voxel(self, position_mm, size_mm, compiled=compiled)
+        return Voxel(self, position_mm, size_mm, compiled=compiled, box_center_mm=box_center_mm)
 
     #***********#
     #   mrsi    #
@@ -156,7 +157,7 @@ class VirtualScan:
     def mrsi(self, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
              thickness_mm=None, oversampling=1, weighting=None, sampling=None,
              profile=None, averages=None, trajectory=None, trajectory_params=None,
-             dead_time_s=0.0, odd_sweeps=None):
+             dead_time_s=0.0, odd_sweeps=None, box_center_mm=None):
         """Place an MRSI slice lattice and get its acquisition handle; see scan.mrsi.MRSI."""
         from mrsandbox.scan.mrsi import MRSI
 
@@ -165,7 +166,7 @@ class VirtualScan:
                     weighting=weighting, sampling=sampling, profile=profile,
                     averages=averages, trajectory=trajectory,
                     trajectory_params=trajectory_params, dead_time_s=dead_time_s,
-                    odd_sweeps=odd_sweeps)
+                    odd_sweeps=odd_sweeps, box_center_mm=box_center_mm)
 
     #*****************#
     #   training      #

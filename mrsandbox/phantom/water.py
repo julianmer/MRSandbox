@@ -77,7 +77,7 @@ class WaterSource(abc.ABC):
         relaxation leaves resolve at the voxel (per-tissue values weighted by its
         composition, maps read over its box)."""
         t1_s, t2_s = voxel.resolve(truth.water.t1_s), voxel.resolve(truth.water.t2_s)
-        fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t))
+        fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in
                     (t1_s, t2_s, voxel.b1_input(truth), voxel.offset_hz(truth))))
 

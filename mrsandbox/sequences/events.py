@@ -1010,6 +1010,30 @@ class Sequence:
         tr_s = timings[-1][0] if self.tr_s is not None else None
         return Sequence(*events, tr_s=tr_s, cycles=self.cycles)
 
+    #**************#
+    #   confined   #
+    #**************#
+    def confined(self, extent_mm):
+        """The same design with its isochromat ensemble confined to a box of `extent_mm`
+        (x, y, z) and every `Projection` a plain average (gain one): what the design
+        leaves of a small part of the object, a cell of a lattice inside the box it
+        selects, wherever the engine's shift places that part. The timings stay."""
+        extent = dict(zip("xyz", (float(e) for e in extent_mm)))
+        events = []
+        for event in self.events:
+            if isinstance(event, Projection):
+                event = Projection(1.0)
+            elif isinstance(event, Gradient):
+                event = copy.copy(event)
+                event.extent_mm = extent[event.axis]
+            elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
+                event = copy.copy(event)
+                event.extent_mm = extent[event.gradient_axis]
+            events.append(event)
+        design = copy.copy(self)
+        design.events = tuple(events)
+        return design
+
     #*******************#
     #   composition     #
     #*******************#

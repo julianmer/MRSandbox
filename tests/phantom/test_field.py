@@ -251,7 +251,8 @@ class TestFieldGroups:
                                   field=field, field_groups=groups, water=NoWater(),
                                   lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield())
             data = np.asarray(multiplex.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=1024)[:])[0, 0, 0]
-            return np.real(np.fft.fftshift(np.fft.fft(np.conj(data[:, 0] - data[:, 1]))))[window].sum()
+            # the FID is referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
+            return np.real(np.fft.fftshift(np.fft.fft(data[:, 0] - data[:, 1])))[window].sum()
 
         uniform = edited(0.0, 1)
         assert abs(edited(40.0, 1) / uniform - 1.0) < 0.01

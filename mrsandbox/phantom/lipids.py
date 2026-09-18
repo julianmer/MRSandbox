@@ -120,7 +120,8 @@ class Skull(LipidSource):
             return None
         amplitude = truth.lipids.amplitude_mm * weight
         offset = voxel.scan.brain.lipid_offset(voxel.position_mm, voxel.size_mm)
-        shift = {axis: float(offset[k]) for k, axis in enumerate("xyz")}
+        placed = voxel.shift_mm or {}
+        shift = {axis: float(offset[k]) + placed.get(axis, 0.0) for k, axis in enumerate("xyz")}
         args = [ops.convert_to_tensor(np.float32(v)) for v in
                 (truth.lipids.t1_s, truth.lipids.t2_s, voxel.b1_input(truth),
                  voxel.offset_hz(truth))]
@@ -143,6 +144,7 @@ class Skull(LipidSource):
         if volumes.size == 0:
             return None
         b1_scale, offset_hz = voxel.b1_scale(truth), voxel.offset_hz(truth)
+        placed = voxel.shift_mm or {}  # a cell of a box: the profiles are the box's
         freqs_all, amps_all = [], []
         for system in self.systems(f0_mhz / engine.b0_t):
             system = system.with_relaxation(t1_s=truth.lipids.t1_s, t2_s=truth.lipids.t2_s)
@@ -151,9 +153,10 @@ class Skull(LipidSource):
                 if axis not in extents:
                     continue
                 grid = np.linspace(-span[k] / 2.0, span[k] / 2.0, self.PROFILE_POINTS)
-                freqs, amps = engine.profile(sequence, system, axis, grid, b1_scale, offset_hz)
-                line = np.argmax(np.abs(amps).max(axis=0))
-                centre = amps[self.PROFILE_POINTS // 2]
+                at = np.append(placed.get(axis, 0.0) + grid, 0.0)  # and the design's centre
+                freqs, amps = engine.profile(sequence, system, axis, at, b1_scale, offset_hz)
+                centre, amps = amps[-1], amps[:-1]
+                line = np.argmax(np.abs(centre))
                 along = amps[:, line] / centre[line]
                 response *= (np.interp(offsets[:, k], grid, along.real)
                              + 1j * np.interp(offsets[:, k], grid, along.imag))

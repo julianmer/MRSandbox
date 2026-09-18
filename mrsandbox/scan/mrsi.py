@@ -22,6 +22,7 @@ import numbers
 import numpy as np
 
 from mrsandbox.scan.voxel import draw, noise_scale, receiver_noise
+from mrsandbox.sequences.events import Projection
 
 
 #**************************************************************************************************#
@@ -148,7 +149,19 @@ class MRSI:
             width; the ranges Weis et al. (Sci Rep 2025, s41598-025-28277-y)
             simulate between echo trains are 1 to 3.5 us, 0.7 to 1.3, and 20 to 60
             degrees, the phase the one that matters. None idealizes them away.
+        box_center_mm: With a localized design on the scan (one with `Projection`
+            events: its size is the box the lattice is excited in, as in PRESS or
+            semi-LASER MRSI), the centre of that box; None takes the lattice's
+            centre. Every cell then plays the design confined to itself, at its own
+            place in the box: cells where every pulse profile is flat share the
+            centre's response (within FLAT of one; the passband ripple of a percent
+            or two is not followed, stated), cells where a profile has died (under
+            SILENT) stay silent, and the cells at the box's edge, where the
+            transition bands and the chemical shift displacement are, are each
+            simulated. Other designs excite every cell alike, as before.
     """
+
+    FLAT, SILENT = 0.03, 0.01
 
     #**********#
     #   init   #
@@ -156,7 +169,7 @@ class MRSI:
     def __init__(self, scan, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
                  thickness_mm=None, oversampling=1, weighting=None, sampling=None,
                  profile=None, averages=None, trajectory=None, trajectory_params=None,
-                 dead_time_s=0.0, odd_sweeps=None):
+                 dead_time_s=0.0, odd_sweeps=None, box_center_mm=None):
         if weighting not in (None, "hamming"):
             raise ValueError(f"unknown weighting {weighting!r}; known: None, hamming")
         if averages is not None and (not isinstance(averages, numbers.Real)
@@ -210,10 +223,27 @@ class MRSI:
             self.profile.size if self.profile is not None else 1)
         sub = (source_mm, source_mm, span / nzr)
 
+        localized = any(isinstance(event, Projection) for event in scan.sequence.events)
+        self.box_center_mm = (tuple(float(c) for c in (box_center_mm if box_center_mm is not None
+                                                       else center_mm)) if localized else None)
+        kind = self._excitation(scan, sub) if localized else (lambda position: "whole")
+        self.cells = {"whole": 0, "interior": 0, "edge": 0, "silent": 0}
+        self.silent = set()
+
         def cell(i, j):
             x, y, z0 = self.source_position(i, j)
             centres = z0 + ((np.arange(nzr) + 0.5) / nzr - 0.5) * span
-            return [scan.voxel((x, y, float(z)), sub, compiled=True) for z in centres]
+            voxels = []
+            for z in centres:
+                position = (x, y, float(z))
+                found = kind(position)
+                self.cells[found] += 1
+                # an interior cell sits at the box's centre as far as the design goes
+                centre = {"whole": None, "interior": position}.get(found, self.box_center_mm)
+                voxels.append(scan.voxel(position, sub, compiled=True, box_center_mm=centre))
+                if found == "silent":
+                    self.silent.add(voxels[-1])
+            return voxels
 
         self.voxels = [[cell(i, j) for j in range(ny)] for i in range(nx)]
         self.trajectory_params = dict(trajectory_params or {})
@@ -388,6 +418,9 @@ class MRSI:
             for j in range(sy):
                 cells[i, j] = []
                 for voxel in self.voxels[i][j]:
+                    if voxel in self.silent:
+                        cells[i, j].append({})
+                        continue
                     basis = voxel.metabolite_basis(truth, fine, step)
                     if components:
                         fids = voxel._component_fids(truth, fine, step, basis=basis)
@@ -502,6 +535,9 @@ class MRSI:
              else self.sampling,
              "profile": self.profile.tolist() if self.profile is not None else None,
              "averages": self.averages, "trajectory": self.trajectory,
+             **({"box_center_mm": list(self.box_center_mm),
+                 "cells": {k: v for k, v in self.cells.items() if k != "whole"}}
+                if self.box_center_mm is not None else {}),
              **({"dead_time_s": n_dead * dwell_s / period}
                 if self.trajectory is not None else {}),
              **({"odd_sweeps": self.odd_sweeps} if self.odd_sweeps is not None else {}),
@@ -601,6 +637,46 @@ class MRSI:
     #****************#
     #   trajectory   #
     #****************#
+    def _excitation(self, scan, size_mm):
+        """What a localized design leaves along each of its axes, probed once with
+        uncoupled spins at the two ends of the spectrum (0.9 and 4.7 ppm, so the
+        displaced slabs of both count), as a function sorting a cell at `position`
+        into "interior" (every profile within FLAT of the centre's over the cell, for
+        both probes), "silent" (some profile under SILENT of it all over the cell,
+        for both), or "edge"."""
+        from mrsandbox.spins import SpinSystem
+
+        engine, design = scan.engine, scan.sequence
+        gamma = scan.database.gamma("1H")
+        extents = engine.extents(design)
+        tables = {}
+        for axis in extents:
+            k = "xyz".index(axis)
+            reach = extents[axis] / 2.0 + size_mm[k]
+            grid = np.append(np.arange(-reach, reach + 0.25, 0.5), 0.0)
+            kept = []
+            for ppm in (0.9, 4.7):
+                probe = SpinSystem(name="probe", nucleus="1H", shifts_ppm=(ppm,), j_hz=((0.0,),),
+                                   scale=1.0, gamma_mhz_t=gamma)
+                _, amps = engine.profile(design, probe, axis, grid)
+                line = np.argmax(np.abs(amps[-1]))
+                kept.append(np.abs(amps[:-1, line] / amps[-1, line]))
+            tables[axis] = (grid[:-1], np.array(kept))
+
+        def kind(position):
+            flat, silent = True, False
+            for axis, (grid, kept) in tables.items():
+                k = "xyz".index(axis)
+                place = position[k] - self.box_center_mm[k]
+                inside = np.abs(grid - place) <= size_mm[k] / 2.0
+                if not inside.any():  # beyond the probed reach: nothing is left there
+                    return "silent"
+                flat = flat and bool(np.all(np.abs(kept[:, inside] - 1.0) < self.FLAT))
+                silent = silent or bool(np.all(kept[:, inside] < self.SILENT))
+            return "silent" if silent else "interior" if flat else "edge"
+
+        return kind
+
     def _dead_points(self, dwell_s):
         """The dead time quantized to fine-grid samples: the nx visits occupy
         dwell - dead, so the fine step is dwell / (nx + n_dead) and the realized dead

@@ -476,7 +476,8 @@ class CoupledMM(MMSource):
         if cached is None or cached[0] is not truth:
             cached = self._lines = (truth, {})
         b1_scale, offset_hz = voxel.b1_input(truth), voxel.offset_hz(truth)
-        key = (engine, sequence, name, voxel.frame(truth)[2], offset_hz)
+        shift = None if voxel.shift_mm is None else tuple(voxel.shift_mm.values())
+        key = (engine, sequence, name, voxel.frame(truth)[2], offset_hz, shift)
         if key in cached[1]:
             return cached[1][key]
         shifts = tuple(ppm for ppm, protons in groups for _ in range(protons))
@@ -491,7 +492,7 @@ class CoupledMM(MMSource):
         system = SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts,
                             j_hz=tuple(map(tuple, j)), scale=1.0,
                             gamma_mhz_t=f0_mhz / engine.b0_t)
-        fn = engine.compiled(sequence, system)
+        fn = engine.compiled(sequence, system, shift_mm=voxel.shift_mm)
         line_f, line_a = fn(*(ops.convert_to_tensor(np.float32(v)) for v in
                               (truth.mm.t1[name], truth.mm.t2[name], b1_scale, offset_hz)))
         lines = (np.asarray(ops.convert_to_numpy(line_f)),

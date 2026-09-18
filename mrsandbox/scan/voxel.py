@@ -121,8 +121,11 @@ class Voxel:
     #**********#
     #   init   #
     #**********#
-    def __init__(self, scan, position_mm, size_mm, compiled=False):
+    def __init__(self, scan, position_mm, size_mm, compiled=False, box_center_mm=None):
         self.scan = scan
+        # a cell of a lattice inside the box a localized design selects: the design is
+        # played confined to the cell, its ensemble shifted from the box's centre
+        self.box_center_mm = None if box_center_mm is None else tuple(float(x) for x in box_center_mm)
         self.position_mm = tuple(float(x) for x in position_mm)
         self.size_mm = (tuple(float(x) for x in size_mm) if hasattr(size_mm, "__len__")
                         else float(size_mm))
@@ -650,27 +653,51 @@ class Voxel:
         scanner = self.scan.scanner
         return scanner if hasattr(scanner, "max_grad_mt_m") else Scanner("custom", float(scanner))
 
+    @property
+    def shift_mm(self):
+        """Where this voxel sits from the centre of the box its design selects,
+        {axis: mm}; None for a voxel that is the box."""
+        if self.box_center_mm is None:
+            return None
+        return {axis: self.position_mm[k] - self.box_center_mm[k] for k, axis in enumerate("xyz")}
+
+    def _played(self):
+        """The scan's design, confined to this voxel when it is a cell of a box."""
+        if self.box_center_mm is None:
+            return self.scan.sequence
+        if "confined" not in self._kernels:
+            edges = np.asarray(self.size_mm, dtype=np.float64) * np.ones(3)
+            self._kernels["confined"] = self.scan.sequence.confined(edges)
+        return self._kernels["confined"]
+
     def design(self, truth):
         """The scan's design as this voxel plays it: with the phase its own gradients
         induce before the readout at this position (scan.eddy.induced_sequence,
         through `_response`), the design itself without a response; cached per
-        response."""
+        response. A cell of a box plays the design confined to itself."""
         from mrsandbox.scan.eddy import induced_sequence
 
         response = self._response(truth)
         if response is None:
-            return self.scan.sequence
+            return self._played()
         key = ("design",) + response[0]
         if key not in self._kernels:
-            self._kernels[key] = induced_sequence(self.scan.sequence, self._scanner(), response[1],
+            self._kernels[key] = induced_sequence(self._played(), self._scanner(), response[1],
                                                   self.position_mm)
         return self._kernels[key]
 
     def _design_key(self, truth):
         """What a line or basis cache adds for this voxel's design: nothing while the
         voxel plays the scan's own design (no response, or one with nothing to act
-        on), the position once it carries kicks (they depend on it)."""
-        return () if self.design(truth) is self.scan.sequence else (self.position_mm,)
+        on), the position once it carries kicks (they depend on it) or once the voxel
+        is a cell of a box (its place in the box decides what the design leaves)."""
+        kicked = self._response(truth) is not None
+        if self.box_center_mm is not None:
+            # cells at one place in the box (every interior cell sits at its centre)
+            # and of one size share their lines
+            placed = ("cell", self.size_mm) + tuple(round(v, 6) for v in self.shift_mm.values())
+            return placed + ((self.position_mm,) if kicked else ())
+        return (self.position_mm,) if kicked and self.design(truth) is not self.scan.sequence else ()
 
     def _gradient_kernel(self, truth, npoints, dwell_s, start_s=0.0):
         """The cached eddy-current kernel of this voxel's readout (scan.eddy), the
@@ -869,7 +896,8 @@ class Voxel:
             batches = [[i] for i in range(len(groups))] if heavy else [range(len(groups))]
             freqs, amps = [], []
             for batch in batches:
-                fn, _ = engine.compiled_batch(sequence, tuple(groups[i] for i in batch))
+                fn, _ = engine.compiled_batch(sequence, tuple(groups[i] for i in batch),
+                                              shift_mm=self.shift_mm)
                 f, a = fn(ops.convert_to_tensor(np.asarray([t1[i] for i in batch], dtype=np.float32)),
                           ops.convert_to_tensor(np.asarray([t2[i] for i in batch], dtype=np.float32)),
                           ops.convert_to_tensor(np.asarray(b1_scale, dtype=np.float32)),
@@ -881,7 +909,8 @@ class Voxel:
         else:
             parts = [self.scan.engine.lines(
                 sequence, *(s.with_relaxation(t1_s=t1[i], t2_s=t2[i]) for s in group),
-                b1_scale=b1_scale, offset_hz=offset_hz) for i, group in enumerate(groups)]
+                b1_scale=b1_scale, offset_hz=offset_hz, shift_mm=self.shift_mm)
+                for i, group in enumerate(groups)]
             freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _ in parts])
             amps = np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a in parts])
             bounds = np.cumsum([0] + [sum(s.dim ** 2 for s in group) for group in groups])

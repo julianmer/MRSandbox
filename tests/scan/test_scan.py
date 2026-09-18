@@ -591,13 +591,17 @@ class TestNoiseModel:
         calibration = VirtualScan(scan.brain, scan.scanner, Press(te1_s=0.011, te2_s=0.024), params=calm)
         voxel = calibration.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=30.0)
         n, bw, cf = 4096, 5000.0, voxel._f0_mhz()
-        ppm = np.fft.fftshift(np.fft.fftfreq(n, 1.0 / bw)) / cf + 4.65
+        # the FID is referenced to 0 ppm and a line at f hertz is exp(+i 2 pi f t): the
+        # plain transform puts NAA at 2.01 ppm (a conjugate and a 4.65 ppm carrier,
+        # the NIfTI-MRS reading, would read the multiplets at 2.64 ppm in its place)
+        ppm = np.fft.fftshift(np.fft.fftfreq(n, 1.0 / bw)) / cf
         snrs = []
         for seed in range(8):
             _, fid = voxel.fid(seed=seed, npoints=n, dwell_s=1.0 / bw)
-            real = np.fft.fftshift(np.fft.fft(np.conj(fid))).real
+            real = np.fft.fftshift(np.fft.fft(fid)).real
+            assert abs(ppm[np.abs(ppm - 2.01) < 0.1][np.argmax(real[np.abs(ppm - 2.01) < 0.1])] - 2.008) < 0.05
             height = real[np.abs(ppm - 2.01) < 0.1].max()
-            noise = (ppm > -5.0) & (ppm < -1.0)
+            noise = (ppm > 10.0) & (ppm < 14.0)  # downfield of every signal
             floor = real[noise] - np.polyval(np.polyfit(ppm[noise], real[noise], 1), ppm[noise])
             snrs.append(height / floor.std())
         assert 4.7 < np.median(snrs) < 9.4, snrs  # 6.7 within the stated 0.7 to 1.4 range
