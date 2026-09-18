@@ -33,6 +33,9 @@ dev = ["pytest", "pypulseq", "ruff", "mrsandbox[jax]"]
 [tool.setuptools.packages.find]
 include = ["mrsandbox*"]
 
+[tool.setuptools.package-data]
+"mrsandbox.resources" = ["data/*/*.nii.gz"]
+
 [tool.setuptools.dynamic]
 version = { attr = "mrsandbox.__version__" }
 

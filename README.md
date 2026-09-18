@@ -60,12 +60,13 @@ This repository consists of the following main structures:
   RF pulse characteristics. Pooling across sources is code, never data.
 * The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
   any position, together with swappable water, lipid, macromolecule, and downfield sources
-  (coupled mini spin systems, LCModel style Gaussians, or the measured consensus spectrum) and
+  (coupled mini spin systems, LCModel style Gaussians, the measured consensus spectrum, or the
+  2024 MRSI challenge basis) and
   B0 field maps that dephase each voxel physically (after a voxel shim up to second order, as a
   real acquisition would). `Volume` is the one spatial container: every map, from the tissue
   fractions to a user's T1 or transmit map, answers box queries with exact partial volume
   weights. ICBM152 (TemplateFlow) and BigBrain-MR (Sainz Martinez et al. 2023) are fetched on
-  first use; the wheel ships no data.
+  first use; the wheel ships no data beyond the 1.4 MB challenge macromolecule basis.
 * The `mrsandbox/resources/` folder pulls large named datasets from their canonical homes on
   first use into a local, checksum verified cache, so the package itself stays lightweight,
   and derives the hMRI demo subject's quantitative 3 T stack (R1, PD, MT saturation, R2*,

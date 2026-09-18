@@ -18,7 +18,8 @@
 import numpy as np
 import pytest
 
-from mrsandbox import Brain, MeasuredMM, NoMM, ParameterizedMM, Params, Press, Scanner, VirtualScan
+from mrsandbox import (Brain, ChallengeMM, MeasuredMM, NoMM, ParameterizedMM, Params, Press,
+                       Scanner, VirtualScan)
 from mrsandbox.resources import Resources
 from mrsandbox.database import macromolecules
 
@@ -111,6 +112,55 @@ class TestBackground:
         window = (ppm > 0.5) & (ppm < 4.2)
         fraction = (with_mm - without)[window].sum() / with_mm[window].sum()
         assert 0.10 < fraction < 0.30
+
+
+#**************************************************************************************************#
+#                                        Class TestChallenge                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The challenge basis lands on its positions with the challenge's own amplitude model.             #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestChallenge:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def background(spectra):
+        ppm, with_mm = spectra(3.0, mm=ChallengeMM())
+        _, without = spectra(3.0, mm=NoMM())
+        return ppm, with_mm - without
+
+    #*******************#
+    #   peak fidelity   #
+    #*******************#
+    def test_components_land_on_their_positions_in_absorption(self, spectra):
+        ppm, background = self.background(spectra)
+        for centre in (0.91, 1.21, 1.43):
+            window = np.abs(ppm - centre) < 0.12
+            assert abs(ppm[window][np.argmax(background[window])] - centre) < 0.04
+        window = (ppm > 0.5) & (ppm < 4.2)
+        assert background[window].min() > -0.05 * background[window].max()
+
+    #***********************#
+    #   amplitude model     #
+    #***********************#
+    def test_first_point_is_kappa_times_the_ratios_times_creatine(self):
+        # b = 0.4 x r x c_tCr per component on the basis' own first points
+        from mrsandbox.database import macromolecules
+
+        brain = Brain.load("icbm152")
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                           mm=ChallengeMM())
+        voxel = scan.voxel(**KW)
+        truth = voxel.sample(seed=7)
+        fid = scan.mm.fid(voxel, truth, 42.5774785 * 3.0, np.zeros(1))
+        ratios = macromolecules.MRSI_CHALLENGE["components"]
+        weights = [voxel.fractions.gm * ratios[name]["gm"] + voxel.fractions.wm * ratios[name]["wm"]
+                   for name in ChallengeMM.FILES]
+        expected = 0.4 * (truth.conc.Cr + truth.conc.PCr) * np.dot(weights, scan.mm._load()[:, 0])
+        assert abs(fid[0] - expected) < 1e-5 * abs(expected)
 
 
 #**************************************************************************************************#

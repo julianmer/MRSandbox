@@ -295,6 +295,89 @@ class MeasuredMM(MMSource):
 
 
 #**************************************************************************************************#
+#                                        Class ChallengeMM                                         #
+#**************************************************************************************************#
+#                                                                                                  #
+# The macromolecule basis of the 2024 MRSI challenge: nine component FIDs on its amplitude model.  #
+#                                                                                                  #
+#**************************************************************************************************#
+class ChallengeMM(MeasuredMM):
+    """The macromolecule basis of the 2024 MRSI challenge: nine component FIDs on its
+    amplitude model, b = kappa x r x c_tCr per component with the challenge's own
+    kappa of 0.4 and the tissue-weighted ratios r (database.macromolecules
+    MRSI_CHALLENGE), the drawn creatine plus phosphocreatine as c_tCr.
+
+    The basis is the public example dataset of the challenge (LaMaster et al.,
+    arXiv:2609.02637; basis_macromol_3T, shipped gzipped with the package): one FID
+    per component, 32768 points of 80.389 us, linewidths adjusted to typical in vivo
+    MM spectra at 3 T, scaled in the proton units of the challenge's metabolite basis
+    (a first point of three for the creatine methyl), which are the engine's. The
+    files carry upfield as negative frequency, our sign, at the 123.24 MHz of their
+    own headers (the dataset's readme gives 127.73 MHz for the metabolite basis; the
+    nine positions fit 123.24 to 0.001 ppm and 127.73 not at all); the time axis is
+    scaled to the simulated field and the frame moves from the basis reference,
+    4.647 ppm as those positions place it, to 0 ppm. The basis is a TE 0 FID-MRSI
+    shape; the sequence acts on it as on the measured spectrum (the echo decay per
+    frequency bin from TE 0 and the steady state of a TR, `MeasuredMM`), with the
+    same stated approximations. mm.kappa and mm.level_mm are not read.
+    """
+
+    MEASURED_TE_S = 0.0
+    BASIS_MHZ = 123.24
+    BASIS_DWELL_S = 8.03892e-05
+    REFERENCE_PPM = 4.647
+    FILES = {"M0.91": "mrs_mm_0_9", "M1.21": "mrs_mm_1_21", "M1.43": "mrs_mm_1_43",
+             "M1.67": "mrs_mm_1_67", "M2.04": "mrs_mm_2_04", "M2.26": "mrs_mm_2_26",
+             "M2.99": "mrs_mm_2_99", "M3.21": "mrs_mm_3_21", "M3.77": "mrs_mm_3_77"}
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self):
+        super().__init__(center_ppm=self.REFERENCE_PPM)
+
+    #*********#
+    #   fid   #
+    #*********#
+    def fid(self, voxel, truth, f0_mhz, t_s, sequence=None):
+        fractions = voxel.fractions
+        if fractions.gm + fractions.wm <= 0.0:
+            return None
+        basis = self._load()
+        t = np.asarray(t_s, dtype=np.float64)
+        # sample the basis at times scaled to the simulated field, ppm-faithful
+        t_basis = t * (f0_mhz / self.BASIS_MHZ)
+        grid = np.arange(basis.shape[1]) * self.BASIS_DWELL_S
+        c_tcr = voxel.resolve(truth.conc.Cr) + voxel.resolve(truth.conc.PCr)
+        signal = np.zeros(t.size, dtype=np.complex128)
+        for row, name in zip(basis, self.FILES):
+            ratio = macromolecules.MRSI_CHALLENGE["components"][name]
+            weight = fractions.gm * ratio["gm"] + fractions.wm * ratio["wm"]
+            signal += weight * (np.interp(t_basis, grid, row.real, right=0.0)
+                                + 1j * np.interp(t_basis, grid, row.imag, right=0.0))
+        signal *= macromolecules.MRSI_CHALLENGE["kappa"] * c_tcr
+        signal = signal * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
+        if sequence is not None:
+            signal = self._sequence_response(signal, t, f0_mhz, sequence, voxel, truth)
+        return signal.astype(np.complex64)
+
+    #**********#
+    #   load   #
+    #**********#
+    def _load(self):
+        if self._measured is None:
+            import importlib.resources
+
+            import nibabel
+
+            folder = importlib.resources.files("mrsandbox.resources") / "data" / "mrsi_challenge"
+            self._measured = np.stack([
+                np.asarray(nibabel.load(str(folder / f"{stem}.nii.gz")).dataobj).squeeze()
+                for stem in self.FILES.values()])
+        return self._measured
+
+
+#**************************************************************************************************#
 #                                         Class CoupledMM                                          #
 #**************************************************************************************************#
 #                                                                                                  #
