@@ -127,7 +127,7 @@ def induced_sequence(sequence, scanner, response, position_mm, gamma_mhz_t=42.57
 #   readout kernel  #
 #*******************#
 def readout_kernel(sequence, scanner, position_mm, size_mm, npoints, dwell_s, response,
-                   gamma_mhz_t=42.5774785):
+                   gamma_mhz_t=42.5774785, start_s=0.0):
     """The complex kernel the induced fields put on a voxel's FID, sampled at the
     readout's points: exp(i 2 pi phi(t)) with phi the integral from the readout's
     start of the B0 term plus the first-order terms times the voxel position (mm from
@@ -136,17 +136,18 @@ def readout_kernel(sequence, scanner, position_mm, size_mm, npoints, dwell_s, re
     under a residual gradient moment in cycles per mm; the moment carried into the
     readout dephases in the design's own ensemble, `induced_sequence`, so the two
     sincs multiply where one of their sum would be exact, stated). `response` as in
-    `induced_phase`, a measured one band-limited to the readout's receiver band."""
+    `induced_phase`, a measured one band-limited to the readout's receiver band; the
+    points sit `start_s` after the readout's start (the receiver delay)."""
     start = float(sequence.duration_s)
-    t, cycles, moments = induced_phase(sequence, scanner, response, start + npoints * dwell_s,
+    t, cycles, moments = induced_phase(sequence, scanner, response,
+                                       start + start_s + npoints * dwell_s,
                                        gamma_mhz_t, bandwidth_hz=1.0 / dwell_s)
-    readout = start + np.arange(npoints) * dwell_s
+    readout = start + start_s + np.arange(npoints) * dwell_s
     size = np.asarray(size_mm, dtype=np.float64) * np.ones(3)
 
     def from_start(cumulative):
         # the phase over the readout's points, from the readout's start
-        at = np.interp(readout, t, cumulative)
-        return at - at[0]
+        return np.interp(readout, t, cumulative) - np.interp(start, t, cumulative)
 
     phase = from_start(cycles)  # cycles from the B0 term
     kernel = np.ones(npoints)

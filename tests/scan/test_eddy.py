@@ -106,6 +106,18 @@ class TestKernel:
                                 exponential_response((0.01, 1.0), (0.0, 0.0), (0.0, 0.0)))
         np.testing.assert_array_equal(kernel, np.ones(256, dtype=np.complex64))
 
+    def test_receiver_delay_reads_the_same_kernel_later(self):
+        # the phase counts from the readout's start, so a delay of k dwells is the
+        # prompt kernel advanced by k samples, off centre with both terms
+        scanner = Scanner.preset("generic_3t")
+        design = crushed_echo(GAMMA * 1e6 * 30e-3 * 2e-3 * 1e-3)
+        response = exponential_response((0.05, 0.5), (0.5, 0.2), (0.002, 0.001))
+        prompt = readout_kernel(design, scanner, (0.0, 0.0, 15.0), 20.0, 264, 2.5e-4, response)
+        late = readout_kernel(design, scanner, (0.0, 0.0, 15.0), 20.0, 256, 2.5e-4, response,
+                              start_s=8 * 2.5e-4)
+        assert np.abs(prompt - 1.0).max() > 1e-2
+        np.testing.assert_allclose(late, prompt[8:], atol=1e-5)
+
     def test_b0_term_carries_the_analytic_step_phase(self):
         # one long-constant B0 term after a crusher pair whose ramps are short against
         # it: the phase over the readout integrates b0 G exp(-t / tau) from the

@@ -213,6 +213,47 @@ class TestAcquisitionImperfections:
         assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
 
     #**********************#
+    #   receiver delay     #
+    #**********************#
+    def test_receiver_delay_samples_the_same_fid_later(self, scan):
+        # a delay of k dwells is the undelayed FID advanced by k samples, every
+        # component alike (metabolites, water, lipids, MM, downfield, the field
+        # kernel, the microscopic envelope, the shift and the phase); half a dwell
+        # lands on the points of the grid twice as fine
+        brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0))
+
+        def fid(delay_s, npoints, dwell_s=1.0 / 4000.0):
+            params = Params(**quiet, acquisition=dict(shift_hz=5.0, phase_deg=30.0,
+                                                      eddy_std_rad=0.0, delay_s=delay_s))
+            voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
+                                                                     size_mm=20)
+            return voxel.fid(seed=7, npoints=npoints, dwell_s=dwell_s)[1]
+
+        prompt = fid(0.0, 512 + 8)
+        np.testing.assert_allclose(fid(8 / 4000.0, 512), prompt[8:],
+                                   atol=1e-4 * np.abs(prompt).max())
+        fine = fid(0.0, 1024, dwell_s=1.0 / 8000.0)
+        np.testing.assert_allclose(fid(1 / 8000.0, 512), fine[1::2],
+                                   atol=1e-4 * np.abs(prompt).max())
+
+    def test_receiver_delay_moves_the_spurious_echo_with_the_clock(self, scan):
+        brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        ghost = dict(amplitude=0.1, tau_s=0.1, width_s2=2000.0, ppm=2.5, phase_deg=40.0)
+
+        def echo(delay_s, npoints):
+            params = Params(noise=dict(sigma=0.0), spurious=ghost,
+                            acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                             delay_s=delay_s))
+            voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
+                                                                     size_mm=20)
+            truth = voxel.sample(seed=7)
+            fids = voxel._component_fids(truth, npoints, 1.0 / 4000.0)
+            return fids["spurious"] / np.abs(sum(fids.values()) - fids["spurious"]).max()
+
+        np.testing.assert_allclose(echo(8 / 4000.0, 512), echo(0.0, 520)[8:], atol=1e-4)
+
+    #**********************#
     #   eddy phase         #
     #**********************#
     def test_eddy_phase_is_augmentrums_seeded_trajectory(self, scan):

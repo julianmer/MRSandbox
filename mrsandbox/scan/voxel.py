@@ -318,7 +318,8 @@ class Voxel:
         `metabolite_weights` @ basis. The frame is `frame(truth)` plus the grid."""
         lines = self._metabolite_lines(truth)
         names = tuple(truth.conc)
-        frame = self.frame(truth) + (npoints, float(dwell_s)) + self._design_key(truth)
+        start_s = float(truth.acquisition.delay_s)
+        frame = self.frame(truth) + (npoints, float(dwell_s), start_s) + self._design_key(truth)
         cached = self.scan._basis
         if cached is None or cached[0] is not truth:
             cached = self.scan._basis = (truth, {})
@@ -338,6 +339,7 @@ class Voxel:
             rows.append(np.full(int(keep.sum()), k, dtype=np.int64))
         freqs, amps, rows = np.concatenate(freqs), np.concatenate(amps), np.concatenate(rows)
         lw = 1.0 / (np.pi * np.concatenate(lw))
+        amps = amps * self._advance(freqs, lw, start_s)
         # one amplitude row per metabolite over the shared line list, padded to a
         # stable bucket so the jitted graph keeps its shapes across draws
         pad = -(-freqs.size // 512) * 512 - freqs.size
@@ -459,7 +461,9 @@ class Voxel:
             raise ImportError("acquisitions need Augmentrum for the spurious echo and eddy "
                               "phase (the mrsandbox[augment] extra; see pyproject.toml "
                               "for the install recipe)") from error
-        grid = np.arange(npoints) * dwell_s
+        # the receiver delay: every sample sits start_s after the readout's start
+        start_s = float(truth.acquisition.delay_s)
+        grid = start_s + np.arange(npoints) * dwell_s
         # the microscopic field distribution: a Gaussian envelope on the spin-system
         # components (the measured MM and downfield widths already carry theirs)
         gauss_hz = self.resolve(truth.lineshape.gauss_hz)
@@ -471,9 +475,9 @@ class Voxel:
             lorentzian, voigt = self._flat_lines(parts)
             fid = np.zeros(npoints, dtype=np.complex64)
             if lorentzian is not None:
-                fid = fid + self._render_lines(lorentzian, npoints, dwell_s) * envelope
+                fid = fid + self._render_lines(lorentzian, npoints, dwell_s, start_s) * envelope
             if voigt is not None:
-                fid = fid + self._render_lines(voigt, npoints, dwell_s)
+                fid = fid + self._render_lines(voigt, npoints, dwell_s, start_s)
             fids[name] = fid
         mm_fid = self.scan.mm.fid(self, truth, self._f0_mhz(), grid,
                                   sequence=self.design(truth))
@@ -481,9 +485,9 @@ class Voxel:
             fids["mm"] = fids.get("mm", 0.0) + mm_fid * np.float32(
                 self._diffusion_factor(truth)(truth.diffusion.mm))
         if self.scan.field is not None:
-            kernel = self._field_kernel(npoints, dwell_s)
+            kernel = self._field_kernel(npoints, dwell_s, start_s)
             fids = {name: fid * kernel for name, fid in fids.items()}
-        kernel = self._gradient_kernel(truth, npoints, dwell_s)
+        kernel = self._gradient_kernel(truth, npoints, dwell_s, start_s)
         if kernel is not None:
             fids = {name: fid * kernel for name, fid in fids.items()}
         spur, acquisition = truth.spurious, truth.acquisition
@@ -492,9 +496,10 @@ class Voxel:
             # the out-of-voxel echo enters before the receiver-side modulation like
             # any received signal
             echo = SpuriousEchoes(mode="echo", echoes=[dict(
-                alpha=spur.amplitude, t_echo=spur.tau_s,
+                alpha=spur.amplitude, t_echo=spur.tau_s - start_s,
                 T2=1.0 / np.sqrt(2.0 * spur.width_s2), freq_hz=spur.ppm * self._f0_mhz(),
-                phase_deg=spur.phase_deg, gaussian_env=True)])
+                phase_deg=spur.phase_deg + 360.0 * spur.ppm * self._f0_mhz() * start_s,
+                gaussian_env=True)])
             total = sum(fids.values(), np.zeros(npoints, dtype=np.complex64))
             fids["spurious"] = np.asarray(echo.process_tensor(total[None, :], sw_hz=sw_hz)[0][0]) - total
         modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
@@ -514,20 +519,36 @@ class Voxel:
             modulation = modulation * cached[1][key]
         return {name: (fid * modulation).astype(np.complex64) for name, fid in fids.items()}
 
-    def _render_lines(self, bucket, npoints, dwell_s):
+    @staticmethod
+    def _advance(freqs, lw_hz, start_s):
+        """The factor a Lorentzian line's amplitude takes over `start_s` of evolution,
+        exp((i 2 pi f - pi lw) start_s): a render of the advanced amplitudes from zero
+        is the render of the lines from `start_s` exactly."""
+        rate = 1j * 2.0 * np.pi * freqs.astype(np.float64) - np.pi * np.asarray(lw_hz, np.float64)
+        return np.exp(rate * start_s).astype(np.complex64)
+
+    def _render_lines(self, bucket, npoints, dwell_s, start_s=0.0):
         """One line bucket, (freqs, amps, lw_hz[, gauss_hz]) as numpy, to a complex64
-        FID: on the host in float64 when the bucket holds at most 64 lines (exact, no
-        dispatch), otherwise through the engine's jitted graphs."""
+        FID sampled from `start_s`: on the host in float64 when the bucket holds at
+        most 64 lines (exact, no dispatch), otherwise through the engine's jitted
+        graphs from the advanced lines (a Gaussian line's cross term
+        exp(-2 g start_s t) is a Lorentzian width, so the advance stays exact)."""
         freqs, amps, lw = bucket[0], bucket[1], bucket[2]
         gauss = bucket[3] if len(bucket) > 3 else None
         if freqs.size <= 64:
-            t = np.arange(npoints, dtype=np.float64) * dwell_s
+            t = start_s + np.arange(npoints, dtype=np.float64) * dwell_s
             rate = 1j * 2.0 * np.pi * freqs.astype(np.float64) - np.pi * lw.astype(np.float64)
             phase = rate[:, None] * t[None, :]
             if gauss is not None:
                 g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
                 phase = phase - g[:, None] * t[None, :] ** 2
             return (amps.astype(np.complex128)[:, None] * np.exp(phase)).sum(axis=0).astype(np.complex64)
+        if start_s:
+            amps = amps * self._advance(freqs, lw, start_s)
+            if gauss is not None:
+                g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
+                amps = (amps * np.exp(-g * start_s ** 2)).astype(np.complex64)
+                lw = (lw + 2.0 * g * start_s / np.pi).astype(lw.dtype)
         tensors = [ops.convert_to_tensor(np.pad(a, (0, -(-freqs.size // 512) * 512 - freqs.size),
                                                 constant_values=fill))
                    for a, fill in ((freqs, 0.0), (amps, 0.0), (lw, 1.0))]
@@ -541,11 +562,11 @@ class Voxel:
                                                  gauss_hz=padded)
         return np.asarray(ops.convert_to_numpy(fid), dtype=np.complex64)
 
-    def _field_kernel(self, npoints, dwell_s):
+    def _field_kernel(self, npoints, dwell_s, start_s=0.0):
         """The cached intra-voxel B0 dephasing kernel of this voxel on this time grid."""
-        key = (npoints, dwell_s)
+        key = (npoints, dwell_s, start_s)
         if key not in self._kernels:
-            t = np.arange(npoints) * dwell_s
+            t = start_s + np.arange(npoints) * dwell_s
             self._kernels[key] = self.scan.field.kernel(self.position_mm, self.size_mm, t)
         return self._kernels[key]
 
@@ -596,7 +617,7 @@ class Voxel:
         on), the position once it carries kicks (they depend on it)."""
         return () if self.design(truth) is self.scan.sequence else (self.position_mm,)
 
-    def _gradient_kernel(self, truth, npoints, dwell_s):
+    def _gradient_kernel(self, truth, npoints, dwell_s, start_s=0.0):
         """The cached eddy-current kernel of this voxel's readout (scan.eddy), the
         design's gradients played within the scanner's limits through `_response`;
         None without a response."""
@@ -605,10 +626,11 @@ class Voxel:
         response = self._response(truth)
         if response is None:
             return None
-        key = ("kernel", npoints, dwell_s) + response[0]
+        key = ("kernel", npoints, dwell_s, start_s) + response[0]
         if key not in self._kernels:
             self._kernels[key] = readout_kernel(self.scan.sequence, self._scanner(), self.position_mm,
-                                                self.size_mm, npoints, dwell_s, response[1])
+                                                self.size_mm, npoints, dwell_s, response[1],
+                                                start_s=start_s)
         return self._kernels[key]
 
     #*****************#

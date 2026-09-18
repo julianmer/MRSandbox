@@ -183,7 +183,11 @@ def default_params(database=None, b0_t=3.0):
         #     filtered Gaussian phase noise with its linear trend removed, its
         #     defaults 0.6 rad and 25 Hz as the range ceilings, stated); the seed
         #     is drawn so the trajectory regenerates from the truth.
+        #   delay_s: the receiver delay, every sample taken that long after the
+        #     readout's start (the first-order phase of the spectrum, exactly);
+        #     zero by default, a range is the user's to set.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
+                         delay_s=0.0,
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
                          eddy_seed=(0.0, 2.0 ** 31 - 1.0)),
         # gradients: the eddy currents the design's own gradients induce (scan.eddy),
