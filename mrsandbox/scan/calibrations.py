@@ -148,24 +148,25 @@ NOISE_BIG_GABA_SIEMENS_3T = Calibration(
 #   noise, prisma, slaser   #
 #***************************#
 # serves the siemens_prisma_3t preset. At sigma 6.3 the simulator gives an apodized SNR of
-# 30.6 where the 29 spectra give 60.5: the Prisma with its 32-channel array and semi-LASER
-# is twice as quiet as the Trio sites with PRESS. The plain reading says 1.6 (13.3 against
-# 21.1, sigma 4.0); the two readings agree for the PRESS records and not here, so part of
-# the gap may sit in the ideal SemiLaser against the played one (open). By region, plain: prefrontal 23.7, occipital 22.2, posterior
+# 37.5 where the 29 spectra give 60.5: the Prisma with its 32-channel array and semi-LASER
+# is 1.6 times quieter than the Trio sites with PRESS. The plain reading says 1.4 (15.0
+# against 21.1, sigma 4.5). (A first reading, sigma 3.2, was made while the ideal SemiLaser
+# played its four pulses on top of the echo time, 50 ms for 26: found through the
+# macromolecules' doublet phases and fixed the same day.) By region, plain: prefrontal 23.7, occipital 22.2, posterior
 # frontal near the vertex 16.3, where the simulated places give 14.0, 15.0, 14.0: the
 # place under the array, which the pooled value does not carry.
 NOISE_COWS_PRISMA_3T = Calibration(
     leaf="noise.sigma",
-    value=3.2,
-    prior=(2.4, 4.6),
+    value=3.9,
+    prior=(3.0, 5.6),
     measured={"statistic": NOISE_BIG_GABA_SIEMENS_3T.measured["statistic"], "median": 21.1,
               "p5_p95": (14.1, 26.7), "region_medians": (23.7, 22.2, 16.3), "subjects": 10,
               "spectra": 29, "naa_fwhm_hz": (4.9, 5.6, 4.6), "simulated_naa_fwhm_hz": 5.8,
-              "simulated_at_big_gaba_value": 13.3, "implied_value": 3.98,
+              "simulated_at_big_gaba_value": 15.0, "implied_value": 4.49,
               "averaged_over_single": 5.55,
               "apodized": {"statistic": APODIZED, "median": 60.5, "region_medians": (70.4, 64.0, 49.5),
-                           "simulated_at_big_gaba_value": 30.6, "implied_value": 3.19,
-                           "implied_p5_p95": (2.44, 4.60)}},
+                           "simulated_at_big_gaba_value": 37.5, "implied_value": 3.91,
+                           "implied_p5_p95": (2.99, 5.64)}},
     source={"dataset": "COWS, OpenNeuro ds006812, the VAPOR metabolite scans of all subjects "
                        "and regions (one occipital file unreadable)",
             "citation": "Igwe et al. 2025, Magn Reson Med, doi 10.1002/mrm.30550",
@@ -181,16 +182,15 @@ NOISE_COWS_PRISMA_3T = Calibration(
     voxel={"region": "prefrontal, occipital, posterior frontal", "size_mm": (20.0, 20.0, 20.0),
            "size_note": "20 mm in the headers, 25 mm in the dataset's README",
            "simulated_brain": "icbm152",
-           "simulated_position_mm": ((0.0, 50.0, 25.0), (0.0, -75.0, 10.0), (0.0, -10.0, 55.0)),
-           "registered_position_mm": ((-1.0, 51.0, 18.0), (0.0, -75.0, 21.0), (0.0, 4.0, 50.0)),
+           "simulated_position_mm": ((-1.0, 51.0, 18.0), (0.0, -75.0, 21.0), (0.0, 4.0, 50.0)),
            "registered_note": "the headers' voxel centres carried through an affine registration "
                               "of each subject's T1 to the ICBM152 brain, medians over subjects; "
                               "the file named Parietal of subject 1 lies occipital"},
     processing=NOISE_BIG_GABA_SIEMENS_3T.processing,
     date="18/09/26",
     presets=("siemens_prisma_3t",),
-    note="simulated at stand-in places within 15 mm of the registered ones; the prior is the "
-         "spectra's 5th to 95th percentile, apodized",
+    note="simulated at the registered places; the prior is the spectra's 5th to 95th "
+         "percentile, apodized",
 )
 
 
@@ -282,7 +282,7 @@ NOISE_BIG_GABA_GE_3T = Calibration(
 # (sigma over B0, a signal-to-noise ratio linear in the field). The value is in the units of
 # the 3 T reference: 6.3 carried to 7 T gives an apodized pair SNR of 55.1 where the nine
 # subjects give 137.4, 2.5 times more. A 32-channel array of the Prisma's generation
-# (sigma 3.2 above) explains 2.0 of it; the rest fits a field exponent of about 1.3 in
+# (sigma 3.9 above) explains 1.6 of it; the rest fits a field exponent of about 1.5 in
 # place of 1 (the literature's is 1.65: Pohmann et al. 2016, Magn Reson Med 75:801), which
 # one 7 T site cannot separate from its coil. The law stays linear and the record carries
 # the difference (stated).
