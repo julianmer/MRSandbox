@@ -202,19 +202,27 @@ class CoilArray:
     #************#
     #   loaded   #
     #************#
-    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=(0.0, 0.0, 0.0)):
+    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=(0.0, 0.0, 0.0), own_noise=0.3):
         """The same array with its noise resistance matrix computed from the geometry:
         R_ij is the volume integral of E_i . E_j over the conductive sample (Roemer
         Eq. [9]; sample noise dominant, uniform conductivity), with E of a loop
         proportional to its vector potential (`Loop.potential`), here over a sphere
         the size of a head on a `step_mm` grid, scaled to a mean diagonal of one.
-        Neighbouring loops then share noise, as they do on a scanner."""
+        Neighbouring loops then share noise, as they do on a scanner. `own_noise` is
+        the share of a channel's noise power that is its own (conductor and
+        preamplifier) and correlates with no other channel. The default is measured:
+        the noise adjustment of a 32-channel head array on a head at 3 T has a
+        strongest partner per channel of 0.41 on average where the sample alone
+        gives 0.59 (scan.calibrations COIL_OWN_NOISE_PRISMA_3T). A small phantom loads
+        the loops less and the share grows: 0.21 measured in a 32-channel array."""
         axis = np.arange(-radius_mm, radius_mm + step_mm / 2.0, step_mm)
         grid = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1).reshape(-1, 3)
         points = grid[np.linalg.norm(grid, axis=1) <= radius_mm] + np.asarray(center_mm, dtype=float)
         potentials = np.stack([loop.potential(points) for loop in self.loops])
         resistance = np.einsum("ipk,jpk->ij", potentials, potentials)
-        return type(self)(self.loops, resistance / np.mean(np.diag(resistance)), gain=self.gain)
+        resistance = resistance / np.mean(np.diag(resistance))
+        resistance = (1.0 - own_noise) * resistance + own_noise * np.eye(len(self.loops))
+        return type(self)(self.loops, resistance, gain=self.gain)
 
     #****************#
     #   calibrated   #

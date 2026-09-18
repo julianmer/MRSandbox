@@ -173,6 +173,11 @@ class TestNoiseByPlace:
         correlation = np.abs(r / np.sqrt(np.outer(np.diag(r), np.diag(r)))) - np.eye(32)
         assert 0.3 < correlation.max() < 0.9   # overlapping neighbours share the head's noise
         assert np.median(correlation) < 0.2    # far loops hardly do
+        # the channels' own noise share is set on a measured 32-channel head array:
+        # each channel's strongest partner averages 0.41 there, 0.59 by the sample alone
+        assert abs(correlation.max(axis=1).mean() - 0.41) < 0.03
+        bare = CoilArray.helmet().loaded(own_noise=0.0).noise_resistance
+        assert abs((np.abs(bare) - np.eye(32)).max(axis=1).mean() - 0.59) < 0.03
 
     def test_calibration_sets_the_reference_and_the_depth_is_noisier(self):
         helmet = CoilArray.helmet().loaded().calibrated(self.REFERENCE)

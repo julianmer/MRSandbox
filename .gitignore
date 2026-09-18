@@ -43,3 +43,6 @@ dist/
 
 # personal agent instructions; never enters the repo
 CLAUDE.md
+
+# a collaborator's raw noise scans, placed by hand
+data/noise_data/

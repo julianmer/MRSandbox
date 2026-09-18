@@ -193,6 +193,29 @@ NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
 )
 
 
+#*****************************#
+#   array noise correlation   #
+#*****************************#
+# the share of a channel's noise that is its own, hardware.CoilArray.loaded(own_noise):
+# read off the noise adjustment measurement in the COWS file, the array on a head
+COIL_OWN_NOISE_PRISMA_3T = Calibration(
+    leaf="coils.loaded.own_noise",
+    value=0.3,
+    prior=(0.3, 0.3),
+    measured={"statistic": "magnitude of the noise correlation between channels: the mean over "
+                           "channels of the strongest partner, the strongest pair, the median pair",
+              "values": (0.41, 0.51, 0.15), "samples": 65536, "subjects": 1,
+              "simulated_at_value": (0.41, 0.48, 0.12), "simulated_without": (0.59, 0.69, 0.16)},
+    source=NOISE_COWS_PRISMA_3T.source,
+    scanner=NOISE_COWS_PRISMA_3T.scanner,
+    coil=NOISE_COWS_PRISMA_3T.coil,
+    sequence={"name": "noise adjustment", "product": "the first measurement of the TWIX file"},
+    acquisition={"channels": 32, "rf": "off"},
+    voxel={"load": "a head"},
+    processing="sample covariance of the 32 channels over all samples",
+    date="18/09/26",
+    note="the modelled array is CoilArray.helmet(), not this coil's geometry (not published)",
+)
 #***************#
 #   catalogue   #
 #***************#
@@ -202,3 +225,5 @@ NOISE_FMRS_PAIN_ACHIEVA_3T = Calibration(
 CALIBRATIONS = {c.leaf: c for c in (NOISE_BIG_GABA_SIEMENS_3T,)}
 # records read the same way under other conditions, kept to test what carries a number there
 CHECKS = (NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T)
+# numbers of the hardware models, outside the Params tree
+HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
