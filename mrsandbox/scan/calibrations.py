@@ -282,12 +282,12 @@ NOISE_BIG_GABA_GE_3T = Calibration(
 # read off the noise adjustment measurement in the COWS file, the array on a head
 COIL_OWN_NOISE_PRISMA_3T = Calibration(
     leaf="coils.loaded.own_noise",
-    value=0.3,
-    prior=(0.3, 0.3),
+    value=0.25,
+    prior=(0.25, 0.25),
     measured={"statistic": "magnitude of the noise correlation between channels: the mean over "
                            "channels of the strongest partner, the strongest pair, the median pair",
               "values": (0.41, 0.51, 0.15), "samples": 65536, "subjects": 1,
-              "simulated_at_value": (0.41, 0.48, 0.12), "simulated_without": (0.59, 0.69, 0.16)},
+              "simulated_at_value": (0.41, 0.50, 0.10), "simulated_without": (0.61, 0.79, 0.13)},
     source=NOISE_COWS_PRISMA_3T.source,
     scanner=NOISE_COWS_PRISMA_3T.scanner,
     coil=NOISE_COWS_PRISMA_3T.coil,

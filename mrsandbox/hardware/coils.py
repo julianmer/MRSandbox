@@ -178,7 +178,8 @@ class CoilArray:
     #   helmet   #
     #************#
     @classmethod
-    def helmet(cls, rows=((0.0, 1), (35.0, 6), (65.0, 10), (95.0, 15)), radius_mm=110.0,
+    def helmet(cls, rows=((0.0, 1), (35.0, 6), (65.0, 10), (95.0, 15)),
+               radius_mm=(95.0, 125.0, 115.0),
                loop_radius_mm=38.0, center_mm=HEAD_CENTER_MM):
         """Loops tiling a sphere about the head in rows, normals pointing inward: the
         close-fitting head arrays (the default rows, one loop on top and rings of 6,
@@ -189,17 +190,20 @@ class CoilArray:
         Checked on the COWS data (scan.calibrations, 10 subjects, a Prisma 32-channel
         array, the voxels placed through each subject's T1): the apodized SNR of the
         prefrontal, occipital, and posterior frontal voxels runs 1 : 0.91 : 0.69, this
-        helmet gives 1 : 0.74 : 0.49, the right order and too steep (about the world
-        origin it gave 1 : 2.31 : 0.81). A sphere around a head that is longer than
-        wide, stated."""
+        helmet gives 1 : 0.81 : 0.57, the right order and too steep (a sphere of 110 mm
+        gives 1 : 0.77 : 0.50, and about the world origin 1 : 2.31 : 0.81). `radius_mm` is
+        one radius or the (x, y, z) semi-axes of an ellipsoid; the default follows a
+        head that is longer than wide (the brain's box plus 35 mm, rounded; stated)."""
         loops = []
         for index, (polar_deg, count) in enumerate(rows):
             theta = np.radians(polar_deg)
             for k in range(count):
                 phi = 2.0 * np.pi * (k + 0.5 * (index % 2)) / count
                 out = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
-                loops.append(Loop(loop_radius_mm, tuple(np.asarray(center_mm) + radius_mm * out),
-                                  normal=tuple(-out)))
+                radii = np.broadcast_to(np.asarray(radius_mm, dtype=float), (3,))
+                inward = -(out / radii) / np.linalg.norm(out / radii)  # the ellipsoid's normal
+                loops.append(Loop(loop_radius_mm, tuple(np.asarray(center_mm) + radii * out),
+                                  normal=tuple(inward)))
         return cls(loops)
 
     #*************#
@@ -214,7 +218,7 @@ class CoilArray:
     #************#
     #   loaded   #
     #************#
-    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=HEAD_CENTER_MM, own_noise=0.3):
+    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=HEAD_CENTER_MM, own_noise=0.25):
         """The same array with its noise resistance matrix computed from the geometry:
         R_ij is the volume integral of E_i . E_j over the conductive sample (Roemer
         Eq. [9]; sample noise dominant, uniform conductivity), with E of a loop
@@ -225,7 +229,7 @@ class CoilArray:
         preamplifier) and correlates with no other channel. The default is measured:
         the noise adjustment of a 32-channel head array on a head at 3 T has a
         strongest partner per channel of 0.41 on average where the sample alone
-        gives 0.59 (scan.calibrations COIL_OWN_NOISE_PRISMA_3T). A small phantom loads
+        gives 0.61 (scan.calibrations COIL_OWN_NOISE_PRISMA_3T). A small phantom loads
         the loops less and the share grows: 0.21 measured in a 32-channel array."""
         axis = np.arange(-radius_mm, radius_mm + step_mm / 2.0, step_mm)
         grid = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1).reshape(-1, 3)
