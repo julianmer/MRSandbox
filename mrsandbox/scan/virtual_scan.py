@@ -56,6 +56,10 @@ class VirtualScan:
             every readout then carries the fields the design's own gradients induce
             through it (scan.eddy) in place of the drawn exponential terms of the
             gradients leaves. None draws those terms.
+        temperature_c, ph: The tissue's temperature and pH. The metabolite shifts are
+            typed at 37 C and pH 7 and move by their published functions of both
+            (database.shifts, Wermter et al. 2026); the default of the water leaf
+            water.temperature_c follows the temperature.
         receiver: A hardware.Receiver, the digital receiver every FID passes through
             (oversampled, filtered, decimated: the first points carry the filter's
             onset, the noise its band edges). None samples the ideal FID.
@@ -70,7 +74,8 @@ class VirtualScan:
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
-                 girf=None, receiver=None, isochromats=32, engine=None):
+                 girf=None, receiver=None, isochromats=32, engine=None, temperature_c=37.0,
+                 ph=7.0):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -85,7 +90,10 @@ class VirtualScan:
         self.transmit = transmit
         self.girf = girf
         self.receiver = receiver
+        self.temperature_c = float(temperature_c)
+        self.ph = float(ph)
         self.params = (default_params(self.database, b0_t=self.engine.b0_t)
+                       | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
         self._lines = None
         self._basis = None
@@ -100,7 +108,8 @@ class VirtualScan:
         """The spin systems of a metabolite from this scan's database, built once and
         cached: every draw and every voxel reuses the same structural systems."""
         if metabolite not in self._systems:
-            self._systems[metabolite] = SpinSystem.from_database(metabolite, database=self.database)
+            self._systems[metabolite] = SpinSystem.from_database(
+                metabolite, database=self.database, temperature_c=self.temperature_c, ph=self.ph)
         return self._systems[metabolite]
 
     #*************************#

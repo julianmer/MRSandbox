@@ -20,7 +20,8 @@
 import copy
 import math
 
-from mrsandbox.database import concentrations, deuterium, nuclei, relaxation, spinsystems
+from mrsandbox.database import (concentrations, deuterium, nuclei, relaxation, shifts,
+                                spinsystems)
 from mrsandbox.database.gudmundson import PooledValue
 
 
@@ -89,6 +90,25 @@ class Database:
     #**********************#
     #   concentrations     #
     #**********************#
+    def shift_change(self, metabolite, shift_ppm, temperature_c, ph, within_ppm=0.05):
+        """How far a proton of `metabolite` typed at `shift_ppm` (37 C, pH 7) moves at
+        another temperature and pH, in ppm: the fitted function of the WERMTER_2026
+        group whose own shift at 37 C and pH 7 lies nearest, within `within_ppm`,
+        evaluated at the conditions minus at the reference. Zero where the table has
+        no such group (compounds it did not measure, the phosphorus dummies)."""
+        groups = shifts.WERMTER_2026.get(metabolite)
+        if groups is None or (temperature_c == 37.0 and ph == 7.0):
+            return 0.0
+
+        def delta(abc, t_c, at_ph):
+            a, b, c = (p[0] + p[1] * t_c + p[2] * t_c * t_c for p in abc)
+            return a + (b - a) / (1.0 + 10.0 ** (c - at_ph))
+
+        nearest = min(groups.values(), key=lambda abc: abs(delta(abc, 37.0, 7.0) - shift_ppm))
+        if abs(delta(nearest, 37.0, 7.0) - shift_ppm) > within_ppm:
+            return 0.0
+        return delta(nearest, temperature_c, ph) - delta(nearest, 37.0, 7.0)
+
     def concentration(self, metabolite, source="de_graaf"):
         """Concentration entry of one metabolite from one source, exactly as published."""
         table = self._source(concentrations, source)

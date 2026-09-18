@@ -57,7 +57,8 @@ This repository consists of the following main structures:
   citation beside each dict, including the de Graaf concentration ranges, per metabolite T2 pooled
   from the Gudmundson database in `externals/`, per metabolite T1 typed from Mlynarik 2001,
   Ethofer 2003, and Traber 2004, the published WET and VAPOR suppression series, and the de Graaf
-  RF pulse characteristics. Pooling across sources is code, never data.
+  RF pulse characteristics, and the published functions by which every metabolite shift moves
+  with temperature and pH (Wermter et al. 2026). Pooling across sources is code, never data.
 * The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
   any position, together with swappable water, lipid, macromolecule, and downfield sources
   (coupled mini spin systems, LCModel style Gaussians, the measured consensus spectrum, or the

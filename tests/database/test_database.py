@@ -183,3 +183,53 @@ class TestFieldPriors:
 
         assert default_params(b0_t=3.0).lineshape.gauss_hz == Uniform(2.0, 6.0)
         assert default_params(b0_t=7.0).lineshape.gauss_hz == Uniform(2.0 * 7.0 / 3.0, 6.0 * 7.0 / 3.0)
+
+
+#**************************************************************************************************#
+#                                        Class TestShifts                                          #
+#**************************************************************************************************#
+#                                                                                                  #
+# The shifts move with temperature and pH by the published functions, and agree with the older     #
+# paper's slopes of the differences within a metabolite.                                           #
+#**************************************************************************************************#
+class TestShifts:
+
+    def test_the_typed_conditions_change_nothing(self):
+        from mrsandbox import SpinSystem
+
+        database = Database()
+        assert database.shift_change("NAA", 2.008, 37.0, 7.0) == 0.0
+        assert database.shift_change("GPC", 3.212, 32.0, 6.5) == 0.0  # not in the table
+        assert database.shift_change("NAA", 5.0, 32.0, 7.0) == 0.0    # no group near 5 ppm
+        warm, typed = SpinSystem.from_database("Glu", temperature_c=37.0), SpinSystem.from_database("Glu")
+        assert [s.shifts_ppm for s in warm] == [s.shifts_ppm for s in typed]
+
+    def test_the_functions_carry_the_2017_difference_slopes(self):
+        # Wermter et al. 2017 (MAGMA 30:579) Table 1, measured on its own: the slopes
+        # of shift differences within a metabolite, in 1e-4 ppm per kelvin
+        database = Database()
+
+        def slope(metabolite, upper_ppm, lower_ppm):
+            change = [database.shift_change(metabolite, upper_ppm, t, 7.0)
+                      - database.shift_change(metabolite, lower_ppm, t, 7.0) for t in (32.0, 40.0)]
+            return (change[1] - change[0]) / 8.0 * 1e4
+
+        assert slope("Cr", 3.913, 3.027) == pytest.approx(-6.2166, abs=1.5)
+        assert slope("PCr", 3.930, 3.029) == pytest.approx(-6.6944, abs=1.5)
+        assert slope("Lac", 4.0974, 1.3142) == pytest.approx(-3.1866, abs=1.0)
+        assert slope("Tau", 3.4206, 3.2459) == pytest.approx(3.2098, abs=1.0)
+        # the GABA 4CH2 row as printed contradicts that table (a misprinted sign, see the
+        # card) and sits 0.06 ppm off the typed shift: the match leaves it alone
+        assert database.shift_change("GABA", 3.013, 32.0, 7.0) == 0.0
+
+    def test_a_scan_moves_its_systems_and_its_water_with_the_temperature(self):
+        from mrsandbox import Brain, Press, Scanner, VirtualScan
+
+        brain = Brain.from_maps(*(3 * [[[[1.0]]]]), affine=[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0],
+                                                          [0, 0, 0, 1]])
+        pieces = (brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        fever, body = VirtualScan(*pieces, temperature_c=40.0, ph=6.8), VirtualScan(*pieces)
+        assert fever.params.water.temperature_c.value == 40.0
+        assert body.params.water.temperature_c.value == 37.0
+        moved = fever.systems("Lac")[0].shifts_ppm[0] - body.systems("Lac")[0].shifts_ppm[0]
+        assert abs(moved - Database().shift_change("Lac", 4.0974, 40.0, 6.8)) < 1e-12 and moved != 0.0
