@@ -61,7 +61,8 @@ class Volume:
         """A registered NIfTI resource as a Volume, fetched on first use: values scaled
         to the registry's stated units where the entry carries a scale, and for the
         bigbrain_mr entries the volume-centre origin convention of the other
-        BigBrain-MR loaders (the shipped files carry no world origin)."""
+        BigBrain-MR loaders (the shipped files carry no world origin); an entry's
+        origin_index is the cell that becomes world (0, 0, 0)."""
         import nibabel as nib
 
         from mrsandbox.resources import Resources
@@ -72,6 +73,8 @@ class Volume:
         affine = np.array(image.affine, dtype=np.float64)
         if name.startswith("bigbrain_mr/"):
             affine[:3, 3] = -affine[:3, :3] @ ((np.asarray(data.shape[:3]) - 1) / 2.0)
+        if "origin_index" in entry:
+            affine[:3, 3] = -affine[:3, :3] @ np.asarray(entry["origin_index"], dtype=np.float64)
         return cls(data, affine, name=name)
 
     #**************#

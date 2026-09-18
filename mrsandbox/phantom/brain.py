@@ -37,9 +37,11 @@ class Brain:
         gm, wm, csf: Probability volumes with a shared shape, values in [0, 1].
         affine: 4x4 voxel-to-world matrix (world coordinates in mm).
         name: Identifier stored in provenance.
+        fat: Optional map of the fat-bearing tissue around the skull on the same grid;
+            with it the lipid layer is that tissue, without it the brain boundary.
     """
 
-    PRESETS = ("icbm152", "bigbrain_mr")
+    PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2")
 
     # BigBrain-MR atlas labels (Sainz Martinez et al. 2023, Table I) grouped by tissue.
     # Stated conventions for the mixed structures: the brainstem counts as white matter,
@@ -50,13 +52,21 @@ class Brain:
         "csf": (3,),
     }
 
+    # QSM challenge 2.0 head labels (resources.qsm LABELS) grouped by tissue. Stated:
+    # the deep nuclei count as gray matter, blood and calcification as no tissue, and
+    # the extracranial soft tissue (the deposit's "muscle"; its "fat" label holds no
+    # voxels, so scalp fat and muscle are one class) is the fat-bearing layer.
+    QSM_TISSUES = {"gm": (1, 2, 3, 4, 5, 6, 7, 9), "wm": (8,), "csf": (10,), "fat": (15,)}
+
     #**********#
     #   init   #
     #**********#
-    def __init__(self, gm, wm, csf, affine, name="custom"):
+    def __init__(self, gm, wm, csf, affine, name="custom", fat=None):
         maps = tuple(np.asarray(m, dtype=np.float32) for m in (gm, wm, csf))
         if not (maps[0].shape == maps[1].shape == maps[2].shape):
             raise ValueError("gm, wm, and csf maps must share one shape")
+        self.fat = None if fat is None else Volume(np.asarray(fat, dtype=np.float32), affine,
+                                                   name=name)
         self.maps = Volume(np.stack(maps, axis=-1), affine, name=name)
         self.gm, self.wm, self.csf = (self.maps.data[..., i] for i in range(3))
         self.affine = self.maps.affine
@@ -72,6 +82,8 @@ class Brain:
             raise KeyError(f"unknown brain {name!r}; known: {', '.join(cls.PRESETS)}")
         if name == "bigbrain_mr":
             return cls._load_bigbrain()
+        if name == "qsm_rc2":
+            return cls._load_qsm()
         import nibabel as nib
 
         from mrsandbox.resources import Resources
@@ -109,9 +121,21 @@ class Brain:
                    affine=volume.affine, name="bigbrain_mr")
 
     @classmethod
-    def from_maps(cls, gm, wm, csf, affine, name="custom"):
+    def _load_qsm(cls):
+        """The QSM challenge 2.0 head at 0.64 mm: a whole head, so the skull, the air,
+        and the extracranial tissue are labelled and the fat layer has its geometry.
+        The deposit is not redistributed; `Resources.path` says where to get it and
+        where to place it (resources.qsm)."""
+        volume = Volume.load("qsm_rc2/labels")
+        labels = np.asarray(volume.data, dtype=np.uint8)
+        masks = {tissue: np.isin(labels, members).astype(np.float32)
+                 for tissue, members in cls.QSM_TISSUES.items()}
+        return cls(affine=volume.affine, name="qsm_rc2", **masks)
+
+    @classmethod
+    def from_maps(cls, gm, wm, csf, affine, name="custom", fat=None):
         """Wrap your own probability maps (for example an MPRAGE segmentation)."""
-        return cls(gm=gm, wm=wm, csf=csf, affine=affine, name=name)
+        return cls(gm=gm, wm=wm, csf=csf, affine=affine, name=name, fat=fat)
 
     #**************#
     #   geometry   #
@@ -153,8 +177,12 @@ class Brain:
         empty space at once): a box fully inside the brain weighs exactly zero, a box
         fully outside weighs zero too, and a box clipping the skull weighs the clipped
         fraction. The tissue probability maps carry no scalp, so the boundary stands in
-        for the fat layer until segmented skull maps arrive.
+        for the fat layer until segmented skull maps arrive. A brain with a `fat`
+        map weighs the box by that tissue instead.
         """
+        if self.fat is not None:
+            mean = self.fat.mean(position_mm, size_mm)
+            return 0.0 if mean is None else float(mean)
         values, weights = self.maps.box(position_mm, size_mm)
         if weights.sum() <= 0.0:
             return 0.0
@@ -166,11 +194,13 @@ class Brain:
     def lipid_offset(self, position_mm, size_mm):
         """Where the fat layer sits: the centroid of the box's beyond-the-brain content
         (the cells `lipid_weight` counts) relative to the voxel centre, (x, y, z) in
-        millimetres; zeros when the box holds none."""
-        values, weights = self.maps.box(position_mm, size_mm)
+        millimetres; zeros when the box holds none. With a `fat` map the content is
+        that tissue."""
+        source = self.maps if self.fat is None else self.fat
+        values, weights = source.box(position_mm, size_mm)
         if weights.sum() <= 0.0:
             return np.zeros(3)
-        outside = weights * (values.sum(axis=-1) < 0.1)
+        outside = weights * (values.sum(axis=-1) < 0.1 if self.fat is None else values)
         if outside.sum() <= 0.0:
             return np.zeros(3)
         centres = self.maps.centres(position_mm, size_mm).reshape(-1, 3)

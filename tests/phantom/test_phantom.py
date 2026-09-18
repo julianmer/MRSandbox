@@ -112,3 +112,57 @@ class TestBigBrainMR:
         for fraction in (f.gm, f.wm):
             assert 0.0 < fraction < 1.0
         assert f.gm + f.wm + f.csf <= 1.0 + 1e-6
+
+
+#**************************************************************************************************#
+#                                        Class TestFatLayer                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# A brain with a fat map puts the lipid layer where that tissue is, not at the brain boundary.     #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestFatLayer:
+
+    def test_a_fat_map_is_the_lipid_layer(self):
+        # brain in x < 8, two cells of bone (nothing), then two cells of scalp
+        gm = np.zeros((16, 8, 8), dtype=np.float32)
+        gm[:8] = 1.0
+        fat = np.zeros_like(gm)
+        fat[10:12] = 1.0
+        affine = np.eye(4)
+        zeros = np.zeros_like(gm)
+        layered = Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=affine, fat=fat)
+        boundary = Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=affine)
+        # a 4 mm box over x in 6.5 to 10.5: a quarter brain, the bone, a quarter scalp
+        position = (8.5, 3.5, 3.5)
+        assert boundary.lipid_weight(position, 4.0) == pytest.approx(0.75)  # bone counted as fat
+        assert layered.lipid_weight(position, 4.0) == pytest.approx(0.25)
+        np.testing.assert_allclose(layered.lipid_offset(position, 4.0), (1.5, 0.0, 0.0), atol=1e-6)
+        # inside the brain and in the bone alone there is no fat
+        assert layered.lipid_weight((3.5, 3.5, 3.5), 4.0) == 0.0
+        assert layered.lipid_weight((8.5, 3.5, 3.5), 1.0) == 0.0
+
+
+#**************************************************************************************************#
+#                                         Class TestQsmHead                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# The QSM challenge 2.0 head: a whole head with skull and scalp, placed in the cache by hand.      #
+#                                                                                                  #
+#**************************************************************************************************#
+@pytest.mark.skipif(not Resources.cached("qsm_rc2/labels"),
+                    reason="the QSM challenge 2.0 head is not redistributed; place it by hand")
+class TestQsmHead:
+
+    def test_the_head_has_a_brain_a_skull_and_a_scalp(self):
+        brain = Brain.load("qsm_rc2")
+        assert brain.shape == (256, 320, 320) and brain.name == "qsm_rc2"
+        inside = brain.fractions((0.0, 0.0, 40.0), 10.0)
+        assert inside.gm + inside.wm + inside.csf > 0.9
+        assert brain.lipid_weight((0.0, 0.0, 40.0), 10.0) == 0.0
+        # going up through the vertex: brain, then the skull, then the scalp, then air
+        assert brain.lipid_weight((0.0, 0.0, 80.0), 10.0) > 0.5
+        assert brain.fractions((0.0, 0.0, 80.0), 10.0) == Tissues(gm=0.0, wm=0.0, csf=0.0)
+        assert brain.lipid_weight((0.0, 0.0, 95.0), 10.0) == 0.0
+        # the scalp sits outward of a voxel that clips it from inside
+        assert brain.lipid_offset((60.0, 0.0, 20.0), 10.0)[0] > 1.0
