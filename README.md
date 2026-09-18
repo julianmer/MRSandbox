@@ -102,7 +102,9 @@ This repository consists of the following main structures:
   from fMRS in pain, 7 T from NeuroMET; every other scanner falls back to the Trio's, and
   records that are not in use stay as checks. The noise records read the NAA signal to
   noise ratio of single transients under a common apodization, which takes the in vivo
-  linewidth out of the receive chain's number.
+  linewidth out of the receive chain's number. The creatine range is calibrated the same way, on the
+  height of the 3.03 ppm singlet against NAA's in three datasets. Only quantities read off
+  raw data enter a record, never concentrations a fitting program reported.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
   and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
   hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled
