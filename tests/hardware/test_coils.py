@@ -153,6 +153,72 @@ class TestAcquisition:
 
 
 #**************************************************************************************************#
+#                                     Class TestNoiseByPlace                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# Array geometries, the noise correlation a conductive head gives them, and the combined noise     #
+# by place (Roemer et al. 1990).                                                                   #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestNoiseByPlace:
+    REFERENCE = (0.0, -45.0, 35.0)
+
+    def test_the_loaded_resistance_is_a_correlation_with_coupled_neighbours(self):
+        helmet = CoilArray.helmet().loaded()
+        assert len(helmet) == 32
+        r = helmet.noise_resistance
+        np.testing.assert_allclose(r, r.T, atol=1e-12)
+        assert np.linalg.eigvalsh(r).min() > 0.0
+        assert abs(np.mean(np.diag(r)) - 1.0) < 1e-12
+        correlation = np.abs(r / np.sqrt(np.outer(np.diag(r), np.diag(r)))) - np.eye(32)
+        assert 0.3 < correlation.max() < 0.9   # overlapping neighbours share the head's noise
+        assert np.median(correlation) < 0.2    # far loops hardly do
+
+    def test_calibration_sets_the_reference_and_the_depth_is_noisier(self):
+        helmet = CoilArray.helmet().loaded().calibrated(self.REFERENCE)
+        assert abs(helmet.noise_gain(self.REFERENCE) - 1.0) < 1e-6
+        assert abs(helmet.calibrated(self.REFERENCE).noise_gain(self.REFERENCE) - 1.0) < 1e-6
+        centre, cortex = helmet.noise_gain((0.0, 0.0, 0.0)), helmet.noise_gain((0.0, -75.0, 20.0))
+        assert centre > 2.0 > 1.0 > cortex
+        # one occipital loop hears the back of the head and hardly the front
+        loop = CoilArray.surface((0.0, -110.0, 20.0), (0.0, 1.0, 0.0)).calibrated(self.REFERENCE)
+        assert loop.noise_gain((0.0, 60.0, 20.0)) > 5.0 * loop.noise_gain((0.0, -75.0, 20.0))
+
+    def test_the_combined_channel_noise_follows_the_gain(self):
+        from mrsandbox.scan.voxel import receiver_noise
+
+        helmet = CoilArray.helmet().loaded().calibrated(self.REFERENCE)
+        channels = receiver_noise(np.random.default_rng(3), 2.0, 1 << 15, None, helmet)
+        for place in (self.REFERENCE, (0.0, 0.0, 0.0), (55.0, 0.0, 20.0)):
+            combined = helmet.combine(channels, place)
+            expected = 2.0 * helmet.noise_gain(place)
+            assert abs(np.std(combined.real) / expected - 1.0) < 0.03
+
+    @pytest.mark.render
+    def test_a_scan_without_channels_takes_the_place_from_the_map(self, pieces):
+        from mrsandbox.phantom.volume import Volume
+
+        brain, scanner, sequence = pieces
+        helmet = CoilArray.helmet().loaded().calibrated(self.REFERENCE)
+        truth = VirtualScan(brain, scanner, sequence).params.sample(np.random.default_rng(0))
+        plain = VirtualScan(brain, scanner, sequence).voxel(**VOXEL)
+        placed = VirtualScan(brain, scanner, sequence, noise_map=helmet).voxel(**VOXEL)
+        ratio = placed.noise_sigma(truth, 2.5e-4, 1) / plain.noise_sigma(truth, 2.5e-4, 1)
+        assert abs(ratio - helmet.noise_gain(VOXEL["position_mm"], VOXEL["size_mm"])) < 1e-6
+        # a measured noise level: its box mean over the box mean at the reference
+        level = np.ones((40, 40, 40))
+        level[:10] = 3.0
+        affine = np.diag([5.0, 5.0, 5.0, 1.0])
+        affine[:3, 3] = -97.5
+        mapped = VirtualScan(brain, scanner, sequence, noise_map=Volume(level, affine))
+        assert abs(mapped.voxel((-70.0, -45.0, 35.0), 20.0).noise_place() - 3.0) < 1e-9
+        assert abs(mapped.voxel((50.0, -45.0, 35.0), 20.0).noise_place() - 1.0) < 1e-9
+        header = placed.acquire(seed=1, npoints=256).hdr_ext["SimulationPhantom"]
+        assert header["calibrations"]["noise.sigma"]["extrapolated"] == {}
+        assert abs(header["noise_place"] - ratio) < 1e-6
+
+
+#**************************************************************************************************#
 #                                      Class TestMappedArray                                       #
 #**************************************************************************************************#
 #                                                                                                  #

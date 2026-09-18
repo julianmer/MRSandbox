@@ -24,6 +24,7 @@ from keras import ops
 from mrsandbox.database.tissue import CADY_1995
 from mrsandbox.params import Params, Tissues
 from mrsandbox.phantom.volume import Volume
+from mrsandbox.scan.calibrations import CALIBRATIONS
 from mrsandbox.sequences.events import ShapedPulse
 
 
@@ -240,8 +241,25 @@ class Voxel:
         """The per-point receiver noise of this voxel's acquisition: the drawn sigma
         (one transient of the reference 8 mL voxel at 3 T and 5 kHz) scaled by the
         volume, the field, the receiver bandwidth, and the averages (noise_scale)."""
-        return truth.noise.sigma * noise_scale(self.volume_ml, self.scan.engine.b0_t, dwell_s,
-                                               averages)
+        return (truth.noise.sigma * self.noise_place()
+                * noise_scale(self.volume_ml, self.scan.engine.b0_t, dwell_s, averages))
+
+    def noise_place(self):
+        """The scan's noise map at this voxel over the map at the place the noise prior
+        belongs to (VirtualScan noise_map): an array's combined noise, or a measured
+        noise level's box mean; one without a map, with channels, or outside it."""
+        if "noise_place" not in self._kernels:
+            noise, factor = self.scan.noise_map, 1.0
+            if noise is not None and self.scan.coils is None:
+                if hasattr(noise, "noise_gain"):
+                    factor = noise.noise_gain(self.position_mm, self.size_mm)
+                else:
+                    here = noise.mean(self.position_mm, self.size_mm)
+                    there = noise.mean(self.scan.noise_reference_mm, self.size_mm)
+                    if here is not None and there is not None and min(here, there) > 0.0:
+                        factor = float(here) / float(there)
+            self._kernels["noise_place"] = factor
+        return self._kernels["noise_place"]
 
     #*****************#
     #   realization   #
@@ -830,7 +848,9 @@ class Voxel:
              "size_mm": list(self.size_mm) if isinstance(self.size_mm, tuple) else self.size_mm,
              "transmit": None if self.scan.transmit is None else self.scan.transmit.name,
              "receiver": None if self.scan.receiver is None
-             else dataclasses.asdict(self.scan.receiver)},
+             else dataclasses.asdict(self.scan.receiver),
+             "noise_place": float(self.noise_place()),
+             "calibrations": {leaf: c.record(self.scan) for leaf, c in CALIBRATIONS.items()}},
             "MRSandbox: the virtual brain, the transmit map, the receiver, and the voxel "
             "placement.",
         )

@@ -547,6 +547,23 @@ class TestLineshape:
 #**************************************************************************************************#
 class TestNoiseModel:
 
+    def test_the_calibration_carries_its_conditions_and_names_departures(self):
+        # the prior comes from the record, and a scan away from the record's scanner,
+        # field, or sequence says so
+        from mrsandbox import Steam
+        from mrsandbox.scan.calibrations import CALIBRATIONS
+
+        record = CALIBRATIONS["noise.sigma"]
+        brain = Brain.load("icbm152")
+        same = VirtualScan(brain, Scanner.preset("siemens_prisma_3t"), Press(0.011, 0.024))
+        prior = same.params["noise"]["sigma"]
+        assert (prior.low, prior.high) == record.prior
+        assert record.departures(same) == {}
+        other = VirtualScan(brain, Scanner.preset("generic_7t"), Steam(te_s=0.01, tm_s=0.02))
+        assert set(record.departures(other)) == {"field_t", "sequence"}
+        philips = VirtualScan(brain, Scanner.preset("philips_elition_3t"), Press(0.011, 0.024))
+        assert record.departures(philips) == {"vendor": ("siemens", "philips")}
+
     def test_averages_volume_field_and_bandwidth_scale_the_noise(self, scan):
         from mrsandbox.scan.voxel import noise_scale
 

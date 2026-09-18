@@ -17,6 +17,7 @@
 #*************#
 #   imports   #
 #*************#
+import copy
 import dataclasses
 
 import numpy as np
@@ -58,6 +59,30 @@ class Loop:
         bx, by, _ = self.field(position_mm)
         return complex(0.5 * (bx - 1j * by))
 
+    #***************#
+    #   potential   #
+    #***************#
+    def potential(self, points_mm):
+        """The vector potential of the unit-current loop at many points, (n, 3), mu0
+        omitted like the field: azimuthal about the loop's axis, the closed form in
+        complete elliptic integrals, A = (1 / (pi k)) sqrt(a / rho) ((1 - k^2 / 2) K - E)
+        with k^2 = 4 a rho / ((a + rho)^2 + z^2). The electric field a loop induces in
+        a conductor is -i omega A, which is what its noise comes from."""
+        a = float(self.radius_mm)
+        n = np.asarray(self.normal, dtype=float)
+        n = n / np.linalg.norm(n)
+        r = np.asarray(points_mm, dtype=float) - np.asarray(self.center_mm, dtype=float)
+        z = r @ n
+        radial = r - z[:, None] * n
+        rho = np.linalg.norm(radial, axis=1)
+        safe = np.maximum(rho, 1e-9)
+        k2 = 4.0 * a * safe / ((a + safe) ** 2 + z ** 2)
+        k = np.sqrt(k2)
+        size = (np.sqrt(a / safe) / (np.pi * k)
+                * ((1.0 - k2 / 2.0) * scipy.special.ellipk(k2) - scipy.special.ellipe(k2)))
+        azimuth = np.cross(n, radial / safe[:, None])
+        return np.where(rho[:, None] > 1e-9, size[:, None] * azimuth, 0.0)
+
     #***********#
     #   field   #
     #***********#
@@ -95,19 +120,29 @@ class Loop:
 class CoilArray:
     """A receive array: loops, their noise resistance matrix, and the Roemer combination.
 
+    An array decides where a scan is quiet: after the optimum combination the noise of
+    a voxel is sigma / sqrt(b^H R^-1 b), low where loops are near and the channels
+    add, high in the middle of the head. `loaded` computes R from the geometry (the
+    noise a conductive head induces in every pair of loops), `calibrated` fixes the
+    scale the loops' relative units leave open: at one place, the one the scan's
+    noise prior was calibrated at, the combined noise is the drawn sigma itself, and
+    everywhere else it follows the array.
+
     Args:
         loops: The receive Loops.
         noise_resistance: The matrix R of Roemer Eq. [9]; diagonal entries are each
             coil's own noise resistance, off-diagonal entries the correlated noise
             between coils. Defaults to the identity (independent, equal coils).
+        gain: The scale on every sensitivity (`calibrated` sets it).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, loops, noise_resistance=None):
+    def __init__(self, loops, noise_resistance=None, gain=1.0):
         self.loops = tuple(loops)
         self.noise_resistance = self._resistance(len(self.loops), noise_resistance)
+        self.gain = float(gain)
 
     @staticmethod
     def _resistance(n, noise_resistance):
@@ -134,6 +169,71 @@ class CoilArray:
             loops.append(Loop(loop_radius_mm, center, normal=(-np.cos(phi), -np.sin(phi), 0.0)))
         return cls(loops)
 
+    #************#
+    #   helmet   #
+    #************#
+    @classmethod
+    def helmet(cls, rows=((0.0, 1), (35.0, 6), (65.0, 10), (95.0, 15)), radius_mm=110.0,
+               loop_radius_mm=38.0, center_mm=(0.0, 0.0, 0.0)):
+        """Loops tiling a sphere about the head in rows, normals pointing inward: the
+        close-fitting head arrays (the default rows, one loop on top and rings of 6,
+        10, and 15 at 35, 65, and 95 degrees from the top, make 32 channels; stated
+        layout, the vendors' differ in detail). `rows` is ((polar angle in degrees
+        from +z, loops in the ring), ...); alternate rings are turned by half a loop."""
+        loops = []
+        for index, (polar_deg, count) in enumerate(rows):
+            theta = np.radians(polar_deg)
+            for k in range(count):
+                phi = 2.0 * np.pi * (k + 0.5 * (index % 2)) / count
+                out = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
+                loops.append(Loop(loop_radius_mm, tuple(np.asarray(center_mm) + radius_mm * out),
+                                  normal=tuple(-out)))
+        return cls(loops)
+
+    #*************#
+    #   surface   #
+    #*************#
+    @classmethod
+    def surface(cls, center_mm, normal, loop_radius_mm=50.0):
+        """One surface loop at `center_mm` facing along `normal`: the single coil laid
+        on the head, sensitive to about a radius' depth."""
+        return cls([Loop(loop_radius_mm, tuple(center_mm), normal=tuple(normal))])
+
+    #************#
+    #   loaded   #
+    #************#
+    def loaded(self, radius_mm=95.0, step_mm=10.0, center_mm=(0.0, 0.0, 0.0)):
+        """The same array with its noise resistance matrix computed from the geometry:
+        R_ij is the volume integral of E_i . E_j over the conductive sample (Roemer
+        Eq. [9]; sample noise dominant, uniform conductivity), with E of a loop
+        proportional to its vector potential (`Loop.potential`), here over a sphere
+        the size of a head on a `step_mm` grid, scaled to a mean diagonal of one.
+        Neighbouring loops then share noise, as they do on a scanner."""
+        axis = np.arange(-radius_mm, radius_mm + step_mm / 2.0, step_mm)
+        grid = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1).reshape(-1, 3)
+        points = grid[np.linalg.norm(grid, axis=1) <= radius_mm] + np.asarray(center_mm, dtype=float)
+        potentials = np.stack([loop.potential(points) for loop in self.loops])
+        resistance = np.einsum("ipk,jpk->ij", potentials, potentials)
+        return type(self)(self.loops, resistance / np.mean(np.diag(resistance)), gain=self.gain)
+
+    #****************#
+    #   calibrated   #
+    #****************#
+    def calibrated(self, reference_mm, size_mm=None):
+        """The same array scaled so the optimum combination's noise at `reference_mm`
+        is the scan's drawn sigma (b^H R^-1 b = 1 there): the place the noise prior was
+        calibrated at (scan.defaults: a parietal midline voxel under a 32-channel head
+        array). Everywhere else the noise follows the array, `noise_gain`."""
+        scaled = copy.copy(self)
+        scaled.gain = self.gain * self.noise_gain(reference_mm, size_mm)
+        return scaled
+
+    def noise_gain(self, position_mm, size_mm=None):
+        """What the optimum combination makes of the channel noise at a position:
+        1 / sqrt(b^H R^-1 b), the factor on sigma (one at the calibrated place)."""
+        b = self.sensitivities(position_mm, size_mm).astype(np.complex128)
+        return float(1.0 / np.sqrt(np.real(np.vdot(b, np.linalg.solve(self.noise_resistance, b)))))
+
     #********************#
     #   sensitivities    #
     #********************#
@@ -142,8 +242,8 @@ class CoilArray:
 
         The loop fields are analytic point samples at the position; `size_mm` is the
         shared signature of the mapped arrays and is ignored here (stated)."""
-        return np.asarray([loop.sensitivity(position_mm) for loop in self.loops],
-                          dtype=np.complex64)
+        return self.gain * np.asarray([loop.sensitivity(position_mm) for loop in self.loops],
+                                      dtype=np.complex64)
 
     #*****************#
     #   combination   #
@@ -219,6 +319,7 @@ class MappedCoilArray(CoilArray):
         self.affine = self.volume.affine
         self.name = name
         self.loops = ()
+        self.gain = 1.0
         self.noise_resistance = self._resistance(self.map.shape[-1], noise_resistance)
 
     def __len__(self):
@@ -305,4 +406,4 @@ class MappedCoilArray(CoilArray):
                  else self.volume.mean(position_mm, size_mm))
         if value is None:
             return np.zeros(len(self), dtype=np.complex64)
-        return np.asarray(value, dtype=np.complex64)
+        return self.gain * np.asarray(value, dtype=np.complex64)

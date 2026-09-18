@@ -45,6 +45,16 @@ class VirtualScan:
         database: Database instance; defaults to the packaged one.
         coils: A hardware.CoilArray for multi-channel reception; None gives one ideal
             channel.
+        noise_map: Where the scan is quiet and where it is not, for an acquisition
+            without channels: a hardware.CoilArray (its optimum combination's noise,
+            `noise_gain`, one where it was `calibrated`), or a phantom.Volume of a
+            measured noise level (a noise-only scan without RF, reconstructed through
+            the scanner's own combination; Kellman and McVeigh 2005), read as its
+            box mean over its box mean at `noise_reference_mm`. The drawn sigma
+            belongs to the reference place; every voxel scales it by the map. With
+            `coils` the channels carry their own noise and the map is not used.
+        noise_reference_mm: The place the noise prior was calibrated at (the
+            parietal midline voxel of scan.defaults).
         field: A phantom.FieldMap for B0 inhomogeneity; None gives a uniform field.
         field_groups: How many groups of the voxel's post-shim field distribution play
             the sequence at their own offset. One (the default) lets the field act on
@@ -80,7 +90,7 @@ class VirtualScan:
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=37.0,
-                 ph=7.0, field_groups=1):
+                 ph=7.0, field_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0)):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -93,6 +103,8 @@ class VirtualScan:
         self.coils = coils
         self.field = field
         self.field_groups = int(field_groups)
+        self.noise_map = noise_map
+        self.noise_reference_mm = tuple(float(x) for x in noise_reference_mm)
         self.transmit = transmit
         self.girf = girf
         self.receiver = receiver
