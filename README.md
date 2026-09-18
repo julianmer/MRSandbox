@@ -87,7 +87,16 @@ This repository consists of the following main structures:
   and the noise rolls off at the band edges. Loops carry
   Biot-Savart sensitivities, measured arrays (the BigBrain-MR and T2*-MOVE maps) carry their
   channel patterns, arrays carry the Roemer noise resistance matrix, and acquisitions gain a
-  DIM_COIL dimension with the Roemer optimum combination to fold them back.
+  DIM_COIL dimension with the Roemer optimum combination to fold them back. Array
+  geometries (`CoilArray.ring`, `helmet`, `surface`) take the noise correlation a conductive
+  head gives them (`loaded`), and `calibrated` ties the combined noise to the place the noise
+  prior was measured at, so the noise follows the place: `noise_gain`. A scan without channels
+  takes the same from `VirtualScan(noise_map=...)`, an array or a measured noise scan.
+* The `mrsandbox/scan/calibrations.py` file holds every number calibrated on in vivo data with
+  the exact conditions of the measurement (dataset, scanner, software, coil, sequence, timings,
+  bandwidth, voxel, processing). Every acquisition's header names the calibrations it used and
+  the conditions it departs from (another field, vendor, or sequence), where the number is
+  carried by the simulator's scaling law and not by data.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
   and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
   hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled
