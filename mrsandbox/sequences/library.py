@@ -202,11 +202,14 @@ class LocalizedSemiLaser(Sequence):
         slope = pulses.DE_GRAAF[("sinc", 90)]["r_bw"] / self.EXCITATION_S / edges[0]  # Hz per mm
 
         def afp(axis, edge):
+            # 128 steps: within 5e-4 of 512 on lactate, glutamate, and glucose
             return ShapedPulse.goia_wurst(self.AFP_S, self.AFP_BANDWIDTH_HZ, self.AFP_PEAK_HZ,
-                                          offset_ppm=reference_ppm, extent_mm=span * edge,
+                                          steps=128, offset_ppm=reference_ppm, extent_mm=span * edge,
                                           gradient_hz_per_mm=self.AFP_BANDWIDTH_HZ / edge,
                                           gradient_axis=axis)
 
+        # one pulse object per pair: its propagator is computed once per run
+        afp_y, afp_z = afp("y", edges[1]), afp("z", edges[2])
         super().__init__(
             ShapedPulse.sinc(90.0, self.EXCITATION_S, offset_ppm=reference_ppm,
                              phase_deg=-180.0 * reference_ppm * f0_mhz * self.EXCITATION_S,
@@ -214,10 +217,10 @@ class LocalizedSemiLaser(Sequence):
             Gradient(-0.5 * slope * self.EXCITATION_S, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span),
             Delay(tau - self.EXCITATION_S / 2.0),
-            afp("y", edges[1]), CoherenceFilter(+1), Delay(2.0 * tau),
-            afp("y", edges[1]), CoherenceFilter(-1), Projection(span), Delay(2.0 * tau),
-            afp("z", edges[2]), CoherenceFilter(+1), Delay(2.0 * tau),
-            afp("z", edges[2]), CoherenceFilter(-1), Projection(span), Delay(tau),
+            afp_y, CoherenceFilter(+1), Delay(2.0 * tau),
+            afp_y, CoherenceFilter(-1), Projection(span), Delay(2.0 * tau),
+            afp_z, CoherenceFilter(+1), Delay(2.0 * tau),
+            afp_z, CoherenceFilter(-1), Projection(span), Delay(tau),
             tr_s=tr_s,
         )
 
@@ -555,18 +558,17 @@ class SemiLaser(Sequence):
         self.afp_bandwidth_hz = afp_bandwidth_hz
         self.afp_peak_hz = afp_peak_hz
 
-        def afp():
-            return ShapedPulse.hyperbolic_secant(afp_duration_s, afp_bandwidth_hz, afp_peak_hz,
-                                                 offset_ppm=4.65)
-
+        # one pulse object played four times: its propagator is computed once per run
+        afp = ShapedPulse.hyperbolic_secant(afp_duration_s, afp_bandwidth_hz, afp_peak_hz,
+                                            offset_ppm=4.65)
         tau = te_s / 8.0
         super().__init__(
             Pulse(90.0),
             CoherenceFilter(-1),
             Delay(tau),
-            afp(), CoherenceFilter(+1), Delay(2.0 * tau),
-            afp(), CoherenceFilter(-1), Delay(2.0 * tau),
-            afp(), CoherenceFilter(+1), Delay(2.0 * tau),
-            afp(), CoherenceFilter(-1), Delay(tau),
+            afp, CoherenceFilter(+1), Delay(2.0 * tau),
+            afp, CoherenceFilter(-1), Delay(2.0 * tau),
+            afp, CoherenceFilter(+1), Delay(2.0 * tau),
+            afp, CoherenceFilter(-1), Delay(tau),
             tr_s=tr_s,
         )

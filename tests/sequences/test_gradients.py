@@ -393,3 +393,34 @@ class TestLocalizedSemiLaser:
         assert 0.75 < np.abs(engine_low).max() / abs(voxel) < 0.97
         with pytest.raises(ValueError):
             LocalizedSemiLaser(0.020, f0_mhz)
+
+    def test_a_pulse_object_played_twice_is_computed_once(self):
+        # the pair on an axis is one ShapedPulse object: a run asks for its propagator
+        # once, a compiled graph keeps the sharing, and the result is the one of four
+        # separate pulses
+        import copy
+
+        from mrsandbox import LocalizedSemiLaser, ShapedPulse, SpinSystem
+
+        design = LocalizedSemiLaser(0.030, 3.0 * 42.5774785)
+        shaped = [e for e in design.events if isinstance(e, ShapedPulse)]
+        assert len(shaped) == 5 and shaped[1] is shaped[2] and shaped[3] is shaped[4]
+        bound = design.bound(design.timings())
+        again = [e for e in bound.events if isinstance(e, ShapedPulse)]
+        assert again[1] is again[2] and again[3] is again[4] and again[1] is not again[3]
+        calls, original = [], ShapedPulse.propagator
+
+        def counted(self, ctx):
+            calls.append(id(self))
+            return original(self, ctx)
+
+        lac, engine = SpinSystem.from_database("Lac")[0], Engine(3.0, isochromats=16)
+        ShapedPulse.propagator = counted
+        try:
+            shared = np.asarray(ops.convert_to_numpy(engine.lines(design, lac)[1]))
+        finally:
+            ShapedPulse.propagator = original
+        assert len(calls) == 3
+        separate = Sequence(*[copy.copy(e) for e in design.events])
+        np.testing.assert_allclose(shared, np.asarray(ops.convert_to_numpy(
+            engine.lines(separate, lac)[1])), atol=1e-6)

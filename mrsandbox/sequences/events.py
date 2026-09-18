@@ -413,7 +413,24 @@ class ShapedPulse(Event):
     #***********#
     #   apply   #
     #***********#
-    def apply(self, rho, ctx):
+    def apply(self, rho, ctx, propagator=None):
+        """Play the pulse; `propagator` is a `propagator(ctx)` result to reuse."""
+        propagator, total = propagator if propagator is not None else self.propagator(ctx)
+        rho = self._sandwich(propagator, rho)
+        frame = -2.0 * math.pi * total
+        if ops.ndim(total) > 0:
+            frame = ops.reshape(frame, (-1, 1, 1))
+        frame = frame * ops.cast(ctx.q, "float32")
+        return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))
+
+    #****************#
+    #   propagator   #
+    #****************#
+    def propagator(self, ctx):
+        """The pulse's propagator in a context, per isochromat where an ensemble
+        plays, and the frame term's cycles over the pulse: everything the pulse costs,
+        and nothing of the state, so a sequence that plays one pulse object several
+        times computes it once per run (`Sequence.run`)."""
         env = ops.cast(ops.convert_to_tensor(self.envelope), "float32")
         steps = int(env.shape[0])
         dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / steps
@@ -508,12 +525,7 @@ class ShapedPulse(Event):
                 pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
                 u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
             propagator = u[0] if propagator is None else ops.matmul(u[0], propagator)
-        rho = self._sandwich(propagator, rho)
-        frame = -2.0 * math.pi * total
-        if ops.ndim(total) > 0:
-            frame = ops.reshape(frame, (-1, 1, 1))
-        frame = frame * ops.cast(ctx.q, "float32")
-        return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))
+        return propagator, total
 
 
 #**************************************************************************************************#
@@ -810,15 +822,23 @@ class Sequence:
     def run(self, rho, ctx):
         """Apply every event in order and return the pre-readout density matrix, from
         the spoiled steady state when the sequence carries a TR."""
+        propagators = {}
         if self.tr_s is not None:
             crush, recover = CoherenceFilter(0), Delay(self.tr_s - self.duration_s)
             for _ in range(self.cycles):
-                rho = recover.apply(crush.apply(self._pass(rho, ctx), ctx), ctx)
-        return self._pass(rho, ctx)
+                rho = recover.apply(crush.apply(self._pass(rho, ctx, propagators), ctx), ctx)
+        return self._pass(rho, ctx, propagators)
 
-    def _pass(self, rho, ctx):
+    def _pass(self, rho, ctx, propagators):
+        # a shaped pulse object played more than once (a refocusing pair, the passes
+        # of a steady state) is computed once: its propagator does not see the state
         for event in self.events:
-            rho = event.apply(rho, ctx)
+            if isinstance(event, ShapedPulse):
+                if id(event) not in propagators:
+                    propagators[id(event)] = event.propagator(ctx)
+                rho = event.apply(rho, ctx, propagators[id(event)])
+            else:
+                rho = event.apply(rho, ctx)
         return rho
 
     #**************#
@@ -915,7 +935,10 @@ class Sequence:
     def bound(self, timings):
         """The same design at other timings (as `timings` lays them out), as a plain
         Sequence; this is what a compiled graph rebuilds from its inputs."""
-        events = (event.bound(values) for event, values in zip(self.events, timings[:-1]))
+        # one event object at several places stays one object (its first timings)
+        bound = {}
+        events = [bound.setdefault(id(event), event.bound(values))
+                  for event, values in zip(self.events, timings[:-1])]
         tr_s = timings[-1][0] if self.tr_s is not None else None
         return Sequence(*events, tr_s=tr_s, cycles=self.cycles)
 
