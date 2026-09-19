@@ -115,3 +115,23 @@ class TestDeposit:
             assert abs(played[t > 0.05].mean() - 10.0) < 0.02
             assert np.abs(played[t < -0.002]).max() < 0.2  # causal but for the band's edge
             assert np.abs(fields["b0"][t > 0.0]).max() < 20.0  # hertz per 10 mT/m step
+
+
+#**************************************************************************************************#
+#                                     Class TestReverseDeposit                                     #
+#**************************************************************************************************#
+@pytest.mark.skipif(not Resources.cached("reverse/philips_3t"), reason="reVERSE-GIRF file not cached (46 KB)")
+class TestReverseDeposit:
+
+    def test_the_philips_response_holds_the_self_terms_only(self):
+        girf = GIRF.philips("3t")
+        assert girf.name == "reverse/philips_3t" and GIRF.named(girf.name).name == girf.name
+        assert all(list(girf.terms[axis]) == [axis] for axis in "xyz")
+        # a gradient follows its demand at low frequency and falls off in the kilohertz
+        grid, response = girf.terms["z"]["z"]
+        assert abs(abs(response[np.abs(grid).argmin()]) - 1.0) < 0.03 and abs(response[np.abs(grid - 5000.0).argmin()]) < 0.8
+        # a crusher's edge rings in its own axis for milliseconds and no B0 term comes with it
+        crusher = np.zeros(4000)
+        crusher[100:1100] = 20.0
+        fields = girf("z", crusher, 1e-5, 20000.0)
+        assert list(fields) == ["z"] and abs(fields["z"][1105]) > 1.0 and abs(fields["z"][3000]) < 0.01

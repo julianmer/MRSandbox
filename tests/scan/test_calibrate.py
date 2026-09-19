@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading
+from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, RelaxationReading, SpectrumReading
 from mrsandbox.scan.voxel import noise_scale
 
 
@@ -60,6 +60,38 @@ class TestNoiseReading:
         assert record.leaf == "noise.sigma" and abs(record.value / sigma - 1.0) < 0.08
         assert record.scanner["vendor"] == "virtual" and record.coil["channels"] == (4,)
         assert record.prior[0] < record.value < record.prior[1] and record.departures(scan) == {}
+
+    def test_a_phantoms_water_line_gives_the_noise_with_the_scanners_own_noise_samples(self):
+        from mrsandbox import Phantom, Unsuppressed
+
+        # a phantom scan of known noise: unsuppressed water rings to the end of every FID, so
+        # the tails do not serve and the noise comes from samples taken with the RF off
+        calm = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        scan = VirtualScan(Phantom.spectre(temperature_c=21.0), Scanner.preset("generic_3t"),
+                           Press(te1_s=0.011, te2_s=0.024, tr_s=5.0), params=calm, water=Unsuppressed())
+        voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
+        n, dwell_s, sigma = 2048, 1.0 / 2000.0, 6.0
+        _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
+        # a scanner's carrier sits on the water it sees
+        f0 = voxel._f0_mhz()
+        fid = np.asarray(fid) * np.exp(-2j * np.pi * (4.65 + 0.0103 * 16.0) * f0 * np.arange(n) * dwell_s)
+        per_point = sigma * noise_scale(voxel.volume_ml, 3.0, dwell_s)
+        rng = np.random.default_rng(2)
+        draw = lambda *shape: per_point * (rng.standard_normal(shape) + 1j * rng.standard_normal(shape))
+        b = np.array([0.7, 0.6, 0.4j])
+        b = b / np.linalg.norm(b)
+        data = b[None, :, None] * fid[:, None, None] + draw(n, 3, 16)
+        reading = NoiseReading.from_arrays(data, dwell_s, f0, line="water", noise=draw(4 * n, 3))
+        assert reading.line == "water" and reading.snr > 1000.0
+        # the record's reading is the apodized one; the plain height of a line as narrow as the
+        # spectral grid hangs on where the line falls between two points
+        plain, apodized = reading.sigma(voxel, seeds=1)
+        assert abs(apodized / sigma - 1.0) < 0.05 and abs(plain / sigma - 1.0) < 0.4
+        record = reading.record(voxel, "a virtual phantom scan", seeds=1)
+        assert record.voxel["load"] == "spectre" and "water" in record.measured["statistic"]
+        # without the noise samples the ringing tails pass for noise and the reading is off
+        tails = NoiseReading.from_arrays(data, dwell_s, f0, line="water")
+        assert tails.sigma(voxel, seeds=1)[1] > 1.5 * sigma
 
     def test_averaged_data_are_refused(self, tmp_path):
         data = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
@@ -164,3 +196,30 @@ class TestSpectrumReading:
         halved = SpectrumReading.from_arrays(raw(lean.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)),
                                              dwell_s, voxel._f0_mhz())
         assert 0.45 < halved.creatine_over_naa / reading.creatine_over_naa < 0.65
+
+
+#**************************************************************************************************#
+#                                   Class TestRelaxationReading                                    #
+#**************************************************************************************************#
+@pytest.mark.render
+class TestRelaxationReading:
+
+    def test_a_phantoms_echo_time_series_gives_back_its_t2(self):
+        from mrsandbox import NoWater, Phantom
+
+        t2 = {"NAA": 0.53, "Cr": 0.31, "Cho": 0.20}
+        phantom = Phantom.braino(temperature_c=37.0, t2_s=t2)
+        n, dwell_s, fids = 4096, 1.0 / 2000.0, {}
+        for te in (0.03, 0.06, 0.12, 0.2, 0.3):
+            voxel = VirtualScan(phantom, Scanner.preset("generic_3t"), Press(te1_s=0.012, te2_s=te - 0.012, tr_s=10.0),
+                                water=NoWater()).voxel((0.0, 0.0, 0.0), 20.0)
+            _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
+            # a scanner's carrier sits on water; the package's FIDs are referenced to 0 ppm
+            fids[te] = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n) * dwell_s)
+        reading = RelaxationReading.from_series(fids, dwell_s, voxel._f0_mhz())
+        assert reading.te_s == (0.03, 0.06, 0.12, 0.2, 0.3) and reading.heights["NAA"][0] == 1.0
+        # what lies under a singlet swings with the echo time: creatine stands clear, glutamate
+        # lies under NAA, myo-inositol under choline, whose reading is a bound
+        assert reading.t2_s["Cr"] == pytest.approx(t2["Cr"], rel=0.04)
+        assert reading.t2_s["NAA"] == pytest.approx(t2["NAA"], rel=0.08)
+        assert 0.8 * t2["Cho"] < reading.t2_s["Cho"] < t2["Cho"]

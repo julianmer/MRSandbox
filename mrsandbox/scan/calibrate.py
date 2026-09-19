@@ -20,6 +20,7 @@ import datetime
 
 import numpy as np
 
+from mrsandbox.phantom.solution import Phantom
 from mrsandbox.scan.calibrations import APODIZED, Calibration
 from mrsandbox.scan.voxel import noise_scale
 
@@ -29,21 +30,27 @@ HEADER = ("Manufacturer", "ManufacturersModelName", "SoftwareVersions", "Receive
 
 # the apodization of the record's reading (scan.calibrations, the measure) and the NAA singlet
 APODIZATION_HZ, NAA_PPM, WATER_PPM = 10.0, 2.008, 4.65
+# the lines a noise reading is taken on: where the line lies with the carrier on water, and how far
+# from there it is looked for (a phantom's water moves with its temperature)
+LINES = {"NAA": (NAA_PPM, 0.05), "water": (WATER_PPM, 0.4)}
 
 
 #**************#
 #   combine    #
 #**************#
-def _combined(data):
+def _combined(data, noise=None):
     """(npoints, coils, transients) raw FIDs to (npoints, transients): the channels
-    whitened by the noise of the FIDs' last eighth and combined with the first singular
-    vector of the mean transient's start. The combined noise has unit variance per real
-    part. A receiver phase cycle left in the stored transients (GE P-files alternate by
-    a half turn) is undone first, in quarter turns against the first transient, or the
-    mean would cancel; phase jitter stays as it is."""
+    whitened by the noise of the FIDs' last eighth, or of `noise`, (samples, coils)
+    measured with the RF off, where the FIDs still ring at their end (a phantom's
+    unsuppressed water), and combined with the first singular vector of the mean
+    transient's start. The combined noise has unit variance per complex point. A receiver
+    phase cycle left in the stored transients (GE P-files alternate by a half turn) is
+    undone first, in quarter turns against the first transient, or the mean would cancel;
+    phase jitter stays as it is."""
     x = np.asarray(data)
     n, coils, _ = x.shape
-    covariance = np.atleast_2d(np.cov(x[-n // 8:].reshape(-1, coils).T))
+    quiet = x[-n // 8:].reshape(-1, coils) if noise is None else np.asarray(noise)
+    covariance = np.atleast_2d(np.cov(quiet.T))
     white = np.einsum("ck,nks->ncs", np.linalg.inv(np.linalg.cholesky(covariance)), x)
     turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(white[:64, :, 0]), white[:64])) / (np.pi / 2))
     white = white * np.exp(-0.5j * np.pi * turns)
@@ -123,8 +130,8 @@ def _shape(ppm, real, f0_mhz):
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class NoiseReading:
-    """The single-transient NAA signal to noise ratio of one raw acquisition, and what it
-    was read off.
+    """The single-transient signal to noise ratio of one raw acquisition, on the NAA
+    singlet in vivo or on the water line of a phantom, and what it was read off.
 
     The data are NIfTI-MRS with the coils and the transients apart (spec2nii writes it
     from TWIX, P-files, and data/list alike: `spec2nii twix -e image`, `spec2nii ge`,
@@ -136,12 +143,22 @@ class NoiseReading:
     for a sequence whose unit is more than one shot (SPECIAL's pair) and for nothing
     else.
 
+    A phantom has no NAA to speak of in one transient but all the water one could want:
+    `line="water"` reads the unsuppressed water line, against a twin that is a
+    phantom.Phantom with phantom.Unsuppressed water. Its FIDs ring to their end, so
+    the noise comes from `noise`, the scanner's own noise samples (the NOI vectors of a
+    data/list export, the noise label of lab/raw: io.philips), taken with the same
+    receiver settings: whitened by them the floor is known and not measured. The
+    record names the load; it is the receive chain's number with a phantom in the coil,
+    a lower bound for a head (a phantom loads the coil less).
+
     Args:
         snr, snr_apodized: The plain reading and the one under the 10 Hz apodization.
-        naa_ppm: Where the singlet was found, against water at 4.65 ppm on resonance.
+        naa_ppm: Where the line was found, against water at 4.65 ppm on resonance.
         transients, coils, npoints, bandwidth_hz, f0_mhz: What the data held.
         excitations: Excitations behind one stored transient.
         header: What the file says of the scanner, coil, and sequence.
+        line: The line the reading was taken on, "NAA" or "water".
     """
 
     snr: float
@@ -154,14 +171,16 @@ class NoiseReading:
     f0_mhz: float
     excitations: int
     header: dict
+    line: str = "NAA"
 
     #*****************#
     #   from arrays   #
     #*****************#
     @classmethod
-    def from_arrays(cls, data, dwell_s, f0_mhz, header=None, excitations=1):
+    def from_arrays(cls, data, dwell_s, f0_mhz, header=None, excitations=1, line="NAA", noise=None):
         """Read raw FIDs, (npoints, coils, transients) complex, as they were stored (an
-        oversampled receiver band is left as it is)."""
+        oversampled receiver band is left as it is); `noise` is (samples, coils) of the
+        receiver with the RF off, sampled and scaled as the FIDs are."""
         x = np.asarray(data)
         n, coils, transients = x.shape
         # the consensus SNR: the real peak height over the standard deviation of a signal-free
@@ -171,25 +190,30 @@ class NoiseReading:
         # white noise and as the simulation has it: measured there, the broadened lines' feet
         # and the edge of a cropped band would count as noise (up to a factor of two on
         # oversampled data cropped to the band).
-        fids = _combined(x)
+        fids = _combined(x, noise)
+        center = LINES[line][0]
         window = np.exp(-np.pi * APODIZATION_HZ * np.arange(n) * dwell_s)
         hz = np.fft.fftshift(np.fft.fftfreq(n, dwell_s))
-        mean = np.fft.fftshift(np.fft.fft(fids.mean(axis=1)))
-        # the sign of the frequency axis differs between conventions: the one with NAA wins
+        # a phantom's water line is as narrow as the grid and has no sure phase at its top: it is
+        # found and phased under the apodization, here and on the twin
+        mean = np.fft.fftshift(np.fft.fft(fids.mean(axis=1) * (window if line == "water" else 1.0)))
+        # the sign of the frequency axis differs between conventions: the one with the line wins
         ppm = max((WATER_PPM + sign * hz / f0_mhz for sign in (1.0, -1.0)),
-                  key=lambda axis: np.abs(mean[np.abs(axis - NAA_PPM) < 0.15]).max())
-        peak = np.argmax(np.abs(mean) * (np.abs(ppm - NAA_PPM) < 0.15))
+                  key=lambda axis: np.abs(mean[np.abs(axis - center) < 0.15]).max())
+        peak = np.argmax(np.abs(mean) * (np.abs(ppm - center) < 0.15))
         phase = np.exp(-1j * np.angle(mean[peak]))
         quiet, near = (ppm > -4.0) & (ppm < -1.0), np.abs(ppm - ppm[peak]) < 0.05
         spectra = (np.fft.fftshift(np.fft.fft(fids, axis=0), axes=0) * phase).real
         broad = (np.fft.fftshift(np.fft.fft(fids * window[:, None], axis=0), axes=0) * phase).real
-        floors = np.array([(real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std()
-                           for real in spectra.T])
+        # whitened by the scanner's own noise the floor is known: unit variance per complex FID
+        # point, half of it in the real part
+        floors = np.full(transients, np.sqrt(n / 2.0)) if noise is not None else np.array(
+            [(real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std() for real in spectra.T])
         plain = float(np.median(spectra[near].max(axis=0) / floors))
         apodized = float(np.median(broad[near].max(axis=0) / (floors * np.sqrt((window ** 2).mean()))))
         return cls(snr=plain, snr_apodized=apodized, naa_ppm=float(ppm[peak]), transients=transients, coils=coils,
                    npoints=n, bandwidth_hz=1.0 / dwell_s, f0_mhz=float(f0_mhz),
-                   excitations=int(excitations), header=dict(header or {}))
+                   excitations=int(excitations), header=dict(header or {}), line=line)
 
     #****************#
     #   from nifti   #
@@ -218,9 +242,10 @@ class NoiseReading:
         for seed in range(seeds):
             _, fid = voxel._clean_fid(voxel.sample(seed), self.npoints, dwell_s)
             row = []
-            near = np.abs(ppm - NAA_PPM) < 0.05
-            plain = np.fft.fftshift(np.fft.fft(np.asarray(fid)))
-            phase = np.exp(-1j * np.angle(plain[near][np.argmax(np.abs(plain[near]))]))
+            near = np.abs(ppm - LINES[self.line][0]) < LINES[self.line][1]
+            # phased at the line's top as the data are, a phantom's water line under the apodization
+            top = np.fft.fftshift(np.fft.fft(np.asarray(fid) * (window if self.line == "water" else 1.0)))
+            phase = np.exp(-1j * np.angle(top[near][np.argmax(np.abs(top[near]))]))
             for apodization, measured in ((np.ones(self.npoints), self.snr), (window, self.snr_apodized)):
                 height = (np.fft.fftshift(np.fft.fft(np.asarray(fid) * apodization)) * phase).real[near].max()
                 row.append(height / (measured * np.sqrt((apodization ** 2).sum()) * scale))
@@ -241,7 +266,7 @@ class NoiseReading:
         return Calibration(
             leaf="noise.sigma", value=round(apodized, 2),
             prior=(round(0.75 * apodized, 2), round(1.25 * apodized, 2)),
-            measured={"statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+            measured={"statistic": f"single-transient {self.line} SNR (scan.calibrate.NoiseReading)",
                       "median": round(self.snr, 1), "implied_value": round(plain, 2),
                       "naa_found_at_ppm": round(self.naa_ppm, 3),
                       "apodized": {"statistic": APODIZED, "median": round(self.snr_apodized, 1),
@@ -258,7 +283,8 @@ class NoiseReading:
                       "simulated_as": type(sequence).__name__},
             acquisition={"npoints": self.npoints, "bandwidth_hz": self.bandwidth_hz,
                          "transients": self.transients, "measured_on": self.excitations},
-            voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+            voxel={**({"load": voxel.scan.brain.name} if isinstance(voxel.scan.brain, Phantom) else {}),
+                   "size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
                    "simulated_position_mm": tuple(voxel.position_mm)},
             processing="NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
             date=datetime.date.today().strftime("%d/%m/%y"), presets=tuple(presets),
@@ -344,6 +370,63 @@ class SpectrumReading:
         drawn = np.median([float(voxel.resolve(truth.conc.Cr)) + float(voxel.resolve(truth.conc.PCr))
                            for truth in (voxel.sample(seed) for seed in range(seeds))])
         return float(drawn * self.creatine_over_naa / self.twin(voxel, seeds)["creatine_over_naa"])
+
+
+#**************************************************************************************************#
+#                                     Class RelaxationReading                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The T2 of a phantom's singlets, read off their heights over a series of echo times.              #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class RelaxationReading:
+    """The T2 of a phantom's singlets, read off their heights over a series of echo times.
+
+    A phantom's relaxation times are in no table (phantom.Phantom); its own scans give
+    them. Each FID of the series, coils combined and transients averaged, is read as the
+    other readings read a spectrum (phased on the NAA singlet and referenced to it, 2 Hz
+    apodization), the height of every singlet taken at its place, and the T2 is the slope
+    of the heights' logarithm against the echo time: two numbers per line from as many
+    heights as there are echoes, no model of the spectrum. Singlets only: a coupled
+    line's height swings with the echo time, and so does what lies under a singlet. On a
+    virtual Braino the creatine singlet reads 3 percent short and NAA's 6 (glutamate
+    beneath it), choline's 16 (myo-inositol beneath it): a bound for choline, a number
+    for the other two. The T2 is the sequence's (a PRESS series carries its pulses'
+    imperfections), as every published one is. In vitro: it sets a Phantom's t2_s, never
+    a tissue leaf.
+
+    Args:
+        te_s: The echo times.
+        heights: {line: heights over the echo times}, NAA's at the first echo being one.
+        t2_s: {line: T2 in seconds}.
+    """
+
+    LINES = {"NAA": 2.008, "Cr": 3.03, "Cho": 3.19}
+
+    te_s: tuple
+    heights: dict
+    t2_s: dict
+
+    #*******************#
+    #   from a series   #
+    #*******************#
+    @classmethod
+    def from_series(cls, fids, dwell_s, f0_mhz, lines=None, water_ppm=WATER_PPM):
+        """Read {echo time in seconds: FID (npoints,) complex}; `lines` is {name: ppm} of
+        the singlets, `water_ppm` where the carrier sits (a cold phantom's water lies
+        above 4.65 ppm)."""
+        lines = dict(lines or cls.LINES)
+        te_s = tuple(sorted(fids))
+        heights = {name: [] for name in lines}
+        for te in te_s:
+            ppm, real = _spectrum(np.asarray(fids[te]), dwell_s, lambda hz: water_ppm + hz / f0_mhz)
+            for name, at in lines.items():
+                heights[name].append(real[np.abs(ppm - at) < 0.04].max())
+        first = heights["NAA"][0] if "NAA" in heights else 1.0
+        heights = {name: tuple(float(h / first) for h in values) for name, values in heights.items()}
+        t2_s = {name: float(-1.0 / np.polyfit(te_s, np.log(values), 1)[0]) for name, values in heights.items()}
+        return cls(te_s=te_s, heights=heights, t2_s=t2_s)
 
 
 #**************************************************************************************************#

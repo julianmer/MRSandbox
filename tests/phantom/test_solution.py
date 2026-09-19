@@ -19,7 +19,8 @@ import pytest
 
 from mrsandbox import (NoDownfield, NoLipids, NoMM, NoWater, Phantom, Press, Scanner, Unsuppressed,
                        VirtualScan)
-from mrsandbox.database.concentrations import SPECTRE
+from mrsandbox.database.phantoms import BRAINO, NIST_SYSTEM, SPECTRE
+from mrsandbox.phantom.solution import Vial
 
 
 #*************#
@@ -83,3 +84,47 @@ class TestPhantom:
         named = scan.voxel((0.0, 0.0, 0.0), 20.0).acquire(seed=0, npoints=256).hdr_ext["SimulationPhantom"]
         assert named["brain"] == "spectre"
         assert named["calibrations"]["noise.sigma"]["extrapolated"]["load"] == ["a head", "spectre"]
+
+
+#**************************************************************************************************#
+#                                         Class TestVials                                          #
+#**************************************************************************************************#
+@pytest.mark.render
+class TestVials:
+
+    def test_a_vial_holds_its_own_solution_and_every_voxel_reads_its_place(self):
+        vial = Vial((40.0, 0.0, 0.0), 30.0, contents={"NAA": 25.0}, t2_s={"NAA": 0.2}, water_t1_s=1.0)
+        phantom = Phantom({"NAA": 10.0, "Cr": 8.0}, t2_s={"Cr": 0.3}, vials=(vial,), cell_mm=2.0)
+        scan = VirtualScan(phantom, Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.025))
+        inside, outside = scan.voxel((40.0, 0.0, 0.0), 10.0), scan.voxel((-40.0, 0.0, 0.0), 10.0)
+        truth = inside.sample(0)
+        read = lambda voxel, leaf: float(voxel.resolve(leaf))
+        assert read(inside, truth.conc.NAA) == pytest.approx(25.0) and read(outside, truth.conc.NAA) == pytest.approx(10.0)
+        assert read(inside, truth.conc.Cr) == pytest.approx(0.0) and read(outside, truth.conc.Cr) == pytest.approx(8.0)
+        assert read(inside, truth.t2.NAA) == pytest.approx(0.2) and read(outside, truth.t2.NAA) == pytest.approx(0.5)
+        assert truth.t2.Cr == 0.3 and truth.t1.NAA == 1.5          # what no vial changes stays a number
+        assert read(inside, truth.water.t1_s) == pytest.approx(1.0) and read(outside, truth.water.t1_s) == pytest.approx(0.4)
+        # and the spectra follow: the vial's NAA line is two and a half times as strong before relaxation
+        assert inside.acquire(seed=0, npoints=256).hdr_ext["SimulationPhantom"]["brain"] == "phantom"
+
+    def test_the_braino_is_the_literatures_recipe(self):
+        phantom = Phantom.braino(t1_s={"NAA": 0.8, "Cho": 0.26})
+        assert phantom.contents == BRAINO and phantom.diameter_mm == 169.0 and "GABA" not in phantom.contents
+        truth = VirtualScan(phantom, Scanner.preset("generic_7t"), Press(te1_s=0.015, te2_s=0.025)).voxel(
+            (0.0, 0.0, 0.0), 20.0).sample(0)
+        assert truth.t1.NAA == 0.8 and truth.t1.Cho == 0.26 and truth.t1.Cr == 1.5
+
+    def test_the_nist_system_phantom_carries_its_measured_arrays(self):
+        phantom = Phantom.nist(b0_t=3.0)
+        scan = VirtualScan(phantom, Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.025), water=Unsuppressed())
+        truth = scan.voxel((0.0, 0.0, 0.0), 8.0).sample(0)
+        for array, number in (("t1_array", 4), ("t2_array", 8), ("pd_array", 11)):
+            place, _, _, (t1_ms, t2_ms) = NIST_SYSTEM[array][number]
+            voxel = scan.voxel(place, 6.0)
+            assert float(voxel.resolve(truth.water.t1_s)) == pytest.approx(t1_ms / 1000.0, rel=1e-4)
+            assert float(voxel.resolve(truth.water.t2_s)) == pytest.approx(t2_ms / 1000.0, rel=1e-4)
+        # the fill water between the plates, and the proton density sphere of 20 percent H2O
+        assert float(scan.voxel((0.0, 80.0, 0.0), 6.0).resolve(truth.water.t1_s)) == pytest.approx(1.0 / 0.316, rel=1e-4)
+        assert scan.voxel(NIST_SYSTEM["pd_array"][3][0], 6.0).fractions.gm == pytest.approx(0.2, abs=1e-6)
+        assert not any(float(scan.voxel((0.0, 0.0, 0.0), 8.0).resolve(c)) for c in truth.conc.values())
+        assert Phantom.nist(b0_t=1.5).vials[0].water_t1_s == pytest.approx(2.033)

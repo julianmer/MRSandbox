@@ -40,6 +40,31 @@ NWS_DEPOSIT = {
     },
 }
 
+#*********************#
+#   reverse deposit   #
+#*********************#
+# Source: Malik, S. J. reVERSE-GIRF, release 1.0 (2015), doi 10.5281/zenodo.20127, MIT licence,
+#         github.com/mriphysics/reVERSE-GIRF: "example GIRF data measured on 3T and 7T Philips
+#         MRI systems" (the file names say London, 29/07/14, and Zurich, 02/03/15; the models
+#         are not stated), measured for VERSE pulse design with gradient imperfections.
+# Data:   per file `ff`, the frequencies in Hz, and `Hw` (points, 3), the self terms of the x, y,
+#         and z axes, output over input. No B0 and no cross terms, and a grid of 76 Hz at 3 T
+#         (49 Hz at 7 T): the response's first 13 ms (20 ms). It carries what a gradient does
+#         to itself within a pulse or just after a crusher, not the slow eddy currents that
+#         move a spectrum's lines, which need the B0 term and a finer grid (the deposit above).
+REVERSE_DEPOSIT = {
+    "reverse/philips_3t": {
+        "url": "https://github.com/mriphysics/reVERSE-GIRF/releases/download/1.0/GIRF_3T_London_20140729.mat",
+        "md5": "805ed8fb0ec114e7efe878225dea5d73",
+        "filename": "reverse/GIRF_3T_London_20140729.mat",
+    },
+    "reverse/philips_7t": {
+        "url": "https://github.com/mriphysics/reVERSE-GIRF/releases/download/1.0/GIRF_7T_Zurich_20150302.mat",
+        "md5": "db03dd410462f69c87c3b32d4502c2a8",
+        "filename": "reverse/GIRF_7T_Zurich_20150302.mat",
+    },
+}
+
 # Source: the deposit's GIRF_measurements members and the paper's Methods, read 17/09/26:
 #         per input axis j a SphericalHarmonics_{J}_1.npz with GIRF_FT (4, P, 1), the terms
 #         in the order B0, x, y, z (the coefficients of the field the axis induces, in mT
@@ -141,6 +166,27 @@ class GIRF:
                 stored = np.load(cls.file(measurement["resolution"][which], axis))
                 terms[axis][term] = (stored["freqFull"], stored["GIRF_FT"][k, :, 0])
         return cls(terms, name="nws/prisma_3t")
+
+    @classmethod
+    def philips(cls, field="3t"):
+        """The self terms measured on a Philips 3 T ("3t") or 7 T ("7t") system
+        (REVERSE_DEPOSIT): no B0 and no cross terms, the first 13 to 20 ms."""
+        import scipy.io
+
+        from mrsandbox.resources import Resources
+
+        name = f"reverse/philips_{field}"
+        stored = scipy.io.loadmat(Resources.path(name))
+        grid = stored["ff"].ravel()
+        return cls({axis: {axis: (grid, stored["Hw"][:, k])} for k, axis in enumerate("xyz")}, name=name)
+
+    #**********#
+    #   named  #
+    #**********#
+    @classmethod
+    def named(cls, name):
+        """The measurement a saved scan.profile names."""
+        return cls.load() if name == "nws/prisma_3t" else cls.philips(name.rsplit("_", 1)[1])
 
     #**************#
     #   response   #

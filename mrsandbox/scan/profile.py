@@ -27,8 +27,8 @@ from mrsandbox.scan.virtual_scan import VirtualScan
 #***************#
 #   constants   #
 #***************#
-# the one GIRF the package fetches (resources.girf); a saved profile names it
-GIRF_NAME = "nws/prisma_3t"
+# the GIRFs the package fetches (resources.girf); a saved profile names its own
+GIRF_NAMES = ("nws/prisma_3t", "reverse/philips_3t", "reverse/philips_7t")
 
 
 #**************************************************************************************************#
@@ -97,11 +97,11 @@ class ScannerProfile:
         """Write the profile as one JSON file, readable as it stands: the scanner, the
         records with their conditions, the coils as loops with their noise resistance and
         gain, the receiver, and the GIRF by name. A mapped array and a GIRF other than the
-        package's deposit live in files of their own and are refused."""
+        package's deposits live in files of their own and are refused."""
         if self.coils is not None and not self.coils.loops:
             raise ValueError("only an array of loops is saved; a mapped array lives in its maps")
-        if self.girf is not None and self.girf.name != GIRF_NAME:
-            raise ValueError(f"only the package's GIRF ({GIRF_NAME}) is saved, by name")
+        if self.girf is not None and self.girf.name not in GIRF_NAMES:
+            raise ValueError(f"only the package's GIRFs ({', '.join(GIRF_NAMES)}) are saved, by name")
         coils = None if self.coils is None else {
             "loops": [dataclasses.asdict(loop) for loop in self.coils.loops],
             "noise_resistance": self.coils.noise_resistance.tolist(), "gain": self.coils.gain}
@@ -126,7 +126,7 @@ class ScannerProfile:
             [Loop(loop["radius_mm"], tuple(loop["center_mm"]), tuple(loop["normal"])) for loop in stored["coils"]["loops"]],
             stored["coils"]["noise_resistance"], gain=stored["coils"]["gain"])
         return cls(Scanner(**stored["scanner"]), records, coils=coils,
-                   girf=stored["girf"] and GIRF.load(),
+                   girf=stored["girf"] and GIRF.named(stored["girf"]),
                    receiver=stored["receiver"] and Receiver(**stored["receiver"]))
 
     #******************#

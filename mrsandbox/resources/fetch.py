@@ -49,7 +49,7 @@ class Resources:
 
     # one dict per data source, each in its own cited module
     REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO,
-                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **challenge.MRSI_CHALLENGE,
+                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE,
                 **qsm.QSM_RC2}
 
     #*************#
