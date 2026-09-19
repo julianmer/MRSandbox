@@ -21,7 +21,7 @@ from mrsandbox.hardware import CoilArray, Loop, MappedCoilArray, Receiver, Scann
 from mrsandbox.params import (Clipped, Fixed, Mapped, Normal, Params, PerTissue, Priors, Tissues,
                               Uniform, Value)
 from mrsandbox.phantom import (Brain, ChallengeMM, CoupledMM, FieldMap, MeasuredMM, NoDownfield,
-                               NoLipids, NoMM, NoWater, ParameterizedDownfield, ParameterizedMM,
+                               NoLipids, NoMM, NoWater, ParameterizedDownfield, ParameterizedMM, Phantom,
                                Skull, Suppressed, Unsuppressed, Volume)
 from mrsandbox.scan import MRSI, Generator, Multiplex, ScannerProfile, VirtualScan, Voxel
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cycled, Delay, Gradient, HadamardEditing,

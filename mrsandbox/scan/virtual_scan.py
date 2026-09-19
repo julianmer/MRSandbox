@@ -18,9 +18,10 @@
 from mrsandbox.database import Database
 from mrsandbox.engine import Engine
 from mrsandbox.params import Params
-from mrsandbox.phantom.downfield import ParameterizedDownfield
-from mrsandbox.phantom.lipids import Skull
-from mrsandbox.phantom.macromolecules import CoupledMM
+from mrsandbox.phantom.downfield import NoDownfield, ParameterizedDownfield
+from mrsandbox.phantom.lipids import NoLipids, Skull
+from mrsandbox.phantom.macromolecules import CoupledMM, NoMM
+from mrsandbox.phantom.solution import Phantom
 from mrsandbox.phantom.water import Suppressed
 from mrsandbox.scan.defaults import default_params
 from mrsandbox.scan.voxel import Voxel
@@ -38,7 +39,9 @@ class VirtualScan:
     """A brain, a scanner, and a sequence, configured by one Params tree.
 
     Args:
-        brain: A phantom.Brain.
+        brain: A phantom.Brain, or a phantom.Phantom, the in vitro subject: the scan then
+            takes no macromolecules, lipids, or downfield peaks, the phantom's temperature
+            and pH, and its `params()` over the defaults (each still overridable here).
         scanner: A hardware.Scanner, or a field strength in tesla.
         sequence: A sequences.Sequence.
         params: Params overriding the defaults, composed as defaults | params.
@@ -71,8 +74,9 @@ class VirtualScan:
             every readout then carries the fields the design's own gradients induce
             through it (scan.eddy) in place of the drawn exponential terms of the
             gradients leaves. None draws those terms.
-        temperature_c, ph: The tissue's temperature and pH. The metabolite shifts are
-            typed at 37 C and pH 7 and move by their published functions of both
+        temperature_c, ph: The tissue's temperature and pH, 37 C and 7 for a brain, a
+            phantom's own. The metabolite shifts are typed at 37 C and pH 7 and move by
+            their published functions of both
             (database.shifts, Wermter et al. 2026); the default of the water leaf
             water.temperature_c follows the temperature.
         receiver: A hardware.Receiver, the digital receiver every FID passes through
@@ -91,8 +95,8 @@ class VirtualScan:
     #**********#
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
-                 girf=None, receiver=None, isochromats=32, engine=None, temperature_c=37.0,
-                 ph=7.0, field_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0),
+                 girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
+                 ph=None, field_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0),
                  records=()):
         self.brain = brain
         self.scanner = scanner
@@ -100,9 +104,11 @@ class VirtualScan:
         self.database = database if database is not None else Database()
         self.engine = engine if engine is not None else Engine(scanner, isochromats=isochromats)
         self.water = water if water is not None else Suppressed()
-        self.lipids = lipids if lipids is not None else Skull()
-        self.mm = mm if mm is not None else CoupledMM()
-        self.downfield = downfield if downfield is not None else ParameterizedDownfield()
+        in_vitro = isinstance(brain, Phantom)
+        self.lipids = lipids if lipids is not None else NoLipids() if in_vitro else Skull()
+        self.mm = mm if mm is not None else NoMM() if in_vitro else CoupledMM()
+        self.downfield = (downfield if downfield is not None
+                          else NoDownfield() if in_vitro else ParameterizedDownfield())
         self.coils = coils
         self.field = field
         self.field_groups = int(field_groups)
@@ -112,10 +118,12 @@ class VirtualScan:
         self.girf = girf
         self.receiver = receiver
         self.records = tuple(records)
-        self.temperature_c = float(temperature_c)
-        self.ph = float(ph)
-        self.params = (default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner,
-                                      records=self.records)
+        self.temperature_c = float(temperature_c if temperature_c is not None
+                                   else brain.temperature_c if in_vitro else 37.0)
+        self.ph = float(ph if ph is not None else brain.ph if in_vitro else 7.0)
+        defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner, records=self.records)
+        self.params = (defaults
+                       | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
         self._lines = None

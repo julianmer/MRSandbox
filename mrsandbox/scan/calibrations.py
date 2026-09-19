@@ -18,6 +18,8 @@
 #*************#
 import dataclasses
 
+from mrsandbox.phantom.solution import Phantom
+
 
 #**************************************************************************************************#
 #                                        Class Calibration                                         #
@@ -86,6 +88,9 @@ class Calibration:
         vendor = getattr(scan.scanner, "name", "").split("_")[0]
         if vendor in ("siemens", "ge", "philips") and vendor != self.scanner["vendor"]:
             found["vendor"] = (self.scanner["vendor"], vendor)
+        # a phantom loads a coil less than the head a record was measured on
+        if isinstance(scan.brain, Phantom) and "load" not in self.voxel:
+            found["load"] = ("a head", scan.brain.name)
         name = type(scan.sequence).__name__
         family = self.sequence.get("family", self.sequence["name"])
         if family.lower() not in name.lower():

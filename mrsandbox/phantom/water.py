@@ -50,11 +50,11 @@ class WaterSource(abc.ABC):
     #   full amplitude   #
     #********************#
     @staticmethod
-    def full_amplitude_mm(fractions):
-        """Unsuppressed water in concentration equivalent mM: molarity times local content."""
-        source = tissue.MRSI_CHALLENGE
-        content = source["water_content"]
-        return source["water_molarity_mm"] * (
+    def full_amplitude_mm(voxel):
+        """Unsuppressed water in concentration equivalent mM: molarity times the local
+        content, which is the subject's (a brain's tissues, a phantom's solution)."""
+        fractions, content = voxel.fractions, voxel.scan.brain.water_content
+        return tissue.MRSI_CHALLENGE["water_molarity_mm"] * (
             fractions.gm * content["gm"] + fractions.wm * content["wm"] + fractions.csf * content["csf"]
         )
 
@@ -114,7 +114,7 @@ class Unsuppressed(WaterSource):
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
         freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
-        return freqs, amps * complex(self.full_amplitude_mm(voxel.fractions))
+        return freqs, amps * complex(self.full_amplitude_mm(voxel))
 
 
 #**************************************************************************************************#
@@ -136,5 +136,5 @@ class Suppressed(WaterSource):
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
         freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
-        residual = truth.water.residual_fraction * self.full_amplitude_mm(voxel.fractions)
+        residual = truth.water.residual_fraction * self.full_amplitude_mm(voxel)
         return freqs, amps * complex(residual)

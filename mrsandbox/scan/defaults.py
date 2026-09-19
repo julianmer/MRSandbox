@@ -283,8 +283,6 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     # row stay at 1.0, both stated). The render splits the drawn concentration as
     # gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn value
     # and pure tissues realize the published contrast.
-    # the challenge GM to WM concentration ratio of a metabolite; 1.0 where the table has no
-    # entry or a zero tissue value (stated fallback)
     rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0)) for name in names}
     contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))

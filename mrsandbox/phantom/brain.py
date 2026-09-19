@@ -19,6 +19,7 @@
 #*************#
 import numpy as np
 
+from mrsandbox.database import tissue
 from mrsandbox.params import Tissues
 from mrsandbox.phantom.volume import Volume
 
@@ -43,6 +44,9 @@ class Brain:
     """
 
     PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2")
+
+    # the water content per tissue class that anchors the water signal (phantom.water)
+    water_content = tissue.MRSI_CHALLENGE["water_content"]
 
     # BigBrain-MR atlas labels (Sainz Martinez et al. 2023, Table I) grouped by tissue.
     # Stated conventions for the mixed structures: the brainstem counts as white matter,
