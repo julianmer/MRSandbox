@@ -66,6 +66,19 @@ class TestKernel:
         assert np.abs(raw[-1]) < 0.2  # a 20 Hz spread dephases hard
         assert np.abs(shimmed - 1.0).max() < 1e-4  # the first-order shim removes it all
 
+    #**************#
+    #   shim box   #
+    #**************#
+    def test_a_shim_box_larger_than_the_voxel_shims_it_worse(self):
+        field = centred_map(quadratic_field())
+        own = field.offsets(**BOX, shim="linear").std()
+        field.shim_box = (BOX["position_mm"], 40.0)                        # the parabola's linear fit over a wider box
+        assert field.offsets(**BOX, shim="linear").std() == pytest.approx(own, rel=1e-6)   # symmetric about the voxel: the same slope
+        field.shim_box = ((12.0, 0.0, 0.0), 20.0)                          # a box off to the side fits the parabola's flank
+        assert field.offsets(**BOX, shim="linear").std() > 2.0 * own
+        field.shim_box = (BOX["position_mm"], BOX["size_mm"])              # the voxel's own box is the default's fit
+        assert field.offsets(**BOX, shim="linear").std() == pytest.approx(own, rel=1e-9)
+
     #*********************#
     #   quadratic field   #
     #*********************#

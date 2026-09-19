@@ -66,6 +66,25 @@ class TestSession:
         session.protocol.sequence = "sLASER, played"                       # broadband adiabatic pairs: a tenth of it
         assert abs(session.displacement(4.65)[1]) < 0.15 * abs(water[1])
 
+    def test_the_shim_and_its_box_set_the_line_width_a_b0_map_gives(self, tmp_path):
+        import nibabel as nib
+
+        session = Session()
+        assert session.linewidth() is None                                 # a uniform field broadens nothing
+        body = session.body()
+        x, y = ((np.arange(n) * np.diag(body.affine)[axis] + body.affine[axis, 3]) for axis, n in enumerate(body.gm.shape[:2]))
+        saddle = 0.4 * x[:, None, None] + 0.02 * (x[:, None, None] ** 2 - y[None, :, None] ** 2)   # Hz: a slope and a harmonic saddle
+        nib.save(nib.Nifti1Image(np.broadcast_to(saddle, body.gm.shape).astype(np.float32), body.affine), tmp_path / "b0.nii.gz")
+        session.field, widths = str(tmp_path / "b0.nii.gz"), {}
+        for shim in ("none", "linear", "quadratic"):
+            session.shim = shim
+            widths[shim] = session.linewidth()
+        assert widths["none"] > 3.0 and widths["none"] > 1.5 * widths["linear"] and widths["linear"] > 1.2 * widths["quadratic"]
+        assert widths["quadratic"] == pytest.approx(1.0, abs=0.15)         # the saddle is gone, the 1 Hz line stays
+        session.shim, session.shim_mm = "linear", 60.0
+        assert session.planes()["tra"][4]["shim"][2] == pytest.approx(60.0 / np.diag(body.affine)[0])
+        assert session.linewidth() == pytest.approx(widths["linear"], rel=0.05)    # a saddle has no slope: the same fit over a wider box
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 

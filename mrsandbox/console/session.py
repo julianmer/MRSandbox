@@ -254,6 +254,8 @@ class Session:
         field: The B0 field of the room: "uniform", a measured preset (phantom.FieldMap),
             or the path of the operator's own NIfTI map of offsets in Hz.
         transmit: The path of a NIfTI map of the relative B1+, or None for the nominal field.
+        shim, shim_mm: The shim's order (phantom.FieldMap.SHIMS) and the edge of the shim box about
+            the voxel's centre; None shims over the voxel itself.
     """
 
     # the receive arrays on the shelf
@@ -276,6 +278,7 @@ class Session:
         self.subjects = dict(SUBJECTS)
         self.field = "uniform"
         self.transmit = None
+        self.shim, self.shim_mm = "linear", None
         self.design = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]
         self._bodies = {}
 
@@ -322,7 +325,23 @@ class Session:
                 FieldMap.load(self.field, b0_t=self.profile().scanner.b0_t) if self.field in FieldMap.PRESETS
                 else FieldMap.from_map(self.volume(self.field).data, self.volume(self.field).affine, name=pathlib.Path(self.field).name))
             self._bodies[key] = dict(field=field, transmit=None if self.transmit is None else self.volume(self.transmit))
+        field = self._bodies[key]["field"]
+        if field is not None:           # the adjustment as it stands now: the order, and the box about the planned voxel
+            field.shim = self.shim
+            field.shim_box = None if self.shim_mm is None else (tuple(self.position_mm), float(self.shim_mm))
         return self._bodies[key]
+
+    def linewidth(self):
+        """The width in Hz the B0 field gives a line of the planned voxel after the shim: the
+        full width at half maximum of the voxel's field distribution under a 1 Hz Lorentzian
+        (which keeps a perfect shim finite). None in a uniform field."""
+        field = self.fields()["field"]
+        if field is None:
+            return None
+        t = np.arange(8192) / 1000.0
+        line = np.fft.fft(field.kernel(tuple(self.position_mm), self.size_mm, t) * np.exp(-np.pi * t), 8 * t.size).real
+        above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())    # between the outermost crossings: a coarse map's
+        return float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size))    # cells give a comb of lines, one width
 
     @staticmethod
     def scanners():
@@ -474,8 +493,9 @@ class Session:
         (image, rectangle, cut, cross, shifted), an 8-bit array drawn with its first row at the top
         (anterior up in the transverse plane, superior up in the other two), the voxel's
         outline (left, top, width, height) in the image's pixels, whether this slice cuts
-        the voxel, where the other two planes cross it (column, row), and the displaced
-        voxels {name: (left, top)} of SHIFTED, the same size (empty for an ideal design)."""
+        the voxel, where the other two planes cross it (column, row), and the other
+        outlines {name: (left, top, width, height)}: the displaced voxels of SHIFTED (none
+        for an ideal design) and the "shim" box where the operator set one."""
         body, tissue = self.body(), self.picture()
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
         nx, ny, nz = tissue.shape
@@ -500,7 +520,11 @@ class Session:
             square = np.zeros((side, side), dtype=np.uint8)
             square[rows:rows + shade.shape[0], columns:columns + shade.shape[1]] = shade
             return (square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows),
-                    {name: (left + columns + by[across], top + rows - by[up]) for name, by in moved.items()})
+                    {**{name: (left + columns + by[across], top + rows - by[up], width, height) for name, by in moved.items()},
+                     **({} if self.shim_mm is None else {"shim": (
+                         left + columns + 0.5 * width - 0.5 * self.shim_mm / step[across],
+                         top + rows + 0.5 * height - 0.5 * self.shim_mm / step[up],
+                         self.shim_mm / step[across], self.shim_mm / step[up])})})
 
         return {
             "tra": framed(tissue[:, ::-1, c].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1],
@@ -565,7 +589,8 @@ class Session:
         scan = profile.scan(self.body(), sequence, params=self.params(), **self.fields())
         fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
         limits = profile.scanner
-        return {"displaced": {name: self.displacement(ppm, sequence) for name, ppm in SHIFTED.items()},
+        return {"linewidth_hz": self.linewidth(),
+                "displaced": {name: self.displacement(ppm, sequence) for name, ppm in SHIFTED.items()},
                 "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),

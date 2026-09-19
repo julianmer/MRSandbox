@@ -45,6 +45,11 @@ class FieldMap:
         shim: The voxel shim every lookup applies unless told otherwise: "none",
             "mean" (the frequency adjustment), "linear" (plus the first-order shims,
             the default), or "quadratic" (plus the five second-order shims).
+
+    Attributes:
+        shim_box: None, or (centre_mm, size_mm) of a shim volume of the operator's own: the
+            shim is then fitted over that box and every voxel sits under its fields, as on
+            a scanner whose shim box is not the voxel. None fits over the voxel itself.
     """
 
     PRESETS = ("bigbrain_mr", "qsm_rc2")
@@ -61,6 +66,7 @@ class FieldMap:
         self.affine = self.volume.affine
         self.name = name
         self.shim = shim
+        self.shim_box = None
 
     #*************#
     #   loading   #
@@ -162,7 +168,7 @@ class FieldMap:
         if shim not in self.SHIMS:
             raise ValueError(f"unknown shim {shim!r}; known: {', '.join(self.SHIMS)}")
 
-        def cells(at):
+        def cells(at, size_mm=size_mm):
             values, weights = self.volume.box(at, size_mm)
             keep = weights > 0.0
             xyz = self.volume.centres(at, size_mm)[keep] if keep.any() else np.empty((0, 3))
@@ -178,7 +184,7 @@ class FieldMap:
         v, w, xyz = cells(position_mm)
         if v.size == 0 or shim == "none":
             return v, w
-        planned = (v, w, xyz) if shim_at_mm is None else cells(shim_at_mm)
+        planned = cells(*self.shim_box) if self.shim_box is not None else (v, w, xyz) if shim_at_mm is None else cells(shim_at_mm)
         if planned[0].size == 0:
             return v, w
         centre = np.average(planned[2], axis=0, weights=planned[1])

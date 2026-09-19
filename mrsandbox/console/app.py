@@ -25,6 +25,7 @@ import io
 import os
 import pathlib
 import sys
+import time
 
 import numpy as np
 from nicegui import run, ui
@@ -90,7 +91,7 @@ GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2"
           "spurious": "Spurious echoes"}
 WAYS = ["as its source gives it", "set to", "vary between", "from a map"]
 # the displaced voxels' colours on the planes (session.SHIFTED)
-SHIFT_COLOURS = {"water": "#7FB2D9", "lipid": "#D98BB0"}
+SHIFT_COLOURS = {"water": "#7FB2D9", "lipid": "#D98BB0", "shim": "#E6D84A"}
 # the planes' edges as a console letters them (top, bottom, left, right), and the axis each plane leafs along
 EDGES = {"tra": ("A", "P", "L", "R", 2, "z"), "sag": ("H", "F", "P", "A", 0, "x"), "cor": ("H", "F", "L", "R", 1, "y")}
 
@@ -243,7 +244,7 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False, "shifts": True}
+    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None}
 
     def room():
         """Rebuild the 3D view: the subject's surface, the receive loops, the voxel's box."""
@@ -280,9 +281,9 @@ def console():
                 f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45"><line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
                 f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">{grid}</g>'
-                + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" height="{height:.1f}" fill="none" '
+                + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="none" '
                           f'stroke="{SHIFT_COLOURS[which]}" stroke-width="{0.5 * pen:.2f}" opacity="{0.9 if cut else 0.4}" />'
-                          for which, (x, y) in shifted.items() if chosen["shifts"])
+                          for which, (x, y, w, h) in shifted.items() if chosen["shifts"] or which == "shim")
                 + f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" fill="none" stroke="{GLOW}" '
                 + (f'stroke-width="{0.8 * pen:.2f}" />' if cut else
                    f'stroke-width="{0.5 * pen:.2f}" stroke-dasharray="{2 * pen:.1f} {1.5 * pen:.1f}" opacity="0.55" />'))
@@ -308,9 +309,15 @@ def console():
         texts["time"].text = texts["time2"].text = f"{minutes:02d}:{seconds:02d}"
         texts["timing"].text = f"{card.tr_ms:g} / {card.te_ms:g} ms"
         texts["volume"].text = f"{session.size_mm ** 3 / 1000.0:.1f} mL"
+        # against the card as it was taken from the browser: the voxel's volume and the root of the averages alone
+        signal = session.size_mm ** 3 * np.sqrt(1 if card.sequence == MRSI else card.averages)
+        chosen["snr"] = signal if chosen["snr"] is None else chosen["snr"]
+        texts["snr"].text = f"{100.0 * signal / chosen['snr']:.0f} %  (volume, averages)"
         texts["displaced"].text = "\n".join(
             f"{which} " + " ".join(f"{v:+.1f}" for v in moved) + " mm" for which, moved in look["displaced"].items()) if any(
             any(moved) for moved in look["displaced"].values()) else "none, the localization is ideal"
+        texts["linewidth"].text = ("uniform field, none" if look["linewidth_hz"] is None else
+                                   f"{look['linewidth_hz']:.1f} Hz on a 1 Hz line, {session.shim} shim")
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
         texts["resolution"].text = f"{card.bandwidth_hz / card.npoints:.2f} Hz / point"
         texts["readout"].text = f"{1000.0 * card.npoints / card.bandwidth_hz:.0f} ms"
@@ -376,7 +383,9 @@ def console():
             shows.value = "Live"
             progress.props("indeterminate")
             listing()
+            began = time.perf_counter()
             await run.io_bound(session.run, exam)
+            texts["took"].text = f"{exam.name}: simulated in {time.perf_counter() - began:.1f} s, a scanner takes {exam.card.scan_time_s:.0f} s"
             progress.props(remove="indeterminate")
             for index in range(len(exam.frames)):
                 frame(exam, index)
@@ -783,6 +792,7 @@ def console():
         """The protocol browser: what can go on the card, by family, and the operator's saved protocols."""
         def pick(name):
             session.protocol.sequence = name
+            chosen["snr"] = None
             dialog.close()
             draw()
             if name == "Custom":
@@ -912,6 +922,12 @@ def console():
                                         "dense outlined dark").classes("w-full"))
                                 ui.number("voxel size (mm)", value=session.size_mm, step=5.0, min=5.0, on_change=changed("size_mm")).props(
                                     "dense outlined dark").classes("w-full")
+                                ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
+                                    "dense outlined dark").classes("w-full")
+                                ui.number("shim box (mm), empty: the voxel", value=session.shim_mm, step=5.0, min=5.0,
+                                          on_change=lambda e: (setattr(session, "shim_mm", e.value), draw())).props(
+                                    "dense outlined dark clearable").classes("w-full").tooltip(
+                                    "the yellow box about the voxel the shim is fitted over; it acts where a B0 map is on (maps)")
                                 ui.number("matrix (MRSI)", value=card.matrix, step=2, on_change=changed("matrix", "card")).bind_value(
                                     card, "matrix").props("dense outlined dark").classes("w-full")
                             for tab, fields in (("Contrast", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
@@ -925,8 +941,8 @@ def console():
                                         ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
                                                   ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
                         with ui.element("div").classes("info").style("flex: 1"):
-                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"),
-                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
+                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
+                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                  ("limits", "hardware")):
                                 ui.label(caption).classes("label")
                                 texts[key] = ui.label("").classes("value").style("white-space: pre-line")
@@ -958,6 +974,7 @@ def console():
                 ui.button(icon="stop", on_click=lambda: chosen.__setitem__("stop", True)).props("outline dense round").tooltip(
                     "hold the queue after the exam that is running")
                 start = ui.button("Start", icon="play_arrow", on_click=scan_queue).props("unelevated dense no-caps")
+            texts["took"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
             ui.button("Review", icon="insights", on_click=review).props("outline dense no-caps align=left").classes("w-full")
             ui.button("Export raw transients", icon="save_alt", on_click=export).props("outline dense no-caps align=left").classes("w-full")
             ui.button("Export Pulseq .seq", icon="code", on_click=export_seq).props("outline dense no-caps align=left").classes("w-full")

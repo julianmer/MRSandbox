@@ -55,5 +55,15 @@ class TestApp:
                 await user.should_see("B0 field")
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
+                user.find("PRESS, played").click()                      # a card from the browser, its displaced voxels in words
+                await user.should_see("water -1.8 -4.4 -4.4 mm")
+                user.find("New scan").click()
+                user.find("STEAM").click()
+                next(e for e in user.find(kind=ui.number).elements if e.props.get("label") == "averages").value = 4
+                user.find("Accept").click()
+                await user.should_see("1 STEAM TE 30")
+                user.find("Start").click()
+                await user.should_see("simulated in", retries=100)
+                await user.should_see("4 / 4")
 
         asyncio.run(visit())
