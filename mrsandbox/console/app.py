@@ -56,6 +56,9 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
 .tool {{ border: 1px solid {LINE}; border-radius: 2px; color: {DIM} !important; width: 96px; height: 46px; padding: 0; font-size: 10.5px;
          line-height: 1.1; }}
 .tool .q-icon {{ font-size: 19px; }}
+.chip {{ border: 1px solid {LINE}; border-radius: 2px; color: {INK} !important; width: 118px; height: 50px; padding: 0; font-size: 10.5px;
+         line-height: 1.15; cursor: grab; }}
+.chip.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .tool.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .info {{ display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 5px; align-content: start; white-space: nowrap; }}
 .q-tab {{ min-height: 28px; padding: 0 12px; }} .q-tab__label {{ font-size: 11px; letter-spacing: .08em; }}
@@ -71,12 +74,13 @@ LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "l
 CHOICES = {"shape": ["sinc", "gaussian", "hermite"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
            "scheme": list(SUPPRESSION)}
 # the designer's blocks in plain words: an icon, what the block is, and its settings with their units
-BLOCK_ICONS = {"hard pulse": "bolt", "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
+BLOCK_ICONS = {"hard pulse": "bolt", "adiabatic pulse": "all_inclusive", "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
                "crusher": "signal_cellular_alt", "coherence filter": "filter_alt", "water suppression": "water_drop"}
 BLOCK_NOTES = {
     "hard pulse": "An ideal pulse of no duration. It turns every spin alike, whatever its frequency.",
     "own pulse": "A pulse of your own shape. Type its envelope or load it from a file; the flip angle scales it.",
     "shaped pulse": "A sinc, Gaussian or Hermite pulse, played in time. With a slice gradient it selects a slab along an axis.",
+    "adiabatic pulse": "A hyperbolic secant full passage. It inverts over its whole bandwidth whatever the B1, above a threshold; play them in pairs.",
     "delay": "Free evolution. The echo time is the sum of the delays and the pulses between excitation and readout.",
     "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the echo and spoils the rest.",
     "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes every other, without time.",
@@ -85,7 +89,8 @@ BLOCK_NOTES = {
 CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)", "duration_ms": "duration (ms)", "offset_ppm": "centre (ppm)",
             "shape": "shape", "slice_axis": "slice along", "slice_hz_per_mm": "slice gradient (Hz/mm)", "ms": "duration (ms)",
             "axis": "along", "cycles_per_mm": "dephasing (cycles/mm)", "order": "coherence order kept", "scheme": "scheme",
-            "envelope": "envelope, amplitudes apart by commas"}
+            "envelope": "envelope, amplitudes apart by commas",
+            "bandwidth_hz": "bandwidth (Hz)", "peak_hz": "peak B1 (Hz)"}
 # the settings' groups by name, and the ways a parameter can be set
 GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2": "T2 of the metabolites (s)",
           "contrast": "Grey to white matter concentration ratio", "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
@@ -130,15 +135,17 @@ if LOGO is not None:
 #*************#
 #   diagram   #
 #*************#
-def lanes(drawn, width=470.0, lane=54.0, mark=None):
+def lanes(drawn, width=470.0, lane=46.0, mark=None):
     """A pulse sequence diagram (Session.diagram) drawn the way the literature draws one
-    (Landheer et al. 2020, Figure 1), as SVG: the RF with its lobes and flips, the three
-    gradients with slice selection open and crushers filled, the signal, the intervals
-    between the pulses on top. A prelude that outlasts the localization (a suppression
-    train) folds into a box, the time axis broken there. `mark` (start, end) in ms
-    lights a span up, the designer's chosen block."""
+    (Landheer et al. 2020, Figure 1; Tkac et al. 1999, Figure 1 for a suppression train), as
+    SVG: the RF with its lobes and flips (an ideal pulse a bar of fixed width, a 90 half as
+    tall as a 180), the three gradients with slice selection open and crushers filled, an
+    ideal crusher (a coherence filter) dashed on all three, the signal, the intervals between
+    the localization's pulses on top. A prelude that outlasts the localization (a
+    suppression train) is drawn on a time axis of its own, compressed into a framed stretch.
+    `mark` (start, end) in ms lights a span up, the designer's chosen block."""
     names = ("RF", "Gx", "Gy", "Gz", "Signal")
-    left, right, top, fold = 56.0, 14.0, 26.0, 86.0
+    left, right, top, fold, tall = 50.0, 12.0, 30.0, 0.24 * width, 2.0 * lane
     start, stop = drawn["adc"]
     folds = [(a, b) for a, b, _ in drawn["groups"]]
     scale = (width - left - right - fold * len(folds)) / max(stop - sum(b - a for a, b in folds), 1e-9)
@@ -153,73 +160,65 @@ def lanes(drawn, width=470.0, lane=54.0, mark=None):
                 return at
         return at + scale * (t - since)
 
-    def hidden(t):   # an ideal pulse's bar reaches 0.15 ms before its time (Session.diagram)
-        return any(a - 0.2 <= t < b - 0.2 for a, b in folds)
+    def folded(t):
+        return any(a <= t < b - 1e-6 for a, b in folds)
 
     def path(trace, middle, reach):
-        """A trace as path data about its baseline; what a fold hides breaks the path, and every
-        piece starts and ends on the baseline so that its fill closes along it."""
-        parts, last = [], None
-        for t, value in trace:
-            if hidden(t):
-                if last is not None:
-                    parts.append(f"L{last:.1f},{middle:.1f}")
-                last = None
-                continue
-            parts.append((f"M{x(t):.1f},{middle:.1f} " if last is None else "") + f"L{x(t):.1f},{middle - reach * value:.1f}")
-            last = x(t)
-        return " ".join(parts) + (f" L{last:.1f},{middle:.1f}" if last is not None else "")
+        parts = [f"{'M' if k == 0 else 'L'}{x(t):.1f},{middle - reach * value:.1f}" for k, (t, value) in enumerate(trace)]
+        return " ".join(parts)
 
-    middles = [top + lane * (k + 0.5) for k in range(5)]
-    height = top + 5 * lane + 24.0
+    middles = [top + 0.72 * tall] + [top + tall + lane * (k + 0.5) for k in range(4)]
+    height = top + tall + 4 * lane + 24.0
     peak = max([abs(v) for axis in "xyz" for _, v in drawn[axis]] + [1e-9])
-    tall = max([abs(v) for _, v in drawn["rf"]] + [1e-9])
-    out = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" style="display: block; max-height: 100%" '
-           f'font-family="inherit" font-size="10">']
+    reach = 0.62 * tall / max([abs(v) for _, v in drawn["rf"]] + [h for _, h in drawn["bars"]] + [1e-9])
+    out = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" style="display: block" font-family="inherit" font-size="10">']
     if mark is not None:
-        out.append(f'<rect x="{x(mark[0]) - 4:.1f}" y="{top - 4}" width="{x(mark[1]) - x(mark[0]) + 8:.1f}" height="{5 * lane + 8}" rx="3" '
+        out.append(f'<rect x="{x(mark[0]) - 5:.1f}" y="{top - 4}" width="{x(mark[1]) - x(mark[0]) + 10:.1f}" height="{tall + 4 * lane + 8}" rx="3" '
                    f'fill="{GLOW}" fill-opacity="0.1" stroke="{GLOW}" stroke-opacity="0.5" />')
+    for (a, b, name) in drawn["groups"]:
+        out.append(f'<rect x="{x(a) + 1:.1f}" y="{top - 2}" width="{fold - 2:.1f}" height="{tall + 3 * lane + 4}" rx="2" fill="{GLOW}" '
+                   f'fill-opacity="0.04" stroke="{LINE}" stroke-dasharray="3 2" />'
+                   f'<text x="{x(a) + fold / 2:.1f}" y="{top - 8}" fill="{GLOW}" text-anchor="middle" font-size="9">{name}'
+                   + ("" if name.endswith("ideal") else f" · {b - a:.0f} ms") + "</text>")
     for name, middle in zip(names, middles):
         out.append(f'<text x="6" y="{middle + 3:.1f}" fill="{DIM}">{name}</text>'
                    f'<line x1="{left}" x2="{width - right}" y1="{middle:.1f}" y2="{middle:.1f}" stroke="{LINE}" />')
-    for (a, b, name) in drawn["groups"]:
-        out.append(f'<rect x="{x(a) + 3:.1f}" y="{top + 3}" width="{fold - 6}" height="{lane - 6}" rx="2" fill="{PANEL}" '
-                   f'stroke="{GLOW}" stroke-dasharray="3 2" />'
-                   f'<text x="{x(a) + fold / 2:.1f}" y="{middles[0] - 1:.1f}" fill="{GLOW}" text-anchor="middle">{name}</text>'
-                   f'<text x="{x(a) + fold / 2:.1f}" y="{middles[0] + 11:.1f}" fill="{DIM}" text-anchor="middle" font-size="9">'
-                   f'{b - a:.0f} ms</text>'
-                   f'<rect x="{x(a):.1f}" y="{top + lane}" width="{fold}" height="{4 * lane}" fill="{GLOW}" opacity="0.04" />')
-    out.append(f'<path d="{path(drawn["rf"], middles[0], 0.42 * lane / tall)}" fill="{GLOW}" fill-opacity="0.2" stroke="{GLOW}" '
+    out.append(f'<path d="{path(drawn["rf"], middles[0], reach)}" fill="{GLOW}" fill-opacity="0.22" stroke="{GLOW}" '
                f'stroke-width="1.2" stroke-linejoin="round" />')
+    for t, tallness in drawn["bars"]:
+        out.append(f'<rect x="{x(t) - 3:.1f}" y="{middles[0] - reach * tallness:.1f}" width="6" height="{reach * tallness:.1f}" fill="{GLOW}" '
+                   f'fill-opacity="{0.35 if tallness < 0.75 else 0.85}" stroke="{GLOW}" />')
     for k, axis in enumerate("xyz"):
         traced = path(drawn[axis], middles[k + 1], 0.42 * lane / peak)
-        spans = [(a, b) for a, b, which in drawn["crushers"] if which == axis and not hidden(0.5 * (a + b))]
+        spans = [(a, b) for a, b, which in drawn["crushers"] if which == axis]
         out.append(f'<clipPath id="crush{axis}">' + "".join(
             f'<rect x="{x(a):.1f}" y="{middles[k + 1] - lane / 2}" width="{x(b) - x(a):.1f}" height="{lane}" />' for a, b in spans)
             + f'</clipPath><path d="{traced}" fill="{SAND}" fill-opacity="0.08" stroke="{SAND}" stroke-width="1.1" />'
               f'<path d="{traced}" fill="{COPPER}" stroke="{SAND}" stroke-width="1.1" clip-path="url(#crush{axis})" />')
-    for t, _ in drawn["marks"]:
-        if not hidden(t):
-            out.append(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{top + 2}" y2="{top + 8}" stroke="{DIM}" />')
-    # the pulses' flips below the RF lane, the intervals between their centres on top
-    centres, last = [t for t, _ in drawn["pulses"] if not hidden(t)] + [start], -1e9
+        for t, _ in drawn["marks"]:     # an ideal crusher right after its pulse, the same on every axis
+            at, base = x(t) + 5.0, middles[k + 1]
+            out.append(f'<path d="M{at:.1f},{base:.1f} l2,-{0.3 * lane:.1f} l5,0 l2,{0.3 * lane:.1f}" fill="{COPPER}" fill-opacity="0.25" '
+                       f'stroke="{SAND}" stroke-width="0.9" stroke-dasharray="2 1.5" />')
+    # the flips below the RF lane, the intervals between the localization's pulses on top
+    last = -1e9
     for t, text in drawn["pulses"]:
-        if not hidden(t) and x(t) - last > 24.0:
-            out.append(f'<text x="{x(t):.1f}" y="{middles[0] + lane / 2 + 1:.1f}" fill="{DIM}" text-anchor="middle" font-size="9">{text}</text>')
+        if text and x(t) - last > 22.0:
+            out.append(f'<text x="{x(t):.1f}" y="{middles[0] + 0.27 * tall:.1f}" fill="{INK}" text-anchor="middle" font-size="10">{text}</text>')
             last = x(t)
+    centres = [t for t, _ in drawn["pulses"] if not folded(t)] + [start]
     for a, b in zip(centres[:-1], centres[1:]):
-        out.append(f'<line x1="{x(a):.1f}" x2="{x(b):.1f}" y1="12" y2="12" stroke="{DIM}" />'
-                   + "".join(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="8" y2="16" stroke="{DIM}" />' for t in (a, b))
-                   + (f'<text x="{0.5 * (x(a) + x(b)):.1f}" y="9" fill="{INK}" text-anchor="middle" font-size="9">{b - a:.1f}</text>'
-                      if x(b) - x(a) > 34.0 else ""))
-    out.append(f'<text x="{0.5 * (x(start) + x(stop)):.1f}" y="15" fill="{GOOD}" text-anchor="middle">DAQ</text>')
+        out.append(f'<line x1="{x(a):.1f}" x2="{x(b):.1f}" y1="14" y2="14" stroke="{DIM}" />'
+                   + "".join(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="10" y2="18" stroke="{DIM}" />' for t in (a, b))
+                   + (f'<text x="{0.5 * (x(a) + x(b)):.1f}" y="10" fill="{INK}" text-anchor="middle" font-size="9">{b - a:.1f}</text>'
+                      if x(b) - x(a) > 30.0 else ""))
+    out.append(f'<text x="{0.5 * (x(start) + x(stop)):.1f}" y="17" fill="{GOOD}" text-anchor="middle">DAQ</text>')
     wave = [(start + (stop - start) * u, np.exp(-3.5 * u) * np.cos(2.0 * np.pi * 11.0 * u)) for u in np.linspace(0.0, 1.0, 160)]
     out.append(f'<path d="{path(wave, middles[4], 0.42 * lane)}" fill="none" stroke="{GOOD}" stroke-width="1.1" />')
-    step = next(s for s in (0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 5000) if stop / s <= 12)
-    for t in np.arange(0.0, stop + 1e-9, step):
-        if not hidden(t):
-            out.append(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{height - 22}" y2="{height - 18}" stroke="{DIM}" />'
-                       f'<text x="{x(t):.1f}" y="{height - 7}" fill="{DIM}" text-anchor="middle" font-size="9">{t:g}</text>')
+    step = next(s for s in (0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 5000) if (stop - sum(b - a for a, b in folds)) / s <= 10)
+    begin = folds[-1][1] if folds else 0.0      # the localization's clock starts after the preludes
+    for t in np.arange(0.0, stop - begin + 1e-9, step):
+        out.append(f'<line x1="{x(begin + t):.1f}" x2="{x(begin + t):.1f}" y1="{height - 22}" y2="{height - 18}" stroke="{DIM}" />'
+                   f'<text x="{x(begin + t):.1f}" y="{height - 7}" fill="{DIM}" text-anchor="middle" font-size="9">{t:g}</text>')
     out.append(f'<text x="6" y="{height - 7}" fill="{DIM}" font-size="9">ms</text></svg>')
     return "".join(out)
 
@@ -247,7 +246,7 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None}
+    views, shown, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None}
 
     def room():
         """Rebuild the 3D view: the subject's surface, the receive loops, the voxel's box."""
@@ -272,9 +271,12 @@ def console():
         other planes' cross, a spectroscopic image's grid) and the 3D box: what a drag needs."""
         cells = int(session.protocol.matrix) if session.protocol.sequence == MRSI else 1
         for name, (image, (left, top, width, height), cut, (column, row), shifted) in session.planes().items():
-            buffer = io.BytesIO()
-            Image.fromarray(image).save(buffer, format="PNG")
-            views[name].set_source("data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode())
+            stamp = hash(image.tobytes())
+            if shown.get(name) != stamp:                            # a moved voxel changes the outlines, not the picture
+                shown[name] = stamp
+                buffer = io.BytesIO()
+                Image.fromarray(image).save(buffer, format="PNG")
+                views[name].set_source("data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode())
             side = image.shape[0]
             grid = "".join(f'<line x1="{left + width * n / cells:.1f}" x2="{left + width * n / cells:.1f}" y1="{top:.1f}" '
                            f'y2="{top + height:.1f}" /><line y1="{top + height * n / cells:.1f}" y2="{top + height * n / cells:.1f}" '
@@ -561,9 +563,12 @@ def console():
                 for index, (kind, settings) in enumerate(session.design):
                     brief = next((f"{value:g}" + unit for key, unit in (("flip_deg", "°"), ("ms", " ms"), ("cycles_per_mm", " /mm"), ("order", ""))
                                   if (value := settings.get(key)) is not None), settings.get("scheme", ""))
-                    ui.button(f"{index + 1}  {kind}  {brief}", icon=BLOCK_ICONS[kind], on_click=lambda _, i=index: (
-                        state.__setitem__("at", i), refresh())).props("flat dense no-caps").classes(
-                        "tool" + (" on" if index == state["at"] else ""))
+                    chip = ui.button(f"{index + 1} · {kind} {brief}", icon=BLOCK_ICONS[kind], on_click=lambda _, i=index: (
+                        state.__setitem__("at", i), refresh())).props("flat dense no-caps stack draggable").classes(
+                        "chip" + (" on" if index == state["at"] else ""))
+                    chip.on("dragstart", lambda _, i=index: state.__setitem__("dragged", i))
+                    chip.on("dragover.prevent", lambda: None)
+                    chip.on("drop", lambda _, i=index: drop(i))
             inspector.clear()
             with inspector:
                 if session.design:
@@ -572,8 +577,13 @@ def console():
                         ui.icon(BLOCK_ICONS[kind], size="20px").style(f"color: {GLOW}")
                         ui.label(f"Block {state['at'] + 1} · {kind}").style(f"color: {SAND}")
                         ui.space()
+                        if kind in ("hard pulse", "shaped pulse"):
+                            ui.button("make it " + ("ideal" if kind == "shaped pulse" else "shaped"), icon="swap_horiz", on_click=lambda: (
+                                reshape(state["at"], kind == "hard pulse"), refresh())).props("outline dense no-caps")
                         for icon, tip, act in (("arrow_back", "earlier", lambda: move(-1)), ("arrow_forward", "later", lambda: move(+1)),
-                                               ("content_copy", "duplicate", lambda: place(kind, dict(settings))),
+                                               ("content_copy", "copy", lambda: state.__setitem__("copied", (kind, dict(settings)))),
+                                               ("content_paste", "paste the copied block after this one", lambda: "copied" in state and place(
+                                                   state["copied"][0], dict(state["copied"][1]))),
                                                ("delete", "remove", remove)):
                             ui.button(icon=icon, on_click=act).props("flat dense round").tooltip(tip)
                     ui.label(BLOCK_NOTES[kind]).classes("label").style("text-transform: none; letter-spacing: 0")
@@ -598,12 +608,27 @@ def console():
                 drawn = session.diagram()
                 counts = np.cumsum([0] + [len(BLOCKS[kind][1](settings)) for kind, settings in session.design])
                 spans = drawn["spans"][counts[state["at"]]:counts[state["at"] + 1]] if session.design else []
-                preview.content = lanes(drawn, width=900.0, lane=50.0, mark=(spans[0][0], spans[-1][1]) if spans else None)
+                preview.content = lanes(drawn, width=820.0, lane=44.0, mark=(spans[0][0], spans[-1][1]) if spans else None)
                 problem.text = f"{len(session.design)} blocks · the readout opens at {drawn['adc'][0]:.1f} ms"
                 problem.style(f"color: {DIM}")
             except Exception as error:  # a half-typed block is not a design yet: say why and keep the last diagram
                 problem.text = str(error)[:160]
                 problem.style(f"color: {BAD}")
+
+        def drop(onto):
+            """A dragged block takes the place of the one it is dropped on."""
+            dragged = state.pop("dragged", None)
+            if dragged is not None and dragged != onto:
+                session.design.insert(onto, session.design.pop(dragged))
+                state["at"] = onto
+                refresh()
+
+        def reshape(index, shaped):
+            """An ideal pulse becomes a shaped one of the same flip and phase, or back."""
+            kind, settings = session.design[index]
+            if kind in ("hard pulse", "shaped pulse") and (kind == "shaped pulse") != shaped:
+                other = "shaped pulse" if shaped else "hard pulse"
+                session.design[index] = (other, {**BLOCKS[other][0], "flip_deg": settings["flip_deg"], "phase_deg": settings["phase_deg"]})
 
         def place(kind, settings):
             """A new block goes in after the chosen one and becomes the chosen one."""
@@ -629,14 +654,17 @@ def console():
 
         async def look():
             """The design's spectrum at the planned voxel, eight transients, beside its diagram."""
+            busy.set_visibility(True)
             try:
                 exam = session.plan(queued=False)
                 exam.card = dataclasses.replace(exam.card, averages=8)
-                await run.io_bound(session.run, exam, 0)
+                await run.io_bound(session.run, exam)
             except Exception as error:
                 problem.text = str(error)[:160]
                 problem.style(f"color: {BAD}")
                 return
+            finally:
+                busy.set_visibility(False)
             outcome.options["series"][0]["data"] = [[float(a), float(b)] for a, b in zip(exam.ppm, exam.frames[-1][1])]
             outcome.update()
 
@@ -648,13 +676,20 @@ def console():
                     state.__setitem__("at", 0), refresh())).props("dense outlined dark").style("width: 300px")
                 problem = ui.label("").classes("value")
                 ui.space()
+                ui.button("all pulses ideal", icon="bolt", on_click=lambda: ([reshape(i, False) for i in range(len(session.design))], refresh())
+                          ).props("outline dense no-caps")
+                ui.button("all pulses shaped", icon="waves", on_click=lambda: ([reshape(i, True) for i in range(len(session.design))], refresh())
+                          ).props("outline dense no-caps")
                 ui.button("Spectrum of this design", icon="insights", on_click=look).props("outline dense no-caps")
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
-                outcome = ui.echart({**copy.deepcopy(SPECTRUM), "title": {**SPECTRUM["title"], "text": "the spectrum this design gives"}}).style(
-                    "flex: 2; min-width: 0; height: 300px")
-            ui.label("The design, in the order it plays · press a block to choose it").classes("label")
+                with ui.element("div").style("flex: 2; min-width: 0; position: relative"):
+                    outcome = ui.echart({**copy.deepcopy(SPECTRUM), "title": {**SPECTRUM["title"], "text": "the spectrum this design gives"}}).style(
+                        "height: 340px").classes("w-full")
+                    busy = ui.spinner(size="56px", color=SAND).style("position: absolute; top: 42%; left: 46%")
+                    busy.set_visibility(False)
+            ui.label("The design, in the order it plays · press a block to choose it · drag one onto another to move it there").classes("label")
             strip = ui.row().classes("w-full").style("gap: 4px")
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch; flex: 1"):
                 with ui.column().classes("pane").style("width: 430px"):
@@ -979,10 +1014,11 @@ def console():
     def drag(plane):
         """A plane's mouse: a press or a drag moves the voxel, the release settles the card."""
         def handle(event):
-            if event.type == "mouseup":
+            kind = event.args.get("mouse_event_type")
+            if kind == "mouseup":
                 draw()
-            elif event.type == "mousedown" or event.buttons == 1:
-                session.place(plane, event.image_x, event.image_y)
+            elif kind == "mousedown" or event.args.get("buttons") == 1:
+                session.place(plane, event.args.get("image_x", 0.0), event.args.get("image_y", 0.0))
                 paint()
         return handle
 
@@ -1052,7 +1088,8 @@ def console():
                     "everything real about the scan as switches: pulses, the B0 field, noise, macromolecules, lipids, eddy currents, ...")
                 tools["shifts"] = ui.button("shifts", icon="flip_to_back", on_click=lambda: (
                     chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
-                    "the displaced voxels of water (blue) and lipid (pink) under a played localization")
+                    "display only: draws where water (blue) and lipid (pink) are really selected. With real pulses the displacement is "
+                    "always in the signal; this button does not switch it off (ideal pulses do)")
                 ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
                     "what happens over the transients: drift, breathing, jitter, motion")
                 ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: (setattr(session, "overlay", e.value), paint())).props(
@@ -1064,8 +1101,10 @@ def console():
             with ui.element("div").classes("w-full").style("display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px"):
                 for name in ("tra", "sag", "cor"):
                     with ui.element("div").classes("port"):
-                        views[name] = ui.interactive_image(on_mouse=drag(name), events=["mousedown", "mousemove", "mouseup"],
-                                                           cross=False).classes("w-full")
+                        views[name] = ui.interactive_image(events=["mousedown", "mousemove", "mouseup"], cross=False).classes("w-full")
+                        # throttled: an unthrottled stream of moves queues more repaints than the window can show, and
+                        # the console then seems deaf to the next clicks
+                        views[name].on("mouse", drag(name), throttle=0.06)
                         views[name].on("wheel.prevent", lambda e, plane=name: (
                             session.scroll(plane, 1 if e.args["deltaY"] < 0 else -1), paint()), args=["deltaY"], throttle=0.04)
                         texts[name] = ui.label("").classes("tag").style("top: 4px; left: 6px")
@@ -1079,8 +1118,8 @@ def console():
                     with ui.tabs().props("dense align=left").style(f"color: {DIM}") as tabs:
                         for name in ("Geometry", "Contrast", "Acquisition"):
                             ui.tab(name)
-                    with ui.row().classes("w-full no-wrap").style("gap: 12px; flex: 1"):
-                        with ui.tab_panels(tabs, value="Geometry").props("keep-alive").style("width: 190px; flex: none"):
+                    with ui.row().classes("w-full no-wrap").style("gap: 12px; flex: 1; min-height: 0"):
+                        with ui.tab_panels(tabs, value="Geometry").props("keep-alive").style("width: 215px; flex: none; overflow-y: auto"):
                             with ui.tab_panel("Geometry"):
                                 for axis, caption in enumerate(("x, to the right (mm)", "y, to the front (mm)", "z, to the head (mm)")):
                                     places.append(ui.number(caption, value=session.position_mm[axis], step=1.0, on_change=lambda e, axis=axis: (
@@ -1105,15 +1144,21 @@ def console():
                             for tab, fields in (("Contrast", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
                                                 ("Acquisition", (("averages", "averages", 1), ("npoints", "points", 512),
                                                                  ("bandwidth_hz", "bandwidth (Hz)", 500.0),
-                                                                 ("water_reference", "water reference transients, 0: none", 2)))):
+                                                                 ("water_reference", "water reference transients", 2)))):
                                 with ui.tab_panel(tab):
                                     if tab == "Contrast":
                                         ui.button(on_click=browse).bind_text_from(card, "sequence").props(
                                             "outline no-caps icon-right=expand_more").classes("w-full")
+                                    if tab == "Acquisition":
+                                        ui.switch("reference before the scan", on_change=changed("water_reference_first", "card")).bind_value(
+                                            card, "water_reference_first").props("dense color=accent").tooltip(
+                                            "the water reference is an exam of its own: before its card, or after it (off)")
                                     for attribute, caption, step in fields:
                                         ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
                                                   ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
-                        with ui.element("div").classes("info").style("flex: 1"):
+                        with ui.element("div").classes("info").style(
+                                f"flex: 1; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
+                            ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
                             for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
                                                  ("tissue", "tissue"), ("displaced", "displaced voxels"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                  ("limits", "hardware")):

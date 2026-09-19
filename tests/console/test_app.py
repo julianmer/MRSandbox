@@ -63,7 +63,7 @@ class TestApp:
                 await user.should_see("Single voxel")
                 user.find("PRESS").click()                              # real pulses are the default: the displaced voxels in words
                 await user.should_see("water -1.8 -4.4 -4.4 mm")
-                user.find("real pulses").click()
+                user.find(kind=ui.button, content="real pulses").click()   # by kind: a click takes the first match, and a tooltip names it too
                 await user.should_see("none, the localization is ideal")
                 user.find("realism").click()
                 await user.should_see("on is real, off is ideal")

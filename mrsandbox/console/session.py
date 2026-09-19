@@ -163,6 +163,9 @@ BLOCKS = {
                          b["flip_deg"], b["duration_ms"] / 1000.0, offset_ppm=b["offset_ppm"], phase_deg=b["phase_deg"],
                          **({} if b["slice_axis"] == "none" else dict(gradient_hz_per_mm=b["slice_hz_per_mm"],
                                                                       gradient_axis=b["slice_axis"]))),)),
+    "adiabatic pulse": (dict(duration_ms=6.0, bandwidth_hz=1500.0, peak_hz=1000.0, offset_ppm=4.65),
+                        lambda b: (ShapedPulse.hyperbolic_secant(b["duration_ms"] / 1000.0, b["bandwidth_hz"], b["peak_hz"],
+                                                                 offset_ppm=b["offset_ppm"]),)),
     "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15), lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
     "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
@@ -178,6 +181,11 @@ TEMPLATES = {
     "PRESS, TE 30": [("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=5.5)),
                      ("hard pulse", dict(flip_deg=180.0, phase_deg=90.0)), ("coherence filter", dict(order=1)), ("delay", dict(ms=15.0)),
                      ("hard pulse", dict(flip_deg=180.0, phase_deg=90.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=9.5))],
+    "sLASER, TE 30": [("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=0.75)),
+                      ("adiabatic pulse", {}), ("coherence filter", dict(order=1)), ("delay", dict(ms=1.5)),
+                      ("adiabatic pulse", {}), ("coherence filter", dict(order=-1)), ("delay", dict(ms=1.5)),
+                      ("adiabatic pulse", {}), ("coherence filter", dict(order=1)), ("delay", dict(ms=1.5)),
+                      ("adiabatic pulse", {}), ("coherence filter", dict(order=-1)), ("delay", dict(ms=0.75))],
     "STEAM, TE 20, TM 10": [("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=1)), ("delay", dict(ms=10.0)),
                             ("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=0)), ("delay", dict(ms=10.0)),
                             ("hard pulse", dict(flip_deg=90.0, phase_deg=180.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=10.0))],
@@ -206,6 +214,7 @@ class Protocol:
     ovs: bool = False
     real: bool = True
     water_reference: int = 0
+    water_reference_first: bool = False
 
     @property
     def scan_time_s(self):
@@ -511,13 +520,16 @@ class Session:
                                                   42.5774785 * self.profile().scanner.b0_t, extent_mm=float(max(self.size_mm)))
         return found
 
-    def displacement(self, ppm, sequence=None):
+    def displacement(self, ppm):
         """Where the voxel of spins at `ppm` lies from the planned one, (x, y, z) in mm: under a
         slice gradient of G Hz per mm a pulse centred for its reference selects a shift d ppm away
-        at -d f0 / G. Zero along an axis no played pulse selects (an ideal design: all three)."""
+        at -d f0 / G. Zero along an axis no played pulse selects (an ideal design: all three). The
+        card's preludes do not count: an OVS slab's carrier places the slab, it is no reference."""
         f0_mhz = 42.5774785 * self.profile().scanner.b0_t
         moved = [0.0, 0.0, 0.0]
-        for event in (sequence if sequence is not None else self.sequence()).events:
+        card = self.protocol
+        skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in SEQUENCES else 0
+        for event in self.sequence().events[skip:]:
             if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
                 shift = -(ppm - float(event.offset_ppm)) * f0_mhz / float(event.gradient_hz_per_mm)
                 axis = "xyz".index(event.gradient_axis)
@@ -531,8 +543,8 @@ class Session:
 
     def diagram(self, sequence=None, readout_ms=12.0):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
-        with hard pulses as bars of their flip over 180 and shaped pulses as their
-        envelopes (a real envelope keeps its lobes' signs), "pulses": [(t, text)] every
+        of the shaped pulses' envelopes (a real envelope keeps its lobes' signs), "bars":
+        [(t, height)] the ideal pulses, which take no time, their flip over 180, "pulses": [(t, text)] every
         pulse's centre and flip, "marks": [(t, text)] for what takes no time and has no
         height (coherence filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner
         would play them (sequences.timeline), "spans": [(start, end)] of every event, "crushers": [(start, end, axis)] the spans
@@ -540,11 +552,25 @@ class Session:
         card's preludes (water suppression, OVS), "adc": (start, end)}."""
         preludes = self.preludes(self.protocol) if sequence is None and self.protocol.sequence in SEQUENCES else {}
         sequence = sequence if sequence is not None else self.sequence()
-        spans = event_spans(sequence)
-        end_ms = 1000.0 * spans[-1][1] if spans else 0.0
-        rf, pulses, marks, crushers, groups, first = [(0.0, 0.0)], [], [], [], [], 0
+        spans = [list(span) for span in event_spans(sequence)]
+        # a prelude without duration (an ideal CHESS: selective pulses and filters that take no time) is laid out
+        # over a nominal stretch on paper, its events in order, and what follows moves on by it
+        held, first = [], 0
         for name, prelude in preludes.items():
-            groups.append((1000.0 * spans[first][0], 1000.0 * spans[first + len(prelude.events) - 1][1], name))
+            last = first + len(prelude.events)
+            if spans[last - 1][1] - spans[first][0] < 1e-9:
+                for k in range(first, last):
+                    spans[k] = [spans[k][0] + 0.030 * (k - first + 0.5) / (last - first)] * 2
+                for k in range(last, len(spans)):
+                    spans[k] = [spans[k][0] + 0.030, spans[k][1] + 0.030]
+                held.append((spans[first][0] - 0.030 * 0.5 / (last - first), name))
+            first = last
+        end_ms = 1000.0 * spans[-1][1] if spans else 0.0
+        rf, bars, pulses, marks, crushers, groups, first = [(0.0, 0.0)], [], [], [], [], [], 0
+        for name, prelude in preludes.items():
+            begin = next((1000.0 * at for at, which in held if which == name), 1000.0 * spans[first][0])
+            groups.append((begin, begin + 30.0 if any(which == name for _, which in held) else 1000.0 * spans[first + len(prelude.events) - 1][1],
+                           name if not any(which == name for _, which in held) else name + ", ideal"))
             first += len(prelude.events)
         for event, (start, stop) in zip(sequence.events, spans):
             start, stop = 1000.0 * start, 1000.0 * stop
@@ -560,15 +586,16 @@ class Session:
             elif isinstance(event, Gradient):
                 crushers.append((start, stop, event.axis))
             elif hasattr(event, "flip_deg") and not isinstance(event, Delay):
-                height = float(event.flip_deg) / 180.0                     # no time in the engine, a bar on paper
-                rf += [(start - 0.15, 0.0), (start - 0.15, height), (start + 0.15, height), (start + 0.15, 0.0)]
+                bars.append((start, float(event.flip_deg) / 180.0))       # no time in the engine, a bar on paper
                 pulses.append((start, f"{float(event.flip_deg):.0f}°"))
         rf.append((end_ms + readout_ms, 0.0))
         until_s = (end_ms + readout_ms) / 1000.0
-        times, waves = gradient_waveforms(sequence, self.profile().scanner, 5e-5, until_s)
+        times, waves = gradient_waveforms(sequence, self.profile().scanner, 5e-5, until_s - 0.030 * len(held))
+        for at, _ in held:
+            times = np.where(times >= at, times + 0.030, times)
         lanes = {axis: [(float(a), float(b)) for a, b in zip(1000.0 * times[::4], waves.get(axis, np.zeros(times.size))[::4])]
                  for axis in "xyz"}
-        return {"rf": rf, "pulses": pulses, "marks": marks, **lanes, "crushers": crushers, "groups": groups,
+        return {"rf": rf, "bars": bars, "pulses": pulses, "marks": marks, **lanes, "crushers": crushers, "groups": groups,
                 "adc": (end_ms, end_ms + readout_ms), "spans": [(1000.0 * a, 1000.0 * b) for a, b in spans]}
 
     #************#
@@ -729,7 +756,7 @@ class Session:
         fractions = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).fractions
         limits = profile.scanner
         return {"linewidth_hz": self.linewidth(),
-                "displaced": {name: self.displacement(ppm, sequence) for name, ppm in SHIFTED.items()},
+                "displaced": {name: self.displacement(ppm) for name, ppm in SHIFTED.items()},
                 "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
@@ -764,6 +791,8 @@ class Session:
                     exam, name=f"{number + 1} {card.sequence} water reference", frames=[], spectra={}, tracks={}, truth={},
                     card=dataclasses.replace(card, averages=int(card.water_reference), water_suppression="off", water_reference=0),
                     overrides={**exam.overrides, "water.residual_fraction": 1.0, "downfield.presaturated": False}))
+                if card.water_reference_first:          # the reference runs before its card, the names say which is which
+                    self.queue[-2], self.queue[-1] = self.queue[-1], self.queue[-2]
         return exam
 
     def run(self, exam, seed=None):
