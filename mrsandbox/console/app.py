@@ -1037,6 +1037,8 @@ async def console(client: Client):
 
         async def picked(what, value):
             """A stored choice waits as it is; "your own file ..." asks for the file, and a DICOM file gives its series."""
+            if value == own.get(what):      # the line showing the file that was just staged on it: not a new choice
+                return
             if value != OWN:
                 own.pop(what, None)
                 shown_now[what] = value
@@ -1126,7 +1128,7 @@ async def console(client: Client):
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                     ui.label(caption).style("width: 170px")
                     selects[what] = ui.select({OWN: OWN, **{option: option for option in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
-                                              value=now, on_change=lambda e, what=what: picked(what, e.value)).props(
+                                              value=now, on_change=lambda e, what=what: picked(what, e.value)).mark(f"line {what}").props(
                         "dense outlined dark options-dense").style("flex: 1")
                     if what != "anatomy":
                         ui.button("Register", icon="my_location", on_click=lambda _, what=what: register(what)).props("outline dense no-caps").style(

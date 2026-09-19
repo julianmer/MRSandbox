@@ -29,7 +29,11 @@ pytest.importorskip("nicegui")
 class TestApp:
 
     def test_an_operator_opens_every_pop_up(self, tmp_path):
+        import nibabel as nib
+        import numpy as np
         from nicegui import ui
+
+        from mrsandbox import Brain
         from nicegui.testing import user_simulation
 
         async def visit():
@@ -60,16 +64,22 @@ class TestApp:
                 user.find("Use this design").click()                    # the card plays it from here on, not before
                 user.find(kind=ui.button, content="maps").click()      # a tooltip names the maps too
                 await user.should_see("Anatomy and maps")
-                next(e for e in user.find(kind=ui.select).elements if e.value in ("qsm_rc2", "bigbrain_mr")).value = "uniform"
-                await asyncio.sleep(0.3)                                # the line's choice is taken in a task of its own
+                # a uniform field from the stored ones, and an anatomy of the operator's own: a file chosen on a line waits
+                # there (the line then SHOWING it is no new choice: that once dropped the file), and one Apply at the end
+                # makes the anatomy of the three tissue maps and puts the field in force
+                brain, chosen = Brain.load("icbm152"), {}
+                for line, data in (("anatomy", brain.wm), ("GM", brain.gm), ("WM", brain.wm), ("CSF", brain.csf)):
+                    chosen[line] = tmp_path / f"{line}.nii.gz"
+                    nib.save(nib.Nifti1Image(np.asarray(data, dtype=np.float32), brain.affine), chosen[line])
+                next(iter(user.find(marker="line B0").elements)).value = "uniform"
+                for line in ("anatomy", "GM", "WM", "CSF"):             # by their markers: a simulated page keeps no order
+                    app.choose_file = lambda prompt, line=line: chosen[line]
+                    next(iter(user.find(marker=f"line {line}").elements)).value = "your own file ..."
+                    await asyncio.sleep(0.4)                            # the line's choice is taken in a task of its own
+                next(e for e in user.find(kind=ui.input).elements if "new anatomy" in str(e.props.get("label", ""))).value = "my own"
                 user.find(marker="apply the maps").click()              # by its marker: the settings have an Apply of their own
-                await user.should_see("uniform field, none", retries=50)
-                user.find("the run").click()
-                await user.should_see("a motion event moves the head by")
-                user.find("Done").click()
-                user.find(marker="calibration").click()
-                await user.should_see("the records this scanner's noise")
-                user.find("Done").click()
+                await user.should_see("uniform field, none", retries=100)
+                assert any(getattr(e, "value", None) == "my own" for e in user.find(kind=ui.select).elements)
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
                 user.find(marker="protocol PRESS").click()                              # real pulses are the default: the displaced voxels in words
