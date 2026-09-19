@@ -46,3 +46,6 @@ CLAUDE.md
 
 # a collaborator's raw noise scans, placed by hand
 data/noise_data/
+
+# a Philips phantom session (raw, sdat, DICOM), placed by hand
+data/phantomMRS/
