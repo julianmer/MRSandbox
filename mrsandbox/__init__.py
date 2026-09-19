@@ -12,9 +12,27 @@
 ####################################################################################################
 
 #*************#
+#   backend   #
+#*************#
+# Keras falls to TensorFlow when no backend is named, and writes that default into ~/.keras/keras.json
+# on its first import. The package runs on any of the three, so where KERAS_BACKEND is unset and the
+# configured backend is not installed, the first one that is installed is taken.
+import importlib.util
+import json
+import os
+import pathlib
+
+if "KERAS_BACKEND" not in os.environ:
+    config = pathlib.Path.home() / ".keras" / "keras.json"
+    named = json.loads(config.read_text()).get("backend", "tensorflow") if config.exists() else "tensorflow"
+    if importlib.util.find_spec(named) is None:
+        os.environ["KERAS_BACKEND"] = next(
+            (name for name in ("jax", "torch", "tensorflow") if importlib.util.find_spec(name)), named)
+
+#*************#
 #   imports   #
 #*************#
-from mrsandbox.backend import Backend
+from mrsandbox.backend import Backend  # noqa: E402
 from mrsandbox.database import Database
 from mrsandbox.engine import Context, Engine
 from mrsandbox.hardware import CoilArray, Loop, MappedCoilArray, Receiver, Scanner
