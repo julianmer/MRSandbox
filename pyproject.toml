@@ -35,8 +35,10 @@ dev = ["pytest", "pypulseq", "ruff", "mrsandbox[jax]"]
 [project.scripts]
 mrsandbox-console = "mrsandbox.console.app:main"
 
-[tool.setuptools.package-data]
-"mrsandbox.console" = ["*.png"]
+# the console's logo stays in assets/, its one home; a built package installs that one file beside itself
+# (<environment>/share/mrsandbox), where mrsandbox.console finds it when the repository is not around
+[tool.setuptools.data-files]
+"share/mrsandbox" = ["assets/logo/logo.png"]
 
 [tool.setuptools.packages.find]
 include = ["mrsandbox*"]

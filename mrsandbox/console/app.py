@@ -22,6 +22,7 @@ import base64
 import io
 import os
 import pathlib
+import sys
 
 import numpy as np
 from nicegui import run, ui
@@ -47,6 +48,10 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
 .q-field--outlined .q-field__control:before {{ border-color: {LINE} !important; }}
 """
 MM = 1.0 / 40.0  # the 3D view's units per millimetre
+# the logo has one home, the repository's assets/; an installed package carries that file in its
+# environment's share/mrsandbox (pyproject.toml, data-files)
+LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "logo" / "logo.png",
+                               pathlib.Path(sys.prefix) / "share" / "mrsandbox" / "logo.png") if path.exists()), None)
 CHOICES = {"shape": ["sinc", "gaussian", "hermite"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
            "scheme": ["VAPOR", "WET", "CHESS"]}
 
@@ -378,13 +383,12 @@ def console():
 
     # the status bar: what is in the room
     with ui.row().classes("w-full items-center pane").style("gap: 16px"):
-        # the logo, scaled once for the bar (the file is the repository's 1.7 MB original)
-        logo = Image.open(pathlib.Path(__file__).with_name("logo.png")).convert("RGB")
-        logo = logo.crop((60, 200, 964, 800)).resize((144, 96), Image.LANCZOS)
-        buffer = io.BytesIO()
-        logo.save(buffer, format="PNG")
-        ui.html(f'<img alt="MRSandbox" width="72" height="48" style="border-radius: 2px; display: block" '
-                f'src="data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}">')
+        if LOGO is not None:  # scaled once for the bar (the file is the 1.7 MB original)
+            logo = Image.open(LOGO).convert("RGB").crop((60, 200, 964, 800)).resize((144, 96), Image.LANCZOS)
+            buffer = io.BytesIO()
+            logo.save(buffer, format="PNG")
+            ui.html(f'<img alt="MRSandbox" width="72" height="48" style="border-radius: 2px; display: block" '
+                    f'src="data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}">')
         ui.label("MRSandbox").style(f"color: {SAND}; font-size: 17px; letter-spacing: .08em")
         for attribute, caption, options, width in (("scanner", "scanner", {name: pathlib.Path(name).stem for name in session.scanners()}, 230),
                                                    ("coil", "receive array", list(session.COILS), 215),
@@ -481,7 +485,7 @@ def console():
 #**********#
 def main():
     """Start the console and open it in the browser."""
-    ui.run(title="MRSandbox Console", favicon=pathlib.Path(__file__).with_name("logo.png"), dark=True, reload=False,
+    ui.run(title="MRSandbox Console", favicon=LOGO, dark=True, reload=False,
            show="MRSANDBOX_CONSOLE_HEADLESS" not in os.environ, port=int(os.environ.get("MRSANDBOX_CONSOLE_PORT", "8642")))
 
 
