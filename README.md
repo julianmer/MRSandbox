@@ -21,6 +21,60 @@ data  = scan.voxel(position_mm=(10, -20, 5), size_mm=20).acquire(seed=7)    # NI
 
 > MRSandbox is under active development and grows with my research. It is a personal research toolbox and interfaces are adjusted as we see fit.
 
+## What it does
+
+Every example runs as it stands after `from mrsandbox import *`.
+
+```python
+# a scanner as the data know it: the Prisma's noise record, read off raw in vivo scans, comes with it
+profile = ScannerProfile.preset("siemens_prisma_3t")
+scan = profile.scan(brain, SemiLaser(te_s=0.026, tr_s=2.0))
+
+# or your own scanner, replicated from one of its raw files (coils and transients apart)
+mine = ScannerProfile.read("my_scan.nii.gz", scan.voxel((0, -45, 35), 20, compiled=True), "my Prisma")
+mine.save("my_prisma.json")
+```
+
+```python
+# every quantity is a parameter: fix it, draw it from a range, or read it from a map
+fever = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019),
+                    params=Params(water=dict(temperature_c=(36.0, 40.0)), conc=dict(GABA=2.5)))
+```
+
+```python
+# J-difference editing emerges from the density matrix; HERMES and HERCULES ship too
+gaba = Multiplex(brain, Scanner.preset("generic_3t"), MegaPress.pair(),
+                 combinations={"difference": {"on": 1.0, "off": -1.0}})
+stack = gaba.acquire((0, -45, 35), 30.0, seed=1)          # NIfTI-MRS on DIM_EDIT, one truth
+edited = gaba.combine(stack, "difference")
+```
+
+```python
+# spectroscopic imaging, a phantom on the table, a stream of training data
+image = scan.mrsi(center_mm=(0, -10, 35), matrix=(8, 8), voxel_mm=12.0).acquire(seed=1)
+sphere = VirtualScan(Phantom.spectre(temperature_c=21.0), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+batches = scan.generator((0, -45, 35), 20.0, batch_size=16, seed=0)
+```
+
+The data are NIfTI-MRS, and the header of every acquisition carries its ground truth: the drawn
+parameters, the tissue in the voxel, the calibration records in force and where the scan departs
+from the conditions they were measured under.
+
+## The console
+
+```
+uvx --from "mrsandbox[console]" mrsandbox-console
+```
+
+A virtual scanner console in the browser. Choose the scanner (a preset, or your own saved
+profile), the receive array, and who lies on the table. Plan the voxel or the MRSI grid on three
+planes and in 3D, fill an exam queue with protocol cards, and run it: the spectrum builds up
+over the transients, which come with the drift and motion of a real run. Design your own
+sequence from blocks and see it as a pulse sequence diagram, with the gradients as the chosen
+scanner would play them. Open any parameter of the simulation through the gears. Review the
+spectra beside the truth, and export what a scanner exports: the raw transients as NIfTI-MRS and
+the sequence as Pulseq.
+
 ## Overview
 
 ```mermaid
@@ -47,140 +101,27 @@ flowchart LR
     EN --> OUT[[NIfTI-MRS+]]
 ```
 
-This repository consists of the following main structures:
-* The `mrsandbox/params/` folder holds the parameter system: `Value` providers (fixed, uniform,
-  normal, clipped, per tissue, mapped) inside composable `Params` trees. Sampling a tree
-  realizes every leaf with one seed and records the ground truth; every leaf draws from its own
-  path keyed stream, so adding a parameter never shifts the others. The default priors follow the
-  scanner field (1.5, 3, and 7 T relaxation tables).
-* The `mrsandbox/database/` folder stores literature values as source named Python dicts with the
-  citation beside each dict, including the de Graaf concentration ranges, per metabolite T2 pooled
-  from the Gudmundson database in `externals/`, per metabolite T1 typed from Mlynarik 2001,
-  Ethofer 2003, and Traber 2004, the published WET and VAPOR suppression series, and the de Graaf
-  RF pulse characteristics, and the published functions by which the metabolite shifts and
-  couplings move with temperature and pH (Wermter et al. 2026). Pooling across sources is code, never data. A survey of the acquisition headers of the public
-  OpenNeuro datasets (`database/scanners.py`) lists per scanner model the software releases,
-  the receive coils, and the spread of the transmitter reference amplitude and the shim
-  currents: what the scanners the presets stand for are configured as in the field.
-* The `mrsandbox/phantom/` folder defines the virtual brain with continuous tissue fractions at
-  any position, together with swappable water, lipid, macromolecule, and downfield sources
-  (coupled mini spin systems, LCModel style Gaussians, the measured consensus spectrum, or the
-  2024 MRSI challenge basis) and B0 field maps that dephase each voxel physically (after a voxel
-  shim up to second order, as a real acquisition would) and, on request, puts the field into the
-  pulses as well, so an editing pulse misses the part of a voxel the field moves away. A field
-  map is measured, or computed
-  from a susceptibility distribution by the dipole model, so a whole head carries the fields of
-  its sinuses and its skull at any field strength. `Volume` is the one spatial container: every
-  map, from the tissue fractions to a user's T1 or transmit map, answers box queries with exact
-  partial volume weights. ICBM152 (TemplateFlow) and BigBrain-MR (Sainz Martinez et al. 2023)
-  are fetched on first use; the QSM challenge 2.0 head (Marques et al. 2021), a whole head with
-  skull, air, and scalp, may not be redistributed and is placed in the cache by hand; its scalp
-  can be carried onto the other two brains as their fat layer. The wheel ships no data.
-* The `mrsandbox/resources/` folder pulls large named datasets from their canonical homes on
-  first use into a local, checksum verified cache, so the package itself stays lightweight,
-  and derives the hMRI demo subject's quantitative 3 T stack (R1, PD, MT saturation, R2*,
-  transmit field, B0) and the UK7T travelling head's 7 T stack (DREAM transmit field, B0, R2*
-  on five scanners) from their raw scans in cited numpy. The QSM challenge head serves its R1,
-  R2*, M0, and susceptibility maps on the grid of its own labels: tissue, field, and relaxation
-  of one 7 T subject. `QSMHead.params()` hands a scan the water T1 (from R1) and the local line
-  width (from R2* less the tissue's R2) as maps, so every voxel reads its own.
-* The `mrsandbox/hardware/` folder describes scanners, the digital receiver, and receive coil
-  arrays. Scanner presets carry the peak B1, gradient, and slew limits a design is checked
-  against (generic field classes and three 3 T systems). The receiver samples faster than the
-  spectral dwell, filters, and decimates, so the first points of a FID carry the filter's onset
-  and the noise rolls off at the band edges. Loops carry
-  Biot-Savart sensitivities, measured arrays (the BigBrain-MR and T2*-MOVE maps) carry their
-  channel patterns, arrays carry the Roemer noise resistance matrix, and acquisitions gain a
-  DIM_COIL dimension with the Roemer optimum combination to fold them back. Array
-  geometries (`CoilArray.ring`, `helmet`, `surface`) take the noise correlation a conductive
-  head gives them (`loaded`), and `calibrated` ties the combined noise to the place the noise
-  prior was measured at, so the noise follows the place: `noise_gain`. A scan without channels
-  takes the same from `VirtualScan(noise_map=...)`, an array or a measured noise scan.
-* The `mrsandbox/scan/calibrations.py` file holds every number calibrated on in vivo data with
-  the exact conditions of the measurement (dataset, scanner, software, coil, sequence, timings,
-  bandwidth, voxel, processing). Every acquisition's header names the calibrations it used and
-  the conditions it departs from (another field, vendor, or sequence), where the number is
-  carried by the simulator's scaling law and not by data. A scanner preset with its own record
-  takes it: the Trio and the GE from Big GABA's raw sites, the Prisma from COWS, the Achieva
-  from fMRS in pain, 7 T from NeuroMET; every other scanner falls back to the Trio's, and
-  records that are not in use stay as checks. The noise records read the NAA signal to
-  noise ratio of single transients twice, plain and under a common apodization, and take
-  the mean of the two noise levels they imply. `scan/calibrate.py` makes such a record from
-  a scanner's own raw data: `NoiseReading.from_nifti(path)` reads NIfTI-MRS with coils and
-  transients apart (spec2nii writes it from TWIX, P-files, and data/list), and
-  `reading.record(voxel, ...)` returns the record of the virtual twin that reproduces it.
-  `CovarianceReading` does the same for a receive array's noise covariance, from a noise-only
-  scan (ISMRMRD), a raw file's noise adjustment, or the tails of raw FIDs. `SpectrumReading` reads the
-  NAA linewidth and the creatine to NAA height off the averaged raw spectrum and off the
-  virtual twin alike. None of the readers fits anything. The creatine range is calibrated the same way, on the
-  height of the 3.03 ppm singlet against NAA's in three datasets. Only quantities read off
-  raw data enter a record, never concentrations a fitting program reported.
-* The `mrsandbox/scan/profile.py` file holds the `ScannerProfile`, the virtual copy of one
-  scanner: its limits, its coils, gradient impulse response, and receiver, and the records
-  measured on its own raw data, which outrank the package's. `ScannerProfile.read(path, voxel,
-  dataset, array=...)` makes one from a single raw NIfTI-MRS file and its virtual twin, and
-  `profile.scan(brain, sequence)` is a `VirtualScan` of that scanner. `save` and `load` keep a
-  profile as one readable JSON file.
-* The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
-  and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
-  hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled
-  waveform, with or without a slice gradient) share one propagator, gradient crushers dephase an
-  isochromat ensemble physically, and named designs compose from the same events: PRESS, STEAM,
-  semi-LASER, CHESS, WET, and VAPOR ship with their published series, and J-difference editing
-  spans MEGA-PRESS plus the Hadamard-encoded HERMES and HERCULES schemes, whose dual-band editing
-  pulses and combination weights ship as typed tables. PRESS, STEAM, semi-LASER, MEGA-PRESS,
-  MEGA-semi-LASER, and the Hadamard schemes also ship with their localization played: slice-selective pulses on three axes, the voxel summed by
-  one-dimensional projection (Zhang et al. 2017), so the voxel profile, the chemical shift
-  displacement (lactate's lost doublet at TE 144 ms), and the scalp fat a profile reaches
-  outside the nominal box all emerge. The b-value of any sequence follows from its own gradient events. Every timing and
-  every waveform is a tensor, so sequences can come from your code or from a neural network.
-* The `mrsandbox/spins/` folder holds the spin systems and their operator algebra for any
-  nuclear spin (protons, deuterium, sodium); the deuterium metabolites of DMI ship as a
-  typed set beside the Govindaraju proton systems.
-* The `mrsandbox/engine/` folder runs sequences on spin systems and reads out transition lines,
-  which render to spectra and FIDs on any grid. A compiled path replays one jitted graph per
-  sequence design with every timing as an input, so training draws and a TE series cost
-  milliseconds instead of a fresh simulation, and a gradient with respect to a timing flows.
-* The `mrsandbox/backend/` folder contains the propagator mathematics. Generic backend utilities
-  (jit, autograd) live upstream in NIfTI-MRS+ so that anyone can use them.
-* The `mrsandbox/scan/` folder composes everything into `VirtualScan` and `Voxel`, scales up to
-  MRSI slices and slabs (a voxel lattice sharing one truth, spatial contrast from the anatomy,
-  Cartesian, EPSI, and non-Cartesian trajectories, NIfTI-MRS with real spatial dimensions; with a
-  localized design the lattice is excited in that design's box, every cell at its own place in
-  it, so the chemical shift displacement runs across the grid),
-  multiplexes named conditions and transient schedules against one truth (a head that moves or
-  turns between transients is read where the voxel then lies in it, under the shim of the
-  planned place), and provides the on the fly generators for training. The instrumental imperfections (spurious echoes, eddy
-  current phase, drift and motion across transients) are rendered by
-  [Augmentrum](https://github.com/julianmer/Augmentrum), installed as the `augment` extra; the
-  eddy currents a design's own gradients induce come from the scanner's gradient impulse
-  response (a measured 3 T response ships as a resource beside the parametric form), acting
-  on the coherences before the readout and on the FID during it.
-* The `mrsandbox/io/` folder reads external file formats: the Varian format of the consensus
-  macromolecule spectra, and Pulseq `.seq` files (via pypulseq), whose blocks translate into
-  the event primitives with the ADC marking the readout, so vendor-agnostic sequences run
-  through the engine unchanged.
-* The `externals/` folder pins third party resources as git submodules, such as the Gudmundson
-  MRS database behind AGNOSTIC.
-* The `tests/` folder mirrors the package layout and asserts the physics.
+One line per folder; the docstrings hold the rest.
+
+* `params/` holds the parameter system: values that are fixed, drawn, per tissue, or mapped, in composable trees.
+* `database/` stores literature values as cited Python dicts: concentrations, relaxation, shifts, pulses, phantoms.
+* `phantom/` defines the subjects: brains with continuous tissue fractions, phantoms of solution, and the water, lipid, macromolecule, and downfield sources.
+* `resources/` fetches large public datasets on first use into a checksummed cache. The wheel ships no data.
+* `hardware/` describes scanners with their limits, the digital receiver, and receive arrays with their noise.
+* `sequences/` builds sequences as event lists: PRESS, STEAM, semi-LASER, MEGA-PRESS, HERMES, HERCULES, water suppression, ideal or with the localization and the pulses played.
+* `spins/` and `engine/` hold the spin systems and run the density matrix, plain or as one compiled graph per design.
+* `scan/` composes it all: `VirtualScan`, `Voxel`, `MRSI`, `Multiplex`, the training `Generator`, the `ScannerProfile`, the calibration records, and the readers that make a record from raw data.
+* `io/` reads and writes Pulseq, and reads Philips (data/list, sdat/spar, lab/raw) and Varian files.
+* `console/` is the virtual scanner console.
+* `backend/` contains the propagator mathematics; `tests/` mirrors the package and asserts the physics.
 
 ## Validation
 
-Every physical claim in the codebase is gated by a test, and the engine itself is validated
-against independent references:
+Every physical claim is gated by a test, and the simulation is checked against independent references.
 
-* An in test complex128 oracle shares nothing with the engine but the input values and must
-  agree to a relative 1e-3, for ideal and for shaped pulses.
-* Clarke's `fsl_denmatsim` runs the same spin systems and sequences and must correlate above
-  0.9999, with a derived convention adapter rather than a fitted one. It is pinned as the
-  `externals/denmatsim` submodule and installed with `pip install ./externals/denmatsim`.
-* Shaped pulse excitation and inversion profiles reproduce the bandwidth length products of
-  de Graaf Table 5.1.
-* Analytic laws hold exactly where they should: echo attenuation exp(-TE/T2), suppression
-  recovery 1 - exp(-t/T1), flip errors cos(flip)^n, and the WET and VAPOR series deliver their
-  published T1 and B1 insensitivity.
-
-* The one-dimensional projection equals the full sum over every position pair played one by
-  one, on a coupled spin system; the fat layer summed cell by cell through the product of the
-  axis profiles equals the design's own voxel average where fat fills the span; and the
-  Shinnar-Le Roux pulses hold their slab in the engine's own Bloch run.
+* An in-test complex128 oracle and Clarke's `fsl_denmatsim` (correlation above 0.9999) check the engine.
+* Shaped pulses reproduce the bandwidth products of de Graaf's Table 5.1, and analytic laws hold exactly where they should.
+* Raw in vivo data check the whole: played HERMES and HERCULES reproduce the edited spectra of two scanners
+  of two vendors (public OpenNeuro data) without a fit.
+* Numbers calibrated on in vivo data live as records with the exact conditions of their measurement. Only
+  quantities read off raw data enter a record, never what a fitting program reported.
