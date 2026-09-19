@@ -423,6 +423,33 @@ COIL_OWN_NOISE_PHILIPS_3T = Calibration(
          "rings to the end and the channels correlate to one)",
 )
 
+# and on two Siemens systems of the same study, read off the noise adjustment of their raw files:
+# the Prisma_fit's 32-channel head array with a phantom in it gives the share it gives on a
+# head (0.26 against 0.25: a phantom of a head's size loads the array as a head does), the
+# Vida's 20-channel head and neck array correlates alike. Not in use.
+COIL_OWN_NOISE_SIEMENS_PHANTOM_3T = Calibration(
+    leaf="coils.loaded.own_noise",
+    value=0.26,
+    prior=(0.26, 0.26),
+    measured={"statistic": COIL_OWN_NOISE_PRISMA_3T.measured["statistic"],
+              "sites": {"S01a, Prisma_fit, syngo MR E11, Head_32": (0.40, 0.48, 0.17, 0.26),
+                        "S02a, MAGNETOM Vida, syngo MR XA20, HeadNeck_20_TCS, 16 channels":
+                            (0.43, 0.47, 0.24, None)},
+              "sites_note": "per site the three statistics and, for 32 channels, the share they give",
+              "samples": 65536, "subjects": 0},
+    source=COIL_OWN_NOISE_PHILIPS_3T.source | {"dataset": "Big Drift, two Siemens sites' raw files of the first "
+                                               "day's scan before the echo-planar run (CC BY-NC-SA 4.0)"},
+    scanner={"vendor": "siemens", "model": "Prisma_fit and MAGNETOM Vida", "software": "syngo MR E11 and XA20",
+             "field_t": 2.89},
+    coil={"channels": (32, 16), "name": "Head_32 and HeadNeck_20_TCS"},
+    sequence={"name": "noise adjustment", "product": "the first measurement of the TWIX file"},
+    acquisition={"channels": 32, "rf": "off"},
+    voxel={"load": "a phantom"},
+    processing="sample covariance of the channels over all samples of the noise adjustment",
+    date="19/09/26",
+    note="a check; a Verio file of the same study (syngo MR B17) holds no noise adjustment",
+)
+
 #**************#
 #   creatine   #
 #**************#
@@ -573,7 +600,8 @@ NOISE_DS007806_PRISMA_3T = Calibration(
 )
 
 # records read the same way under other conditions, kept to test what carries a number there
-CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, LINEWIDTH_SIEMENS_3T,
+CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, COIL_OWN_NOISE_SIEMENS_PHANTOM_3T,
+          LINEWIDTH_SIEMENS_3T,
           NOISE_DS005917_7T, NOISE_DS007806_PRISMA_3T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
