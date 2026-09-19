@@ -38,7 +38,7 @@ class TestApp:
 
                 importlib.reload(app)                                   # the page registers with this simulation
                 await user.open("/")
-                await user.should_see("Exam cards")
+                await user.should_see("Exam cards", retries=200)          # behind the loading screen the room is made
                 user.find("all settings").click()
                 await user.should_see("Every exam draws")
                 for fold in user.find(kind=ui.expansion).elements:      # a group fills when it opens
@@ -58,8 +58,9 @@ class TestApp:
                 user.find("difference").click()
                 await user.should_see("The sub-acquisitions take turns")
                 user.find("Use this design").click()                    # the card plays it from here on, not before
-                user.find("maps").click()
-                await user.should_see("B0 field")
+                user.find(kind=ui.button, content="maps").click()      # a tooltip names the maps too
+                await user.should_see("Your own subject and maps")
+                user.find("Done").click()
                 user.find("the run").click()
                 await user.should_see("a motion event moves the head by")
                 user.find("Done").click()
@@ -81,7 +82,7 @@ class TestApp:
                 user.find("Accept").click()
                 await user.should_see("2 STEAM TE 30")                 # the water reference runs first, the default
                 user.find("Start").click()
-                await user.should_see("simulated in", retries=100)
+                await user.should_see("simulated in", retries=400)
                 await user.should_see("4 / 4", retries=300)                # after the reference, which runs first
                 user.find("Export raw transients").click()              # the exam that just ran, into a folder of the test's own
                 await user.should_see("Export · 2 STEAM TE 30")

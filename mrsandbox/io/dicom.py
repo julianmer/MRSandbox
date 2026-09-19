@@ -39,9 +39,30 @@ def read_dicom(source, folder=None):
         raise ImportError("reading DICOM needs dcm2niix (pip install dcm2niix; the mrsandbox[console] extra brings it)")
     folder = pathlib.Path(folder) if folder is not None else pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_"))
     folder.mkdir(parents=True, exist_ok=True)
-    done = subprocess.run([tool, "-z", "y", "-b", "y", "-ba", "y", "-f", "%s_%p", "-o", str(folder), str(source)],
-                          capture_output=True, text=True)
-    found = {path.name[:-len(".nii.gz")]: path for path in sorted(folder.glob("*.nii.gz"))}
+
+    def convert(where):
+        done = subprocess.run([tool, "-z", "y", "-b", "y", "-ba", "y", "-f", "%s_%p", "-o", str(folder), str(where)],
+                              capture_output=True, text=True)
+        return {path.name[:-len(".nii.gz")]: path for path in sorted(folder.glob("*.nii.gz"))}, done.stdout.strip()[-300:]
+
+    source = pathlib.Path(source)
+    if source.is_file():
+        # one file alone: an enhanced multi-frame file is its whole series (Philips, newer Siemens and GE). A classic file
+        # is one slice, and its series is then taken from the folder it lies in, by the series number dcm2niix names it by
+        alone = pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_one_"))
+        (alone / source.name).symlink_to(source.resolve())
+        found, said = convert(alone)
+        import nibabel as nib
+
+        if found and all((nib.load(str(path)).shape + (1, 1))[2] <= 1 for path in found.values()):
+            series = next(iter(found)).split("_")[0]
+            for path in folder.glob("*"):
+                path.unlink()
+            found, said = convert(source.parent)
+            found = {name: path for name, path in found.items() if name.split("_")[0] == series}
+    else:
+        found, said = convert(source)
     if not found:
-        raise ValueError(f"no DICOM image found under {source}: {done.stdout.strip()[-300:]}")
+        raise ValueError(f"no DICOM image found under {source}: {said}")
     return found
+

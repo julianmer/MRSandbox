@@ -22,6 +22,7 @@ import pathlib
 import numpy as np
 
 from mrsandbox.hardware import CoilArray
+from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Mapped, Normal, Params, Uniform
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
@@ -142,6 +143,11 @@ EDITING = {
 GEARS = {
     "subject": ("conc", "t1", "t2", "contrast", "diffusion", "mm", "downfield", "lipids", "water"),
     "scanner": ("noise", "lineshape", "b1_scale", "gradients", "acquisition", "spurious"),
+    # and the card's tabs: what of the simulation belongs to each
+    "Geometry": ("lineshape", "b1_scale"),
+    "Contrast": ("t1", "t2", "mm", "lipids", "water", "downfield"),
+    "Acquisition": ("noise", "acquisition", "spurious", "gradients"),
+    "Imaging": ("lipids", "lineshape"),
 }
 
 #**********#
@@ -400,6 +406,7 @@ class Session:
         self.shim, self.shim_mm = "linear", None
         self.overlay = "anatomy"
         self.coil_settings = {name: dict(settings) for name, settings in self.COIL_SETTINGS.items()}
+        self.coils, self.own_noise = dict(self.COILS), None
         self.designs = {"A": [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]}
         self.condition, self.weights = "A", {}
         self._bodies = {}
@@ -424,7 +431,10 @@ class Session:
         if key not in self._bodies:
             body = self.body()
             shown = self.pictures[self.subject]() if self.subject in self.pictures else 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
-            low, high = np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in self.pictures else (0.0, float(shown.max()))
+            # a relaxation map is windowed on its own middle (its edges hold outliers); an anatomical image of the operator's as
+            # a scanner shows it, from nothing to its brightest tissue, fat, so that white matter stays a mid grey
+            low, high = ((0.0, float(np.percentile(shown[shown > 0], 99.8))) if self.subject not in PICTURES and self.subject in self.pictures
+                         else np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in self.pictures else (0.0, float(shown.max())))
             self._bodies[key] = np.uint8(255 * np.clip((shown - low) / max(float(high - low), 1e-6), 0.0, 1.0) * (shown > 0))
         return self._bodies[key]
 
@@ -464,6 +474,30 @@ class Session:
         image = nib.load(str(path))
         return Volume(np.asarray(image.get_fdata(), dtype=np.float32), np.array(image.affine, dtype=np.float64),
                       name=pathlib.Path(path).name)
+
+    def onto(self, path):
+        """A map of the operator's own (B0, B1+, lipids, a parameter) brought onto the grid of the subject on the table
+        by the coordinates the scanner gave both: maps of one session lie where the anatomy lies, whatever their grid
+        and angulation. Returns the path of the resampled NIfTI beside the original. (A map of another session must be
+        registered first: FSL flirt of its magnitude image onto the anatomy, then its transform on the map.)"""
+        import nibabel as nib
+        import nibabel.processing
+
+        body, source = self.body(), nib.load(str(path))
+        if source.shape[:3] == body.gm.shape and np.allclose(source.affine, body.affine, atol=1e-3):
+            return pathlib.Path(path)
+        target = (body.gm.shape, body.affine)
+        moved = nibabel.processing.resample_from_to(nib.Nifti1Image(np.asarray(source.dataobj, dtype=np.float32), source.affine), target, order=1)
+        out = pathlib.Path(str(path).replace(".nii", f"_on_{abs(hash(self.subject)) % 10 ** 6}.nii", 1))
+        nib.save(moved, str(out))
+        return out
+
+    def lipids(self, path):
+        """Give the subject on the table a lipid layer of the operator's own: a map of the fat-bearing tissue, 0 to 1,
+        brought onto the subject's grid (`onto`)."""
+        self.body().fat = Volume(self.volume(self.onto(path)).data, self.body().affine, name=pathlib.Path(path).name)
+        for key in [k for k in self._bodies if isinstance(k, tuple) and k[0] in ("fat", "wash")]:
+            self._bodies.pop(key)
 
     def anatomy(self, name, gm, wm, csf, picture=None, fat=None):
         """Put the operator's own subject on the shelf: three NIfTI probability maps on one grid
@@ -569,6 +603,36 @@ class Session:
                     self.overrides[path] = (tuple(float(number) * v for v in numbers) if kind == "range"
                                             else float(number) * numbers[0])
 
+    def place_of(self, position_mm):
+        """What the subject is like in a voxel of the planned size about `position_mm`: the tissue, the draw's
+        concentrations and relaxation there, the field and the transmit field's means, the distance to the lipid layer.
+        The side panel shows it for the planned voxel, and for the point the operator looks at with shift held."""
+        kept = list(self.position_mm)
+        self.position_mm = [float(v) for v in position_mm]
+        try:
+            scan = self.profile().scan(self.body(), self.sequence(), params=self.params(), **self.fields())
+            voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm))
+            drawn, fields = voxel.sample(self.seed), self.fields()
+            found = {"tissue": {name: float(getattr(voxel.fractions, name)) for name in ("gm", "wm", "csf")},
+                     "concentrations (mM)": {name: float(voxel.resolve(drawn["conc"][name])) for name in (
+                         "NAA", "Cr", "PCh", "Glu", "Gln", "mI", "GABA", "GSH", "Lac") if name in drawn["conc"]},
+                     "T2 (ms)": {name: 1000.0 * float(voxel.resolve(drawn["t2"][name])) for name in ("NAA", "Cr", "PCh") if name in drawn["t2"]}}
+            if fields["field"] is not None:
+                offsets = fields["field"].offsets(tuple(self.position_mm), tuple(self.size_mm), shim="none")
+                found["B0 before the shim (Hz)"] = float(np.mean(offsets)) if len(offsets) else 0.0
+                found["line width from B0 (Hz)"] = self.linewidth()
+            if fields["transmit"] is not None:
+                values, weights = fields["transmit"].box(tuple(self.position_mm), tuple(self.size_mm))
+                found["B1+ (of nominal)"] = float((values * weights).sum() / max(weights.sum(), 1e-9))
+            lipid = self.lipid_mm()
+            if lipid is not None:
+                found["lipid layer (mm away)"] = lipid[0]
+            found["line broadening (Hz)"] = float(drawn["lineshape"]["gauss_hz"])
+            found["noise level"] = float(drawn["noise"]["sigma"])
+            return found
+        finally:
+            self.position_mm = kept
+
     def lipid_mm(self):
         """How far the subject's lipid layer is from the planned voxel and from the voxel lipid
         signal is really selected in (its chemical shift displaced box), (planned, displaced) in
@@ -642,7 +706,56 @@ class Session:
     def array(self):
         """The receive array on the subject, made from the operator's settings of it; None is the
         one ideal channel."""
-        return self.COILS[self.coil](**self.coil_settings[self.coil])
+        return self.coils[self.coil](**self.coil_settings.get(self.coil, {}))
+
+    def coil_maps(self, path, name):
+        """Put a receive array of the operator's own on the shelf: measured sensitivity maps, one NIfTI of
+        (nx, ny, nz, channels), complex or real (hardware.coils MappedCoilArray), in the scanner's coordinates."""
+        import nibabel as nib
+
+        image = nib.load(str(path))
+        maps = np.asarray(image.dataobj)
+        if maps.ndim != 4:
+            raise ValueError(f"sensitivity maps are one volume per channel, (nx, ny, nz, channels); this file is {maps.shape}")
+        self.coils[name] = lambda: MappedCoilArray(maps, np.array(image.affine, dtype=np.float64), name=name)
+        self.coil_settings[name] = {}
+        self.coil = name
+
+    def coil_noise(self, source):
+        """Read the share of a channel's noise that is its own from a raw scan with the coils apart (NIfTI-MRS;
+        scan.calibrate CovarianceReading, the FIDs' tails) against the array of loops chosen in the room; the
+        exams then load the array with it in place of the package's 0.25. Returns the share."""
+        from mrsandbox.scan.calibrate import CovarianceReading
+
+        array = self.array()
+        if array is None or not array.loops:
+            raise ValueError("choose an array of loops first: its geometry is what the channels' shared noise is held against")
+        self.own_noise = float(CovarianceReading.from_nifti(str(source)).own_noise(array))
+        return self.own_noise
+
+    def register(self, path):
+        """Bring a map of ANOTHER session onto the subject on the table: FSL flirt, rigid (six degrees of freedom,
+        normalized mutual information), of the map's own image onto the subject's picture, then resampled onto its
+        grid. Right for a map that shows anatomy (a lipid or tissue map, a B1+ magnitude, an anatomical image); a
+        field map in Hz shows none, and wants its MAGNITUDE image registered and the transform applied, which is
+        not built. A map of the same session needs none of this (`onto`). Returns the registered NIfTI's path."""
+        import os
+        import shutil
+        import subprocess
+
+        import nibabel as nib
+
+        flirt = shutil.which("flirt") or shutil.which("flirt", path=os.path.expandvars("$FSLDIR/bin") + os.pathsep + os.path.expanduser(
+            "~/fsl/share/fsl/bin"))
+        if flirt is None:
+            raise RuntimeError("FSL's flirt is needed to register a map (fsl.fmrib.ox.ac.uk)")
+        body, folder = self.body(), pathlib.Path(path).parent
+        reference = folder / "registration_reference.nii.gz"
+        nib.save(nib.Nifti1Image(self.picture().astype(np.float32), body.affine), str(reference))
+        out = pathlib.Path(str(path).replace(".nii", "_registered.nii", 1))
+        subprocess.run([flirt, "-in", str(path), "-ref", str(reference), "-out", str(out), "-dof", "6", "-cost", "normmi"], check=True,
+                       env={**os.environ, "FSLOUTPUTTYPE": "NIFTI_GZ", "FSLDIR": os.environ.get("FSLDIR", str(pathlib.Path(flirt).parents[3]))})
+        return out if out.exists() else pathlib.Path(str(out) + ".gz")
 
     @staticmethod
     def scanners():
@@ -1219,7 +1332,10 @@ class Session:
             return exam
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(exam.overrides),
                          **self.fields(),
-                         coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
+                         # the array's noise is tied to the scanner's record AT THIS VOXEL, so every place has the record's SNR: what
+                         # an array gives by place (better under its loops) is not in the console yet (info/HANDOFF.md item 196)
+                         coils=None if coils is None else (coils.loaded(**({} if self.own_noise is None else {"own_noise": self.own_noise}))
+                                                           if coils.loops else coils).calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)
         schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
         run = {**exam.run, "synthesis": {"drift_hz_per_min": self.drift_hz_per_min, **exam.run.get("synthesis", {})}}
