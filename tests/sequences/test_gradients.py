@@ -541,3 +541,27 @@ class TestDifferentiable:
         h = 2e-5  # the signal curves within 0.1 ms: the difference converges to the gradient from 4e-4 down
         finite = (float(observable(at + h)) - float(observable(at - h))) / (2.0 * h)
         assert abs(finite) > 0.0 and abs(float(grad) - finite) < 0.02 * abs(finite)
+
+
+#*************************#
+#   the library's press   #
+#*************************#
+def test_the_librarys_press_plays_its_crushers_on_request():
+    from mrsandbox import Engine, Press, Scanner, SpinSystem
+
+    engine = Engine(Scanner.preset("generic_3t"), isochromats=64)
+    lactate = SpinSystem(name="pair", nucleus="1H", shifts_ppm=(1.31, 4.10), scale=1.0,
+                         j_hz=((0.0, 6.9), (6.9, 0.0)), gamma_mhz_t=42.5774785)
+
+    def amps(sequence, b1_scale):
+        return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lactate, b1_scale=b1_scale)[1]))
+
+    filtered, strong, weak = (Press(0.011, 0.019), Press(0.011, 0.019, crushers=(0.15, 0.25)),
+                              Press(0.011, 0.019, crushers=(0.004, 0.007)))
+    # perfect pulses: whole cycles over the ensemble are the filters, to the float
+    np.testing.assert_allclose(amps(strong, 1.0), amps(filtered, 1.0), atol=2e-5)
+    # a transmit field a fifth low: strong crushers still select the echo as the filters do,
+    # weak ones let the unrefocused coherences through
+    wanted = amps(filtered, 0.8)
+    assert np.abs(amps(strong, 0.8) - wanted).max() < 0.02 * np.abs(wanted).max()
+    assert np.abs(amps(weak, 0.8) - wanted).max() > 0.05 * np.abs(wanted).max()

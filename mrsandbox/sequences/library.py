@@ -49,30 +49,41 @@ class PulseAcquire(Sequence):
 class Press(Sequence):
     """Ideal PRESS: 90x - te1/2 - 180y - (te1+te2)/2 - 180y - te2/2 - acquire.
 
+    Coherence filters select the double spin echo, the idealization of a crusher scheme
+    that works. `crushers` plays the scheme in their place: a pair of gradient kicks
+    around each refocusing pulse, dephasing on the isochromat ensemble whatever the
+    pulse did not refocus. With perfect pulses and moments of whole cycles over the
+    ensemble the two agree exactly; with a transmit field off its nominal value a weak
+    pair lets through what a scanner's weak crushers let through (the spurious signal
+    of unrefocused coherences), and a strong pair removes it. The localized designs
+    keep their filters: their one-dimensional projection (events.Projection) holds
+    only while no gradient on another axis selects the pathway.
+
     Args:
         te1_s: First echo time in seconds (may be a traced tensor).
         te2_s: Second echo time in seconds (may be a traced tensor).
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+        crushers: None for coherence filters, or the moments of the two pairs in cycles
+            per millimetre over the 20 mm ensemble, (0.15, 0.25) being three and five
+            whole cycles (they must differ, or the second pair refocuses what the first
+            dephased).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te1_s, te2_s, tr_s=None):
+    def __init__(self, te1_s, te2_s, tr_s=None, crushers=None):
         self.te1_s = te1_s
         self.te2_s = te2_s
-        super().__init__(
-            Pulse(90.0),
-            CoherenceFilter(-1),
-            Delay(te1_s / 2.0),
-            Pulse(180.0, phase_deg=90.0),
-            CoherenceFilter(+1),
-            Delay((te1_s + te2_s) / 2.0),
-            Pulse(180.0, phase_deg=90.0),
-            CoherenceFilter(-1),
-            Delay(te2_s / 2.0),
-            tr_s=tr_s,
-        )
+        refocus = Pulse(180.0, phase_deg=90.0)
+        if crushers is None:
+            events = (Pulse(90.0), CoherenceFilter(-1), Delay(te1_s / 2.0), refocus, CoherenceFilter(+1),
+                      Delay((te1_s + te2_s) / 2.0), refocus, CoherenceFilter(-1), Delay(te2_s / 2.0))
+        else:
+            first, second = Gradient(crushers[0], 20.0), Gradient(crushers[1], 20.0)
+            events = (Pulse(90.0), Delay(te1_s / 2.0), first, refocus, first,
+                      Delay((te1_s + te2_s) / 2.0), second, refocus, second, Delay(te2_s / 2.0))
+        super().__init__(*events, tr_s=tr_s)
 
 
 #**************************************************************************************************#
