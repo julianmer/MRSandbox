@@ -238,7 +238,8 @@ class TestAcquisitionImperfections:
     #*******************#
     def test_temperature_moves_the_water_against_the_metabolites(self, scan):
         # two degrees of fever: the water component is the 37 C one turned by
-        # -2 / 94.0 ppm (Cady 1995), everything else is untouched
+        # -2 / 94.0 ppm (Cady 1995), the metabolites move a little with their own typed
+        # functions of the temperature, the measured backgrounds are untouched
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
@@ -254,8 +255,10 @@ class TestAcquisitionImperfections:
         turned = body["water"] * np.exp(-2j * np.pi * (2.0 / 94.0) * f0_mhz * t)
         np.testing.assert_allclose(fever["water"], turned, atol=1e-4 * np.abs(turned).max())
         assert np.abs(fever["water"] - body["water"]).max() > 0.1 * np.abs(turned).max()
-        for name in ("metabolites", "mm", "downfield"):
+        for name in ("mm", "downfield"):
             np.testing.assert_array_equal(fever[name], body[name])
+        moved = np.abs(fever["metabolites"] - body["metabolites"]).max() / np.abs(body["metabolites"]).max()
+        assert 1e-6 < moved < 0.05
 
     #**********************#
     #   receiver delay     #
@@ -719,4 +722,27 @@ class TestComponents:
         assert t1[list(truth.conc).index("NAA")] == pytest.approx(float(voxel.resolve(truth.t1.NAA)))
         assert b1 == voxel.b1_scale(truth) and offset == voxel.offset_hz(truth)
         voxel._metabolite_lines(truth)
-        assert (False,) + voxel.frame(truth) in scan._lines[1]
+        assert (False, truth.water.temperature_c) + voxel.frame(truth) in scan._lines[1]   # and the draw's temperature
+
+
+#**************************************************************************************************#
+#                                     Class TestDrawnTemperature                                   #
+#**************************************************************************************************#
+class TestDrawnTemperature:
+
+    def test_the_metabolites_follow_the_temperature_of_the_draw(self):
+        brain, press = Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.019)
+        lines = {}
+        for celsius in (32.0, 37.0, 40.0):
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"), press, params=Params(water=dict(temperature_c=celsius)))
+            voxel = scan.voxel((0.0, -45.0, 35.0), 20.0)
+            truth = voxel.sample(3)
+            assert truth.water.temperature_c == celsius
+            lines[celsius] = voxel._metabolite_lines(truth)["NAA"][0] / voxel._f0_mhz()
+        # the typed functions move NAA's amide proton by 0.06 ppm over these eight degrees, its
+        # methyl singlet hardly; at 37 C the draw's systems are the scan's own
+        moved = np.abs(np.sort(lines[40.0]) - np.sort(lines[32.0]))
+        assert 0.03 < moved.max() < 0.1 and moved.min() < 0.002
+        plain = VirtualScan(brain, Scanner.preset("generic_3t"), press)
+        assert plain.systems("NAA", 37.0) is plain.systems("NAA") and plain.systems("NAA", 37.1) is plain.systems("NAA")
+        assert plain.systems("NAA", 39.0) is not plain.systems("NAA")

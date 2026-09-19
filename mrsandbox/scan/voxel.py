@@ -309,7 +309,8 @@ class Voxel:
         if water is not None:
             water_t2 = self.resolve(truth.water.t2_s)
             w_freqs, w_amps = water
-            # the water line moves with the temperature, the metabolites stay
+            # the water line moves with the temperature, fourteen times more than the metabolites
+            # (which take their systems at the same temperature, `_metabolite_lines`)
             warm = self.resolve(truth.water.temperature_c) - 37.0
             w_freqs = w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz)
             groups["water"] = [(w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
@@ -910,10 +911,12 @@ class Voxel:
         cached = self.scan._lines
         if cached is None or cached[0] is not truth:
             cached = self.scan._lines = (truth, {})
-        key = (self.compiled,) + frame + self._design_key(truth)
+        # the draw's tissue temperature: the metabolites' shifts and couplings follow it
+        temperature_c = float(self.resolve(truth.water.temperature_c))
+        key = (self.compiled, temperature_c) + frame + self._design_key(truth)
         if key in cached[1]:
             return cached[1][key]
-        groups = tuple(self.scan.systems(name) for name in names)
+        groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         sequence = self.design(truth)
         if self.compiled:
             # one graph for all metabolites, or, where shaped pulses play on an

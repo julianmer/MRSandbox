@@ -76,9 +76,11 @@ class VirtualScan:
             gradients leaves. None draws those terms.
         temperature_c, ph: The tissue's temperature and pH, 37 C and 7 for a brain, a
             phantom's own. The metabolite shifts are typed at 37 C and pH 7 and move by
-            their published functions of both
-            (database.shifts, Wermter et al. 2026); the default of the water leaf
-            water.temperature_c follows the temperature.
+            their published functions of both (database.shifts, Wermter et al. 2026).
+            The temperature is the default of the leaf water.temperature_c, and that
+            leaf is the tissue's temperature of every draw: a range there (fever,
+            hypothermia, a phantom's room) moves the water line and the metabolites of
+            each draw together.
         receiver: A hardware.Receiver, the digital receiver every FID passes through
             (oversampled, filtered, decimated: the first points carry the filter's
             onset, the noise its band edges). None samples the ideal FID.
@@ -135,13 +137,19 @@ class VirtualScan:
     #********************#
     #   spin systems     #
     #********************#
-    def systems(self, metabolite):
+    def systems(self, metabolite, temperature_c=None):
         """The spin systems of a metabolite from this scan's database, built once and
-        cached: every draw and every voxel reuses the same structural systems."""
-        if metabolite not in self._systems:
-            self._systems[metabolite] = SpinSystem.from_database(
-                metabolite, database=self.database, temperature_c=self.temperature_c, ph=self.ph)
-        return self._systems[metabolite]
+        cached: every draw and every voxel reuses the same structural systems. A draw's
+        own tissue temperature (the water.temperature_c leaf) gives the systems of that
+        temperature, in steps of a quarter of a degree (the shifts move by 0.0001 to
+        0.001 ppm a degree; database.shifts), each step built once; a compiled scan
+        compiles each step it meets."""
+        temperature_c = round(4.0 * float(self.temperature_c if temperature_c is None else temperature_c)) / 4.0
+        key = (metabolite, temperature_c)
+        if key not in self._systems:
+            self._systems[key] = SpinSystem.from_database(
+                metabolite, database=self.database, temperature_c=temperature_c, ph=self.ph)
+        return self._systems[key]
 
     #*************************#
     #   diffusion weighting   #

@@ -108,9 +108,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     floor; CSF keeps the field-independent cited value.
         #   temperature_c: the tissue temperature; the water line moves against the
         #     metabolites by the thermometry calibration (tissue.CADY_1995, -1 / 94
-        #     ppm per degree from 37 C, where the shifts are typed). Fixed at 37; a
-        #     range is the user's belief about the subject (stated: the metabolites'
-        #     own shifts, fourteen times less sensitive, stay).
+        #     ppm per degree from 37 C, where the shifts are typed), and the metabolites
+        #     take their shifts and couplings at the same drawn temperature
+        #     (VirtualScan.systems, a quarter of a degree a step). Fixed at the scan's
+        #     temperature; a range is the user's belief about the subject.
         water=dict(residual_fraction=(1e-4, 3e-3), t1_s=water_t1, t2_s=water_t2,
                    temperature_c=37.0),
         # lipids: subcutaneous fat at the skull boundary.
