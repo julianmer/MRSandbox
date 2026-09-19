@@ -346,6 +346,12 @@ async def console(client: Client):
                 f'<line x1="20" y1="34" x2="46" y2="34" /><line x1="20" y1="34" x2="20" y2="8" />'
                 f'<path d="M46,34 l-5,-3 v6 z" /><path d="M20,8 l-3,5 h6 z" /></g>'
                 f'<text x="48" y="46" fill="{SAND}" text-anchor="end">{labels[3].text}</text><text x="6" y="12" fill="{SAND}">{top}</text></svg>')
+        # the overlays there are for this room: a B0 or B1+ map only where one is on (maps), a lipid layer where the subject has one
+        there = [name for name in OVERLAYS if {"B0 field": session.field != "uniform", "B1+": session.transmit is not None,
+                                               "lipid layer": getattr(session.body(), "fat", None) is not None}.get(name, True)]
+        if list(overlays.options) != there:
+            session.overlay = session.overlay if session.overlay in there else "anatomy"
+            overlays.set_options(there, value=session.overlay)
         wash = session.wash()
         texts["window"].text = ("" if wash is None or not wash[3] else f"blue {wash[1]:+.3g} · red {wash[2]:+.3g}"
                                 + (" Hz" if session.overlay == "B0 field" else "")) if session.overlay != "anatomy" else ""
@@ -1144,7 +1150,9 @@ async def console(client: Client):
                 for which in ("T1w", "GM", "WM", "CSF"):
                     ui.upload(label=which, auto_upload=True, on_upload=lambda e, which=which: tissue(e, which)).props(
                         "flat dense dark accept=.nii,.gz").style(box)
-                ui.button("On the shelf", icon="person_add", on_click=shelve).props("outline dense no-caps")
+                ui.button("Use these maps as the subject", icon="person_add", on_click=shelve).props("outline dense no-caps").tooltip(
+                    "makes a subject of the three tissue maps (and the image, to show it), adds it to the picker in the top bar, and puts "
+                    "it on the table")
 
             ui.label(f"Maps of the subject on the table · {session.subject}").classes("label").style("margin-top: 6px")
             for what, stored in (("B0", ["uniform", *FieldMap.PRESETS]), ("B1+", ["nominal"]), ("lipid", ["the subject's own"])):
@@ -1441,7 +1449,7 @@ async def console(client: Client):
 
     with ui.row().classes("w-full no-wrap").style("gap: 6px; align-items: stretch; flex: 1; min-height: 0"):
         # the exam cards
-        with ui.column().classes("pane").style("width: 250px"):
+        with ui.column().classes("pane").style("width: 244px"):
             ui.label("Exam cards").classes("label")
             with ui.scroll_area().style("flex: 1; width: 100%"):
                 rows = ui.column().classes("w-full").style("gap: 0")
@@ -1479,7 +1487,8 @@ async def console(client: Client):
                     "the receive array: its loops, your own sensitivity maps, the noise its channels share")
                 ui.button("maps", icon="layers", on_click=maps).props("flat dense no-caps stack").classes("tool").tooltip(
                     "load your own: a subject from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
-                ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: (setattr(session, "overlay", e.value), paint())).props(
+                overlays = ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: e.value and (
+                    setattr(session, "overlay", e.value), paint())).props(
                     "dense outlined dark options-dense").style("width: 150px").tooltip(
                     "wash a map over the anatomy: the B0 field and B1+ (on in maps), or a tissue")
                 texts["window"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
