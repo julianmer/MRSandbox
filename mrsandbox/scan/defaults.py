@@ -286,7 +286,20 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0)) for name in names}
     contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
-    return Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections
+    tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections
+    # a scanner's own record of any leaf of the tree sets it (scan.profile); a record of the
+    # hardware outside the tree (the array's noise share) is the hardware's to read
+    for record in records:
+        *branch, leaf = record.leaf.split(".")
+        node = tree
+        for key in branch:
+            node = node.get(key, {})
+        if leaf in node:
+            override = {leaf: record.prior if record.prior[0] < record.prior[1] else record.value}
+            for key in reversed(branch):
+                override = {key: override}
+            tree = tree | Params(override)
+    return tree
 
 
 #**********************#

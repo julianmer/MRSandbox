@@ -20,7 +20,7 @@ import json
 
 from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
-from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading
+from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading
 from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
 
@@ -75,14 +75,17 @@ class ScannerProfile:
     def read(cls, source, voxel, dataset, array=None, load="a head", excitations=1):
         """The profile one raw acquisition gives: `source` is NIfTI-MRS with the coils and
         the transients apart, `voxel` its virtual twin (a Voxel of a scan set up as the
-        acquisition was: field, sequence, timings, place, size). The single-transient
-        NAA SNR gives the noise.sigma record (scan.calibrate NoiseReading). With `array`,
+        acquisition was: field, sequence, timings, place, size; placed with
+        `compiled=True` it is drawn several times faster, and the readings draw it some
+        eighty times). The single-transient
+        NAA SNR gives the noise.sigma record (scan.calibrate NoiseReading), the averaged
+        spectrum's NAA width the lineshape.gauss_hz one (SpectrumReading). With `array`,
         the hardware.CoilArray standing in for the coil's geometry, the FIDs' tails give
         the share of the channels' noise that is their own (CovarianceReading; `load` says
         what was in the coil), and the profile's coils are the array so loaded, its
         combined noise the drawn sigma at the twin's place."""
         noise = NoiseReading.from_nifti(source, excitations).record(voxel, dataset)
-        records, coils = (noise,), None
+        records, coils = (noise, SpectrumReading.from_nifti(source).record(voxel, dataset)), None
         if array is not None:
             share = dataclasses.replace(CovarianceReading.from_nifti(source).record(array, dataset, load=load),
                                         scanner=noise.scanner)

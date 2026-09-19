@@ -348,14 +348,17 @@ class SpectrumReading:
     #**********#
     #   twin   #
     #**********#
-    def twin(self, voxel, seeds=12):
+    def twin(self, voxel, seeds=12, gauss_hz=None):
         """The same two readings of `voxel`, the acquisition's virtual twin, noise off:
         {"naa_fwhm_hz": ..., "creatine_over_naa": ...}, each the median over `seeds`
-        drawn subjects."""
+        drawn subjects; `gauss_hz` holds the twin's Gaussian broadening at a value."""
         dwell_s, f0_mhz = 1.0 / self.bandwidth_hz, voxel._f0_mhz()
         rows = []
         for seed in range(seeds):
-            _, fid = voxel._clean_fid(voxel.sample(seed), self.npoints, dwell_s)
+            truth = voxel.sample(seed)
+            if gauss_hz is not None:
+                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))  # a realized leaf, as drawn
+            _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
             rows.append(_shape(*_spectrum(np.asarray(fid), dwell_s, lambda hz: hz / f0_mhz), f0_mhz))
         width, creatine = np.median(np.array(rows), axis=0)
         return {"naa_fwhm_hz": float(width), "creatine_over_naa": float(creatine)}
@@ -370,6 +373,46 @@ class SpectrumReading:
         drawn = np.median([float(voxel.resolve(truth.conc.Cr)) + float(voxel.resolve(truth.conc.PCr))
                            for truth in (voxel.sample(seed) for seed in range(seeds))])
         return float(drawn * self.creatine_over_naa / self.twin(voxel, seeds)["creatine_over_naa"])
+
+    #************#
+    #   record   #
+    #************#
+    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=6):
+        """The Calibration of lineshape.gauss_hz this reading makes with `voxel` as its
+        virtual twin: the Gaussian broadening at which the twin's NAA singlet is as wide
+        as the measured one, found by bisection (the twin's relaxation and sequence give
+        the rest of the width), the prior a quarter either side (one acquisition has no
+        spread of its own; stated). The shim of this scanner in this region of this
+        subject: a number of the field, carried with its voxel's place."""
+        low, high = 0.0, 4.0 * self.naa_fwhm_hz
+        for _ in range(10):
+            middle = 0.5 * (low + high)
+            low, high = (middle, high) if self.twin(voxel, seeds, middle)["naa_fwhm_hz"] < self.naa_fwhm_hz else (low, middle)
+        value = round(0.5 * (low + high), 2)
+        sequence = voxel.scan.sequence
+        return Calibration(
+            leaf="lineshape.gauss_hz", value=value, prior=(round(0.75 * value, 2), round(1.25 * value, 2)),
+            measured={"statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined "
+                                   "spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+                      "naa_fwhm_hz": round(self.naa_fwhm_hz, 2),
+                      "twin_without_broadening_hz": round(self.twin(voxel, seeds, 0.0)["naa_fwhm_hz"], 2)},
+            source={"dataset": dataset, "citation": citation, "url": url},
+            scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                     "model": self.header.get("ManufacturersModelName"),
+                     "software": self.header.get("SoftwareVersions"),
+                     "field_t": round(self.f0_mhz / 42.5774785, 2)},
+            coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+            sequence={"name": self.header.get("SequenceName") or type(sequence).__name__,
+                      "family": type(sequence).__name__, "te_s": self.header.get("EchoTime")},
+            acquisition={"npoints": self.npoints, "bandwidth_hz": self.bandwidth_hz,
+                         "transients": self.transients, "measured_on": "the average"},
+            voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                   "simulated_position_mm": tuple(voxel.position_mm)},
+            processing="NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they "
+                       "are (a drifting scanner widens the line)",
+            date=datetime.date.today().strftime("%d/%m/%y"), presets=tuple(presets),
+            note="one acquisition; made by scan.calibrate",
+        )
 
 
 #**************************************************************************************************#

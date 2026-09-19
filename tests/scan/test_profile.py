@@ -64,7 +64,8 @@ class TestScannerProfile:
         sigma, share, n, dwell_s = 7.0, 0.4, 2048, 1.0 / 2000.0
         truth = ScannerProfile(Scanner.preset("generic_3t"),
                                coils=CoilArray.helmet().loaded(own_noise=share).calibrated(PLACE, SIZE))
-        voxel = truth.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=CALM).voxel(PLACE, SIZE)
+        voxel = truth.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024, tr_s=2.0),
+                           params=CALM | Params(lineshape=dict(gauss_hz=7.0))).voxel(PLACE, SIZE)
         _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
         fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n) * dwell_s)
         rng = np.random.default_rng(1)
@@ -79,12 +80,16 @@ class TestScannerProfile:
 
         # its twin knows the sequence and the place, not the noise or the array's share
         twin = ScannerProfile.preset("generic_3t").scan(
-            Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=CALM).voxel(PLACE, SIZE)
+            Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=CALM).voxel(PLACE, SIZE, compiled=True)
         profile = ScannerProfile.read(raw, twin, "a virtual scanner", array=CoilArray.helmet())
         records = profile.calibrations()
         assert abs(records["noise.sigma"].value / sigma - 1.0) < 0.1
         assert abs(records["coils.loaded.own_noise"].value - share) < 0.05
         assert records["noise.sigma"].source["dataset"] == "a virtual scanner"
+        # the shim too, and a scan of the profile draws its lines that wide
+        assert abs(records["lineshape.gauss_hz"].value / 7.0 - 1.0) < 0.15
+        shim = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024)).params.lineshape.gauss_hz
+        assert (shim.low, shim.high) == records["lineshape.gauss_hz"].prior
         assert len(profile.coils) == 32 and abs(profile.coils.noise_gain(PLACE, SIZE) - 1.0) < 1e-6
         assert records["conc.Cr"].carried_by == "subject"
 
