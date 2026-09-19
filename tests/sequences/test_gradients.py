@@ -565,3 +565,24 @@ def test_the_librarys_press_plays_its_crushers_on_request():
     wanted = amps(filtered, 0.8)
     assert np.abs(amps(strong, 0.8) - wanted).max() < 0.02 * np.abs(wanted).max()
     assert np.abs(amps(weak, 0.8) - wanted).max() > 0.05 * np.abs(wanted).max()
+
+
+def test_steam_and_semi_laser_play_their_crushers_too():
+    from mrsandbox import Engine, Scanner, SemiLaser, SpinSystem, Steam
+
+    engine = Engine(Scanner.preset("generic_3t"), isochromats=64)
+    lactate = SpinSystem(name="pair", nucleus="1H", shifts_ppm=(1.31, 4.10), scale=1.0,
+                         j_hz=((0.0, 6.9), (6.9, 0.0)), gamma_mhz_t=42.5774785)
+
+    def amps(sequence, b1_scale=1.0):
+        return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lactate, b1_scale=b1_scale)[1]))
+
+    # whole cycles over the ensemble select what the filters select
+    for filtered, played in ((Steam(0.02, 0.01), Steam(0.02, 0.01, crushers=(0.15, 0.35))),
+                             (SemiLaser(0.03), SemiLaser(0.03, crushers=(0.15, 0.25, 0.35, 0.55)))):
+        wanted = amps(filtered)
+        assert np.abs(amps(played) - wanted).max() < 0.02 * np.abs(wanted).max()
+    # a stimulated echo with a transmit field a fifth low: a weak scheme lets the other echoes in
+    wanted = amps(Steam(0.02, 0.01), 0.8)
+    assert np.abs(amps(Steam(0.02, 0.01, crushers=(0.15, 0.35)), 0.8) - wanted).max() < 0.03 * np.abs(wanted).max()
+    assert np.abs(amps(Steam(0.02, 0.01, crushers=(0.004, 0.006)), 0.8) - wanted).max() > 0.05 * np.abs(wanted).max()

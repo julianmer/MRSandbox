@@ -108,21 +108,22 @@ class Steam(Sequence):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, tm_s, tr_s=None):
+    def __init__(self, te_s, tm_s, tr_s=None, crushers=None):
         self.te_s = te_s
         self.tm_s = tm_s
-        super().__init__(
-            Pulse(90.0),
-            CoherenceFilter(+1),
-            Delay(te_s / 2.0),
-            Pulse(90.0),
-            CoherenceFilter(0),
-            Delay(tm_s),
-            Pulse(90.0, phase_deg=180.0),  # the echo upright, in phase with a plain excitation
-            CoherenceFilter(-1),
-            Delay(te_s / 2.0),
-            tr_s=tr_s,
-        )
+        last = Pulse(90.0, phase_deg=180.0)  # the echo upright, in phase with a plain excitation
+        if crushers is None:
+            events = (Pulse(90.0), CoherenceFilter(+1), Delay(te_s / 2.0), Pulse(90.0), CoherenceFilter(0),
+                      Delay(tm_s), last, CoherenceFilter(-1), Delay(te_s / 2.0))
+        else:
+            # `crushers` plays the scheme in the filters' place (see Press): the same kick in both
+            # echo halves, which the stimulated echo's orders +1 and -1 undo, and a spoiler in the
+            # mixing time, which the stored order 0 does not feel; moments in cycles per
+            # millimetre over the 20 mm ensemble, (echo halves, mixing time)
+            half, mixing = Gradient(crushers[0], 20.0), Gradient(crushers[1], 20.0)
+            events = (Pulse(90.0), half, Delay(te_s / 2.0), Pulse(90.0), mixing, Delay(tm_s), last, half,
+                      Delay(te_s / 2.0))
+        super().__init__(*events, tr_s=tr_s)
 
 
 #**************************************************************************************************#
@@ -948,7 +949,7 @@ class SemiLaser(Sequence):
     #   init   #
     #**********#
     def __init__(self, te_s, afp_duration_s=0.006, afp_bandwidth_hz=1500.0, afp_peak_hz=1000.0,
-                 tr_s=None):
+                 tr_s=None, crushers=None):
         self.te_s = te_s
         self.afp_duration_s = afp_duration_s
         self.afp_bandwidth_hz = afp_bandwidth_hz
@@ -961,13 +962,17 @@ class SemiLaser(Sequence):
         if tau < 0.0:
             raise ValueError(f"te_s {te_s} is too short for four {afp_duration_s * 1e3:.1f} ms refocusing "
                              "pulses")
-        super().__init__(
-            Pulse(90.0),
-            CoherenceFilter(-1),
-            Delay(tau),
-            afp, CoherenceFilter(+1), Delay(2.0 * tau),
-            afp, CoherenceFilter(-1), Delay(2.0 * tau),
-            afp, CoherenceFilter(+1), Delay(2.0 * tau),
-            afp, CoherenceFilter(-1), Delay(tau),
-            tr_s=tr_s,
-        )
+        if crushers is None:
+            events = (Pulse(90.0), CoherenceFilter(-1), Delay(tau),
+                      afp, CoherenceFilter(+1), Delay(2.0 * tau), afp, CoherenceFilter(-1), Delay(2.0 * tau),
+                      afp, CoherenceFilter(+1), Delay(2.0 * tau), afp, CoherenceFilter(-1), Delay(tau))
+        else:
+            # `crushers` plays a gradient pair around each of the four pulses in the filters' place
+            # (see Press): four moments in cycles per millimetre over the 20 mm ensemble, no sum
+            # of which with any signs vanishes, (0.15, 0.25, 0.35, 0.55) being 3, 5, 7, and 11 cycles
+            pairs = [Gradient(moment, 20.0) for moment in crushers]
+            delays = (tau, 2.0 * tau, 2.0 * tau, 2.0 * tau, tau)
+            events = [Pulse(90.0), Delay(delays[0])]
+            for pair, delay in zip(pairs, delays[1:]):
+                events += [pair, afp, pair, Delay(delay)]
+        super().__init__(*events, tr_s=tr_s)
