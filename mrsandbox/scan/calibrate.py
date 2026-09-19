@@ -418,17 +418,20 @@ class CovarianceReading:
     #******************#
     @classmethod
     def from_ismrmrd(cls, path, lines=None):
-        """Read an ISMRMRD (.mrd, .h5) file whose acquisitions hold noise only: all of
-        them, or the acquisitions `lines` indexes. Needs h5py."""
+        """Read the noise of an ISMRMRD (.mrd, .h5) file: the acquisitions `lines` indexes,
+        else those flagged as a noise measurement (the pre-scan a scanner's converter keeps
+        in the file), else all of them, for a file that holds noise only. Needs h5py."""
         import re
 
         import h5py
 
         with h5py.File(str(path), "r") as file:
             table = file["dataset/data"]
-            chosen = range(len(table)) if lines is None else lines
+            if lines is None:
+                flagged = np.flatnonzero(table["head"]["flags"] & np.uint64(1 << 18))  # ACQ_IS_NOISE_MEASUREMENT
+                lines = flagged if flagged.size else range(len(table))
             total, count, coils = None, 0, None
-            for index in chosen:
+            for index in lines:
                 row = table[index]
                 coils = int(row["head"]["active_channels"])
                 raw = row["data"].view(np.float32)

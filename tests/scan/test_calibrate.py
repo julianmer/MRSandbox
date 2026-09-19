@@ -91,6 +91,26 @@ class TestCovarianceReading:
         assert record.leaf == "coils.loaded.own_noise" and abs(record.value - 0.4) < 0.03
         assert record.measured["strongest_pair"] > record.measured["strongest_partner_mean"] > record.measured["median_pair"]
 
+    def test_an_ismrmrd_file_is_read_off_its_flagged_noise_lines(self, tmp_path):
+        h5py = pytest.importorskip("h5py")
+        rng = np.random.default_rng(3)
+        mix = np.array([[1.0, 0.0], [0.6, 0.8]])                      # a noise correlation of 0.6
+        head = np.dtype([("flags", "<u8"), ("active_channels", "<u2")])
+        row = np.dtype([("head", head), ("data", h5py.vlen_dtype(np.dtype("<f4")))])
+        table = np.zeros(6, dtype=row)
+        for k in range(6):
+            noise = k < 4
+            x = mix @ (rng.standard_normal((2, 4096)) + 1j * rng.standard_normal((2, 4096)))
+            x = x if noise else x + 50.0                               # signal, the same in both channels
+            table[k]["head"] = ((1 << 18) if noise else 0, 2)
+            table[k]["data"] = np.stack([x.real, x.imag], axis=-1).astype("<f4").ravel()
+        with h5py.File(tmp_path / "scan.h5", "w") as file:
+            file.create_dataset("dataset/data", data=table)
+            file.create_dataset("dataset/xml", data=[b"<systemVendor>virtual</systemVendor>"])
+        reading = CovarianceReading.from_ismrmrd(tmp_path / "scan.h5")
+        assert reading.samples == 4 * 4096 and abs(reading.statistics()["strongest_pair"] - 0.6) < 0.02
+        assert CovarianceReading.from_ismrmrd(tmp_path / "scan.h5", lines=[4, 5]).statistics()["strongest_pair"] > 0.99
+
     def test_the_tails_of_raw_fids_serve_and_combined_data_do_not(self, tmp_path):
         from mrsandbox import CoilArray
 
