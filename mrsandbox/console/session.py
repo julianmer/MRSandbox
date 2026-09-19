@@ -720,10 +720,33 @@ class Session:
         blocks = self.designs[self.condition if condition is None else condition]
         return Sequence(*(event for kind, settings in blocks for event in BLOCKS[kind][1](settings)), tr_s=tr_s)
 
+    def phase_cycle(self, block, steps):
+        """Make the design shown a phase cycle of `steps` sub-acquisitions (2 or 4): the pulse at `block`
+        steps its phase through the circle, and the receiver follows as the pulse's role asks, so the
+        wanted pathway adds and the others cancel over the cycle. An excitation (a flip up to 135
+        degrees) takes the receiver with it, exp(-i phi); a refocusing pulse is EXORCYCLE (Bodenhausen,
+        Freeman, Turner 1977), the receiver at exp(-2 i phi): +, -, +, - over 0, 90, 180, 270. The
+        transients then take turns through the cycle, as on a scanner. Coherence filters of the
+        design do the same job ideally: take them out to see the cycle work."""
+        blocks = self.designs[self.condition]
+        kind, settings = blocks[block]
+        if "phase_deg" not in settings:
+            raise ValueError("a phase cycle steps a pulse's phase: choose a pulse")
+        order = 1 if float(settings.get("flip_deg", 90.0)) <= 135.0 else 2
+        self.designs, weights = {}, {}
+        for step in range(steps):
+            phi = 360.0 * step / steps
+            name = chr(65 + step)
+            self.designs[name] = [(k, dict(v, phase_deg=float(v["phase_deg"]) + phi) if n == block else dict(v)) for n, (k, v) in enumerate(blocks)]
+            weight = np.exp(-1j * order * np.radians(phi))
+            weights[name] = complex(np.round(weight.real, 12), np.round(weight.imag, 12))
+        self.condition, self.weights = "A", {"cycled": weights, "first step alone": {"A": 1.0}}
+
     def combinations(self):
         """How the own design's sub-acquisitions combine: the operator's `weights` where they name
         sub-acquisitions that exist, else their plain sum."""
-        kept = {name: {c: float(w) for c, w in mix.items() if c in self.designs and w} for name, mix in self.weights.items()}
+        kept = {name: {c: (complex(w) if complex(w).imag else float(complex(w).real)) for c, w in mix.items() if c in self.designs and w}
+                for name, mix in self.weights.items()}
         kept = {name: mix for name, mix in kept.items() if mix}
         return kept or {"sum": {name: 1.0 for name in self.designs}}
 
@@ -1196,7 +1219,10 @@ class Session:
 
         # one zero-order phase for the whole exam, read at the tallest line of the average of everything; no transient is
         # aligned in frequency or phase before it is averaged, so what drift and motion do to the average shows
-        everything = combined({name: 1.0 for name in names}, card.averages)
+        # (of an own multiplexed design the plain sum may be what the scheme cancels, a phase cycle's unwanted signal: there
+        # the shown combination gives the phase; an edited scan's sum is its unedited spectrum)
+        own = card.sequence == "Custom" and len(names) > 1
+        everything = combined(exam.combinations[exam.shown] if own else {name: 1.0 for name in names}, card.averages)
         phase = np.exp(-1j * np.angle(everything[np.flatnonzero(upfield)[np.abs(everything[upfield]).argmax()]]))
         wide = (ppm > -0.5) & (ppm < 6.5)
         exam.ppm, exam.window = ppm[wide], (float(ppm[upfield].min()), float(ppm[upfield].max()))
@@ -1240,6 +1266,8 @@ class Session:
     def save_protocol(self, name):
         """Keep the card as it stands, with the voxel's size, the operator's own design, and
         the advanced settings, as one JSON file of the protocol library; returns the path."""
+        if any(isinstance(w, complex) for mix in self.weights.values() for w in mix.values()):
+            raise ValueError("a phase-cycled design is not saved yet: its receiver phases are complex numbers")
         if any(kind == "as the card plays it" for blocks in self.designs.values() for kind, _ in blocks):
             raise ValueError("a design that holds events taken over from a card is not saved yet: they are objects, not settings")
         self.LIBRARY.mkdir(parents=True, exist_ok=True)

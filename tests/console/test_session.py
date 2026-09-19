@@ -185,6 +185,39 @@ class TestSession:
         assert len(pairs) == 4 and all(float(event.peak_hz) <= 42.5774785 * 13.5 for event in pairs)
         assert float(pairs[0].duration_s) == pytest.approx(0.0045 * (15.0 / (0.99 * 13.5)) ** 2)   # peak squared times duration held
 
+    def test_a_phase_cycle_cancels_what_an_imperfect_refocusing_pulse_leaves(self):
+        from mrsandbox.console.session import BLOCKS
+
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.field = "Custom", 8, 1024, "uniform"
+        session.overrides = {"noise.sigma": 0.0}
+        session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "phase_jitter_deg": 0.0,
+                                "amp_jitter_frac": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
+        # a spin echo without any filter or crusher, its refocusing pulse 40 degrees short: the 140 leaves a free induction
+        # decay of its own and unrefocused signal beside the echo
+        echo = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)), ("hard pulse", dict(flip_deg=140.0, phase_deg=90.0)), ("delay", dict(ms=15.0))]
+        session.designs = {"A": [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in echo]}
+        session.phase_cycle(2, 4)
+        assert list(session.designs) == ["A", "B", "C", "D"] and [b[2][1]["phase_deg"] for b in session.designs.values()] == [90.0, 180.0, 270.0, 360.0]
+        assert [complex(w) for w in session.weights["cycled"].values()] == [1, -1, 1, -1]        # EXORCYCLE for a refocusing pulse
+        exam = session.run(session.plan(), seed=2)
+        naa = (exam.ppm > 1.9) & (exam.ppm < 2.1)
+        session.align = False
+        cycled, alone = (session.run(session.plan(), seed=2).spectra[name] for name in ("cycled", "first step alone"))
+        # what the cycle keeps is the echo alone: a clean NAA line, where one step carries the unrefocused signal's phase on it
+        assert np.abs(cycled[naa]).max() > 0.0 and not np.allclose(cycled / np.abs(cycled).max(), alone / np.abs(alone).max(), atol=0.05)
+        # and it is the pathway an ideal crusher keeps: the same echo with coherence filters in place of the cycle
+        filtered = [echo[0], ("coherence filter", dict(order=1)), echo[1], echo[2], ("coherence filter", dict(order=-1)), echo[3]]
+        session.designs, session.condition, session.weights = {"A": [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in filtered]}, "A", {}
+        ideal = session.run(session.plan(), seed=2).frames[-1][1]                   # one sub-acquisition: a plain scan
+        lines = (exam.ppm > 1.8) & (exam.ppm < 3.3)                               # NAA, creatine, choline: the uncoupled lines
+        assert np.corrcoef(cycled[lines], ideal[lines])[0, 1] > 0.9995 and np.corrcoef(alone[lines], ideal[lines])[0, 1] < 0.995
+        assert cycled[naa].max() / 4.0 == pytest.approx(ideal[naa].max(), rel=0.03)  # four steps add to four times the echo
+        session.designs = {"A": [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in echo]}
+        session.phase_cycle(0, 2)                                                   # an excitation takes the receiver with it
+        assert [complex(w) for w in session.weights["cycled"].values()] == [1, -1]
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 

@@ -745,6 +745,13 @@ def console():
                                                                        refresh())).props("flat dense no-caps").classes(
                             "tool" + (" on" if name == session.condition else "")).style("width: 44px; height: 30px")
                     ui.button("another, a copy of this one", icon="add", on_click=another).props("flat dense no-caps")
+                    if session.design and "phase_deg" in session.design[state["at"]][1]:
+                        for steps in (2, 4):
+                            ui.button(f"phase cycle the chosen pulse, {steps} steps", icon="cached", on_click=lambda _, steps=steps: (
+                                session.phase_cycle(state["at"], steps), parts(), refresh())).props("flat dense no-caps").tooltip(
+                                "the chosen pulse steps its phase through the circle over the transients and the receiver follows (an excitation "
+                                "takes it along, a refocusing pulse is EXORCYCLE), so the wanted pathway adds and the rest cancels. Coherence "
+                                "filters do this ideally: take them out of the design to see the cycle work")
                     if len(session.designs) > 1:
                         ui.button("remove this one", icon="remove", on_click=without).props("flat dense no-caps")
                         ui.space()
@@ -760,6 +767,9 @@ def console():
                     with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                         ui.label(label).style(f"width: 160px; color: {SAND}")
                         for name in session.designs:
+                            if isinstance(mix.get(name, 0.0), complex):     # a receiver phase of a cycle: said, not typed
+                                ui.label(f"{name}  {np.degrees(np.angle(mix[name])):+.0f}°").classes("value").style("width: 84px")
+                                continue
                             ui.number(name, value=mix.get(name, 0.0), step=1.0, format="%.3g", on_change=lambda e, mix=mix, name=name: (
                                 e.value is not None and mix.__setitem__(name, float(e.value)))).props("dense outlined dark").style("width: 84px")
                         ui.button(icon="close", on_click=lambda _, label=label: (session.weights.pop(label), parts())).props("flat dense round size=sm")
