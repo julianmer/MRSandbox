@@ -16,12 +16,19 @@
 #   imports   #
 #*************#
 import dataclasses
+import json
 
-from mrsandbox.hardware import CoilArray, Receiver, Scanner
+from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
 from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading
-from mrsandbox.scan.calibrations import calibrations
+from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
+
+#***************#
+#   constants   #
+#***************#
+# the one GIRF the package fetches (resources.girf); a saved profile names it
+GIRF_NAME = "nws/prisma_3t"
 
 
 #**************************************************************************************************#
@@ -82,6 +89,45 @@ class ScannerProfile:
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
         return cls(voxel.scan.scanner, records, coils=coils)
+
+    #**********#
+    #   save   #
+    #**********#
+    def save(self, path):
+        """Write the profile as one JSON file, readable as it stands: the scanner, the
+        records with their conditions, the coils as loops with their noise resistance and
+        gain, the receiver, and the GIRF by name. A mapped array and a GIRF other than the
+        package's deposit live in files of their own and are refused."""
+        if self.coils is not None and not self.coils.loops:
+            raise ValueError("only an array of loops is saved; a mapped array lives in its maps")
+        if self.girf is not None and self.girf.name != GIRF_NAME:
+            raise ValueError(f"only the package's GIRF ({GIRF_NAME}) is saved, by name")
+        coils = None if self.coils is None else {
+            "loops": [dataclasses.asdict(loop) for loop in self.coils.loops],
+            "noise_resistance": self.coils.noise_resistance.tolist(), "gain": self.coils.gain}
+        with open(path, "w") as file:
+            json.dump({"scanner": dataclasses.asdict(self.scanner),
+                       "records": [dataclasses.asdict(record) for record in self.records],
+                       "coils": coils, "girf": None if self.girf is None else self.girf.name,
+                       "receiver": None if self.receiver is None else dataclasses.asdict(self.receiver)},
+                      file, indent=2)
+
+    #**********#
+    #   load   #
+    #**********#
+    @classmethod
+    def load(cls, path):
+        """The profile `save` wrote."""
+        with open(path) as file:
+            stored = json.load(file)
+        records = tuple(Calibration(**{**record, "prior": tuple(record["prior"]),
+                                       "presets": tuple(record["presets"])}) for record in stored["records"])
+        coils = stored["coils"] and CoilArray(
+            [Loop(loop["radius_mm"], tuple(loop["center_mm"]), tuple(loop["normal"])) for loop in stored["coils"]["loops"]],
+            stored["coils"]["noise_resistance"], gain=stored["coils"]["gain"])
+        return cls(Scanner(**stored["scanner"]), records, coils=coils,
+                   girf=stored["girf"] and GIRF.load(),
+                   receiver=stored["receiver"] and Receiver(**stored["receiver"]))
 
     #******************#
     #   calibrations   #

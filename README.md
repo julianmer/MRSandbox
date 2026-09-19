@@ -119,7 +119,8 @@ This repository consists of the following main structures:
   scanner: its limits, its coils, gradient impulse response, and receiver, and the records
   measured on its own raw data, which outrank the package's. `ScannerProfile.read(path, voxel,
   dataset, array=...)` makes one from a single raw NIfTI-MRS file and its virtual twin, and
-  `profile.scan(brain, sequence)` is a `VirtualScan` of that scanner.
+  `profile.scan(brain, sequence)` is a `VirtualScan` of that scanner. `save` and `load` keep a
+  profile as one readable JSON file.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
   and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
   hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled

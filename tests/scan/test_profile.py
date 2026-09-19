@@ -81,3 +81,14 @@ class TestScannerProfile:
         assert records["noise.sigma"].source["dataset"] == "a virtual scanner"
         assert len(profile.coils) == 32 and abs(profile.coils.noise_gain(PLACE, SIZE) - 1.0) < 1e-6
         assert records["conc.Cr"].carried_by == "subject"
+
+        # saved and loaded, it is the same scanner: records, array, and the scan's header
+        profile.save(tmp_path / "profile.json")
+        loaded = ScannerProfile.load(tmp_path / "profile.json")
+        assert loaded.scanner == profile.scanner and loaded.calibrations().keys() == records.keys()
+        assert loaded.calibrations()["noise.sigma"].value == records["noise.sigma"].value
+        assert np.allclose(loaded.coils.noise_resistance, profile.coils.noise_resistance)
+        assert np.allclose(loaded.coils.sensitivities(PLACE), profile.coils.sensitivities(PLACE))
+        header = loaded.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024)).voxel(PLACE, SIZE).acquire(
+            seed=0, npoints=256).hdr_ext["SimulationPhantom"]["calibrations"]
+        assert header["noise.sigma"]["source"] == "a virtual scanner"
