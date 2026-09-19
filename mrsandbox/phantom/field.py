@@ -164,36 +164,40 @@ class FieldMap:
         With `shim_at_mm` the shim is the one fitted for the box at that place and
         kept in the scanner while the object moved: the box now at `position_mm` in
         the object's frame sits under the shim fields of the planned place."""
+        values, weights = self.volume.box(position_mm, size_mm)
+        keep = weights > 0.0
+        xyz = self.volume.centres(position_mm, size_mm)[keep] if keep.any() else np.empty((0, 3))
+        v, w = values[keep].astype(np.float64), weights[keep]
+        # the moved box's cells under the planned shim: where they sit in the scanner
+        moved = 0.0 if shim_at_mm is None else np.asarray(shim_at_mm, float) - np.asarray(position_mm, float)
+        return v - self.shim_field(xyz + moved, position_mm if shim_at_mm is None else shim_at_mm, size_mm, shim), w
+
+    def shim_field(self, xyz_mm, position_mm, size_mm, shim=None):
+        """The field in Hz the shim set plays at the world points `xyz_mm` (n, 3), once fitted
+        for the voxel box at `position_mm` (or for `shim_box` where the operator set one): what
+        the adjustment takes off the map everywhere, not in the box alone. Zeros for "none",
+        outside the map, and for no points."""
         shim = self.shim if shim is None else shim
         if shim not in self.SHIMS:
             raise ValueError(f"unknown shim {shim!r}; known: {', '.join(self.SHIMS)}")
+        at, size = self.shim_box if self.shim_box is not None else (position_mm, size_mm)
+        values, weights = self.volume.box(at, size)
+        keep = weights > 0.0
+        if shim == "none" or not keep.any() or len(xyz_mm) == 0:
+            return np.zeros(len(xyz_mm))
+        planned = self.volume.centres(at, size)[keep]
+        centre = np.average(planned, axis=0, weights=weights[keep])
 
-        def cells(at, size_mm=size_mm):
-            values, weights = self.volume.box(at, size_mm)
-            keep = weights > 0.0
-            xyz = self.volume.centres(at, size_mm)[keep] if keep.any() else np.empty((0, 3))
-            return values[keep].astype(np.float64), weights[keep], xyz
-
-        def columns(xyz, centre):
+        def columns(xyz):
             x, y, z = (xyz - centre).T
             out = [np.ones(len(xyz)), x, y, z]
             if shim == "quadratic":
                 out += [2.0 * z * z - x * x - y * y, x * z, y * z, x * x - y * y, x * y]
             return np.stack(out if shim != "mean" else out[:1], axis=1)
 
-        v, w, xyz = cells(position_mm)
-        if v.size == 0 or shim == "none":
-            return v, w
-        planned = cells(*self.shim_box) if self.shim_box is not None else (v, w, xyz) if shim_at_mm is None else cells(shim_at_mm)
-        if planned[0].size == 0:
-            return v, w
-        centre = np.average(planned[2], axis=0, weights=planned[1])
-        root = np.sqrt(planned[1])
-        fit, *_ = np.linalg.lstsq(columns(planned[2], centre) * root[:, None], planned[0] * root,
-                                  rcond=None)
-        # the moved box's cells under the planned shim: where they sit in the scanner
-        moved = 0.0 if shim_at_mm is None else np.asarray(shim_at_mm, float) - np.asarray(position_mm, float)
-        return v - columns(xyz + moved, centre) @ fit, w
+        root = np.sqrt(weights[keep])
+        fit, *_ = np.linalg.lstsq(columns(planned) * root[:, None], values[keep].astype(np.float64) * root, rcond=None)
+        return columns(np.asarray(xyz_mm, dtype=np.float64)) @ fit
 
     #*************#
     #   kernel    #

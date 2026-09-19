@@ -55,8 +55,13 @@ class TestApp:
                 await user.should_see("B0 field")
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
-                user.find("PRESS, played").click()                      # a card from the browser, its displaced voxels in words
+                user.find("PRESS").click()                              # real pulses are the default: the displaced voxels in words
                 await user.should_see("water -1.8 -4.4 -4.4 mm")
+                user.find("real pulses").click()
+                await user.should_see("none, the localization is ideal")
+                user.find("realism").click()
+                await user.should_see("on is real, off is ideal")
+                user.find("Done").click()
                 user.find("New scan").click()
                 user.find("STEAM").click()
                 next(e for e in user.find(kind=ui.number).elements if e.props.get("label") == "averages").value = 4
@@ -66,13 +71,13 @@ class TestApp:
                 await user.should_see("simulated in", retries=100)
                 await user.should_see("4 / 4")
                 user.find("New scan").click()
-                user.find("sLASER, played").click()
+                user.find("sLASER").click()
                 user.find("Accept").click()
-                user.find(marker="card 2 sLASER, played TE 30").click()             # a planned card opens for editing, in its place
+                user.find(marker="card 2 sLASER TE 30").click()             # a planned card opens for editing, in its place
                 await user.should_see("Accept changes")
                 next(e for e in user.find(kind=ui.number).elements if e.props.get("label") == "TE (ms)").value = 40
                 user.find("Accept changes").click()
-                await user.should_see("2 sLASER, played TE 40")
+                await user.should_see("2 sLASER TE 40")
                 await user.should_not_see("Accept changes")
 
         asyncio.run(visit())

@@ -45,8 +45,9 @@ SUBJECTS = {
 # what the planes show of a subject that has a relaxation map on its grid: R1 reads like a T1-weighted
 # image; the others show their tissue maps
 PICTURES = {
-    "Brain, BigBrain-MR, 0.8 mm": lambda: 1.0 / np.maximum(Volume.load("bigbrain_mr/t1map_800um").data, 0.5),
-    "Head, QSM challenge, 0.64 mm": lambda: Volume.load("qsm_rc2/r1").data,
+    "Brain, BigBrain-MR, 0.8 mm": lambda: (lambda t1: np.where(t1 > 0.0, 1.0 / np.maximum(t1, 0.5), 0.0))(
+        Volume.load("bigbrain_mr/t1map_800um").data),
+    "Head, QSM challenge, 0.64 mm": lambda: Volume.load("qsm_rc2/r1").data,          # skull and scalp with it
 }
 
 #***************#
@@ -64,6 +65,31 @@ SEQUENCES = {
     "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedSteam(te_s, 0.010, f0_mhz, size_mm=size_mm, tr_s=tr_s),
     "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedSemiLaser(te_s, f0_mhz, size_mm=size_mm, tr_s=tr_s),
 }
+# a card's design with its pulses real (Protocol.real): shaped pulses under gradients, played in time, in place
+# of ideal ones that act at once and select exactly. HERCULES has no ideal design and is always real.
+REAL = {"PRESS": "PRESS, played", "STEAM": "STEAM, played", "sLASER": "sLASER, played",
+        "MEGA-PRESS GABA": "MEGA-PRESS GABA, played", "HERMES GABA GSH": "HERMES, played"}
+# the scanners by name: what a preset stands for (hardware.scanners, scan.calibrations)
+SCANNERS = {"generic_1p5t": "Generic 1.5 T", "generic_3t": "Generic 3 T", "generic_7t": "Generic 7 T",
+            "siemens_prisma_3t": "Siemens Prisma 3 T", "siemens_trio_3t": "Siemens Trio 3 T", "ge_mr750_3t": "GE MR750 3 T",
+            "ge_mr750_32ch_3t": "GE MR750 3 T, noise as read with its 32 channel head array",
+            "philips_elition_3t": "Philips Elition 3 T", "philips_achieva_3t": "Philips Achieva 3 T, noise as read with its T/R head coil"}
+# the measured B0 field a subject lies in unless the operator chooses another (phantom.FieldMap.PRESETS); a
+# sphere of solution has none
+FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr", "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
+          "Head, QSM challenge, 0.64 mm": "qsm_rc2"}
+# what the realism pop-up can switch off, each the leaves it sets to nothing: the console starts real
+IDEALS = {
+    "noise": {"noise.sigma": 0.0},
+    "macromolecules": {"mm.level_mm": 0.0},
+    "lipids": {"lipids.amplitude_mm": 0.0},
+    "residual water": {"water.residual_fraction": 0.0},
+    "frequency and phase errors": {"acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0},
+    "eddy currents": {"acquisition.eddy_std_rad": 0.0},
+    "spurious echoes": {"spurious.amplitude": 0.0},
+}
+# what the planes can wash over the anatomy: the room's maps and the subject's tissues
+OVERLAYS = ("anatomy", "B0 field", "B1+", "grey matter", "white matter", "CSF")
 # the shifts whose displaced voxels the planes draw beside the planned one
 SHIFTED = {"water": 4.65, "lipid": 1.3}
 
@@ -91,7 +117,7 @@ EDITING = {
                                 DIFFERENCE, "difference"),
     "HERMES, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hermes, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
                        Hermes.combinations, "gaba"),
-    "HERCULES, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+    "HERCULES": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
                          Hercules.combinations, "gaba"),
 }
 
@@ -170,6 +196,7 @@ class Protocol:
     matrix: int = 8
     water_suppression: str = "off"
     ovs: bool = False
+    real: bool = True
 
     @property
     def scan_time_s(self):
@@ -259,9 +286,17 @@ class Session:
             the voxel's centre; None shims over the voxel itself.
     """
 
-    # the receive arrays on the shelf
-    COILS = {"one ideal channel": lambda: None, "head array, 32 channels": CoilArray.helmet,
-             "ring, 8 channels": lambda: CoilArray.ring(8)}
+    # the receive arrays on the shelf: how each is made from its settings, and the settings it starts with (mm)
+    COILS = {"one ideal channel": lambda: None,
+             "head array, 32 channels": lambda loop_radius_mm: CoilArray.helmet(loop_radius_mm=loop_radius_mm),
+             "ring of loops": lambda channels, ring_radius_mm, loop_radius_mm, z_mm: CoilArray.ring(
+                 int(channels), ring_radius_mm=ring_radius_mm, loop_radius_mm=loop_radius_mm, z_mm=z_mm),
+             "surface loop": lambda x_mm, y_mm, z_mm, loop_radius_mm: CoilArray.surface(       # facing the head's centre
+                 (x_mm, y_mm, z_mm), tuple(c - v for c, v in zip(CoilArray.HEAD_CENTER_MM, (x_mm, y_mm, z_mm))),
+                 loop_radius_mm=loop_radius_mm)}
+    COIL_SETTINGS = {"one ideal channel": {}, "head array, 32 channels": dict(loop_radius_mm=38.0),
+                     "ring of loops": dict(channels=8, ring_radius_mm=110.0, loop_radius_mm=40.0, z_mm=0.0),
+                     "surface loop": dict(x_mm=0.0, y_mm=-105.0, z_mm=35.0, loop_radius_mm=50.0)}
 
     #**********#
     #   init   #
@@ -277,9 +312,11 @@ class Session:
         self.queue = []
         self.overrides = {}
         self.subjects = dict(SUBJECTS)
-        self.field = "uniform"
+        self.field = FIELDS.get(self.subject, "uniform")
         self.transmit = None
         self.shim, self.shim_mm = "linear", None
+        self.overlay = "anatomy"
+        self.coil_settings = {name: dict(settings) for name, settings in self.COIL_SETTINGS.items()}
         self.design = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]
         self._bodies = {}
 
@@ -298,9 +335,34 @@ class Session:
         if key not in self._bodies:
             body = self.body()
             shown = PICTURES[self.subject]() if self.subject in PICTURES else 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
-            shown = np.where(body.gm + body.wm + body.csf > 0.05, shown, 0.0) if self.subject in PICTURES else shown
             low, high = np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in PICTURES else (0.0, float(shown.max()))
             self._bodies[key] = np.uint8(255 * np.clip((shown - low) / max(float(high - low), 1e-6), 0.0, 1.0) * (shown > 0))
+        return self._bodies[key]
+
+    def wash(self):
+        """The overlay on the subject's grid with its window, (values, low, high, diverging), made
+        once per choice; None for the anatomy alone or a map that is not on. A map of another
+        grid is read at the nearest cell, NaN outside it."""
+        body, fields = self.body(), self.fields()
+        source = {"B0 field": fields["field"] and fields["field"].volume, "B1+": fields["transmit"], "grey matter": body.gm,
+                  "white matter": body.wm, "CSF": body.csf}.get(self.overlay)
+        if source is None:
+            return None
+        key = ("wash", self.subject, self.overlay, self.field, self.transmit)
+        if key not in self._bodies:
+            if isinstance(source, Volume):
+                step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
+                theirs = [(origin[a] + step[a] * np.arange(body.gm.shape[a]) - source.affine[a, 3]) / source.affine[a, a] for a in range(3)]
+                inside = [((t > -0.5) & (t < source.shape[a] - 0.5)).reshape([-1 if b == a else 1 for b in range(3)])
+                          for a, t in enumerate(theirs)]
+                values = np.asarray(source.data[np.ix_(*[np.clip(np.round(t).astype(int), 0, source.shape[a] - 1)
+                                                         for a, t in enumerate(theirs)])], dtype=np.float32)
+                values = np.where(inside[0] & inside[1] & inside[2] & (body.gm + body.wm + body.csf > 0.05), values, np.nan)
+                reach = float(np.nanpercentile(np.abs(values - (1.0 if self.overlay == "B1+" else 0.0)), 90.0))
+                middle = 1.0 if self.overlay == "B1+" else 0.0
+                self._bodies[key] = (values, middle - reach, middle + reach, True)
+            else:
+                self._bodies[key] = (np.asarray(source, dtype=np.float32), 0.0, 1.0, False)
         return self._bodies[key]
 
     @staticmethod
@@ -332,6 +394,26 @@ class Session:
             field.shim_box = None if self.shim_mm is None else (tuple(self.position_mm), float(self.shim_mm))
         return self._bodies[key]
 
+    def idealize(self, name, ideal):
+        """Switch one imperfection of IDEALS off (its leaves set to nothing) or back on (the leaves
+        as their sources give them)."""
+        for path, value in IDEALS[name].items():
+            self.overrides.pop(path, None)
+            if ideal:
+                self.overrides[path] = value
+
+    def whole(self, group, way, number=None):
+        """Set a whole branch of the tree at once (every metabolite's T2, say): "as its source gives
+        it", "set to" `number`, or "scale by" `number`, which keeps what tells the leaves apart."""
+        for path, kind, numbers, _ in self.leaves(own=False):
+            if path.split(".")[0] == group and kind != "other":
+                self.overrides.pop(path, None)
+                if way == "set to":
+                    self.overrides[path] = float(number)
+                elif way == "scale by":
+                    self.overrides[path] = (tuple(float(number) * v for v in numbers) if kind == "range"
+                                            else float(number) * numbers[0])
+
     def linewidth(self):
         """The width in Hz the B0 field gives a line of the planned voxel after the shim: the
         full width at half maximum of the voxel's field distribution under a 1 Hz Lorentzian
@@ -344,12 +426,20 @@ class Session:
         above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())    # between the outermost crossings: a coarse map's
         return float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size))    # cells give a comb of lines, one width
 
+    def array(self):
+        """The receive array on the subject, made from the operator's settings of it; None is the
+        one ideal channel."""
+        return self.COILS[self.coil](**self.coil_settings[self.coil])
+
     @staticmethod
     def scanners():
-        """What can stand on the floor: the package's presets, and the operator's own scanners,
-        the profiles saved as JSON (scan.profile) in ./data/profiles and ~/MRSandbox/profiles."""
+        """What can stand on the floor, {key: name}: the package's presets, and the operator's own
+        scanners, the profiles saved as JSON (scan.profile) in ./data/profiles and
+        ~/MRSandbox/profiles, which stay on this machine."""
         folders = (pathlib.Path.cwd() / "data" / "profiles", pathlib.Path.home() / "MRSandbox" / "profiles")
-        return sorted(PRESETS) + sorted(str(path) for folder in folders for path in folder.glob("*.json"))
+        mine = sorted(path for folder in folders for path in folder.glob("*.json"))
+        return {**{name: SCANNERS.get(name, name) for name in PRESETS},
+                **{str(path): "My scanner · " + path.stem.replace("_private", "").replace("_", " ") for path in mine}}
 
     def profile(self):
         """The scanner on the floor with its records: a preset, or a saved profile."""
@@ -362,6 +452,7 @@ class Session:
         """The design of a card: one of the library's at the card's timings, or the
         operator's own, the blocks of `design` in order ("Custom")."""
         card = card if card is not None else self.protocol
+        card = dataclasses.replace(card, sequence=REAL[card.sequence]) if card.real and card.sequence in REAL else card
         if card.sequence in EDITING:
             return next(iter(self.editing(card).values()))
         if card.sequence == MRSI:
@@ -401,6 +492,7 @@ class Session:
 
     def editing(self, card):
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
+        card = dataclasses.replace(card, sequence=REAL[card.sequence]) if card.real and card.sequence in REAL else card
         return EDITING[card.sequence][0](card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, float(self.size_mm))
 
     def diagram(self, sequence=None, readout_ms=12.0):
@@ -497,7 +589,7 @@ class Session:
         the voxel, where the other two planes cross it (column, row), and the other
         outlines {name: (left, top, width, height)}: the displaced voxels of SHIFTED (none
         for an ideal design) and the "shim" box where the operator set one."""
-        body, tissue = self.body(), self.picture()
+        body, tissue, wash = self.body(), self.picture(), self.wash()
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
         nx, ny, nz = tissue.shape
         i, j, k = (np.asarray(self.position_mm) - origin) / step          # the voxel's centre, the outline's
@@ -513,12 +605,24 @@ class Session:
             moved = {}
         moved = {name: by for name, by in moved.items() if np.any(by)}
 
-        def framed(plane, left, top, width, height, cut, cross, across, up):
+        def framed(cutting, left, top, width, height, cut, cross, across, up):
             """A plane shaded to 8 bits and centred in a square of the largest grid side, all three
             planes then drawing alike; the voxel's outline and the cross move with it."""
-            shade = plane
+            shade = cutting(tissue)
+            if wash is not None:    # blue below and red above the middle of a map, sand for a tissue, the anatomy showing through
+                values, low, high, diverging = wash
+                values = cutting(values)
+                if self.overlay == "B0 field":      # as the adjustment leaves it: the shim's own field taken off, everywhere
+                    world = [cutting(np.broadcast_to((origin[n] + step[n] * np.arange(tissue.shape[n])).reshape(
+                        [-1 if m == n else 1 for m in range(3)]), tissue.shape)) for n in range(3)]
+                    values = values - self.fields()["field"].shim_field(
+                        np.stack([w.ravel() for w in world], axis=1), tuple(self.position_mm), self.size_mm).reshape(values.shape)
+                level = np.nan_to_num(np.clip((values - low) / max(high - low, 1e-9), 0.0, 1.0), nan=0.5 if diverging else 0.0)
+                strength = (0.75 * np.abs(2.0 * level - 1.0) if diverging else 0.7 * level)[..., None]
+                colour = np.where((level > 0.5)[..., None], (225, 80, 60), (70, 130, 225)) if diverging else np.array((226, 165, 95))
+                shade = np.uint8((1.0 - strength) * shade[..., None] + strength * colour)
             rows, columns = (side - shade.shape[0]) // 2, (side - shade.shape[1]) // 2
-            square = np.zeros((side, side), dtype=np.uint8)
+            square = np.zeros((side, side) + shade.shape[2:], dtype=np.uint8)
             square[rows:rows + shade.shape[0], columns:columns + shade.shape[1]] = shade
             return (square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows),
                     {**{name: (left + columns + by[across], top + rows - by[up], width, height) for name, by in moved.items()},
@@ -528,11 +632,11 @@ class Session:
                          self.shim_mm / step[across], self.shim_mm / step[up])})})
 
         return {
-            "tra": framed(tissue[:, ::-1, c].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1],
+            "tra": framed(lambda v: v[:, ::-1, c].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1],
                           abs(c - k) <= half[2], (a, ny - 1 - b), 0, 1),
-            "sag": framed(tissue[a, :, ::-1].T, j - half[1], nz - 1 - k - half[2], 2 * half[1], 2 * half[2],
+            "sag": framed(lambda v: v[a, :, ::-1].T, j - half[1], nz - 1 - k - half[2], 2 * half[1], 2 * half[2],
                           abs(a - i) <= half[0], (b, nz - 1 - c), 1, 2),
-            "cor": framed(tissue[:, b, ::-1].T, i - half[0], nz - 1 - k - half[2], 2 * half[0], 2 * half[2],
+            "cor": framed(lambda v: v[:, b, ::-1].T, i - half[0], nz - 1 - k - half[2], 2 * half[0], 2 * half[2],
                           abs(b - j) <= half[1], (a, nz - 1 - c), 0, 2),
         }
 
@@ -573,7 +677,7 @@ class Session:
             index = np.argwhere(surface)
             index = index[np.random.default_rng(0).choice(len(index), size=min(points, len(index)), replace=False)]
             self._bodies[("cloud", self.subject)] = (index * np.diag(body.affine)[:3] + body.affine[:3, 3]).astype(np.float32)
-        coils = self.COILS[self.coil]()
+        coils = self.array()
         loops = [] if coils is None else [(tuple(loop.center_mm), tuple(loop.normal), float(loop.radius_mm)) for loop in coils.loops]
         return {"cloud": self._bodies[("cloud", self.subject)], "loops": loops, "voxel": (tuple(self.position_mm), float(self.size_mm))}
 
@@ -629,7 +733,7 @@ class Session:
         exam.status = "running"
         card, sequence = exam.card, exam.sequence
         profile = self.profile()
-        coils = self.COILS[self.coil]()
+        coils = self.array()
         if card.sequence == MRSI:
             grid = profile.scan(self.body(), sequence, params=self.params(), **self.fields()).mrsi(
                 center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm)

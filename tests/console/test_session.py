@@ -55,21 +55,24 @@ class TestSession:
 
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
         session = Session()
+        session.protocol.real = False                                      # ideal pulses select exactly
         assert session.displacement(4.65) == [0.0, 0.0, 0.0] and session.planes()["tra"][4] == {}
-        session.protocol.sequence = "PRESS, played"
+        session.protocol.real = True                                       # the default
         water, lipid = np.asarray(session.displacement(4.65)), np.asarray(session.displacement(1.3))
         assert np.all(water < 0.0) and np.all(lipid > 0.0)                 # either side of the 3 ppm the slabs are centred for
         assert abs(water[1]) > 2.0 * abs(water[0])                         # the narrow 180s displace more than the 90
         assert np.allclose(water / lipid, (4.65 - 3.0) / (1.3 - 3.0))
         _, (left, top, _, _), _, _, shifted = session.planes()["tra"]
         assert shifted["water"][0] < left and shifted["water"][1] > top    # towards lower x and lower y (rows run down)
-        session.protocol.sequence = "sLASER, played"                       # broadband adiabatic pairs: a tenth of it
+        session.protocol.sequence = "sLASER"                               # broadband adiabatic pairs: a tenth of it
         assert abs(session.displacement(4.65)[1]) < 0.15 * abs(water[1])
 
     def test_the_shim_and_its_box_set_the_line_width_a_b0_map_gives(self, tmp_path):
         import nibabel as nib
 
         session = Session()
+        assert session.field == "bigbrain_mr" and 1.0 < session.linewidth() < 5.0   # the measured field, shimmed, by default
+        session.field = "uniform"
         assert session.linewidth() is None                                 # a uniform field broadens nothing
         body = session.body()
         x, y = ((np.arange(n) * np.diag(body.affine)[axis] + body.affine[axis, 3]) for axis, n in enumerate(body.gm.shape[:2]))
@@ -100,7 +103,7 @@ class TestSession:
         import nibabel as nib
 
         session = Session()
-        session.protocol.averages, session.protocol.npoints = 4, 512
+        session.protocol.averages, session.protocol.npoints, session.protocol.real = 4, 512, False   # the maps are the point
         body = session.body()
         for name, data in (("gm", body.gm), ("wm", body.wm), ("csf", body.csf), ("b0", np.full(body.gm.shape, 7.0)),
                            ("b1", np.full(body.gm.shape, 0.9)), ("t1", np.full(body.gm.shape, 1.23))):
@@ -155,6 +158,7 @@ class TestSession:
 
     def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
         session = Session()
+        session.protocol.real = False
         drawn = session.diagram()                                               # the card's ideal PRESS, TE 30
         assert [text for _, text in drawn["pulses"]] == ["90°", "180°", "180°"]
         assert np.allclose([time for time, _ in drawn["pulses"]], [0.0, 5.5, 20.5], atol=0.6) and drawn["adc"][0] == pytest.approx(30.0)
@@ -176,6 +180,7 @@ class TestSession:
     def test_an_edited_card_interleaves_its_sub_experiments_and_reviews_them(self, tmp_path, monkeypatch):
         session = Session()
         session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS GABA", 8, 1024, 30.0
+        session.protocol.real = False                                           # the interleaving is the point
         exam = session.run(session.plan(), seed=1)
         assert exam.name == "1 MEGA-PRESS GABA" and list(exam.conditions) == ["on", "off"] and exam.shown == "difference"
         assert set(exam.spectra) == {"on", "off", "difference", "sum"} and exam.data.shape[-1] == 8
