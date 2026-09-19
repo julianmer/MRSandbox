@@ -89,6 +89,8 @@ GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2"
           "b1_scale": "B1 scale", "acquisition": "Acquisition: shifts, phases, eddy currents", "gradients": "Gradient eddy currents",
           "spurious": "Spurious echoes"}
 WAYS = ["as its source gives it", "set to", "vary between", "from a map"]
+# the displaced voxels' colours on the planes (session.SHIFTED)
+SHIFT_COLOURS = {"water": "#7FB2D9", "lipid": "#D98BB0"}
 # the planes' edges as a console letters them (top, bottom, left, right), and the axis each plane leafs along
 EDGES = {"tra": ("A", "P", "L", "R", 2, "z"), "sag": ("H", "F", "P", "A", 0, "x"), "cor": ("H", "F", "L", "R", 1, "y")}
 
@@ -241,7 +243,7 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False}
+    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False, "shifts": True}
 
     def room():
         """Rebuild the 3D view: the subject's surface, the receive loops, the voxel's box."""
@@ -265,7 +267,7 @@ def console():
         """Redraw the planes (the slice on view, the voxel's outline where the slice cuts it, the
         other planes' cross, a spectroscopic image's grid) and the 3D box: what a drag needs."""
         cells = int(session.protocol.matrix) if session.protocol.sequence == MRSI else 1
-        for name, (image, (left, top, width, height), cut, (column, row)) in session.planes().items():
+        for name, (image, (left, top, width, height), cut, (column, row), shifted) in session.planes().items():
             buffer = io.BytesIO()
             Image.fromarray(image).save(buffer, format="PNG")
             views[name].set_source("data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode())
@@ -273,12 +275,17 @@ def console():
             grid = "".join(f'<line x1="{left + width * n / cells:.1f}" x2="{left + width * n / cells:.1f}" y1="{top:.1f}" '
                            f'y2="{top + height:.1f}" /><line y1="{top + height * n / cells:.1f}" y2="{top + height * n / cells:.1f}" '
                            f'x1="{left:.1f}" x2="{left + width:.1f}" />' for n in range(1, cells))
+            pen = side / 115.0                                      # strokes as wide on a fine grid as on the 2 mm one
             views[name].content = (
-                f'<g stroke="{SAND}" stroke-width="0.3" opacity="0.45"><line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
+                f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45"><line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
-                f'<g fill="none" stroke="{GLOW}" stroke-width="0.35" opacity="0.7">{grid}</g>'
-                f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" fill="none" stroke="{GLOW}" '
-                + ('stroke-width="0.8" />' if cut else 'stroke-width="0.5" stroke-dasharray="2 1.5" opacity="0.55" />'))
+                f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">{grid}</g>'
+                + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" height="{height:.1f}" fill="none" '
+                          f'stroke="{SHIFT_COLOURS[which]}" stroke-width="{0.5 * pen:.2f}" opacity="{0.9 if cut else 0.4}" />'
+                          for which, (x, y) in shifted.items() if chosen["shifts"])
+                + f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" fill="none" stroke="{GLOW}" '
+                + (f'stroke-width="{0.8 * pen:.2f}" />' if cut else
+                   f'stroke-width="{0.5 * pen:.2f}" stroke-dasharray="{2 * pen:.1f} {1.5 * pen:.1f}" opacity="0.55" />'))
             axis, letter = EDGES[name][4:]
             texts[name].text = f"{name.upper()}  {letter} {session.view_mm[axis]:+.0f} mm"
         chosen["box"].move(*(np.asarray(session.position_mm) * MM))
@@ -301,6 +308,9 @@ def console():
         texts["time"].text = texts["time2"].text = f"{minutes:02d}:{seconds:02d}"
         texts["timing"].text = f"{card.tr_ms:g} / {card.te_ms:g} ms"
         texts["volume"].text = f"{session.size_mm ** 3 / 1000.0:.1f} mL"
+        texts["displaced"].text = "\n".join(
+            f"{which} " + " ".join(f"{v:+.1f}" for v in moved) + " mm" for which, moved in look["displaced"].items()) if any(
+            any(moved) for moved in look["displaced"].values()) else "none, the localization is ideal"
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
         texts["resolution"].text = f"{card.bandwidth_hz / card.npoints:.2f} Hz / point"
         texts["readout"].text = f"{1000.0 * card.npoints / card.bandwidth_hz:.0f} ms"
@@ -314,7 +324,7 @@ def console():
                 ui.label(record["source"][:44] + (f" · departs in {', '.join(record['extrapolated'])}" if record["extrapolated"] else "")
                          ).classes("label").style(f"text-transform: none; letter-spacing: 0; color: {BAD if record['extrapolated'] else DIM}")
         for name, tool in tools.items():
-            on = card.ovs if name == "ovs" else card.water_suppression != "off"
+            on = card.ovs if name == "ovs" else chosen["shifts"] if name == "shifts" else card.water_suppression != "off"
             tool.classes(add="on" if on else "", remove="" if on else "on")
         tools["water"].text = "water " + card.water_suppression
 
@@ -861,6 +871,9 @@ def console():
                     "flat dense no-caps").classes("tool").tooltip("water suppression before the localization: off, VAPOR, WET, CHESS")
                 tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
                     "flat dense no-caps").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
+                tools["shifts"] = ui.button("shifts", icon="flip_to_back", on_click=lambda: (
+                    chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps").classes("tool on").tooltip(
+                    "the displaced voxels of water (blue) and lipid (pink) under a played localization")
                 ui.button("design", icon="architecture", on_click=lambda: (
                     setattr(session.protocol, "sequence", "Custom"), designer())).props("flat dense no-caps").classes("tool").tooltip(
                     "the sequence designer")
@@ -913,10 +926,10 @@ def console():
                                                   ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
                         with ui.element("div").classes("info").style("flex: 1"):
                             for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"),
-                                                 ("tissue", "tissue"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
+                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                  ("limits", "hardware")):
                                 ui.label(caption).classes("label")
-                                texts[key] = ui.label("").classes("value").style("white-space: normal")
+                                texts[key] = ui.label("").classes("value").style("white-space: pre-line")
                 # what the card plays and what came of it
                 with ui.column().classes("pane").style("flex: 1; min-width: 0"):
                     with ui.tabs().props("dense align=left").style(f"color: {DIM}") as shows:

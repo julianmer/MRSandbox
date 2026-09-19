@@ -26,7 +26,8 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Mapped, Normal, Params, Uniform
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.scan import Multiplex, ScannerProfile
-from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, MegaPress,
+from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
+                                 LocalizedSemiLaser, LocalizedSteam, MegaPress,
                                  OuterVolumeSuppression, Press, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
@@ -51,12 +52,20 @@ PICTURES = {
 #***************#
 #   sequences   #
 #***************#
-# the protocol library of the walking skeleton: a name and how a card's timings make the design
+# the single-voxel cards: a name and how a card's timings, the spectrometer frequency, and the voxel's size make
+# the design. The ideal ones select the voxel exactly and at once; the played ones play their slice-selective
+# pulses under gradients, so the voxel has a profile and every shift its own displaced voxel (SHIFTED).
 SEQUENCES = {
-    "PRESS": lambda te_s, tr_s: Press(te1_s=min(0.011, te_s / 2.0), te2_s=te_s - min(0.011, te_s / 2.0), tr_s=tr_s),
-    "STEAM": lambda te_s, tr_s: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
-    "sLASER": lambda te_s, tr_s: SemiLaser(te_s=te_s, tr_s=tr_s),
+    "PRESS": lambda te_s, tr_s, f0_mhz, size_mm: Press(te1_s=min(0.011, te_s / 2.0), te2_s=te_s - min(0.011, te_s / 2.0), tr_s=tr_s),
+    "STEAM": lambda te_s, tr_s, f0_mhz, size_mm: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
+    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm: SemiLaser(te_s=te_s, tr_s=tr_s),
+    "PRESS, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedPress(
+        min(0.014, te_s / 2.0), te_s - min(0.014, te_s / 2.0), f0_mhz, size_mm=size_mm, tr_s=tr_s),
+    "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedSteam(te_s, 0.010, f0_mhz, size_mm=size_mm, tr_s=tr_s),
+    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedSemiLaser(te_s, f0_mhz, size_mm=size_mm, tr_s=tr_s),
 }
+# the shifts whose displaced voxels the planes draw beside the planned one
+SHIFTED = {"water": 4.65, "lipid": 1.3}
 
 # what a timed card can play before its localization: the water suppression trains, and outer-volume
 # suppression as six slabs of OVS_MM about the voxel's faces. The slabs play between the train and the
@@ -336,11 +345,12 @@ class Session:
         if card.sequence in EDITING:
             return next(iter(self.editing(card).values()))
         if card.sequence == MRSI:
-            return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+            return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None)
         if card.sequence == "Custom":
             events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
             return Sequence(*events, tr_s=card.tr_ms / 1000.0)
-        design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0,
+                                          42.5774785 * self.profile().scanner.b0_t, float(self.size_mm))
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
@@ -355,6 +365,19 @@ class Session:
             found["OVS"] = OuterVolumeSuppression([(axis, side * reach, OVS_MM) for axis in "xyz" for side in (-1.0, 1.0)],
                                                   42.5774785 * self.profile().scanner.b0_t, extent_mm=float(self.size_mm))
         return found
+
+    def displacement(self, ppm, sequence=None):
+        """Where the voxel of spins at `ppm` lies from the planned one, (x, y, z) in mm: under a
+        slice gradient of G Hz per mm a pulse centred for its reference selects a shift d ppm away
+        at -d f0 / G. Zero along an axis no played pulse selects (an ideal design: all three)."""
+        f0_mhz = 42.5774785 * self.profile().scanner.b0_t
+        moved = [0.0, 0.0, 0.0]
+        for event in (sequence if sequence is not None else self.sequence()).events:
+            if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
+                shift = -(ppm - float(event.offset_ppm)) * f0_mhz / float(event.gradient_hz_per_mm)
+                axis = "xyz".index(event.gradient_axis)
+                moved[axis] = shift if abs(shift) > abs(moved[axis]) else moved[axis]
+        return moved
 
     def editing(self, card):
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
@@ -448,10 +471,11 @@ class Session:
     #************#
     def planes(self):
         """The three planning planes through the view point as {"tra", "sag", "cor"}: each
-        (image, rectangle, cut, cross), an 8-bit array drawn with its first row at the top
+        (image, rectangle, cut, cross, shifted), an 8-bit array drawn with its first row at the top
         (anterior up in the transverse plane, superior up in the other two), the voxel's
         outline (left, top, width, height) in the image's pixels, whether this slice cuts
-        the voxel, and where the other two planes cross it (column, row)."""
+        the voxel, where the other two planes cross it (column, row), and the displaced
+        voxels {name: (left, top)} of SHIFTED, the same size (empty for an ideal design)."""
         body, tissue = self.body(), self.picture()
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
         nx, ny, nz = tissue.shape
@@ -462,22 +486,29 @@ class Session:
             half = half * np.array([self.protocol.matrix, self.protocol.matrix, 1.0])
         side = max(nx, ny, nz)
 
-        def framed(plane, left, top, width, height, cut, cross):
+        try:
+            moved = {name: np.asarray(self.displacement(ppm)) / step for name, ppm in SHIFTED.items()}
+        except Exception:        # a card that is no design yet draws its voxel alone
+            moved = {}
+        moved = {name: by for name, by in moved.items() if np.any(by)}
+
+        def framed(plane, left, top, width, height, cut, cross, across, up):
             """A plane shaded to 8 bits and centred in a square of the largest grid side, all three
             planes then drawing alike; the voxel's outline and the cross move with it."""
             shade = plane
             rows, columns = (side - shade.shape[0]) // 2, (side - shade.shape[1]) // 2
             square = np.zeros((side, side), dtype=np.uint8)
             square[rows:rows + shade.shape[0], columns:columns + shade.shape[1]] = shade
-            return square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows)
+            return (square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows),
+                    {name: (left + columns + by[across], top + rows - by[up]) for name, by in moved.items()})
 
         return {
             "tra": framed(tissue[:, ::-1, c].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1],
-                          abs(c - k) <= half[2], (a, ny - 1 - b)),
+                          abs(c - k) <= half[2], (a, ny - 1 - b), 0, 1),
             "sag": framed(tissue[a, :, ::-1].T, j - half[1], nz - 1 - k - half[2], 2 * half[1], 2 * half[2],
-                          abs(a - i) <= half[0], (b, nz - 1 - c)),
+                          abs(a - i) <= half[0], (b, nz - 1 - c), 1, 2),
             "cor": framed(tissue[:, b, ::-1].T, i - half[0], nz - 1 - k - half[2], 2 * half[0], 2 * half[2],
-                          abs(b - j) <= half[1], (a, nz - 1 - c)),
+                          abs(b - j) <= half[1], (a, nz - 1 - c), 0, 2),
         }
 
     def scroll(self, plane, slices):
@@ -534,7 +565,8 @@ class Session:
         scan = profile.scan(self.body(), sequence, params=self.params(), **self.fields())
         fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
         limits = profile.scanner
-        return {"gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
+        return {"displaced": {name: self.displacement(ppm, sequence) for name, ppm in SHIFTED.items()},
+                "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
                 "violations": tuple(sequence.violations(limits)),

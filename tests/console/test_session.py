@@ -32,7 +32,7 @@ class TestSession:
         assert {image.shape for image, *_ in planes.values()} == {(115, 115)}
         assert all(image.max() > 200 and image.dtype == np.uint8 for image, *_ in planes.values())
         before = list(session.position_mm)
-        for name, (_, (left, top, width, height), cut, _) in planes.items():
+        for name, (_, (left, top, width, height), cut, *_) in planes.items():
             assert cut
             session.place(name, left + width / 2.0, top + height / 2.0)
         assert np.allclose(session.position_mm, before, atol=1.0)          # half a 2 mm cell
@@ -44,7 +44,7 @@ class TestSession:
         session = Session()
         before = list(session.position_mm)
         session.scroll("tra", 20)
-        image, _, cut, _ = session.planes()["tra"]
+        image, _, cut, *_ = session.planes()["tra"]
         assert session.position_mm == before and session.view_mm[2] > before[2] + 30.0 and not cut
         session.scroll("tra", 10 ** 6)                                     # the grid's last slice, no further
         assert session.view_mm[2] < 200.0
@@ -52,6 +52,19 @@ class TestSession:
         session.scroll("tra", 45)
         session.place("tra", 60.0, 60.0)                                   # a click is on the slice on view
         assert session.position_mm[2] == session.view_mm[2] and session.planes()["tra"][2]
+
+    def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
+        session = Session()
+        assert session.displacement(4.65) == [0.0, 0.0, 0.0] and session.planes()["tra"][4] == {}
+        session.protocol.sequence = "PRESS, played"
+        water, lipid = np.asarray(session.displacement(4.65)), np.asarray(session.displacement(1.3))
+        assert np.all(water < 0.0) and np.all(lipid > 0.0)                 # either side of the 3 ppm the slabs are centred for
+        assert abs(water[1]) > 2.0 * abs(water[0])                         # the narrow 180s displace more than the 90
+        assert np.allclose(water / lipid, (4.65 - 3.0) / (1.3 - 3.0))
+        _, (left, top, _, _), _, _, shifted = session.planes()["tra"]
+        assert shifted["water"][0] < left and shifted["water"][1] > top    # towards lower x and lower y (rows run down)
+        session.protocol.sequence = "sLASER, played"                       # broadband adiabatic pairs: a tenth of it
+        assert abs(session.displacement(4.65)[1]) < 0.15 * abs(water[1])
 
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
