@@ -244,7 +244,7 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None}
+    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None}
 
     def room():
         """Rebuild the 3D view: the subject's surface, the receive loops, the voxel's box."""
@@ -305,7 +305,9 @@ def console():
             texts["verdict"].style(f"color: {BAD}")
             return
         minutes, seconds = divmod(int(round(look["scan_time_s"])), 60)
-        texts["name"].text = card.sequence
+        texts["name"].text = card.sequence if chosen["editing"] is None else f"editing {chosen['editing'].name}  →  {card.sequence}"
+        accept.text = "Accept" if chosen["editing"] is None else "Accept changes"
+        discard.set_visibility(chosen["editing"] is not None)
         texts["time"].text = texts["time2"].text = f"{minutes:02d}:{seconds:02d}"
         texts["timing"].text = f"{card.tr_ms:g} / {card.te_ms:g} ms"
         texts["volume"].text = f"{session.size_mm ** 3 / 1000.0:.1f} mL"
@@ -342,11 +344,20 @@ def console():
             for exam in session.queue:
                 minutes, seconds = divmod(int(round(exam.card.scan_time_s)), 60)
                 with ui.element("div").classes("exam" + (" chosen" if exam is chosen["exam"] else "")).on(
-                        "click", lambda _, exam=exam: choose(exam)):
-                    ui.icon({"planned": "radio_button_unchecked", "running": "autorenew", "done": "check_circle"}[exam.status],
-                            size="16px").style(f"color: {dict(planned=DIM, running=SAND, done=GOOD)[exam.status]}")
+                        "click", lambda _, exam=exam: choose(exam)).mark(f"card {exam.name}"):
+                    state = ui.icon({"planned": "edit" if exam is chosen["editing"] else "radio_button_unchecked", "running": "autorenew",
+                                     "done": "check_circle", "failed": "error"}[exam.status], size="16px").style(
+                        f"color: {dict(planned=DIM, running=SAND, done=GOOD, failed=BAD)[exam.status]}")
+                    if exam.problem:
+                        state.tooltip(exam.problem[:200])
                     ui.label(exam.name).style("flex: 1")
                     ui.label(f"{minutes:02d}:{seconds:02d}").classes("value").style(f"color: {DIM}")
+                    ui.icon("content_copy", size="14px").style(f"color: {DIM}").tooltip("duplicate as a new planned card").on(
+                        "click.stop", lambda _, exam=exam: (choose(exam), chosen.__setitem__("editing", None), plan()))
+                    if exam.status == "planned":
+                        ui.icon("close", size="14px").style(f"color: {DIM}").tooltip("remove").on("click.stop", lambda _, exam=exam: (
+                            session.queue.remove(exam), chosen.__setitem__("editing", None if chosen["editing"] is exam else chosen["editing"]),
+                            chosen.__setitem__("exam", None if chosen["exam"] is exam else chosen["exam"]), listing(), draw()))
 
     def frame(exam, index):
         count, real = exam.frames[index]
@@ -357,8 +368,11 @@ def console():
         texts["count"].text = f"{count} / {exam.card.averages}"
 
     def choose(exam):
-        """Select an exam: its voxel returns to the planes, its spectrum to the display."""
-        chosen["exam"] = exam
+        """Select an exam: its voxel returns to the planes, its card to the tabs, its spectrum to the
+        display. A planned exam is then being edited: Accept puts the card back in its place."""
+        chosen["exam"], chosen["editing"] = exam, exam if exam.status == "planned" else None
+        for field in dataclasses.fields(exam.card):                       # in place: the tabs' fields hold this card
+            setattr(session.protocol, field.name, getattr(exam.card, field.name))
         session.position_mm, session.view_mm, session.size_mm = list(exam.position_mm), list(exam.position_mm), exam.size_mm
         if exam.frames:
             frame(exam, -1)
@@ -367,8 +381,10 @@ def console():
         draw()
 
     def plan():
-        chosen["exam"] = session.plan()
+        chosen["exam"] = session.plan(instead_of=chosen["editing"])
+        chosen["editing"] = None
         listing()
+        draw()
 
     async def scan_queue():
         """Run every planned exam in order; each shows as its transients come in. Stop holds
@@ -384,7 +400,13 @@ def console():
             progress.props("indeterminate")
             listing()
             began = time.perf_counter()
-            await run.io_bound(session.run, exam)
+            try:
+                await run.io_bound(session.run, exam)
+            except Exception as error:  # a card the engine cannot play: the queue goes on, the card says why
+                exam.status, exam.problem = "failed", str(error)
+                progress.props(remove="indeterminate")
+                listing()
+                continue
             texts["took"].text = f"{exam.name}: simulated in {time.perf_counter() - began:.1f} s, a scanner takes {exam.card.scan_time_s:.0f} s"
             progress.props(remove="indeterminate")
             for index in range(len(exam.frames)):
@@ -962,7 +984,9 @@ def console():
                 ui.label("duration").classes("label")
                 texts["time2"] = ui.label("").classes("value")
                 texts["verdict"] = ui.label("").classes("value").style("flex: 1")
-                ui.button("Accept", icon="playlist_add", on_click=plan).props("unelevated dense no-caps")
+                discard = ui.button("Discard", on_click=lambda: (chosen.__setitem__("editing", None), listing(), draw())).props(
+                    "flat dense no-caps")
+                accept = ui.button("Accept", icon="playlist_add", on_click=plan).props("unelevated dense no-caps")
 
         # scan control, and what the scan runs under
         with ui.column().classes("pane").style("width: 290px"):

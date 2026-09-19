@@ -65,5 +65,14 @@ class TestApp:
                 user.find("Start").click()
                 await user.should_see("simulated in", retries=100)
                 await user.should_see("4 / 4")
+                user.find("New scan").click()
+                user.find("sLASER, played").click()
+                user.find("Accept").click()
+                user.find(marker="card 2 sLASER, played TE 30").click()             # a planned card opens for editing, in its place
+                await user.should_see("Accept changes")
+                next(e for e in user.find(kind=ui.number).elements if e.props.get("label") == "TE (ms)").value = 40
+                user.find("Accept changes").click()
+                await user.should_see("2 sLASER, played TE 40")
+                await user.should_not_see("Accept changes")
 
         asyncio.run(visit())

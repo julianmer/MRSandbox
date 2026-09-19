@@ -192,7 +192,7 @@ class Exam:
         name: What the queue shows.
         card: The Protocol as it was when the exam was planned.
         position_mm, size_mm: The voxel as it was planned.
-        status: "planned", "running", or "done".
+        status: "planned", "running", "done", or "failed" (with `problem`, the reason).
         data: NIfTI-MRS with the transients apart (DIM_DYN), once it ran.
         ppm: The display's axis, 0.2 to 4.2 ppm.
         frames: The display as the scan comes in, [(transients so far, real spectrum)].
@@ -214,6 +214,7 @@ class Exam:
     position_mm: tuple
     size_mm: float
     status: str = "planned"
+    problem: str = ""
     data: object = None
     ppm: object = None
     frames: list = dataclasses.field(default_factory=list)
@@ -600,12 +601,14 @@ class Session:
     #***********#
     #   queue   #
     #***********#
-    def plan(self, queued=True):
+    def plan(self, queued=True, instead_of=None):
         """Put the card with the voxel as they stand into the queue; returns the exam. An exam
-        that is not queued is a preview (the designer's look at a design's spectrum)."""
+        that is not queued is a preview (the designer's look at a design's spectrum); with
+        `instead_of` it takes that planned exam's place and number (an edited card)."""
         card = dataclasses.replace(self.protocol, averages=int(self.protocol.averages), npoints=int(self.protocol.npoints))
         timed = card.sequence in SEQUENCES or card.sequence == MRSI   # an edited or an own design has its own timings
-        name = f"{len(self.queue) + 1} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
+        number = len(self.queue) + 1 if instead_of is None else self.queue.index(instead_of) + 1
+        name = f"{number} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
                     records=self.outlook()["records"], sequence=self.sequence(card))
         if card.sequence in EDITING:
@@ -613,7 +616,9 @@ class Session:
             exam.conditions = self.editing(card)
         else:
             exam.conditions, exam.combinations = {"scan": exam.sequence}, {"scan": {"scan": 1.0}}
-        if queued:
+        if instead_of is not None:
+            self.queue[number - 1] = exam
+        elif queued:
             self.queue.append(exam)
         return exam
 
