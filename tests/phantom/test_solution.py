@@ -128,3 +128,9 @@ class TestVials:
         assert scan.voxel(NIST_SYSTEM["pd_array"][3][0], 6.0).fractions.gm == pytest.approx(0.2, abs=1e-6)
         assert not any(float(scan.voxel((0.0, 0.0, 0.0), 8.0).resolve(c)) for c in truth.conc.values())
         assert Phantom.nist(b0_t=1.5).vials[0].water_t1_s == pytest.approx(2.033)
+        # the commercial phantom's certificate: 3 T only, by temperature
+        bought = Phantom.nist(commercial=True, temperature_c=23.2)
+        assert bought.name == "nist_model_130" and bought.vials[0].water_t1_s == pytest.approx(1.98750)
+        assert bought.vials[27].water_t2_s == pytest.approx(0.00548) and bought.vials[31].water == pytest.approx(0.2)
+        with pytest.raises(ValueError, match="3 T only"):
+            Phantom.nist(b0_t=1.5, commercial=True)

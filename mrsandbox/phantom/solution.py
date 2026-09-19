@@ -146,21 +146,28 @@ class Phantom(Brain):
         return cls(phantoms.BRAINO, diameter_mm=169.0, temperature_c=temperature_c, name="braino", **kwargs)
 
     @classmethod
-    def nist(cls, b0_t=3.0, cell_mm=2.5):
-        """The ISMRM/NIST system phantom (Stupic et al. 2021, database.phantoms
-        NIST_SYSTEM, the prototype's tables at 20 C): water, no metabolites, and three
-        plates of fourteen spheres with their measured T1 and T2 at 1.5 or 3 T, the
-        proton density spheres with their share of H2O. The fill water takes its own
-        measured rates at 3 T (at 1.5 T too, stated); the fiducial spheres, the plates,
-        and the resolution inset are not modelled."""
-        table = phantoms.NIST_SYSTEM
-        field = 3 if b0_t > 2.25 else 2
-        vials = [Vial(row[0], table["sphere_inner_diameter_mm"], water_t1_s=row[field][0] / 1000.0,
-                      water_t2_s=row[field][1] / 1000.0, water=1.0 - row[1] / 100.0 if array == "pd_array" else 1.0)
-                 for array in ("t1_array", "t2_array", "pd_array") for row in table[array]]
+    def nist(cls, b0_t=3.0, commercial=False, temperature_c=20.0, cell_mm=2.5):
+        """The ISMRM/NIST system phantom (Stupic et al. 2021): water, no metabolites, and
+        three plates of fourteen spheres with their measured T1 and T2, the proton density
+        spheres with their share of H2O. The prototype's tables hold 1.5 and 3 T at 20 C
+        (database.phantoms NIST_SYSTEM); `commercial` takes the T1 and T2 arrays of the
+        model 130 from its NIST certificate (NIST_MODEL_130: 3 T only, 16 to 26 C, the
+        nearest typed temperature; two of its MnCl2 spheres are flagged there). The fill
+        water takes its own measured rates at 3 T and 20 C throughout (stated); the
+        fiducial spheres, the plates, and the resolution inset are not modelled."""
+        table, field = phantoms.NIST_SYSTEM, 3 if b0_t > 2.25 else 2
+        relaxation = {array: [row[field] for row in table[array]] for array in ("t1_array", "t2_array", "pd_array")}
+        if commercial:
+            if field == 2:
+                raise ValueError("the model 130's certificate holds 3 T only")
+            for array, rows in phantoms.NIST_MODEL_130.items():
+                relaxation[array] = [values[min(values, key=lambda t: abs(t - temperature_c))] for _, values in rows]
+        vials = [Vial(row[0], table["sphere_inner_diameter_mm"], water_t1_s=t1_ms / 1000.0, water_t2_s=t2_ms / 1000.0,
+                      water=1.0 - row[1] / 100.0 if array == "pd_array" else 1.0)
+                 for array in relaxation for row, (t1_ms, t2_ms) in zip(table[array], relaxation[array])]
         r1, r2 = table["water_r1_r2_3t"]
-        return cls({}, diameter_mm=table["inner_diameter_mm"], temperature_c=20.0, water_t1_s=1.0 / r1,
-                   water_t2_s=1.0 / r2, vials=vials, name="nist_system", cell_mm=cell_mm)
+        return cls({}, diameter_mm=table["inner_diameter_mm"], temperature_c=temperature_c, water_t1_s=1.0 / r1,
+                   water_t2_s=1.0 / r2, vials=vials, name="nist_model_130" if commercial else "nist_system", cell_mm=cell_mm)
 
     #************#
     #   params   #

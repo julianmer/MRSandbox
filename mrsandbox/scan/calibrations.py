@@ -540,8 +540,40 @@ NOISE_DS005917_7T = Calibration(
     note="a check: patients and controls at baseline; the place and the echo's split are stand-ins",
 )
 
+# the Prisma again, under conditions far from its record's (NOISE_COWS_PRISMA_3T: sLASER TE 26,
+# midline voxels): the unedited sub-experiment of a HERMES acquisition at TE 80 in a lateral
+# temporal voxel reads 8.0 where the record says 4.9. At TE 80 the reading leans on the NAA T2
+# prior, the twin is an ideal PRESS where the data's is an editing sequence with its losses, and
+# the voxel's place is a stand-in: the record does not carry there unexamined, which is what
+# its header's departures say. A check, four subjects.
+NOISE_DS007806_PRISMA_3T = Calibration(
+    leaf="noise.sigma",
+    value=8.0,
+    prior=(7.2, 9.3),
+    measured={"statistic": NOISE_COWS_PRISMA_3T.measured["statistic"], "median": 17.6,
+              "implied_value": 8.80, "subjects": 4,
+              "apodized": {"statistic": APODIZED, "median": 54.7, "implied_value": 7.26}},
+    source={"dataset": "OpenNeuro ds007806, SPfMRS social processing, the first sessions of four "
+                       "subjects, the sub-experiment with the editing pulse at 7.5 ppm (CC0)",
+            "citation": "Ford et al. 2026, bioRxiv, doi 10.64898/2025.12.03.691778",
+            "url": "https://openneuro.org/datasets/ds007806"},
+    scanner={"vendor": "siemens", "model": "Prisma_fit", "software": "syngo MR E11", "field_t": 2.89},
+    coil={"channels": (32,), "name": "Head_32"},
+    sequence={"name": "HERMES", "family": "Press", "product": "mgs_svs_ed (universal editing sequence)",
+              "te_s": 0.080, "tr_s": 2.0, "simulated_as": "Press(te1_s=0.03, te2_s=0.05, tr_s=2.0)"},
+    acquisition={"npoints": 4096, "bandwidth_hz": 4000.0, "transients": 195, "measured_on": 1,
+                 "water_suppressed": True},
+    voxel={"region": "right temporal, functional MRS during a task", "size_mm": (25.0, 40.0, 25.0),
+           "simulated_brain": "icbm152", "simulated_position_mm": (52.0, -30.0, 8.0),
+           "place_note": "read off the scanner coordinates of one subject, a stand-in"},
+    processing="NIfTI-MRS from TWIX (spec2nii), noise-whitened SVD coil combination, SNR per "
+               "transient, median per subject",
+    date="19/09/26",
+    note="a check of what the Prisma's record carries: not to TE 80 in a lateral voxel",
+)
+
 # records read the same way under other conditions, kept to test what carries a number there
 CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, LINEWIDTH_SIEMENS_3T,
-          NOISE_DS005917_7T)
+          NOISE_DS005917_7T, NOISE_DS007806_PRISMA_3T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
