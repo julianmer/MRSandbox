@@ -30,7 +30,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image, ImageFilter
 
-from mrsandbox.console.session import BLOCKS, EDITING, GEARS, MRSI, SEQUENCES, SUPPRESSION, Session
+from mrsandbox.console.session import BLOCKS, EDITING, GEARS, MRSI, SEQUENCES, SUPPRESSION, TEMPLATES, Session
 from mrsandbox.phantom import FieldMap
 
 #*************#
@@ -66,6 +66,29 @@ LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "l
                                pathlib.Path(sys.prefix) / "share" / "mrsandbox" / "logo.png") if path.exists()), None)
 CHOICES = {"shape": ["sinc", "gaussian", "hermite"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
            "scheme": list(SUPPRESSION)}
+# the designer's blocks in plain words: an icon, what the block is, and its settings with their units
+BLOCK_ICONS = {"hard pulse": "bolt", "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
+               "crusher": "signal_cellular_alt", "coherence filter": "filter_alt", "water suppression": "water_drop"}
+BLOCK_NOTES = {
+    "hard pulse": "An ideal pulse of no duration. It turns every spin alike, whatever its frequency.",
+    "own pulse": "A pulse of your own shape. Type its envelope or load it from a file; the flip angle scales it.",
+    "shaped pulse": "A sinc, Gaussian or Hermite pulse, played in time. With a slice gradient it selects a slab along an axis.",
+    "delay": "Free evolution. The echo time is the sum of the delays and the pulses between excitation and readout.",
+    "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the echo and spoils the rest.",
+    "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes every other, without time.",
+    "water suppression": "A train of selective pulses on the water line before the excitation: VAPOR, WET or CHESS.",
+}
+CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)", "duration_ms": "duration (ms)", "offset_ppm": "centre (ppm)",
+            "shape": "shape", "slice_axis": "slice along", "slice_hz_per_mm": "slice gradient (Hz/mm)", "ms": "duration (ms)",
+            "axis": "along", "cycles_per_mm": "dephasing (cycles/mm)", "order": "coherence order kept", "scheme": "scheme",
+            "envelope": "envelope, amplitudes apart by commas"}
+# the settings' groups by name, and the ways a parameter can be set
+GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2": "T2 of the metabolites (s)",
+          "contrast": "Grey to white matter concentration ratio", "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
+          "mm": "Macromolecules", "downfield": "Downfield peaks", "lineshape": "Line shape (Hz)", "noise": "Noise",
+          "b1_scale": "B1 scale", "acquisition": "Acquisition: shifts, phases, eddy currents", "gradients": "Gradient eddy currents",
+          "spurious": "Spurious echoes"}
+WAYS = ["as its source gives it", "set to", "vary between", "from a map"]
 # the planes' edges as a console letters them (top, bottom, left, right), and the axis each plane leafs along
 EDGES = {"tra": ("A", "P", "L", "R", 2, "z"), "sag": ("H", "F", "P", "A", 0, "x"), "cor": ("H", "F", "L", "R", 1, "y")}
 
@@ -101,12 +124,13 @@ if LOGO is not None:
 #*************#
 #   diagram   #
 #*************#
-def lanes(drawn, width=580.0, lane=62.0):
+def lanes(drawn, width=580.0, lane=62.0, mark=None):
     """A pulse sequence diagram (Session.diagram) drawn the way the literature draws one
     (Landheer et al. 2020, Figure 1), as SVG: the RF with its lobes and flips, the three
     gradients with slice selection open and crushers filled, the signal, the intervals
     between the pulses on top. A prelude that outlasts the localization (a suppression
-    train) folds into a box, the time axis broken there."""
+    train) folds into a box, the time axis broken there. `mark` (start, end) in ms
+    lights a span up, the designer's chosen block."""
     names = ("RF", "Gx", "Gy", "Gz", "Signal")
     left, right, top, fold = 56.0, 14.0, 26.0, 86.0
     start, stop = drawn["adc"]
@@ -146,6 +170,9 @@ def lanes(drawn, width=580.0, lane=62.0):
     tall = max([abs(v) for _, v in drawn["rf"]] + [1e-9])
     out = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" style="display: block; max-height: 100%" '
            f'font-family="inherit" font-size="10">']
+    if mark is not None:
+        out.append(f'<rect x="{x(mark[0]) - 4:.1f}" y="{top - 4}" width="{x(mark[1]) - x(mark[0]) + 8:.1f}" height="{5 * lane + 8}" rx="3" '
+                   f'fill="{GLOW}" fill-opacity="0.1" stroke="{GLOW}" stroke-opacity="0.5" />')
     for name, middle in zip(names, middles):
         out.append(f'<text x="6" y="{middle + 3:.1f}" fill="{DIM}">{name}</text>'
                    f'<line x1="{left}" x2="{width - right}" y1="{middle:.1f}" y2="{middle:.1f}" stroke="{LINE}" />')
@@ -356,92 +383,187 @@ def console():
         ui.notify(f"Exported {session.export(exam, pathlib.Path.home() / 'MRSandbox' / 'exports')}")
 
     def gear(panel=None):
-        """The advanced settings: every leaf of the parameter tree with its prior, a number or
-        a range open to the operator, the rest shown as it is; a panel's gear opens its own
-        branches (GEARS), the top bar's the whole tree."""
-        def put(path, kind, index):
-            def handle(event):
-                if event.value is None:
-                    return
-                now = dict((p, n) for p, k, n, _ in session.leaves() if k == kind).get(path)
-                values = list(now if now is not None else (0.0,) * (1 if kind == "fixed" else 2))
-                values[index] = float(event.value)
-                session.overrides[path] = values[0] if kind == "fixed" else (min(values), max(values))
+        """The settings of the simulation, a line per parameter: as its source gives it (a value,
+        a range or a spread over the population, from which every exam draws), or the operator's
+        own: set to a number, varied between two, or read from a map. A panel's gear opens its
+        own branches (GEARS), the top bar's the whole tree; the search narrows either."""
+        priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
+                  if panel is None or path.split(".")[0] in GEARS[panel]}
+
+        def line(holder, path):
+            """One parameter's line for the way it is set now."""
+            kind, numbers = priors[path]
+            own = session.overrides.get(path)
+            way = WAYS[0] if own is None else WAYS[3] if isinstance(own, str) else WAYS[2] if isinstance(own, tuple) else WAYS[1]
+            middle = numbers[0] if kind in ("fixed", "normal") else 0.5 * (numbers[0] + numbers[1]) if kind == "range" else 0.0
+            spread = (numbers if kind == "range" else (numbers[0] - 2.0 * numbers[1], numbers[0] + 2.0 * numbers[1]) if kind == "normal"
+                      else (0.9 * middle, 1.1 * middle))
+
+            def switch(event):
+                session.overrides.pop(path, None)
+                if event.value == WAYS[1]:
+                    session.overrides[path] = float(middle)
+                elif event.value == WAYS[2]:
+                    session.overrides[path] = (float(min(spread)), float(max(spread)))
+                line(holder, path)
                 draw()
-            return handle
 
-        async def taken(event, path):
-            session.overrides[path] = str(await keep(event))
-            ui.notify(f"{path} reads {event.file.name}")
-            draw()
+            def put(index):
+                def handle(event):
+                    if event.value is None:
+                        return
+                    now = session.overrides[path]
+                    if isinstance(now, tuple):
+                        values = list(now)
+                        values[index] = float(event.value)
+                        session.overrides[path] = (min(values), max(values))
+                    else:
+                        session.overrides[path] = float(event.value)
+                    draw()
+                return handle
 
-        groups = {}
-        for path, kind, numbers, touched in session.leaves():
-            if panel is None or path.split(".")[0] in GEARS[panel]:
-                groups.setdefault(path.split(".")[0], []).append((path, kind, numbers, touched))
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px; max-width: 900px"):
+            async def taken(event):
+                session.overrides[path] = str(await keep(event))
+                line(holder, path)
+                draw()
+
+            holder.clear()
+            with holder:
+                ui.label(path.split(".", 1)[-1]).style(f"width: 190px; color: {SAND if own is not None else INK}")
+                ui.select(WAYS if kind != "other" else [WAYS[0], WAYS[3]], value=way, on_change=switch).props(
+                    "dense outlined dark options-dense").style("width: 190px")
+                if way == WAYS[0]:
+                    ui.label({"fixed": "{:g}", "range": "{:g} to {:g}", "normal": "{:.4g} ± {:.2g}"}[kind].format(*numbers)
+                             if kind != "other" else numbers).classes("value").style(f"color: {DIM}")
+                elif way == WAYS[3]:
+                    if own is not None:
+                        ui.label(pathlib.Path(own).name).classes("value")
+                    ui.upload(label="a NIfTI map in this parameter's units", auto_upload=True, on_upload=taken).props(
+                        "flat dense dark accept=.nii,.gz").style("width: 300px")
+                else:
+                    for index, number in enumerate(own if isinstance(own, tuple) else (own,)):
+                        ui.number(value=number, format="%.6g", on_change=put(index)).props("dense outlined dark").style("width: 120px")
+                        if index == 0 and isinstance(own, tuple):
+                            ui.label("and").classes("label")
+
+        def build(wanted=""):
+            """The groups, each filled when it first opens; a search fills and opens what it finds."""
+            body.clear()
+            groups = {}
+            for path in priors:
+                if wanted.lower() in path.lower():
+                    groups.setdefault(path.split(".")[0], []).append(path)
+            with body:
+                for group, paths in groups.items():
+                    def fill(event, paths=paths, done=[]):
+                        if event.value and not done:
+                            done.append(True)
+                            with event.sender:
+                                for path in paths:
+                                    line(ui.row().classes("w-full items-center no-wrap").style("gap: 10px; min-height: 40px"), path)
+
+                    changed_here = sum(path in session.overrides for path in paths)
+                    fold = ui.expansion(f"{GROUPS.get(group, group)}   ·   {len(paths)}" + (f"   ·   {changed_here} your own" if changed_here else ""),
+                                        on_value_change=fill).classes("w-full").props("dense dark")
+                    if wanted:
+                        fold.value = True
+
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px; max-width: 1000px"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"Advanced settings · {panel or 'the whole parameter tree'}").classes("label")
+                ui.label(f"Settings · {panel or 'everything'}").classes("label")
                 ui.space()
-                ui.button("Reset all to their sources", on_click=lambda: (session.overrides.clear(), dialog.close(), draw())).props(
-                    "flat dense")
-            with ui.scroll_area().style("height: 560px; width: 100%"):
-                for group, rows in groups.items():
-                    with ui.expansion(f"{group}   ({len(rows)})").classes("w-full").props("dense dark"):
-                        for path, kind, numbers, touched in rows:
-                            with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
-                                ui.label(path).style(f"width: 250px; color: {SAND if touched else INK}")
-                                if kind == "other":
-                                    ui.label(numbers).classes("label").style("text-transform: none; letter-spacing: 0; flex: 1")
-                                else:
-                                    for index, number in enumerate(numbers):
-                                        ui.number(value=number, format="%.6g", on_change=put(path, kind, index)).props(
-                                            "dense outlined dark").style("width: 130px")
-                                    ui.label("fixed" if kind == "fixed" else "drawn between").classes("label").style("flex: 1")
-                                ui.upload(label="map", auto_upload=True, on_upload=lambda e, path=path: taken(e, path)).props(
-                                    "flat dense dark accept=.nii,.gz").style("width: 150px").tooltip(
-                                    "a NIfTI map in this parameter's units: every voxel reads it where it lies")
+                ui.input(placeholder="search, e.g. NAA or t2", on_change=lambda e: build(e.value or "")).props(
+                    "dense outlined dark clearable debounce=300").style("width: 260px")
+                ui.button("Reset all", icon="restart_alt", on_click=lambda: (session.overrides.clear(), build(), draw())).props(
+                    "flat dense no-caps")
+                ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+            ui.label("Every exam draws its values from these lines. Left as they are, they are the population's, each from its source. "
+                     "Set one to a number for a subject you decide on, or let it vary between two.").classes("label").style(
+                "text-transform: none; letter-spacing: 0")
+            with ui.scroll_area().style("height: 580px; width: 100%"):
+                body = ui.column().classes("w-full").style("gap: 0")
+            build()
         dialog.open()
 
     def designer():
-        """The sequence designer: the operator's own design as blocks in order, each with its
-        settings, and its diagram as it grows."""
-        def rebuild():
-            listing_of_blocks.clear()
-            with listing_of_blocks:
-                for index, (kind, settings) in enumerate(session.design):
-                    with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
-                        ui.label(f"{index + 1}").classes("label").style("width: 18px")
-                        ui.label(kind).style(f"width: 140px; color: {SAND}")
-                        for key, value in settings.items():
-                            if key in CHOICES:
-                                ui.select(CHOICES[key], value=value, label=key, on_change=lambda e, s=settings, k=key: (
-                                    s.__setitem__(k, e.value), refresh())).props("dense outlined dark").style("width: 120px")
-                            elif isinstance(value, str):   # an own pulse's envelope, amplitudes apart by commas
-                                ui.input(key, value=value, on_change=lambda e, s=settings, k=key: (
-                                    s.__setitem__(k, e.value), refresh())).props("dense outlined dark").style("width: 330px")
-                            else:
-                                ui.number(key, value=value, format="%.6g", on_change=lambda e, s=settings, k=key: (
-                                    e.value is not None and s.__setitem__(k, float(e.value)), refresh())).props(
-                                    "dense outlined dark").style("width: 120px")
-                        ui.space()
-                        ui.button("↑", on_click=lambda _, i=index: move(i, -1)).props("flat dense")
-                        ui.button("↓", on_click=lambda _, i=index: move(i, +1)).props("flat dense")
-                        ui.button("✕", on_click=lambda _, i=index: (session.design.pop(i), rebuild(), refresh())).props("flat dense")
-
-        def move(index, step):
-            other = index + step
-            if 0 <= other < len(session.design):
-                session.design[index], session.design[other] = session.design[other], session.design[index]
-                rebuild()
-                refresh()
+        """The sequence designer: the design as a strip of blocks in the order they play, over its
+        diagram; a block is chosen on the strip, set in the inspector beside the palette, and new
+        blocks go in after it. The diagram marks the chosen block, and the design's spectrum at
+        the planned voxel is one press away."""
+        state = {"at": 0}
 
         def refresh():
+            """Redraw the diagram with the chosen block marked, the strip, and the inspector."""
+            strip.clear()
+            with strip:
+                for index, (kind, settings) in enumerate(session.design):
+                    brief = next((f"{value:g}" + unit for key, unit in (("flip_deg", "°"), ("ms", " ms"), ("cycles_per_mm", " /mm"), ("order", ""))
+                                  if (value := settings.get(key)) is not None), settings.get("scheme", ""))
+                    ui.button(f"{index + 1}  {kind}  {brief}", icon=BLOCK_ICONS[kind], on_click=lambda _, i=index: (
+                        state.__setitem__("at", i), refresh())).props("flat dense no-caps").classes(
+                        "tool" + (" on" if index == state["at"] else ""))
+            inspector.clear()
+            with inspector:
+                if session.design:
+                    kind, settings = session.design[state["at"]]
+                    with ui.row().classes("w-full items-center"):
+                        ui.icon(BLOCK_ICONS[kind], size="20px").style(f"color: {GLOW}")
+                        ui.label(f"Block {state['at'] + 1} · {kind}").style(f"color: {SAND}")
+                        ui.space()
+                        for icon, tip, act in (("arrow_back", "earlier", lambda: move(-1)), ("arrow_forward", "later", lambda: move(+1)),
+                                               ("content_copy", "duplicate", lambda: place(kind, dict(settings))),
+                                               ("delete", "remove", remove)):
+                            ui.button(icon=icon, on_click=act).props("flat dense round").tooltip(tip)
+                    ui.label(BLOCK_NOTES[kind]).classes("label").style("text-transform: none; letter-spacing: 0")
+                    with ui.row().classes("w-full").style("gap: 8px"):
+                        for key, value in settings.items():
+                            def put(event, key=key, number=not isinstance(value, str)):
+                                if event.value is not None:
+                                    settings[key] = float(event.value) if number else event.value
+                                    redraw()
+                            if key in CHOICES:
+                                ui.select(CHOICES[key], value=value, label=CAPTIONS[key], on_change=put).props("dense outlined dark").style("width: 170px")
+                            elif isinstance(value, str):
+                                ui.input(CAPTIONS[key], value=value, on_change=put).props("dense outlined dark debounce=400").style("width: 100%")
+                                ui.upload(label="or a text file of amplitudes", auto_upload=True, on_upload=envelope).props(
+                                    "flat dense dark accept=.txt,.csv").style("width: 280px")
+                            else:
+                                ui.number(CAPTIONS[key], value=value, format="%.6g", on_change=put).props("dense outlined dark").style("width: 170px")
+            redraw()
+
+        def redraw():
             try:
-                preview.content = lanes(session.diagram())
-                problem.text = ""
+                drawn = session.diagram()
+                counts = np.cumsum([0] + [len(BLOCKS[kind][1](settings)) for kind, settings in session.design])
+                spans = drawn["spans"][counts[state["at"]]:counts[state["at"] + 1]] if session.design else []
+                preview.content = lanes(drawn, width=900.0, lane=50.0, mark=(spans[0][0], spans[-1][1]) if spans else None)
+                problem.text = f"{len(session.design)} blocks · the readout opens at {drawn['adc'][0]:.1f} ms"
+                problem.style(f"color: {DIM}")
             except Exception as error:  # a half-typed block is not a design yet: say why and keep the last diagram
-                problem.text = str(error)[:140]
+                problem.text = str(error)[:160]
+                problem.style(f"color: {BAD}")
+
+        def place(kind, settings):
+            """A new block goes in after the chosen one and becomes the chosen one."""
+            state["at"] = min(state["at"] + 1, len(session.design))
+            session.design.insert(state["at"], (kind, settings))
+            refresh()
+
+        def move(step):
+            here, there = state["at"], state["at"] + step
+            if 0 <= there < len(session.design):
+                session.design[here], session.design[there] = session.design[there], session.design[here]
+                state["at"] = there
+                refresh()
+
+        def remove():
+            session.design.pop(state["at"])
+            state["at"] = max(min(state["at"], len(session.design) - 1), 0)
+            refresh()
+
+        async def envelope(event):
+            session.design[state["at"]][1]["envelope"] = ", ".join((await event.file.text()).replace(",", " ").split())
+            refresh()
 
         async def look():
             """The design's spectrum at the planned voxel, eight transients, beside its diagram."""
@@ -450,28 +572,38 @@ def console():
                 exam.card = dataclasses.replace(exam.card, averages=8)
                 await run.io_bound(session.run, exam, 0)
             except Exception as error:
-                problem.text = str(error)[:140]
+                problem.text = str(error)[:160]
+                problem.style(f"color: {BAD}")
                 return
             outcome.options["series"][0]["data"] = [[float(a), float(b)] for a, b in zip(exam.ppm, exam.frames[-1][1])]
             outcome.update()
 
         with ui.dialog().props("maximized") as dialog, ui.card().classes("pane"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Sequence designer · blocks play in order, top to bottom").classes("label")
+                ui.label("Sequence designer").style(f"color: {SAND}; font-size: 15px")
+                ui.select(list(TEMPLATES), label="start from", on_change=lambda e: e.value and (
+                    setattr(session, "design", [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in TEMPLATES[e.value]]),
+                    state.__setitem__("at", 0), refresh())).props("dense outlined dark").style("width: 300px")
+                problem = ui.label("").classes("value")
                 ui.space()
                 ui.button("Spectrum of this design", icon="insights", on_click=look).props("outline dense no-caps")
-                new_kind = ui.select(list(BLOCKS), value="delay").props("dense outlined dark").style("width: 190px")
-                ui.button("Add block", on_click=lambda: (session.design.append((new_kind.value, dict(BLOCKS[new_kind.value][0]))),
-                                                         rebuild(), refresh())).props("outline dense")
-                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense")
+                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
-                preview = ui.html(lanes(session.diagram()), sanitize=False).style("flex: 3; min-width: 0")
+                preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
                 outcome = ui.echart({**copy.deepcopy(SPECTRUM), "title": {**SPECTRUM["title"], "text": "the spectrum this design gives"}}).style(
-                    "flex: 2; min-width: 0; height: 270px")
-            problem = ui.label("").style(f"color: {BAD}")
-            with ui.scroll_area().style("flex: 1; min-height: 300px; width: 100%"):
-                listing_of_blocks = ui.column().classes("w-full").style("gap: 4px")
-            rebuild()
+                    "flex: 2; min-width: 0; height: 300px")
+            ui.label("The design, in the order it plays · press a block to choose it").classes("label")
+            strip = ui.row().classes("w-full").style("gap: 4px")
+            with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch; flex: 1"):
+                with ui.column().classes("pane").style("width: 430px"):
+                    ui.label("Add after the chosen block").classes("label")
+                    for kind in BLOCKS:
+                        with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
+                            ui.button(kind, icon=BLOCK_ICONS[kind], on_click=lambda _, kind=kind: place(kind, dict(BLOCKS[kind][0]))).props(
+                                "outline dense no-caps align=left").style("width: 190px")
+                            ui.label(BLOCK_NOTES[kind].split(".")[0]).classes("label").style("text-transform: none; letter-spacing: 0")
+                inspector = ui.column().classes("pane").style("flex: 1; min-width: 0")
+            refresh()
         dialog.open()
 
     def review():
@@ -562,8 +694,16 @@ def console():
         def handle(event):
             if event.value is None:
                 return
+            before = getattr(session.protocol if target == "card" else session, attribute)
             setattr(session.protocol if target == "card" else session, attribute, event.value)
             if attribute == "subject":
+                try:
+                    session.body()
+                except Exception as error:  # a subject whose files are placed by hand and are not there
+                    ui.notify(f"{event.value} is not on this machine: {error}"[:200], type="warning", multi_line=True)
+                    session.subject = before
+                    event.sender.value = before
+                    return
                 session.position_mm = [0.0, 0.0, 0.0] if hasattr(session.body(), "contents") else [0.0, -45.0, 35.0]
                 session.view_mm = list(session.position_mm)
             if attribute in ("subject", "coil", "size_mm"):

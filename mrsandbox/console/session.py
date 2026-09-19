@@ -23,7 +23,7 @@ import numpy as np
 
 from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.scanners import PRESETS
-from mrsandbox.params import Fixed, Mapped, Params, Uniform
+from mrsandbox.params import Fixed, Mapped, Normal, Params, Uniform
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, MegaPress,
@@ -35,9 +35,17 @@ from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 #**************#
 # who can lie on the table: a name for the picker and how to make them
 SUBJECTS = {
-    "Brain, ICBM152 average": lambda: Brain.load("icbm152"),
+    "Brain, ICBM152 average, 2 mm": lambda: Brain.load("icbm152"),
+    "Brain, BigBrain-MR, 0.8 mm": lambda: Brain.load("bigbrain_mr"),
+    "Head, QSM challenge, 0.64 mm": lambda: Brain.load("qsm_rc2"),
     "Phantom, SPECTRE sphere": lambda: Phantom.spectre(temperature_c=21.0),
     "Phantom, Braino sphere": lambda: Phantom.braino(temperature_c=21.0),
+}
+# what the planes show of a subject that has a relaxation map on its grid: R1 reads like a T1-weighted
+# image; the others show their tissue maps
+PICTURES = {
+    "Brain, BigBrain-MR, 0.8 mm": lambda: 1.0 / np.maximum(Volume.load("bigbrain_mr/t1map_800um").data, 0.5),
+    "Head, QSM challenge, 0.64 mm": lambda: Volume.load("qsm_rc2/r1").data,
 }
 
 #***************#
@@ -117,10 +125,20 @@ BLOCKS = {
     "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
     "water suppression": (dict(scheme="VAPOR"), lambda b: SUPPRESSION[b["scheme"]]().events),
 }
-# a spin echo with played crushers, the design the designer opens with
+# what a design can start from, in the designer's own blocks: a spin echo with played crushers (the design
+# the designer opens with), and the library's ideal PRESS and STEAM, their coherence pathways kept by filters
 STARTER = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)), ("crusher", dict(axis="x", cycles_per_mm=0.15)),
            ("hard pulse", dict(flip_deg=180.0, phase_deg=90.0)), ("crusher", dict(axis="x", cycles_per_mm=0.15)),
            ("delay", dict(ms=15.0))]
+TEMPLATES = {
+    "Spin echo, played crushers, TE 30": STARTER,
+    "PRESS, TE 30": [("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=5.5)),
+                     ("hard pulse", dict(flip_deg=180.0, phase_deg=90.0)), ("coherence filter", dict(order=1)), ("delay", dict(ms=15.0)),
+                     ("hard pulse", dict(flip_deg=180.0, phase_deg=90.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=9.5))],
+    "STEAM, TE 20, TM 10": [("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=1)), ("delay", dict(ms=10.0)),
+                            ("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=0)), ("delay", dict(ms=10.0)),
+                            ("hard pulse", dict(flip_deg=90.0, phase_deg=180.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=10.0))],
+}
 
 
 #**************************************************************************************************#
@@ -239,7 +257,7 @@ class Session:
     def __init__(self):
         self.scanner = "siemens_prisma_3t"
         self.coil = "one ideal channel"
-        self.subject = "Brain, ICBM152 average"
+        self.subject = "Brain, ICBM152 average, 2 mm"
         self.position_mm = [0.0, -45.0, 35.0]
         self.view_mm = [0.0, -45.0, 35.0]
         self.size_mm = 20.0
@@ -260,6 +278,17 @@ class Session:
         if self.subject not in self._bodies:
             self._bodies[self.subject] = self.subjects[self.subject]()
         return self._bodies[self.subject]
+
+    def picture(self):
+        """The subject as the planes show it, 8 bits on the subject's grid, made once per name."""
+        key = ("picture", self.subject)
+        if key not in self._bodies:
+            body = self.body()
+            shown = PICTURES[self.subject]() if self.subject in PICTURES else 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
+            shown = np.where(body.gm + body.wm + body.csf > 0.05, shown, 0.0) if self.subject in PICTURES else shown
+            low, high = np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in PICTURES else (0.0, float(shown.max()))
+            self._bodies[key] = np.uint8(255 * np.clip((shown - low) / max(float(high - low), 1e-6), 0.0, 1.0) * (shown > 0))
+        return self._bodies[key]
 
     @staticmethod
     def volume(path):
@@ -337,7 +366,7 @@ class Session:
         envelopes (a real envelope keeps its lobes' signs), "pulses": [(t, text)] every
         pulse's centre and flip, "marks": [(t, text)] for what takes no time and has no
         height (coherence filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner
-        would play them (sequences.timeline), "crushers": [(start, end, axis)] the spans
+        would play them (sequences.timeline), "spans": [(start, end)] of every event, "crushers": [(start, end, axis)] the spans
         that are crushers and no slice selection, "groups": [(start, end, name)] the
         card's preludes (water suppression, OVS), "adc": (start, end)}."""
         preludes = self.preludes(self.protocol) if sequence is None and self.protocol.sequence in SEQUENCES else {}
@@ -371,7 +400,7 @@ class Session:
         lanes = {axis: [(float(a), float(b)) for a, b in zip(1000.0 * times[::4], waves.get(axis, np.zeros(times.size))[::4])]
                  for axis in "xyz"}
         return {"rf": rf, "pulses": pulses, "marks": marks, **lanes, "crushers": crushers, "groups": groups,
-                "adc": (end_ms, end_ms + readout_ms)}
+                "adc": (end_ms, end_ms + readout_ms), "spans": [(1000.0 * a, 1000.0 * b) for a, b in spans]}
 
     #************#
     #   leaves   #
@@ -388,11 +417,12 @@ class Session:
             node[leaf] = Mapped(self.volume(value)) if isinstance(value, str) else value
         return Params(tree)
 
-    def leaves(self):
+    def leaves(self, own=True):
         """Every leaf of the parameter tree a scan of this room would draw from, as
         [(path, kind, numbers, changed)]: kind "fixed" with (value,), "range" with (low,
-        high), or "other" with the prior's own text (a distribution, a tissue record, a
-        map), which the console shows and does not edit."""
+        high), "normal" with (mean, sd), or "other" with the prior's own text (a tissue
+        record, a map), which the console shows and does not edit. Without `own` the
+        tree is the one before the operator's settings: the priors as their sources give them."""
         sequence = self.sequence()
         found = []
 
@@ -405,10 +435,12 @@ class Session:
                     found.append((".".join(here), "fixed", (float(value.value),), ".".join(here) in self.overrides))
                 elif isinstance(value, Uniform):
                     found.append((".".join(here), "range", (float(value.low), float(value.high)), ".".join(here) in self.overrides))
+                elif isinstance(value, Normal):
+                    found.append((".".join(here), "normal", (float(value.mean), float(value.sd)), ".".join(here) in self.overrides))
                 else:
                     found.append((".".join(here), "other", repr(value)[:60], ".".join(here) in self.overrides))
 
-        walk(self.profile().scan(self.body(), sequence, params=self.params(), **self.fields()).params, ())
+        walk(self.profile().scan(self.body(), sequence, params=self.params() if own else Params({}), **self.fields()).params, ())
         return found
 
     #************#
@@ -420,8 +452,7 @@ class Session:
         (anterior up in the transverse plane, superior up in the other two), the voxel's
         outline (left, top, width, height) in the image's pixels, whether this slice cuts
         the voxel, and where the other two planes cross it (column, row)."""
-        body = self.body()
-        tissue = 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
+        body, tissue = self.body(), self.picture()
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
         nx, ny, nz = tissue.shape
         i, j, k = (np.asarray(self.position_mm) - origin) / step          # the voxel's centre, the outline's
@@ -434,7 +465,7 @@ class Session:
         def framed(plane, left, top, width, height, cut, cross):
             """A plane shaded to 8 bits and centred in a square of the largest grid side, all three
             planes then drawing alike; the voxel's outline and the cross move with it."""
-            shade = np.uint8(255 * np.clip(plane / max(float(tissue.max()), 1e-6), 0.0, 1.0))
+            shade = plane
             rows, columns = (side - shade.shape[0]) // 2, (side - shade.shape[1]) // 2
             square = np.zeros((side, side), dtype=np.uint8)
             square[rows:rows + shade.shape[0], columns:columns + shade.shape[1]] = shade
@@ -479,15 +510,16 @@ class Session:
         cloud of `points`, the receive loops as (centre, normal, radius), the voxel's box
         as (centre, size)."""
         body = self.body()
-        inside = (body.gm + body.wm) > 0.5
-        surface = inside & ~(np.roll(inside, 1, 0) & np.roll(inside, -1, 0) & np.roll(inside, 1, 1)
-                             & np.roll(inside, -1, 1) & np.roll(inside, 1, 2) & np.roll(inside, -1, 2))
-        index = np.argwhere(surface)
-        index = index[np.random.default_rng(0).choice(len(index), size=min(points, len(index)), replace=False)]
-        cloud = index * np.diag(body.affine)[:3] + body.affine[:3, 3]
+        if ("cloud", self.subject) not in self._bodies:          # the surface of a fine grid takes seconds: once per subject
+            inside = (body.gm + body.wm) > 0.5
+            surface = inside & ~(np.roll(inside, 1, 0) & np.roll(inside, -1, 0) & np.roll(inside, 1, 1)
+                                 & np.roll(inside, -1, 1) & np.roll(inside, 1, 2) & np.roll(inside, -1, 2))
+            index = np.argwhere(surface)
+            index = index[np.random.default_rng(0).choice(len(index), size=min(points, len(index)), replace=False)]
+            self._bodies[("cloud", self.subject)] = (index * np.diag(body.affine)[:3] + body.affine[:3, 3]).astype(np.float32)
         coils = self.COILS[self.coil]()
         loops = [] if coils is None else [(tuple(loop.center_mm), tuple(loop.normal), float(loop.radius_mm)) for loop in coils.loops]
-        return {"cloud": cloud.astype(np.float32), "loops": loops, "voxel": (tuple(self.position_mm), float(self.size_mm))}
+        return {"cloud": self._bodies[("cloud", self.subject)], "loops": loops, "voxel": (tuple(self.position_mm), float(self.size_mm))}
 
     #*************#
     #   outlook   #
