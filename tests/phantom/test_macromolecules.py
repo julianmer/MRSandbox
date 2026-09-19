@@ -220,6 +220,11 @@ class TestMeasured:
         ratio = measured[window].sum() / (parameterized - without)[window].sum()
         assert 0.5 < ratio < 2.0
 
+    def test_the_peak_anchor_is_its_record(self):
+        from mrsandbox.scan.calibrations import MODELS
+
+        assert MeasuredMM.PEAK_ANCHOR == MODELS["mm.measured.peak_anchor"].value
+
     #****************#
     #   te decay     #
     #****************#

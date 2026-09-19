@@ -158,6 +158,15 @@ class TestCovarianceReading:
         plain.voxel((0.0, -45.0, 35.0), 30.0).acquire(seed=1, npoints=256).save(single)
         with pytest.raises(ValueError, match="channels"):
             CovarianceReading.from_nifti(single)
+        # a phantom's unsuppressed water rings to the end of the FID: no noise to read there
+        from mrsandbox import Phantom, Unsuppressed
+
+        ringing = VirtualScan(Phantom.spectre(), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.024),
+                              coils=CoilArray.ring(8).loaded(own_noise=0.5), water=Unsuppressed(),
+                              params=Params(noise=dict(sigma=0.2)))
+        ringing.voxel((0.0, 0.0, 0.0), 20.0).acquire(seed=1, npoints=1024, dwell_s=1.0 / 2000.0).save(tmp_path / "ringing.nii.gz")
+        with pytest.raises(ValueError, match="still ring"):
+            CovarianceReading.from_nifti(tmp_path / "ringing.nii.gz")
 
 
 #**************************************************************************************************#

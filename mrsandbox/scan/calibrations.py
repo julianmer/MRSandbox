@@ -485,6 +485,39 @@ CREATINE_THREE_DATASETS_3T = Calibration(
 )
 
 
+#********************#
+#   macromolecules   #
+#********************#
+# the level of phantom.MeasuredMM, the consensus 3 T macromolecule spectrum: a measured shape whose
+# level rests on a stated prior (mm.level_mm) through the area of its whole FID, which holds
+# everything broad beneath the peaks too and left the peaks a third of what raw data show. The
+# record is the ratio read once, measured over twin, and sits in the source as its PEAK_ANCHOR.
+# With it the twin reads 0.12 where the data read 0.16 to 0.20: NAA's own height grows with the
+# background beneath it, so the reading is not linear in the anchor, and turning the anchor
+# until the two agree would be a fit. ParameterizedMM reads 0.9 to 1.1 of the data under the same
+# level and needs none; CoupledMM's co-edited part is right at TE 80 (HadamardEditing) and its
+# short-TE shortfall is not understood (no factor typed).
+MM_MEASURED_LEVEL_3T = Calibration(
+    leaf="mm.measured.peak_anchor",
+    value=3.3,
+    prior=(3.1, 4.3),
+    measured={"statistic": "height of the 0.9 ppm peak (0.85 to 0.97 ppm) above the 0.3 to 0.5 ppm baseline in "
+                           "the subjects' median spectrum, NAA height 1, 2 Hz apodization: measured over the "
+                           "MeasuredMM twin at the prior's level",
+              "fmrs_in_pain": (0.157, 0.051), "cows_prefrontal": (0.177, 0.054), "big_gaba_siemens": (0.195, 0.046),
+              "twin_with_the_anchor": (0.127, 0.118, 0.117)},
+    source=CREATINE_THREE_DATASETS_3T.source,
+    scanner=CREATINE_THREE_DATASETS_3T.scanner,
+    coil=CREATINE_THREE_DATASETS_3T.coil,
+    sequence=CREATINE_THREE_DATASETS_3T.sequence,
+    acquisition=CREATINE_THREE_DATASETS_3T.acquisition,
+    voxel=CREATINE_THREE_DATASETS_3T.voxel,
+    processing=CREATINE_THREE_DATASETS_3T.processing,
+    date="19/09/26",
+    carried_by="subject",
+    note="the median of the three ratios; Big GABA's 27 mL PRESS voxel may hold lipid at 0.9 ppm",
+)
+
 #***************#
 #   catalogue   #
 #***************#
@@ -605,3 +638,5 @@ CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, COIL_OWN_NOISE_SIEMENS_PHANTOM_3T,
           NOISE_DS005917_7T, NOISE_DS007806_PRISMA_3T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
+# numbers of the signal models, outside the Params tree
+MODELS = {c.leaf: c for c in (MM_MEASURED_LEVEL_3T,)}

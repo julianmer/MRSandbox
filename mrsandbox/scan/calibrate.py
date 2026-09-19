@@ -533,7 +533,13 @@ class CovarianceReading:
         data = np.moveaxis(np.asarray(image.dataobj)[0, 0, 0], 1 + tags.index("DIM_COIL"), -1)
         start = int(round(data.shape[0] * (1.0 - tail)))
         header = {key: extension[key] for key in HEADER if extension.get(key) not in (None, "")}
-        return cls.from_arrays(data[start:], header=header)
+        reading = cls.from_arrays(data[start:], header=header)
+        # a signal that still rings there is one mode shared by every channel: an unsuppressed
+        # phantom's water reads 1.00 where loaded arrays read 0.05 to 0.25
+        if reading.coils > 2 and reading.statistics()["median_pair"] > 0.8:
+            raise ValueError("the FIDs still ring at their end (the channels correlate as one): "
+                             "give the scanner's own noise samples to from_arrays")
+        return reading
 
     #******************#
     #   from ismrmrd   #

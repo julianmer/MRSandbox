@@ -160,8 +160,9 @@ class MeasuredMM(MMSource):
     convention, time scaled from the measured 123.245 MHz to the simulated field, and
     remodulated from its water centred transmitter frame (4.7 ppm, verified against the
     consensus peak positions) to the 0 ppm reference frame. The signal is normalized so
-    the drawn mm.level_mm leaf keeps the ParameterizedMM meaning: total MM area equals
-    the level times the parameterization's summed proton areas.
+    the drawn mm.level_mm leaf keeps the ParameterizedMM meaning at the peaks: the area
+    of the whole measured signal is the level times the parameterization's summed proton
+    areas times `PEAK_ANCHOR`, the factor raw in vivo data put between the two.
 
     The measurement was acquired at TE 8 ms; for any other sequence every frequency bin
     is attenuated by exp(-(TE - 8 ms) / T2(ppm)), with T2(ppm) the value of the nearest
@@ -179,6 +180,12 @@ class MeasuredMM(MMSource):
     """
 
     TOTAL_PROTON_AREAS = 11.39  # the ParameterizedMM MM components summed
+    # the first point of the measured FID holds everything broad beneath the peaks too, so a
+    # level that fixes the whole area leaves the peaks short: read off raw data, the 0.9 ppm
+    # peak over NAA in three in vivo datasets stands 3.1, 3.3, and 4.3 times above this
+    # source's twin (scan.calibrations MM_MEASURED_LEVEL_3T). The anchor puts the peaks where
+    # the data have them, and where ParameterizedMM's already are under the same level.
+    PEAK_ANCHOR = 3.3
     MEASURED_TE_S = 0.008  # the consensus 3 T human STEAM acquisition
 
     #**********#
@@ -208,7 +215,7 @@ class MeasuredMM(MMSource):
         signal = np.conj(resampled) * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
         if sequence is not None:
             signal = self._sequence_response(signal, t, f0_mhz, sequence, voxel, truth)
-        scale = truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS / np.conj(measured[0])
+        scale = truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS * self.PEAK_ANCHOR / np.conj(measured[0])
         return (signal * scale).astype(np.complex64)
 
     #*************************#
