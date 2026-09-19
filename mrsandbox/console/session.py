@@ -29,6 +29,7 @@ from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
                                  OuterVolumeSuppression, Press, SelectivePulse, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
+from mrsandbox.sequences.events import trapezoid
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
@@ -581,6 +582,43 @@ class Session:
         return tuple(float(np.linalg.norm(np.maximum(np.abs(points - centre) - half, 0.0), axis=1).min())
                      for centre in (np.asarray(self.position_mm), np.asarray(self.position_mm) + moved))
 
+    def encoding(self):
+        """Whether the scanner's gradients can play a spectroscopic image's encoding, as {"said": what it
+        takes in words, "problems": (...)}; None for a card that is no image. Every moment is played
+        as the shortest trapezoid under the scanner's gradient and slew limits (sequences.events
+        trapezoid), all axes at once.
+        Phase encoded: the largest step reaches k = 1 / (2 cell) along every encoded axis, and it must
+        fit between the last pulse and the readout (the design's last delay).
+        EPSI: within one spectral dwell the readout crosses k-space along x, 1 / cell, once and flies
+        back (flyback) or once (bidirectional); the longest sweep the gradients need sets the widest
+        spectral bandwidth the image can have, and the card's must lie under it. The engine itself
+        plays these trajectories with ideal gradients (scan.mrsi: the sweep's timing is the model)."""
+        card = self.protocol
+        if card.sequence != MRSI:
+            return None
+        scanner = self.profile().scanner
+
+        def lasts(cycles_per_mm):
+            _, ramp, flat = trapezoid(cycles_per_mm * 1e3 / (42.5774785 * 1e6), scanner.max_grad_mt_m * 1e-3, scanner.max_slew_t_m_s)
+            return 2.0 * ramp + flat
+
+        free = next((float(event.t_s) for event in reversed(self.sequence().events) if isinstance(event, Delay)), 0.0)
+        if card.mrsi_readout == "phase encoded":
+            axes = [self.size_mm[0], self.size_mm[1]] + ([self.size_mm[2]] if card.slices > 1 else [])
+            needs = max(lasts(0.5 / edge) for edge in axes)
+            return {"said": f"phase encoding takes {1e3 * needs:.2f} ms of the {1e3 * free:.1f} ms before the readout",
+                    "problems": () if needs <= free else (f"the phase encoding gradients need {1e3 * needs:.2f} ms, the design leaves "
+                                                          f"{1e3 * free:.1f} ms before the readout: larger cells, or a longer TE",)}
+        sweeps = 2 if card.mrsi_readout == "epsi" else 1
+        widest = 1.0 / (sweeps * lasts(1.0 / self.size_mm[0]))
+        axes = [self.size_mm[1]] + ([self.size_mm[2]] if card.slices > 1 else [])
+        needs = max(lasts(0.5 / edge) for edge in axes)
+        problems = () if card.bandwidth_hz <= widest else (
+            f"a sweep across {int(card.matrix)} cells of {self.size_mm[0]:g} mm takes {1e3 / (sweeps * widest):.2f} ms on these gradients: the "
+            f"spectral bandwidth can be {widest:.0f} Hz at most, the card asks {card.bandwidth_hz:g} Hz (larger cells, or fewer Hz)",)
+        return {"said": f"EPSI up to {widest:.0f} Hz of spectral bandwidth; phase encoding along y takes {1e3 * needs:.2f} ms",
+                "problems": problems + (() if needs <= free else (f"the phase encoding gradients need {1e3 * needs:.2f} ms of {1e3 * free:.1f} ms",))}
+
     def linewidth(self):
         """The width in Hz the B0 field gives a line of the planned voxel after the shim: the
         full width at half maximum of the voxel's field distribution under a 1 Hz Lorentzian
@@ -1061,7 +1099,9 @@ class Session:
                 "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
-                "violations": tuple(dict.fromkeys(sequence.violations(limits))) + ((self.unfitted,) if self.unfitted else ()),
+                "encoding": self.encoding(),
+                "violations": tuple(dict.fromkeys(sequence.violations(limits))) + ((self.unfitted,) if self.unfitted else ()) + (
+                    self.encoding()["problems"] if self.encoding() else ()),
                 "records": {leaf: record.record(scan) for leaf, record in profile.calibrations().items()}}
 
     #***********#

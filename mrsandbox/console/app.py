@@ -377,6 +377,7 @@ def console():
                                f"{look['lipid_mm'][0]:.0f} mm from the voxel, {look['lipid_mm'][1]:.0f} mm from where lipid is selected")
         texts["lipid"].style(f"color: {BAD if look['lipid_mm'] is not None and min(look['lipid_mm']) < 1.0 else INK}")
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
+        texts["encoding"].text = look["encoding"]["said"] if look["encoding"] else "a single voxel has none"
         texts["resolution"].text = f"{card.bandwidth_hz / card.npoints:.2f} Hz / point"
         texts["readout"].text = f"{1000.0 * card.npoints / card.bandwidth_hz:.0f} ms"
         texts["limits"].text = "B1 {:g} uT · G {:g} mT/m · slew {:g} T/m/s".format(*look["limits"])
@@ -1479,7 +1480,7 @@ def console():
                                 f"flex: 1; min-height: 0; max-height: calc(100vh - 650px); overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
                             ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
                             for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
-                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
+                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("encoding", "image encoding"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                  ("limits", "hardware")):
                                 ui.label(caption).classes("label")
                                 texts[key] = ui.label("").classes("value").style("white-space: pre-line")

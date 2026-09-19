@@ -218,6 +218,20 @@ class TestSession:
         session.phase_cycle(0, 2)                                                   # an excitation takes the receiver with it
         assert [complex(w) for w in session.weights["cycled"].values()] == [1, -1]
 
+    def test_an_images_encoding_is_held_against_the_scanners_gradients(self):
+        session = Session(ICBM)
+        assert session.encoding() is None and session.outlook()["encoding"] is None     # a single voxel encodes nothing
+        session.protocol.sequence, session.protocol.bandwidth_hz, session.size_mm = "MRSI PRESS", 2000.0, [10.0, 10.0, 15.0]
+        assert session.encoding()["problems"] == () and "phase encoding takes 0.15 ms" in session.encoding()["said"]
+        session.protocol.mrsi_readout = "epsi"                                          # a sweep and its flyback per spectral dwell
+        flyback = session.encoding()
+        session.protocol.mrsi_readout = "epsi-bidirectional"                            # one sweep per dwell: twice the bandwidth
+        assert "4614 Hz" in session.encoding()["said"] and "2307 Hz" in flyback["said"] and flyback["problems"] == ()
+        session.protocol.mrsi_readout, session.size_mm = "epsi", [5.0, 5.0, 15.0]        # finer cells, a longer sweep
+        assert "1631 Hz at most" in session.outlook()["violations"][-1]
+        session.scanner = "generic_7t"                                                  # stronger and no faster gradients: the slew decides
+        assert "1631 Hz" in session.encoding()["said"]
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 
