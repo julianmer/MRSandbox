@@ -50,48 +50,6 @@ class PulseqSequence(Sequence):
         self.adc_phase_deg = adc_phase_deg
 
 
-#******************#
-#   rf to events   #
-#******************#
-def _shaped_pulse(rf, center_ppm, steps, traps, extent_mm):
-    """One RF event as a ShapedPulse: amplitude and phase resampled on a uniform grid.
-
-    Pulseq RF amplitudes are already in Hz, so the pulse plays in peak_hz mode (exact
-    amplitudes, scaled by the drawn transmit field like any RF). The carrier sits at
-    center_ppm plus the file's ppm offset; the file's Hz offset and any phase
-    modulation become the per-step frequency track, with the half-step phase
-    correction so the midpoint-sampled phase is exact.
-    """
-    signal = np.asarray(rf.signal, dtype=np.complex128)
-    t = np.asarray(rf.t, dtype=np.float64)
-    duration = float(rf.shape_dur)
-    dt = duration / steps
-    mid = (np.arange(steps) + 0.5) * dt
-    amplitude = np.interp(mid, t, np.abs(signal))
-    phase = np.interp(mid, t, np.unwrap(np.angle(signal)))
-    peak = float(amplitude.max())
-    freq_offset = float(rf.freq_offset)
-    sweep = np.diff(phase, prepend=phase[0]) / (2.0 * math.pi * dt) + freq_offset
-    phase0_deg = math.degrees(float(phase[0]) + float(rf.phase_offset)
-                              - math.pi * freq_offset * dt)
-    flat = [(channel, grad) for channel, grad in traps.items()
-            if grad.type == "trap" and grad.amplitude]
-    gradient = float(flat[0][1].amplitude) / 1000.0 if flat else 0.0
-    axis = flat[0][0][1] if flat else "x"
-    return ShapedPulse(
-        flip_deg=None,
-        duration_s=duration,
-        envelope=(amplitude / peak).astype(np.float32),
-        offset_ppm=center_ppm + float(getattr(rf, "freq_ppm", 0.0)),
-        phase_deg=phase0_deg,
-        frequency_hz=sweep.astype(np.float32) if np.any(sweep) else None,
-        peak_hz=peak,
-        gradient_hz_per_mm=gradient,
-        gradient_axis=axis,
-        extent_mm=extent_mm,
-    )
-
-
 #****************#
 #   seq import   #
 #****************#
@@ -170,7 +128,36 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
                 raise ValueError("RF phase_ppm is not supported")
             if float(rf.delay) > 0.0:
                 events.append(Delay(float(rf.delay)))
-            events.append(_shaped_pulse(rf, center_ppm, steps, traps, extent_mm))
+            # the RF event as a ShapedPulse, amplitude and phase resampled on a uniform grid.
+            # Pulseq RF amplitudes are already in Hz, so the pulse plays in peak_hz mode
+            # (exact amplitudes, scaled by the drawn transmit field like any RF). The
+            # carrier sits at center_ppm plus the file's ppm offset; the file's Hz offset
+            # and any phase modulation become the per-step frequency track, with the
+            # half-step phase correction so the midpoint-sampled phase is exact.
+            signal = np.asarray(rf.signal, dtype=np.complex128)
+            t = np.asarray(rf.t, dtype=np.float64)
+            dt = float(rf.shape_dur) / steps
+            mid = (np.arange(steps) + 0.5) * dt
+            amplitude = np.interp(mid, t, np.abs(signal))
+            phase = np.interp(mid, t, np.unwrap(np.angle(signal)))
+            peak = float(amplitude.max())
+            freq_offset = float(rf.freq_offset)
+            sweep = np.diff(phase, prepend=phase[0]) / (2.0 * math.pi * dt) + freq_offset
+            flat = [(channel, grad) for channel, grad in traps.items()
+                    if grad.type == "trap" and grad.amplitude]
+            events.append(ShapedPulse(
+                flip_deg=None,
+                duration_s=float(rf.shape_dur),
+                envelope=(amplitude / peak).astype(np.float32),
+                offset_ppm=center_ppm + float(getattr(rf, "freq_ppm", 0.0)),
+                phase_deg=math.degrees(float(phase[0]) + float(rf.phase_offset)
+                                       - math.pi * freq_offset * dt),
+                frequency_hz=sweep.astype(np.float32) if np.any(sweep) else None,
+                peak_hz=peak,
+                gradient_hz_per_mm=float(flat[0][1].amplitude) / 1000.0 if flat else 0.0,
+                gradient_axis=flat[0][0][1] if flat else "x",
+                extent_mm=extent_mm,
+            ))
             tail = duration - float(rf.delay) - float(rf.shape_dur)
             if tail > 1e-9:
                 events.append(Delay(tail))
@@ -186,29 +173,6 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
     if not sequences:
         raise ValueError("the .seq file has no ADC block: nothing marks the readout")
     return tuple(sequences)
-
-
-#***********************#
-#   waveform to hertz   #
-#***********************#
-def _export_waveform(pulse, f0_mhz, center_ppm):
-    """The exact complex Hz waveform a ShapedPulse plays, with the carrier expressed
-    as a Hz offset from the scanner reference at center_ppm."""
-    envelope = np.asarray(pulse.envelope, dtype=np.float64)
-    dt = float(pulse.duration_s) / envelope.size
-    if pulse.peak_hz is not None:
-        amplitude = envelope * float(pulse.peak_hz)
-    else:
-        amplitude = envelope * (float(pulse.flip_deg) / 360.0) / (envelope.sum() * dt)
-    phase = np.full(envelope.size, math.radians(float(pulse.phase_deg)))
-    if pulse.frequency_hz is not None:
-        sweep = np.asarray(pulse.frequency_hz, dtype=np.float64)
-        phase = phase + 2.0 * math.pi * np.cumsum(sweep) * dt
-    offsets = pulse.offset_ppm if isinstance(pulse.offset_ppm, tuple) else (pulse.offset_ppm,)
-    if len(offsets) != 1:
-        raise ValueError("multi-band pulses have no single carrier to export")
-    freq_offset = (float(offsets[0]) - center_ppm) * f0_mhz
-    return amplitude * np.exp(1j * phase), dt, freq_offset
 
 
 #****************#
@@ -253,7 +217,21 @@ def write_seq(sequence, path, npoints, dwell_s, f0_mhz, center_ppm=4.65,
             if rounded > 1e-9:
                 seq.add_block(pypulseq.make_delay(rounded))
         elif isinstance(event, ShapedPulse):
-            signal, dt, freq_offset = _export_waveform(event, f0_mhz, center_ppm)
+            # the exact complex Hz waveform the pulse plays, its carrier as a Hz offset from
+            # the scanner reference at center_ppm
+            envelope = np.asarray(event.envelope, dtype=np.float64)
+            dt = float(event.duration_s) / envelope.size
+            if event.peak_hz is not None:
+                amplitude = envelope * float(event.peak_hz)
+            else:
+                amplitude = envelope * (float(event.flip_deg) / 360.0) / (envelope.sum() * dt)
+            phase = np.full(envelope.size, math.radians(float(event.phase_deg)))
+            if event.frequency_hz is not None:
+                phase = phase + 2.0 * math.pi * np.cumsum(np.asarray(event.frequency_hz, dtype=np.float64)) * dt
+            offsets = event.offset_ppm if isinstance(event.offset_ppm, tuple) else (event.offset_ppm,)
+            if len(offsets) != 1:
+                raise ValueError("multi-band pulses have no single carrier to export")
+            signal, freq_offset = amplitude * np.exp(1j * phase), (float(offsets[0]) - center_ppm) * f0_mhz
             use = "refocusing" if (event.peak_hz is not None
                                    or float(event.flip_deg) >= 135.0) else "excitation"
             rf = pypulseq.make_arbitrary_rf(
