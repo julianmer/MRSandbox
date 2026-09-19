@@ -78,3 +78,24 @@ MRSI_CHALLENGE = {
     "tCho": (1.38, 1.78),
     "tCr": (6.90, 5.50),
 }
+
+
+#*************#
+#   spectre   #
+#*************#
+# Source: Gold Standard Phantoms, SPECTRE (Spectroscopy Reference) information sheet,
+#         PD-1004-1001 issue 4.0. https://www.goldstandardphantoms.com
+# Units:  mM, one value per metabolite: a solution, in vitro.
+# Notes:  a sphere of 180 mm (SPECTRE) or 110 mm (SPECTRE Pico) outer diameter, HDPE shell;
+#         water based, 50 mM potassium phosphate buffer, pH 7.4 at 20 C, doped with Gd-DTPA
+#         (amount not stated, so the relaxation times are not known from the sheet), a
+#         CMIT:MIT preservative. Choline is choline chloride. No macromolecules, no lipids.
+SPECTRE = {
+    "NAA": 12.5,
+    "Cr": 10.0,
+    "Cho": 3.0,
+    "Ins": 7.5,
+    "Glu": 12.5,
+    "Lac": 5.0,
+    "GABA": 2.0,
+}
