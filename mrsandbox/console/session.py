@@ -21,6 +21,7 @@ import pathlib
 import numpy as np
 
 from mrsandbox.hardware import CoilArray
+from mrsandbox.params import Fixed, Params, Uniform
 from mrsandbox.phantom import Brain, Phantom
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import Press, SemiLaser, Steam
@@ -119,6 +120,7 @@ class Session:
         position_mm, size_mm: The voxel being planned, world millimetres.
         protocol: The protocol card being edited.
         queue: The exams, in the order they were planned.
+        overrides: The operator's own settings of leaves, {path: value or (low, high)}.
     """
 
     # the receive arrays on the shelf
@@ -136,6 +138,7 @@ class Session:
         self.size_mm = 20.0
         self.protocol = Protocol()
         self.queue = []
+        self.overrides = {}
         self._bodies = {}
 
     #**********#
@@ -150,6 +153,45 @@ class Session:
     def profile(self):
         """The scanner on the floor with its records."""
         return ScannerProfile.preset(self.scanner)
+
+    #************#
+    #   leaves   #
+    #************#
+    def params(self):
+        """The operator's own settings as a Params tree over the defaults: {path: value or
+        (low, high)} of `overrides`, nested."""
+        tree = {}
+        for path, value in self.overrides.items():
+            node = tree
+            *branch, leaf = path.split(".")
+            for key in branch:
+                node = node.setdefault(key, {})
+            node[leaf] = value
+        return Params(tree)
+
+    def leaves(self):
+        """Every leaf of the parameter tree a scan of this room would draw from, as
+        [(path, kind, numbers, changed)]: kind "fixed" with (value,), "range" with (low,
+        high), or "other" with the prior's own text (a distribution, a tissue record, a
+        map), which the console shows and does not edit."""
+        card = self.protocol
+        sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        found = []
+
+        def walk(node, path):
+            for key, value in node.items():
+                here = path + (key,)
+                if isinstance(value, Params):
+                    walk(value, here)
+                elif isinstance(value, Fixed) and isinstance(value.value, (int, float)) and not isinstance(value.value, bool):
+                    found.append((".".join(here), "fixed", (float(value.value),), ".".join(here) in self.overrides))
+                elif isinstance(value, Uniform):
+                    found.append((".".join(here), "range", (float(value.low), float(value.high)), ".".join(here) in self.overrides))
+                else:
+                    found.append((".".join(here), "other", repr(value)[:60], False))
+
+        walk(self.profile().scan(self.body(), sequence, params=self.params()).params, ())
+        return found
 
     #************#
     #   planes   #
@@ -226,7 +268,7 @@ class Session:
         card = self.protocol
         sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
         profile = self.profile()
-        scan = profile.scan(self.body(), sequence)
+        scan = profile.scan(self.body(), sequence, params=self.params())
         fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
         limits = profile.scanner
         return {"gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
@@ -256,7 +298,7 @@ class Session:
         sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
         profile = self.profile()
         coils = self.COILS[self.coil]()
-        room = Multiplex(self.body(), profile.scanner, {"scan": sequence}, records=profile.records,
+        room = Multiplex(self.body(), profile.scanner, {"scan": sequence}, records=profile.records, params=self.params(),
                          coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
         exam.data = room.transients(exam.position_mm, exam.size_mm, card.averages, tr_s=card.tr_ms / 1000.0, seed=seed,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)

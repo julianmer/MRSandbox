@@ -65,3 +65,15 @@ class TestSession:
         drawn = session.scene(points=500)
         assert drawn["cloud"].shape == (500, 3) and len(drawn["loops"]) == 32 and drawn["voxel"] == ((0.0, 0.0, 0.0), 20.0)
         assert np.allclose(np.linalg.norm(drawn["cloud"], axis=1), 90.0, atol=5.0)  # the sphere's surface
+
+    def test_the_gear_opens_every_leaf_and_a_setting_reaches_the_scan(self):
+        session = Session()
+        leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
+        assert leaves["noise.sigma"] == ("range", (3.7, 6.9)) and leaves["water.temperature_c"] == ("fixed", (37.0,))
+        assert leaves["water.t1_s"][0] == "other"                               # a tissue record, shown and not edited
+        session.overrides.update({"conc.NAA": 20.0, "noise.sigma": (1.0, 1.5)})
+        changed = {path: numbers for path, _, numbers, touched in session.leaves() if touched}
+        assert changed == {"conc.NAA": (20.0,), "noise.sigma": (1.0, 1.5)}
+        session.protocol.averages, session.protocol.npoints = 2, 512
+        exam = session.run(session.plan(), seed=1)
+        assert exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]["conc"]["NAA"] == 20.0

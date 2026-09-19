@@ -156,6 +156,44 @@ def console():
             return
         ui.notify(f"Exported {session.export(exam, pathlib.Path.home() / 'MRSandbox' / 'exports')}")
 
+    def gear():
+        """The advanced settings: every leaf of the parameter tree with its prior, a number or
+        a range open to the operator, the rest shown as it is."""
+        def put(path, kind, index):
+            def handle(event):
+                if event.value is None:
+                    return
+                now = dict((p, n) for p, k, n, _ in session.leaves() if k == kind).get(path)
+                values = list(now if now is not None else (0.0,) * (1 if kind == "fixed" else 2))
+                values[index] = float(event.value)
+                session.overrides[path] = values[0] if kind == "fixed" else (min(values), max(values))
+                draw()
+            return handle
+
+        groups = {}
+        for path, kind, numbers, touched in session.leaves():
+            groups.setdefault(path.split(".")[0], []).append((path, kind, numbers, touched))
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px; max-width: 900px"):
+            with ui.row().classes("w-full items-center"):
+                ui.label("Advanced settings · the parameter tree").classes("label")
+                ui.space()
+                ui.button("Reset all to their sources", on_click=lambda: (session.overrides.clear(), dialog.close(), draw())).props(
+                    "flat dense")
+            with ui.scroll_area().style("height: 560px; width: 100%"):
+                for group, rows in groups.items():
+                    with ui.expansion(f"{group}   ({len(rows)})").classes("w-full").props("dense dark"):
+                        for path, kind, numbers, touched in rows:
+                            with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
+                                ui.label(path).style(f"width: 250px; color: {SAND if touched else INK}")
+                                if kind == "other":
+                                    ui.label(numbers).classes("label").style("text-transform: none; letter-spacing: 0")
+                                else:
+                                    for index, number in enumerate(numbers):
+                                        ui.number(value=number, format="%.6g", on_change=put(path, kind, index)).props(
+                                            "dense outlined dark").style("width: 130px")
+                                    ui.label("fixed" if kind == "fixed" else "drawn between").classes("label")
+        dialog.open()
+
     def changed(attribute, target=None):
         """A handler that writes a control's value to the session (or the card) and redraws."""
         def handle(event):
@@ -185,6 +223,7 @@ def console():
             ui.select(options, value=getattr(session, attribute), label=caption, on_change=changed(attribute)).props(
                 "dense outlined dark").style(f"min-width: {width}px")
         ui.space()
+        ui.button("⚙ advanced", on_click=gear).props("flat dense").style(f"color: {GLOW}")
         status = ui.label("idle").classes("label")
 
     with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch"):
