@@ -24,6 +24,7 @@ import dataclasses
 import io
 import os
 import pathlib
+import subprocess
 import sys
 import time
 
@@ -31,7 +32,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image, ImageFilter
 
-from mrsandbox.console.session import BLOCKS, CALIBRATIONS, EDITING, FIELDS, GEARS, IDEALS, MRSI, OVERLAYS, REAL, RUN, SEQUENCES, SUPPRESSION, TEMPLATES, Session
+from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
 from mrsandbox.phantom import FieldMap
 
 #*************#
@@ -227,12 +228,17 @@ def lanes(drawn, width=470.0, lane=46.0, mark=None):
 SPECTRUM = {
     "backgroundColor": "transparent", "animation": False,
     "title": {"text": "no scan yet", "textStyle": {"color": DIM, "fontSize": 11, "fontWeight": "normal"}},
-    "grid": {"left": 12, "right": 12, "top": 28, "bottom": 28},
-    "xAxis": {"type": "value", "inverse": True, "min": 0.2, "max": 4.2, "name": "ppm",
+    "grid": {"left": 12, "right": 12, "top": 28, "bottom": 44},
+    "xAxis": {"type": "value", "inverse": True, "min": -0.5, "max": 6.5, "name": "ppm",
               "axisLine": {"lineStyle": {"color": LINE}}, "axisLabel": {"color": DIM}, "splitLine": {"show": False}},
     "yAxis": {"type": "value", "show": False, "scale": True},
+    # the wheel zooms and a drag pans along ppm; the slider below shows where one is in -0.5 to 6.5
+    "dataZoom": [{"type": "inside", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "filterMode": "none"},
+                 {"type": "slider", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "height": 14, "bottom": 2, "filterMode": "none",
+                  "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)", "textStyle": {"color": DIM}}],
     "series": [{"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": SAND, "width": 1.3},
-                "areaStyle": {"color": COPPER, "opacity": 0.12}}],
+                "areaStyle": {"color": COPPER, "opacity": 0.12}},
+               {"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": DIM, "width": 0.7}, "silent": True}],
 }
 
 
@@ -256,6 +262,8 @@ def console():
             cloud = drawn["cloud"] * MM
             shade = 0.45 + 0.55 * (cloud[:, 2] - cloud[:, 2].min()) / max(float(np.ptp(cloud[:, 2])), 1e-6)
             ui.scene.point_cloud(cloud.tolist(), (shade[:, None] * np.array([0.89, 0.65, 0.37])).tolist(), point_size=0.035)
+            if len(drawn["lipid"]):                                # the lipid layer about the brain, to judge a voxel near it
+                ui.scene.point_cloud((drawn["lipid"] * MM).tolist(), [[0.85, 0.55, 0.69]] * len(drawn["lipid"]), point_size=0.03)
             for centre, normal, radius in drawn["loops"]:
                 n = np.asarray(normal, dtype=float) / np.linalg.norm(normal)
                 a = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
@@ -330,6 +338,9 @@ def console():
             any(moved) for moved in look["displaced"].values()) else "none, the localization is ideal"
         texts["linewidth"].text = ("uniform field, none" if look["linewidth_hz"] is None else
                                    f"{look['linewidth_hz']:.1f} Hz on a 1 Hz line, {session.shim} shim")
+        texts["lipid"].text = ("this subject has no lipid layer" if look["lipid_mm"] is None else
+                               f"{look['lipid_mm'][0]:.0f} mm from the voxel, {look['lipid_mm'][1]:.0f} mm from where lipid is selected")
+        texts["lipid"].style(f"color: {BAD if look['lipid_mm'] is not None and min(look['lipid_mm']) < 1.0 else INK}")
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
         texts["resolution"].text = f"{card.bandwidth_hz / card.npoints:.2f} Hz / point"
         texts["readout"].text = f"{1000.0 * card.npoints / card.bandwidth_hz:.0f} ms"
@@ -372,9 +383,16 @@ def console():
                             chosen.__setitem__("exam", None if chosen["exam"] is exam else chosen["exam"]), listing(), draw()))
 
     def frame(exam, index):
-        count, real = exam.frames[index]
+        """The Live display at one step of the build-up: the average so far in the combination or condition
+        chosen, and, grey behind it, the transient that just came in."""
+        name = looks.value if looks.value in exam.builds else exam.shown
+        count, real = exam.builds[name][min(index, len(exam.builds[name]) - 1)] if exam.builds else exam.frames[index][:2]
+        single = exam.frames[index][2] if name == exam.shown and len(exam.frames) > 1 else []
         spectrum.options["series"][0]["data"] = [[float(p), float(s)] for p, s in zip(exam.ppm, real)]
-        spectrum.options["xAxis"]["min"], spectrum.options["xAxis"]["max"] = round(float(exam.ppm.min()), 1), round(float(exam.ppm.max()), 1)
+        spectrum.options["series"][1]["data"] = [[float(p), float(s)] for p, s in zip(exam.ppm, single)]
+        if index in (0, -1) or index == len(exam.frames) - 1:        # the window the exam opens on; the operator's zoom stays in between
+            for zoom in spectrum.options["dataZoom"]:
+                zoom["startValue"], zoom["endValue"] = exam.window
         spectrum.options["title"]["text"] = f"{exam.name}   ·   transient {count} of {exam.card.averages}"
         spectrum.update()
         progress.value = count / max(exam.card.averages, 1)
@@ -384,6 +402,7 @@ def console():
         """Select an exam: its voxel returns to the planes, its card to the tabs, its spectrum to the
         display. A planned exam is then being edited: Accept puts the card back in its place."""
         chosen["exam"], chosen["editing"] = exam, exam if exam.status == "planned" else None
+        looks.set_options(list(exam.builds), value=exam.shown if exam.builds else None)
         for field in dataclasses.fields(exam.card):                       # in place: the tabs' fields hold this card
             setattr(session.protocol, field.name, getattr(exam.card, field.name))
         session.position_mm, session.view_mm, session.size_mm = list(exam.position_mm), list(exam.position_mm), list(exam.size_mm)
@@ -424,6 +443,7 @@ def console():
                 continue
             texts["took"].text = f"{exam.name}: simulated in {time.perf_counter() - began:.1f} s, a scanner takes {exam.card.scan_time_s:.0f} s"
             progress.props(remove="indeterminate")
+            looks.set_options(list(exam.builds), value=exam.shown if exam.builds else None)
             for index in range(len(exam.frames)):
                 frame(exam, index)
                 await asyncio.sleep(0.03)
@@ -432,11 +452,37 @@ def console():
         start.enable()
 
     def export():
+        """Export the chosen exam: where to, in which format, and where the file then is."""
         exam = chosen["exam"]
         if exam is None or exam.data is None:
-            ui.notify("Select an exam that has run")
+            ui.notify("Select an exam that has run (press its card)", type="warning")
             return
-        ui.notify(f"Exported {session.export(exam, pathlib.Path.home() / 'MRSandbox' / 'exports')}")
+
+        def write():
+            try:
+                path = session.export(exam, folder.value)
+            except Exception as error:
+                done.text = f"Not exported: {error}"[:200]
+                return
+            done.text = f"Written: {path}"
+            reveal.set_visibility(True)
+            reveal.on("click", lambda: subprocess.run(["open", "-R", str(path)] if sys.platform == "darwin" else
+                                                      ["xdg-open", str(path.parent)], check=False))
+
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 640px"):
+            ui.label(f"Export · {exam.name}").classes("label")
+            folder = ui.input("folder", value=str(pathlib.Path.home() / "MRSandbox" / "exports")).props("dense outlined dark").classes("w-full")
+            ui.select(["NIfTI-MRS, the transients apart, with the simulation's truth in the header"], value=(
+                "NIfTI-MRS, the transients apart, with the simulation's truth in the header"), label="format").props(
+                "dense outlined dark").classes("w-full").tooltip("more formats are to come")
+            done = ui.label("").classes("value").style("white-space: normal; word-break: break-all")
+            with ui.row().classes("w-full"):
+                reveal = ui.button("Show in its folder", icon="folder_open").props("outline dense no-caps")
+                reveal.set_visibility(False)
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+                ui.button("Export", icon="save_alt", on_click=write).mark("write the export").props("unelevated dense no-caps")
+        dialog.open()
 
     def gear(panel=None):
         """The settings of the simulation, a line per parameter: as its source gives it (a value,
@@ -753,7 +799,8 @@ def console():
                 return
             ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
                        "grid": {"left": 12, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
-                       "xAxis": {**axis, "inverse": True, "min": 0.2, "max": 4.2, "name": "ppm"},
+                       "xAxis": {**axis, "inverse": True, "min": -0.5, "max": 6.5, "name": "ppm"},
+                       "dataZoom": [{"type": "inside", "startValue": exam.window[0], "endValue": exam.window[1], "filterMode": "none"}],
                        "yAxis": {"type": "value", "show": False, "scale": True},
                        "series": [{"type": "line", "name": name, "showSymbol": False, "lineStyle": {"width": 1.2},
                                    "data": [[float(p), float(v)] for p, v in zip(exam.ppm, real)]}
@@ -955,18 +1002,18 @@ def console():
                 ui.label("Calibration · the records this scanner's noise, line shape and levels come from").classes("label")
                 ui.space()
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
-            others = CALIBRATIONS.get(session.scanner, {})
+            others = session.calibrations()
             if others:
-                ui.select({None: "the scanner's own records", **{preset: what for what, preset in others.items()}}, value=session.calibration,
-                          label="records", on_change=lambda e: setattr(session, "calibration", e.value)).props("dense outlined dark").classes("w-full")
+                ui.radio({None: "the package's records for this scanner", **others}, value=session.calibration if session.calibration in others else None,
+                         on_change=lambda e: (setattr(session, "calibration", e.value), dialog.close(), draw(), calibration())).props("dense color=accent")
             for leaf, record in session.outlook()["records"].items():
                 with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                     ui.label(f"{leaf}  {record['value']:g}").classes("value").style("width: 200px")
                     ui.label(record["source"] + (f" · departs in {', '.join(record['extrapolated'])}" if record["extrapolated"] else "")).classes(
                         "label").style("text-transform: none; letter-spacing: 0")
-            ui.label("A scanner of your own is a profile read from one raw scan of yours (ScannerProfile.read in Python, saved as JSON to "
-                     "~/MRSandbox/profiles): it then stands in the scanner list, on this machine only. Reading one here from an uploaded "
-                     "scan is not in the console yet.").classes("label").style("text-transform: none; letter-spacing: 0")
+            ui.label("Records read from your own scans (ScannerProfile.read in Python, saved as JSON to ~/MRSandbox/profiles or "
+                     "./data/profiles) show here under their scanner, on this machine only. Reading them here from an uploaded scan is "
+                     "not in the console yet.").classes("label").style("text-transform: none; letter-spacing: 0")
         dialog.open()
 
     def coil_gear():
@@ -1116,7 +1163,7 @@ def console():
                 with ui.column().classes("pane").style("width: 590px; flex: none"):
                     card = session.protocol
                     with ui.tabs().props("dense align=left").style(f"color: {DIM}") as tabs:
-                        for name in ("Geometry", "Contrast", "Acquisition"):
+                        for name in ("Geometry", "Contrast", "Acquisition", "Imaging"):
                             ui.tab(name)
                     with ui.row().classes("w-full no-wrap").style("gap: 12px; flex: 1; min-height: 0"):
                         with ui.tab_panels(tabs, value="Geometry").props("keep-alive").style("width: 215px; flex: none; overflow-y: auto"):
@@ -1139,8 +1186,21 @@ def console():
                                           on_change=lambda e: (setattr(session, "shim_mm", e.value), draw())).props(
                                     "dense outlined dark clearable").classes("w-full").tooltip(
                                     "the yellow box about the voxel the shim is fitted over; empty, the shim is fitted over the voxel itself")
-                                ui.number("matrix (MRSI)", value=card.matrix, step=2, on_change=changed("matrix", "card")).bind_value(
+                            with ui.tab_panel("Imaging"):
+                                ui.label("A spectroscopic image (MRSI PRESS). Its volume selection is ideal; its encoding is as set here.").classes(
+                                    "label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+                                ui.number("matrix", value=card.matrix, step=2, min=2, on_change=changed("matrix", "card")).bind_value(
                                     card, "matrix").props("dense outlined dark").classes("w-full")
+                                for attribute, caption, options, tip in (
+                                        ("mrsi_oversampling", "rendering under a cell", [1, 2, 3], "1: ideal boxes. More: every cell sees its neighbours "
+                                         "through the point spread function, as a real image does"),
+                                        ("mrsi_weighting", "k-space weighting", ["none", "hamming"], "hamming: less bleed, wider cells"),
+                                        ("mrsi_sampling", "k-space coverage", ["full", "elliptical"], "elliptical: the corners left out, a shorter scan"),
+                                        ("mrsi_profile", "slab profile", ["box", "gaussian"], "how the slab is excited through its thickness"),
+                                        ("mrsi_readout", "readout", ["phase encoded", "epsi", "epsi-bidirectional"], "EPSI reads a line of "
+                                         "k-space per repetition: a matrix times shorter scan, its own artefacts")):
+                                    ui.select(options, label=caption, on_change=changed(attribute, "card")).bind_value(card, attribute).props(
+                                        "dense outlined dark options-dense").classes("w-full").tooltip(tip)
                             for tab, fields in (("Contrast", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
                                                 ("Acquisition", (("averages", "averages", 1), ("npoints", "points", 512),
                                                                  ("bandwidth_hz", "bandwidth (Hz)", 500.0),
@@ -1153,6 +1213,16 @@ def console():
                                         ui.switch("reference before the scan", on_change=changed("water_reference_first", "card")).bind_value(
                                             card, "water_reference_first").props("dense color=accent").tooltip(
                                             "the water reference is an exam of its own: before its card, or after it (off)")
+                                    if tab == "Contrast":
+                                        with ui.column().classes("w-full").style("gap: 4px").bind_visibility_from(
+                                                card, "sequence", backward=lambda name: name == "MEGA-PRESS"):
+                                            ui.select(list(TARGETS), label="editing target", on_change=lambda e: e.value and (
+                                                setattr(card, "edit_on_ppm", TARGETS[e.value][0]), setattr(card, "edit_off_ppm", TARGETS[e.value][1]),
+                                                draw())).props("dense outlined dark").classes("w-full").tooltip(
+                                                "fills the two frequencies below; any pair can be typed")
+                                            for attribute, caption in (("edit_on_ppm", "editing pulse ON (ppm)"), ("edit_off_ppm", "editing pulse OFF (ppm)")):
+                                                ui.number(caption, step=0.01, format="%.2f", on_change=changed(attribute, "card")).bind_value(
+                                                    card, attribute).props("dense outlined dark").classes("w-full")
                                     for attribute, caption, step in fields:
                                         ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
                                                   ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
@@ -1160,7 +1230,7 @@ def console():
                                 f"flex: 1; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
                             ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
                             for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
-                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
+                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                  ("limits", "hardware")):
                                 ui.label(caption).classes("label")
                                 texts[key] = ui.label("").classes("value").style("white-space: pre-line")
@@ -1186,7 +1256,13 @@ def console():
                                         "the sequence designer")
                                 diagram = ui.html("", sanitize=False).style("flex: 1; min-width: 0")
                         with ui.tab_panel("Live"):
-                            spectrum = ui.echart(copy.deepcopy(SPECTRUM)).style("height: 250px").classes("w-full")
+                            with ui.row().classes("w-full items-center no-wrap"):
+                                looks = ui.select([], label="show", on_change=lambda: chosen["exam"] is not None and chosen["exam"].frames
+                                                  and frame(chosen["exam"], -1)).props("dense outlined dark options-dense").style("width: 200px")
+                                ui.label("wheel: zoom · drag: pan · as displayed: 2 Hz apodization, zero filled, ONE zero-order phase for the "
+                                         "exam, no transient aligned before averaging; grey: the transient that just came in").classes(
+                                    "label").style("text-transform: none; letter-spacing: 0")
+                            spectrum = ui.echart(copy.deepcopy(SPECTRUM)).style("height: 300px").classes("w-full")
             # the card in one line, and its way into the queue
             with ui.row().classes("w-full items-center pane no-wrap").style("gap: 18px; padding: 4px 10px"):
                 texts["name"] = ui.label("").style(f"color: {SAND}")

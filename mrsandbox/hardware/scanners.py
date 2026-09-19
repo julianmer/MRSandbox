@@ -89,6 +89,10 @@ PRESETS = {
     # pain data with its one-channel transmit-receive head coil, which is part of what the
     # preset stands for. Peak B1 as the generic 3 T and the Philips default above, gradients
     # from the vendors' specifications (Trio TQ 40/200, Achieva Quasar Dual 40/200); stated.
+    # the MR 7700 with its XP gradients (65/220 from the vendor's specification); the peak B1 as the Philips
+    # study value above, which is stated and not measured here
+    "philips_mr7700_3t": Scanner("philips_mr7700_3t", 3.0, peak_b1_ut=15.0, max_grad_mt_m=65.0,
+                                 max_slew_t_m_s=220.0),
     "siemens_trio_3t": Scanner("siemens_trio_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=40.0,
                                max_slew_t_m_s=200.0),
     "philips_achieva_3t": Scanner("philips_achieva_3t", 3.0, peak_b1_ut=13.5, max_grad_mt_m=40.0,

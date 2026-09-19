@@ -68,9 +68,9 @@ SEQUENCES = {
 # a card's design with its pulses real (Protocol.real): shaped pulses under gradients, played in time, in place
 # of ideal ones that act at once and select exactly. HERCULES has no ideal design and is always real.
 REAL = {"PRESS": "PRESS, played", "STEAM": "STEAM, played", "sLASER": "sLASER, played",
-        "MEGA-PRESS GABA": "MEGA-PRESS GABA, played", "HERMES GABA GSH": "HERMES, played"}
+        "MEGA-PRESS": "MEGA-PRESS, played", "HERMES GABA GSH": "HERMES, played"}
 # the scanners by name: what a preset stands for (hardware.scanners, scan.calibrations)
-SCANNERS = {"generic_1p5t": "Generic 1.5 T", "generic_3t": "Generic 3 T", "generic_7t": "Generic 7 T",
+SCANNERS = {"philips_mr7700_3t": "Philips MR 7700 3 T", "generic_1p5t": "Generic 1.5 T", "generic_3t": "Generic 3 T", "generic_7t": "Generic 7 T",
             "siemens_prisma_3t": "Siemens Prisma 3 T", "siemens_trio_3t": "Siemens Trio 3 T", "ge_mr750_3t": "GE MR750 3 T",
             "philips_elition_3t": "Philips Elition 3 T", "philips_achieva_3t": "Philips Achieva 3 T"}
 # a scanner's other calibrations in the package, {scanner: {what it is: the preset that carries its records}}: the
@@ -117,15 +117,19 @@ OVS_MM = 30.0
 # target, not for co-editing at the bands' flanks; the played schemes (20 ms Gaussian editing pulses and
 # the localization's profiles) reproduce raw in vivo HERMES and HERCULES without a fit and take minutes
 # (sequences.library HadamardEditing).
+# where a MEGA editing pulse goes for a target, (ON, OFF) in ppm at the canonical TE of 68 ms: the card takes any
+# pair, these fill it (GABA: Mescher 1998; GSH: Terpstra 2003; lactate: Star-Lack 1998)
+TARGETS = {"GABA": (1.88, 7.5), "GSH": (4.56, 7.5), "lactate": (4.1, 7.5)}
 DIFFERENCE = {"difference": {"on": 1.0, "off": -1.0}, "sum": {"on": 1.0, "off": 1.0}}
 EDITING = {
-    "MEGA-PRESS GABA": (lambda tr_s, f0_mhz, size_mm: MegaPress.pair(tr_s=tr_s), DIFFERENCE, "difference"),
-    "HERMES GABA GSH": (lambda tr_s, f0_mhz, size_mm: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
-    "MEGA-PRESS GABA, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.pair(f0_mhz, size_mm=size_mm, tr_s=tr_s),
-                                DIFFERENCE, "difference"),
-    "HERMES, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hermes, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+    "MEGA-PRESS": (lambda card, tr_s, f0_mhz, size_mm: MegaPress.pair(on_ppm=card.edit_on_ppm, off_ppm=card.edit_off_ppm, tr_s=tr_s),
+                   DIFFERENCE, "difference"),
+    "HERMES GABA GSH": (lambda card, tr_s, f0_mhz, size_mm: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
+    "MEGA-PRESS, played": (lambda card, tr_s, f0_mhz, size_mm: LocalizedMegaPress.pair(
+        f0_mhz, on_ppm=card.edit_on_ppm, off_ppm=card.edit_off_ppm, size_mm=size_mm, tr_s=tr_s), DIFFERENCE, "difference"),
+    "HERMES, played": (lambda card, tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hermes, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
                        Hermes.combinations, "gaba"),
-    "HERCULES": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+    "HERCULES": (lambda card, tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
                          Hercules.combinations, "gaba"),
 }
 
@@ -215,11 +219,27 @@ class Protocol:
     real: bool = True
     water_reference: int = 0
     water_reference_first: bool = False
+    edit_on_ppm: float = 1.88
+    edit_off_ppm: float = 7.5
+    # a spectroscopic image's encoding (scan.mrsi): how finely the subject is rendered under each cell (1: ideal boxes,
+    # no bleed between cells), the k-space weighting and coverage, the slab's profile, and the readout
+    mrsi_oversampling: int = 2
+    mrsi_weighting: str = "none"
+    mrsi_sampling: str = "full"
+    mrsi_profile: str = "gaussian"
+    mrsi_readout: str = "phase encoded"
 
     @property
     def scan_time_s(self):
-        """One repetition per transient, or per phase encode of a spectroscopic image."""
-        return (int(self.matrix) ** 2 if self.sequence == "MRSI PRESS" else self.averages) * self.tr_ms / 1000.0
+        """One repetition per transient, or per encode of a spectroscopic image: every point of
+        k-space that is covered when phase encoded (the corners left out by elliptical coverage),
+        one line per repetition with an EPSI readout."""
+        if self.sequence != "MRSI PRESS":
+            return self.averages * self.tr_ms / 1000.0
+        m = int(self.matrix)
+        k = np.arange(m) - (m - 1) / 2.0
+        covered = ((k[:, None] ** 2 + k[None, :] ** 2) <= (m / 2.0) ** 2).sum() if self.mrsi_sampling == "elliptical" else m * m
+        return (m if self.mrsi_readout != "phase encoded" else int(covered)) * self.tr_ms / 1000.0
 
 
 #**************************************************************************************************#
@@ -240,7 +260,9 @@ class Exam:
         status: "planned", "running", "done", or "failed" (with `problem`, the reason).
         data: NIfTI-MRS with the transients apart (DIM_DYN), once it ran.
         ppm: The display's axis, 0.2 to 4.2 ppm.
-        frames: The display as the scan comes in, [(transients so far, real spectrum)].
+        frames: The display as the scan comes in, [(transients so far, the real spectrum of their
+            average, the last transient's own)], on `ppm` (-0.5 to 6.5); `window` is what the display
+            opens on. `builds` holds the same build-up for every condition and combination.
         records: What the header says of the calibration records in force.
         sequence: The design as it was when the exam was planned (an edited card's first
             sub-experiment).
@@ -275,6 +297,8 @@ class Exam:
     truth: dict = dataclasses.field(default_factory=dict)
     maps: dict = dataclasses.field(default_factory=dict)
     cells: object = None
+    window: tuple = (0.2, 4.2)
+    builds: dict = dataclasses.field(default_factory=dict)
     overrides: dict = dataclasses.field(default_factory=dict)
     run: dict = dataclasses.field(default_factory=dict)
 
@@ -455,6 +479,27 @@ class Session:
                     self.overrides[path] = (tuple(float(number) * v for v in numbers) if kind == "range"
                                             else float(number) * numbers[0])
 
+    def lipid_mm(self):
+        """How far the subject's lipid layer is from the planned voxel and from the voxel lipid
+        signal is really selected in (its chemical shift displaced box), (planned, displaced) in
+        mm, 0 where a box reaches into the layer; None for a subject without such a layer."""
+        fat = getattr(self.body(), "fat", None)
+        if fat is None:
+            return None
+        if ("fat", self.subject) not in self._bodies:       # the layer's cells as world points, thinned to a fifth of a million
+            index = np.argwhere(fat.data[..., 0] > 0.5 if fat.data.ndim == 4 else fat.data > 0.5)
+            index = index[:: max(1, len(index) // 200000)]
+            self._bodies[("fat", self.subject)] = (index * np.diag(fat.affine)[:3] + fat.affine[:3, 3]).astype(np.float32)
+        points, half = self._bodies[("fat", self.subject)], 0.5 * np.asarray(self.size_mm)
+        if len(points) == 0:
+            return None
+        try:
+            moved = np.asarray(self.displacement(SHIFTED["lipid"]))
+        except Exception:
+            moved = np.zeros(3)
+        return tuple(float(np.linalg.norm(np.maximum(np.abs(points - centre) - half, 0.0), axis=1).min())
+                     for centre in (np.asarray(self.position_mm), np.asarray(self.position_mm) + moved))
+
     def linewidth(self):
         """The width in Hz the B0 field gives a line of the planned voxel after the shim: the
         full width at half maximum of the voxel's field distribution under a 1 Hz Lorentzian
@@ -474,19 +519,27 @@ class Session:
 
     @staticmethod
     def scanners():
-        """What can stand on the floor, {key: name}: the package's presets, and the operator's own
-        scanners, the profiles saved as JSON (scan.profile) in ./data/profiles and
-        ~/MRSandbox/profiles, which stay on this machine."""
-        folders = (pathlib.Path.cwd() / "data" / "profiles", pathlib.Path.home() / "MRSandbox" / "profiles")
-        mine = sorted(path for folder in folders for path in folder.glob("*.json"))
-        return {**{name: label for name, label in SCANNERS.items() if name in PRESETS},
-                **{str(path): path.stem.replace("_private", "").replace("_", " ") + ", calibrated here" for path in mine}}
+        """What can stand on the floor, {key: name}: the package's scanners as hardware. What
+        calibrates one is chosen apart (`calibrations`)."""
+        return {name: label for name, label in SCANNERS.items() if name in PRESETS}
+
+    def calibrations(self):
+        """What can calibrate the scanner on the floor beside its own records, {key: what it is}:
+        the package's records of the same hardware read under another coil (CALIBRATIONS), and
+        the operator's own profiles of this scanner, read from their scans and saved as JSON
+        (scan.profile) in ./data/profiles or ~/MRSandbox/profiles, which stay on this machine."""
+        found = {preset: what for what, preset in CALIBRATIONS.get(self.scanner, {}).items()}
+        for folder in (pathlib.Path.cwd() / "data" / "profiles", pathlib.Path.home() / "MRSandbox" / "profiles"):
+            for path in sorted(folder.glob("*.json")):
+                if json.loads(path.read_text())["scanner"]["name"] == self.scanner:
+                    found[str(path)] = "read from your own scans: " + path.stem.replace("_private", "").replace("_", " ")
+        return found
 
     def profile(self):
         """The scanner on the floor with its records: a preset, or a saved profile."""
-        if self.scanner.endswith(".json"):
-            return ScannerProfile.load(self.scanner)
-        return ScannerProfile.preset(self.calibration if self.calibration in CALIBRATIONS.get(self.scanner, {}).values() else self.scanner)
+        if self.calibration in self.calibrations():
+            return ScannerProfile.load(self.calibration) if self.calibration.endswith(".json") else ScannerProfile.preset(self.calibration)
+        return ScannerProfile.preset(self.scanner)
 
     #**************#
     #   sequence   #
@@ -539,7 +592,7 @@ class Session:
     def editing(self, card):
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
         card = dataclasses.replace(card, sequence=REAL[card.sequence]) if card.real and card.sequence in REAL else card
-        return EDITING[card.sequence][0](card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm))
+        return EDITING[card.sequence][0](card, card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm))
 
     def diagram(self, sequence=None, readout_ms=12.0):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
@@ -740,7 +793,9 @@ class Session:
             self._bodies[("cloud", self.subject)] = (index * np.diag(body.affine)[:3] + body.affine[:3, 3]).astype(np.float32)
         coils = self.array()
         loops = [] if coils is None else [(tuple(loop.center_mm), tuple(loop.normal), float(loop.radius_mm)) for loop in coils.loops]
-        return {"cloud": self._bodies[("cloud", self.subject)], "loops": loops, "voxel": (tuple(self.position_mm), tuple(self.size_mm))}
+        self.lipid_mm()                                       # fills the layer's points where the subject has one
+        return {"cloud": self._bodies[("cloud", self.subject)], "lipid": self._bodies.get(("fat", self.subject), np.empty((0, 3)))[::40],
+                "loops": loops, "voxel": (tuple(self.position_mm), tuple(self.size_mm))}
 
     #*************#
     #   outlook   #
@@ -755,7 +810,7 @@ class Session:
         scan = profile.scan(self.body(), sequence, params=self.params(), **self.fields())
         fractions = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).fractions
         limits = profile.scanner
-        return {"linewidth_hz": self.linewidth(),
+        return {"linewidth_hz": self.linewidth(), "lipid_mm": self.lipid_mm(),
                 "displaced": {name: self.displacement(ppm) for name, ppm in SHIFTED.items()},
                 "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
@@ -807,7 +862,11 @@ class Session:
         coils = self.array()
         if card.sequence == MRSI:
             grid = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields()).mrsi(
-                center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm[0], thickness_mm=exam.size_mm[2])
+                center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm[0], thickness_mm=exam.size_mm[2],
+                oversampling=int(card.mrsi_oversampling), weighting=None if card.mrsi_weighting == "none" else card.mrsi_weighting,
+                sampling=None if card.mrsi_sampling == "full" else card.mrsi_sampling,
+                profile=None if card.mrsi_profile == "box" else card.mrsi_profile,
+                trajectory=None if card.mrsi_readout == "phase encoded" else card.mrsi_readout)
             exam.data = grid.acquire(seed=seed, npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
             fids = np.asarray(exam.data[:])[:, :, 0]
             window = np.exp(-np.pi * 3.0 * np.arange(card.npoints) / card.bandwidth_hz)
@@ -821,7 +880,7 @@ class Session:
             top = np.take_along_axis(spectra, np.abs(spectra).argmax(axis=-1)[..., None], axis=-1)
             exam.cells = (spectra * np.exp(-1j * np.angle(top))).real
             centre = int(card.matrix) // 2
-            exam.frames = [(1, exam.cells[centre, centre])]
+            exam.frames = [(1, exam.cells[centre, centre], exam.cells[centre, centre])]
             exam.spectra = {"centre cell": exam.cells[centre, centre]}
             exam.truth = {name: float(value) for name, value in exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]["conc"].items()
                           if isinstance(value, (int, float))}
@@ -856,15 +915,20 @@ class Session:
                 total = total + weight * fids[:, mine].mean(axis=1)
             return np.fft.fftshift(np.fft.fft(total * window, 2 * card.npoints))
 
+        # one zero-order phase for the whole exam, read at the tallest line of the average of everything; no transient is
+        # aligned in frequency or phase before it is averaged, so what drift and motion do to the average shows
         everything = combined({name: 1.0 for name in names}, card.averages)
         phase = np.exp(-1j * np.angle(everything[np.flatnonzero(upfield)[np.abs(everything[upfield]).argmax()]]))
-        exam.ppm, exam.frames = ppm[upfield], []
-        for count in sorted({max(len(names), round(card.averages * step / 12)) for step in range(1, 13)}):
-            partial = combined(exam.combinations[exam.shown], count)
-            if partial is not None:
-                exam.frames.append((count, (partial * phase).real[upfield]))
-        exam.spectra = {name: (combined(weights, card.averages) * phase).real[upfield]
-                        for name, weights in {**{n: {n: 1.0} for n in names if len(names) > 1}, **exam.combinations}.items()}
+        wide = (ppm > -0.5) & (ppm < 6.5)
+        exam.ppm, exam.window = ppm[wide], (float(ppm[upfield].min()), float(ppm[upfield].max()))
+        counts = sorted({int(round(c)) for c in np.linspace(1, card.averages, min(card.averages, 64))})
+        views = {**{n: {n: 1.0} for n in names if len(names) > 1}, **exam.combinations}
+        exam.builds = {name: [(count, (partial * phase).real[wide]) for count in counts
+                              if (partial := combined(weights, count)) is not None] for name, weights in views.items()}
+        # the display as it builds up: the transients so far, their average in the shown combination, and the last one alone
+        exam.frames = [(count, average, (np.fft.fftshift(np.fft.fft(fids[:, count - 1] * window, 2 * card.npoints)) * phase).real[wide])
+                       for count, average in exam.builds[exam.shown]]
+        exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
         header = exam.data.hdr_ext.to_dict()
         exam.tracks = {key: header["SimulationSchedule"][key] for key in ("frequency_hz", "phase_deg", "amplitude")
                        if key in header.get("SimulationSchedule", {})}

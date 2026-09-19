@@ -28,7 +28,7 @@ pytest.importorskip("nicegui")
 @pytest.mark.render
 class TestApp:
 
-    def test_an_operator_opens_every_pop_up(self):
+    def test_an_operator_opens_every_pop_up(self, tmp_path):
         from nicegui import ui
         from nicegui.testing import user_simulation
 
@@ -76,6 +76,13 @@ class TestApp:
                 user.find("Start").click()
                 await user.should_see("simulated in", retries=100)
                 await user.should_see("4 / 4")
+                user.find("Export raw transients").click()              # the exam that just ran, into a folder of the test's own
+                await user.should_see("Export · 1 STEAM TE 30")
+                next(e for e in user.find(kind=ui.input).elements if e.props.get("label") == "folder").value = str(tmp_path)
+                user.find(marker="write the export").click()
+                await user.should_see("Written:")
+                assert list(tmp_path.glob("*.nii.gz"))
+                user.find("Close").click()
                 user.find("New scan").click()
                 user.find("sLASER").click()
                 user.find("Accept").click()

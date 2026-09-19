@@ -147,8 +147,10 @@ class TestSession:
         session.run(exam, seed=1)
         assert exam.status == "done" and exam.position_mm == (0.0, -45.0, 35.0)
         assert exam.data.shape[-1] == 6                                         # the transients apart, as a scanner exports them
-        assert [count for count, _ in exam.frames][-1] == 6 and len(exam.frames) <= 12
-        assert abs(exam.ppm[exam.frames[-1][1].argmax()] - 2.01) < 0.03         # phased on NAA, the tallest line
+        assert [count for count, *_ in exam.frames] == [1, 2, 3, 4, 5, 6]          # every transient as it comes in, with its average
+        assert exam.frames[0][2].shape == exam.frames[0][1].shape == exam.ppm.shape
+        upfield = (exam.ppm > exam.window[0]) & (exam.ppm < exam.window[1])      # the display keeps -0.5 to 6.5, and opens on this
+        assert abs(exam.ppm[upfield][exam.frames[-1][1][upfield].argmax()] - 2.01) < 0.03   # phased on NAA, the tallest line
         path = session.export(exam, tmp_path)
         assert path.exists() and path.name == "1_PRESS_TE_30.nii.gz"
 
@@ -192,14 +194,15 @@ class TestSession:
         session.protocol.averages, session.protocol.npoints = 2, 1024
         exam = session.run(session.plan(), seed=1)
         assert exam.name == "1 Custom" and exam.status == "done"
-        assert abs(exam.ppm[exam.frames[-1][1].argmax()] - 2.01) < 0.05
+        upfield = (exam.ppm > exam.window[0]) & (exam.ppm < exam.window[1])
+        assert abs(exam.ppm[upfield][exam.frames[-1][1][upfield].argmax()] - 2.01) < 0.05
 
     def test_an_edited_card_interleaves_its_sub_experiments_and_reviews_them(self, tmp_path, monkeypatch):
         session = Session(ICBM)
-        session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS GABA", 8, 1024, [30.0] * 3
+        session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS", 8, 1024, [30.0] * 3
         session.protocol.real = False                                           # the interleaving is the point
         exam = session.run(session.plan(), seed=1)
-        assert exam.name == "1 MEGA-PRESS GABA" and list(exam.conditions) == ["on", "off"] and exam.shown == "difference"
+        assert exam.name == "1 MEGA-PRESS" and list(exam.conditions) == ["on", "off"] and exam.shown == "difference"
         assert set(exam.spectra) == {"on", "off", "difference", "sum"} and exam.data.shape[-1] == 8
         difference, near = exam.spectra["difference"], lambda lo, hi: (exam.ppm > lo) & (exam.ppm < hi)
         assert difference[near(1.9, 2.1)].min() < 0.0 < difference[near(2.9, 3.1)].max()   # NAA goes with the ON pulse, GABA stays
