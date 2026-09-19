@@ -385,6 +385,39 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
     date="18/09/26",
     note="the modelled array is CoilArray.helmet(), not this coil's geometry (not published)",
 )
+# the same statistic on four Philips 3 T systems with 32-channel head arrays, read off the noise
+# vectors (RF off) of their data/list exports (io.philips.DataList): 0.22 to 0.35, the Prisma's
+# share again, so the default of CoilArray.loaded holds across vendors. A phantom was in the
+# coil. Not in use; the Ingenia Elition among them is the philips_elition_3t preset's scanner.
+COIL_OWN_NOISE_PHILIPS_3T = Calibration(
+    leaf="coils.loaded.own_noise",
+    value=0.26,
+    prior=(0.22, 0.35),
+    measured={"statistic": COIL_OWN_NOISE_PRISMA_3T.measured["statistic"],
+              "sites": {"P01a, Achieva, R5.6.1": (0.41, 0.52, 0.08, 0.24),
+                        "P05a, Achieva dStream, R5.7.1": (0.34, 0.51, 0.14, 0.35),
+                        "P08a, Ingenia Elition, R5.6.1": (0.43, 0.51, 0.07, 0.22),
+                        "P17a, Ingenia CX, R5.6.1": (0.40, 0.54, 0.13, 0.27)},
+              "sites_note": "per site the three statistics and the share they give",
+              "samples": 2048, "subjects": 0,
+              "other_arrays": {"P07a, Ingenia, 24 channels": (0.39, 0.61, 0.12),
+                               "P16a, Ingenia Elition X, 15 channels": (0.42, 0.66, 0.20)}},
+    source={"dataset": "Big Drift, the Philips sites' raw exports of the first day's scan before "
+                       "the echo-planar run (CC BY-NC-SA 4.0)",
+            "citation": "Hui et al. 2021, NeuroImage 241:118430 (the models from its Table 2)",
+            "url": "https://www.nitrc.org/projects/bigdrift/"},
+    scanner={"vendor": "philips", "model": "Achieva, Achieva dStream, Ingenia Elition, Ingenia CX",
+             "software": "R5.6.1 and R5.7.1", "field_t": 3.0},
+    coil={"channels": (32, 32, 32, 32), "name": None},
+    sequence={"name": "noise vectors of a PRESS export", "product": "RawExp - PRESS"},
+    acquisition={"channels": 32, "rf": "off"},
+    voxel={"load": "a phantom"},
+    processing="data/list, the NOI vector of every channel, sample covariance over its 2048 samples",
+    date="19/09/26",
+    note="a check across vendors; the FIDs' tails do not serve here (unsuppressed phantom water "
+         "rings to the end and the channels correlate to one)",
+)
+
 #**************#
 #   creatine   #
 #**************#
@@ -503,6 +536,7 @@ NOISE_DS005917_7T = Calibration(
 )
 
 # records read the same way under other conditions, kept to test what carries a number there
-CHECKS = (LINEWIDTH_SIEMENS_3T, NOISE_DS005917_7T)
+CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, LINEWIDTH_SIEMENS_3T,
+          NOISE_DS005917_7T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
