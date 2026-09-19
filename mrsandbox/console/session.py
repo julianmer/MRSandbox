@@ -269,6 +269,8 @@ class Exam:
         frames: The display as the scan comes in, [(transients so far, the real spectrum of their
             average, the last transient's own)], on `ppm` (-0.5 to 6.5); `window` is what the display
             opens on. `builds` holds the same build-up for every condition and combination.
+        snr: The signal to noise ratio of what is shown, (of the average, of one transient alone), the
+            tallest real point upfield over the noise of a signal-free stretch, no apodization.
         records: What the header says of the calibration records in force.
         sequence: The design as it was when the exam was planned (an edited card's first
             sub-experiment).
@@ -304,6 +306,7 @@ class Exam:
     maps: dict = dataclasses.field(default_factory=dict)
     cells: object = None
     window: tuple = (0.2, 4.2)
+    snr: tuple = ()
     builds: dict = dataclasses.field(default_factory=dict)
     overrides: dict = dataclasses.field(default_factory=dict)
     run: dict = dataclasses.field(default_factory=dict)
@@ -907,6 +910,13 @@ class Session:
         index = min(max(round((self.view_mm[axis] - origin) / step) + slices, 0), body.gm.shape[axis] - 1)
         self.view_mm[axis] = float(origin + step * index)
 
+    def look(self, plane, column, row):
+        """Bring the other two planes to the point pressed in this one, (column, row) in image pixels:
+        the view moves through the subject, the voxel stays."""
+        kept = list(self.position_mm)
+        self.place(plane, column, row)
+        self.view_mm, self.position_mm = list(self.position_mm), kept
+
     def place(self, plane, column, row):
         """Move the voxel to the point clicked in a plane, (column, row) in image pixels; the
         coordinate the plane does not show becomes the slice on view, as the click was on it."""
@@ -1136,6 +1146,18 @@ class Session:
         exam.frames = [(count, average, (np.fft.fftshift(np.fft.fft(fids[:, count - 1] * window, 2 * card.npoints)) * phase).real[wide])
                        for count, average in exam.builds[exam.shown]]
         exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
+        # the consensus SNR of what is shown (Near et al. 2021): the tallest real point within 0.2 to 4.2 ppm (NAA in a brain)
+        # over the standard deviation of a signal-free stretch, -4 to -1 ppm, after a linear detrend; of the average and of
+        # one transient alone
+        quiet = (ppm > -4.0) & (ppm < -1.0)
+
+        def snr(fid):
+            real = (np.fft.fftshift(np.fft.fft(fid, 2 * card.npoints)) * phase).real
+            return float(real[upfield].max() / (real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std())
+
+        weights = exam.combinations[exam.shown]
+        exam.snr = (snr(sum(w * fids[:, played == c].mean(axis=1) for c, w in weights.items())),
+                    snr(fids[:, np.flatnonzero(played == next(iter(weights)))[0]]))
         header = exam.data.hdr_ext.to_dict()
         exam.tracks = {key: header["SimulationSchedule"][key] for key in ("frequency_hz", "phase_deg", "amplitude")
                        if key in header.get("SimulationSchedule", {})}

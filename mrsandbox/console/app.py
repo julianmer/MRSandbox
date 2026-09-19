@@ -264,7 +264,7 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, shown, hung, letters, crosses, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False}
+    views, shown, hung, letters, crosses, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False, "dragging": False}
 
     def room():
         """Rebuild the 3D view: the three planes hung where they cut the subject (paint fills them,
@@ -385,14 +385,14 @@ def console():
         with records:       # the draw of the population that lies on the table, at the planned voxel: what the exams will scan
             for group, values in look["subject"].items():
                 if isinstance(values, dict):
-                    ui.label(group).classes("label").style("margin-top: 4px")
+                    ui.label(group).style(f"margin-top: 4px; color: {DIM}; font-size: 11px")
                     with ui.element("div").classes("info").style("grid-template-columns: auto auto auto auto; column-gap: 8px"):
                         for name, value in values.items():
                             ui.label(name).style(f"color: {DIM}")
                             ui.label(f"{value:.1f}" if value < 100.0 else f"{value:.0f}").classes("value")
                 else:
                     with ui.row().classes("w-full").style("justify-content: space-between; margin-top: 4px"):
-                        ui.label(group).classes("label")
+                        ui.label(group).style(f"color: {DIM}; font-size: 11px")
                         ui.label(f"{values:.1f}").classes("value")
         for name, tool in tools.items():
             on = {"ovs": card.ovs, "shifts": chosen["shifts"], "flip": chosen["flipped"], "real": card.real or card.sequence == "HERCULES"}.get(
@@ -434,7 +434,8 @@ def console():
         if index in (0, -1) or index == len(exam.frames) - 1:        # the window the exam opens on; the operator's zoom stays in between
             for zoom in spectrum.options["dataZoom"]:
                 zoom["startValue"], zoom["endValue"] = exam.window
-        spectrum.options["title"]["text"] = f"{exam.name}   ·   transient {count} of {exam.card.averages}"
+        spectrum.options["title"]["text"] = f"{exam.name}   ·   transient {count} of {exam.card.averages}" + (
+            f"   ·   SNR {exam.snr[0]:.0f}, of one transient {exam.snr[1]:.0f}" if exam.snr and index in (-1, len(exam.frames) - 1) else "")
         spectrum.update()
         progress.value = count / max(exam.card.averages, 1)
         texts["count"].text = f"{count} / {exam.card.averages}"
@@ -1236,12 +1237,15 @@ def console():
     def drag(plane):
         """A plane's mouse: a press or a drag moves the voxel, the release settles the card."""
         def handle(event):
-            kind = event.args.get("mouse_event_type")
-            if kind == "mouseup":
-                draw()
-            elif kind == "mousedown" or event.args.get("buttons") == 1:
-                session.place(plane, event.args.get("image_x", 0.0), event.args.get("image_y", 0.0))
+            kind, pressed = event.args.get("mouse_event_type"), event.args.get("buttons") == 1
+            if kind == "mousedown" or (kind == "mousemove" and pressed):
+                # with shift the press looks around (the other planes come to this point), without it it places the voxel
+                (session.look if event.args.get("shiftKey") else session.place)(plane, event.args.get("image_x", 0.0), event.args.get("image_y", 0.0))
+                chosen["dragging"] = True
                 paint()
+            elif chosen["dragging"]:        # the release, or the first move after it: the throttle may drop the release itself
+                chosen["dragging"] = False
+                draw()
         return handle
 
     def toggle(name):
@@ -1323,7 +1327,7 @@ def console():
                     "wash a map over the anatomy: the B0 field and B1+ (on in maps), or a tissue")
                 texts["window"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
                 ui.space()
-                ui.label("scroll: leaf through · press or drag: place the voxel").classes("label")
+                ui.label("scroll: leaf through · press or drag: place the voxel · with shift: look around").classes("label")
             with ui.element("div").classes("w-full").style("display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px"):
                 for name in ("tra", "sag", "cor"):
                     with ui.element("div").classes("port"):
@@ -1410,7 +1414,7 @@ def console():
                                         ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
                                                   ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
                         with ui.element("div").classes("info").style(
-                                f"flex: 1; min-height: 0; overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
+                                f"flex: 1; min-height: 0; max-height: calc(100vh - 650px); overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
                             ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
                             for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
                                                  ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
@@ -1476,7 +1480,7 @@ def console():
                 view = ui.scene(width=226, height=226, grid=False, background_color="#000000")
                 view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
                 ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
-            ui.label("The subject on the table · at this voxel").classes("label").tooltip(
+            ui.label("The subject · at this voxel").classes("label").tooltip(
                 "one draw of the population, scanned by every exam until a new subject is put on the table (the person icon); "
                 "the truth a real scanner never shows").classes("label").style("margin-top: 6px")
             with ui.scroll_area().style("flex: 1; width: 100%"):
