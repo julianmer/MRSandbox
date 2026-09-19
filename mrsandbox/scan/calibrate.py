@@ -38,11 +38,15 @@ def _combined(data):
     """(npoints, coils, transients) raw FIDs to (npoints, transients): the channels
     whitened by the noise of the FIDs' last eighth and combined with the first singular
     vector of the mean transient's start. The combined noise has unit variance per real
-    part."""
+    part. A receiver phase cycle left in the stored transients (GE P-files alternate by
+    a half turn) is undone first, in quarter turns against the first transient, or the
+    mean would cancel; phase jitter stays as it is."""
     x = np.asarray(data)
     n, coils, _ = x.shape
     covariance = np.atleast_2d(np.cov(x[-n // 8:].reshape(-1, coils).T))
     white = np.einsum("ck,nks->ncs", np.linalg.inv(np.linalg.cholesky(covariance)), x)
+    turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(white[:64, :, 0]), white[:64])) / (np.pi / 2))
+    white = white * np.exp(-0.5j * np.pi * turns)
     weights = np.conj(np.linalg.svd(white.mean(axis=2)[:64], full_matrices=False)[2][0])
     return np.einsum("c,ncs->ns", weights, white)
 

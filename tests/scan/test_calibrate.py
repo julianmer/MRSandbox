@@ -53,6 +53,9 @@ class TestNoiseReading:
             assert reading.coils == 4 and reading.transients == 48 and abs(reading.naa_ppm - 2.008) < 0.03
             plain, apodized = reading.sigma(voxel, seeds=1)
             assert abs(plain / sigma - 1.0) < 0.08 and abs(apodized / sigma - 1.0) < 0.08
+        # a receiver phase cycle left in the stored transients changes nothing
+        cycled = NoiseReading.from_arrays(data * np.exp(0.5j * np.pi * (np.arange(48) % 4)), dwell_s, voxel._f0_mhz())
+        assert abs(cycled.snr / reading.snr - 1.0) < 0.02
         record = reading.record(voxel, "a virtual acquisition", presets=("generic_3t",), seeds=1)
         assert record.leaf == "noise.sigma" and abs(record.value / sigma - 1.0) < 0.08
         assert record.scanner["vendor"] == "virtual" and record.coil["channels"] == (4,)
