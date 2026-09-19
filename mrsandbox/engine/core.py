@@ -28,21 +28,6 @@ from nifti_mrs_plus import ops as nops
 from mrsandbox.backend import Backend
 
 
-#*********************#
-#   ensemble stride   #
-#*********************#
-def _coprime_stride(count, order):
-    """A deterministic stride coprime to `count` (successive golden-ratio fractions,
-    nudged to the nearest coprime): reorders one ensemble axis so its joint sampling
-    with the others decorrelates while its own marginal stays the exact uniform grid."""
-    target = max(1, int(round(count * 0.6180339887 ** order)))
-    for offset in range(count):
-        for candidate in (target + offset, target - offset):
-            if 1 <= candidate < count and math.gcd(candidate, count) == 1:
-                return candidate
-    return 1
-
-
 #**************************************************************************************************#
 #                                          Class Context                                           #
 #**************************************************************************************************#
@@ -201,16 +186,21 @@ class Engine:
 
         Every used axis gets the exact uniform grid over its largest extent, so all
         per-axis dephasing laws hold exactly; with several axes the later grids are
-        reordered by deterministic coprime strides (golden-ratio fractions), which
-        decorrelates the axes so cross-axis moments dephase instead of spuriously
-        refocusing. Cross-axis combinations are thereby sampled along a torus line,
-        a stated approximation; raise `isochromats` for dense multi-axis schemes."""
+        reordered by deterministic coprime strides (successive golden-ratio fractions of
+        the count, nudged to the nearest coprime), which decorrelates the axes so
+        cross-axis moments dephase instead of spuriously refocusing, while each axis's
+        own marginal stays the exact uniform grid. Cross-axis combinations are thereby
+        sampled along a torus line, a stated approximation; raise `isochromats` for
+        dense multi-axis schemes."""
         isochromats = isochromats if isochromats is not None else self.isochromats
         extents = self.extents(sequence)
         grid = (np.arange(isochromats) + 0.5) / isochromats - 0.5
         positions = {}
         for order, axis in enumerate(sorted(extents)):
-            stride = 1 if order == 0 else _coprime_stride(isochromats, order)
+            target = max(1, int(round(isochromats * 0.6180339887 ** order)))
+            nearby = (target + sign * offset for offset in range(isochromats) for sign in (1, -1))
+            stride = 1 if order == 0 else next(
+                (c for c in nearby if 1 <= c < isochromats and math.gcd(c, isochromats) == 1), 1)
             positions[axis] = (grid[(np.arange(isochromats) * stride) % isochromats]
                                * extents[axis]).astype(np.float32)
         return positions
