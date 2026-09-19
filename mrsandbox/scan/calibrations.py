@@ -279,6 +279,44 @@ NOISE_BIG_GABA_GE_3T = Calibration(
 )
 
 
+#****************************#
+#   noise, ge, 32 channels   #
+#****************************#
+# serves the ge_mr750_32ch_3t preset: the MR750 with its 32-channel head array under sLASER,
+# 13 subjects scanned twice (the sessions of a subject agree within a tenth). It reads 7.9
+# where the 8-channel array above reads 7.0: the voxel lies deep on the midline, where many
+# small loops gain little over few large ones, and the twin is an ideal sLASER, which keeps
+# signal a played one loses (four adiabatic pulses at a body coil's peak B1), so part of the
+# value is the sequence's and not the receive chain's (stated). The files keep the receiver's
+# phase cycle in the stored transients, which scan.calibrate undoes.
+NOISE_DS006444_GE_32CH_3T = Calibration(
+    leaf="noise.sigma",
+    value=7.9,
+    prior=(6.9, 8.7),
+    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
+                           "the noise standard deviation of a signal-free stretch after a linear "
+                           "detrend, no apodization), median over acquisitions",
+              "median": 32.3, "implied_value": 8.56, "subjects": 13, "acquisitions": 26,
+              "apodized": {"statistic": APODIZED, "median": 117.9, "implied_value": 7.32}},
+    source={"dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+            "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+            "url": "https://openneuro.org/datasets/ds006444"},
+    scanner={"vendor": "ge", "model": "Discovery MR750", "software": "DV26.0_R01_1725.a",
+             "field_t": 3.0},
+    coil={"channels": (32,), "name": "32Ch Head"},
+    sequence={"name": "sLASER", "family": "SemiLaser", "product": "slaser", "te_s": 0.035, "tr_s": 2.0,
+              "simulated_as": "SemiLaser(te_s=0.035, tr_s=2.0)"},
+    acquisition={"npoints": 4096, "bandwidth_hz": 5000.0, "transients": 64, "measured_on": 1,
+                 "water_suppressed": True},
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="NIfTI-MRS from P-files (spec2nii), the stored phase cycle undone, noise-whitened "
+               "SVD coil combination, SNR per transient, median per acquisition",
+    date="19/09/26",
+    presets=("ge_mr750_32ch_3t",),
+    note="the prior is the acquisitions' 5th to 95th percentile of the two readings' mean",
+)
+
+
 #********************#
 #   noise, 7 tesla   #
 #********************#
@@ -389,7 +427,8 @@ CREATINE_THREE_DATASETS_3T = Calibration(
 # of a leaf is the fallback for every other scanner, and a scan's header
 # says where it departs from the record it got (`Calibration.departures`)
 CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
-                NOISE_BIG_GABA_GE_3T, NOISE_NEUROMET_7T, CREATINE_THREE_DATASETS_3T)
+                NOISE_BIG_GABA_GE_3T, NOISE_DS006444_GE_32CH_3T, NOISE_NEUROMET_7T,
+                CREATINE_THREE_DATASETS_3T)
 
 
 def calibrations(scanner=None, records=()):
@@ -434,7 +473,36 @@ LINEWIDTH_SIEMENS_3T = Calibration(
     note="a check, not a fit; other vendors' lines are not measured yet",
 )
 
+# a second 7 T site read the same way, kept as a check beside NeuroMET and not as a value:
+# at an echo time of 69 ms the reading leans on the 7 T NAA T2 prior (a fifth off in T2 is a
+# tenth in sigma), and the echo's split and the voxel's place are stand-ins. It reads 2.1
+# where NeuroMET reads 3.6: quieter, by how much the stand-ins do not let one say.
+NOISE_DS005917_7T = Calibration(
+    leaf="noise.sigma",
+    value=2.1,
+    prior=(1.8, 2.8),
+    measured={"statistic": NOISE_NEUROMET_7T.measured["statistic"], "median": 32.8,
+              "implied_value": 2.04, "subjects": 25,
+              "apodized": {"statistic": APODIZED, "median": 92.9, "implied_value": 2.18}},
+    source={"dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline "
+                       "sessions (CC0)", "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+            "url": "https://openneuro.org/datasets/ds005917"},
+    scanner={"vendor": "siemens", "model": None, "software": "syngo MR B17", "field_t": 6.98},
+    coil={"channels": (32,), "name": "32Ch_Head_7T"},
+    sequence={"name": "PRESS", "product": "press_glx1 (customer sequence, J-suppressed)", "te_s": 0.069,
+              "tr_s": 2.5, "simulated_as": "Press(te1_s=0.0345, te2_s=0.0345, tr_s=2.5), the split a "
+              "stand-in"},
+    acquisition={"npoints": 2048, "bandwidth_hz": 4000.0, "transients": 136, "measured_on": 1,
+                 "water_suppressed": True},
+    voxel={"region": "perigenual anterior cingulate", "size_mm": (20.0, 20.0, 20.0),
+           "simulated_brain": "icbm152", "simulated_position_mm": (0.0, 40.0, 8.0)},
+    processing="NIfTI-MRS from TWIX (spec2nii), noise-whitened SVD coil combination, SNR per "
+               "transient, median per subject",
+    date="19/09/26",
+    note="a check: patients and controls at baseline; the place and the echo's split are stand-ins",
+)
+
 # records read the same way under other conditions, kept to test what carries a number there
-CHECKS = (LINEWIDTH_SIEMENS_3T)
+CHECKS = (LINEWIDTH_SIEMENS_3T, NOISE_DS005917_7T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}

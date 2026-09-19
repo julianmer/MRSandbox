@@ -78,6 +78,10 @@ PRESETS = {
                                  max_slew_t_m_s=200.0),
     "ge_mr750_3t": Scanner("ge_mr750_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=50.0,
                            max_slew_t_m_s=200.0),
+    # the same MR750 with its 32-channel head array, which has a noise record of its own
+    # (scan.calibrations): the coil is part of what the preset stands for
+    "ge_mr750_32ch_3t": Scanner("ge_mr750_32ch_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=50.0,
+                                max_slew_t_m_s=200.0),
     "philips_elition_3t": Scanner("philips_elition_3t", 3.0, peak_b1_ut=15.0, max_grad_mt_m=45.0,
                                   max_slew_t_m_s=220.0),
     # the two systems the noise is calibrated on besides the Prisma (scan.calibrations): the

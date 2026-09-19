@@ -39,6 +39,12 @@ class TestScannerProfile:
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == NOISE_COWS_PRISMA_3T.prior
 
+    def test_a_coil_with_its_own_record_is_a_preset_of_its_own(self):
+        eight, many = (ScannerProfile.preset(name).calibrations()["noise.sigma"]
+                       for name in ("ge_mr750_3t", "ge_mr750_32ch_3t"))
+        assert eight.coil["channels"] == (8, 8) and many.coil["channels"] == (32,)
+        assert eight.value == 7.0 and many.value == 7.9
+
     def test_own_records_outrank_the_catalogue_in_priors_and_headers(self):
         own = dataclasses.replace(NOISE_COWS_PRISMA_3T, value=8.0, prior=(7.0, 9.0), presets=(),
                                   source={"dataset": "my scanner", "citation": None, "url": None})
