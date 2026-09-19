@@ -27,6 +27,7 @@ from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Mapped, Normal, Params, Uniform
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
+from mrsandbox.phantom.water import Unsuppressed
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
@@ -110,6 +111,13 @@ SHIFTED = {"water": 4.65, "lipid": 1.3}
 # suppression as six slabs of OVS_MM about the voxel's faces. The slabs play between the train and the
 # excitation, where they saturate what the excitation would see; the train's last delay grows by them.
 SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}
+# how the water comes about. The water is a spin system of its own, run through the card's sequence at its full amplitude
+# (phantom.water Unsuppressed), so "off" is the whole water line and a train suppresses it as far as its physics does, by this
+# scanner's B1 and the water's T1. ASSUMED is the package's shortcut: no train is played and the water is scaled to a drawn
+# residual fraction (water.residual_fraction, 0.01 to 0.3 percent), fast, and the same whatever the card plays.
+ASSUMED = "assumed residual"
+# the branches of the parameter tree that are the scanner's state of one exam, drawn anew for every exam (Session.run)
+STATE = ("acquisition", "spurious", "b1_scale")
 OVS_MM = 30.0
 
 
@@ -228,7 +236,7 @@ class Protocol:
     matrix: int = 8
     matrix_y: int = 8
     slices: int = 1
-    water_suppression: str = "off"
+    water_suppression: str = "VAPOR"
     ovs: bool = False
     real: bool = True
     water_reference: int = 1
@@ -582,8 +590,9 @@ class Session:
             self.position_mm = [float(body.affine[a, 3] + body.affine[a, a] * middle[a]) for a in range(3)]
             self.view_mm = list(self.position_mm)
 
-    def fields(self):
-        """The room's B0 and B1+ as VirtualScan takes them, made once per choice."""
+    def fields(self, card=None):
+        """The room's B0 and B1+ as VirtualScan takes them, made once per choice, and the water as the card has it: at
+        its full amplitude through the sequence, or the assumed residual (ASSUMED)."""
         key = (self.field, self.transmit)
         if key not in self._bodies:
             field = None if self.field == "uniform" else (
@@ -594,7 +603,8 @@ class Session:
         if field is not None:           # the adjustment as it stands now: the order, and the box about the planned voxel
             field.shim = self.shim
             field.shim_box = None if self.shim_mm is None else (tuple(self.position_mm), float(self.shim_mm))
-        return self._bodies[key]
+        card = self.protocol if card is None else card
+        return {**self._bodies[key], **({} if card.water_suppression == ASSUMED else {"water": Unsuppressed()})}
 
     def idealize(self, name, ideal):
         """Switch one imperfection of IDEALS off (its leaves set to nothing) or back on (the leaves
@@ -1033,7 +1043,7 @@ class Session:
     def preludes(self, card):
         """What a timed card plays before its localization, in order, {name: design}."""
         found = {}
-        if card.water_suppression != "off":
+        if card.water_suppression in SUPPRESSION:
             found[card.water_suppression] = SUPPRESSION[card.water_suppression]()
         if card.ovs:
             found["OVS"] = OuterVolumeSuppression([(axis, side * (0.5 * (edge + OVS_MM) + 2.0), OVS_MM)
@@ -1318,7 +1328,11 @@ class Session:
                 "scan_time_s": card.scan_time_s,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
                 "encoding": self.encoding(),
-                "violations": tuple(dict.fromkeys(sequence.violations(limits))) + ((self.unfitted,) if self.unfitted else ()) + (
+                # (a suppression train's selective pulses are ideal and take no time in the engine: the package's check then says
+                # how much time they would need on this scanner, which is said with it)
+                "violations": tuple(problem + (" (the suppression train's selective pulses take no time in the simulation; on this scanner "
+                                               "they would need that much more)" if problem.startswith("the delays are") and self.preludes(card) else "")
+                                    for problem in dict.fromkeys(sequence.violations(limits))) + ((self.unfitted,) if self.unfitted else ()) + (
                     self.encoding()["problems"] if self.encoding() else ()),
                 "records": {leaf: record.record(scan) for leaf, record in profile.calibrations().items()}}
 
@@ -1352,9 +1366,13 @@ class Session:
         elif queued:
             self.queue.append(exam)
             if card.water_reference and card.sequence != MRSI:     # the same card without water suppression, a few transients
+                bare = dataclasses.replace(card, averages=int(card.water_reference), water_suppression="off", water_reference=0)
+                unsuppressed = (self.editing(bare) if card.sequence in EDITING else
+                                {name: self.own(card.tr_ms / 1000.0, name) for name in self.designs} if card.sequence == "Custom" and len(self.designs) > 1
+                                else {"scan": self.sequence(bare)})          # the same card WITHOUT its suppression train
                 self.queue.append(dataclasses.replace(
                     exam, name=f"{number + 1} {card.sequence} water reference", frames=[], spectra={}, tracks={}, truth={},
-                    card=dataclasses.replace(card, averages=int(card.water_reference), water_suppression="off", water_reference=0),
+                    card=bare, sequence=next(iter(unsuppressed.values())), conditions=unsuppressed,
                     overrides={**exam.overrides, "water.residual_fraction": 1.0, "downfield.presaturated": False}))
                 if card.water_reference_first:          # the reference runs before its card, and the numbers follow the order
                     self.queue[-2], self.queue[-1] = self.queue[-1], self.queue[-2]
@@ -1401,7 +1419,7 @@ class Session:
         profile = self.profile()
         coils = self.array()
         if card.sequence == MRSI:
-            grid = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields()).mrsi(
+            grid = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields(card)).mrsi(
                 center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix_y)) + ((int(card.slices),) if card.slices > 1 else ()),
                 voxel_mm=exam.size_mm[0], thickness_mm=exam.size_mm[2],
                 oversampling=int(card.mrsi_oversampling), weighting=None if card.mrsi_weighting == "none" else card.mrsi_weighting,
@@ -1427,8 +1445,19 @@ class Session:
                           if isinstance(value, (int, float))}
             exam.status = "done"
             return exam
-        room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(exam.overrides),
-                         **self.fields(),
+        # what is the SCANNER'S of this exam is drawn anew for every exam (its place in the queue), while the seed keeps the
+        # person: the frequency offset and phase the acquisition starts with, its eddy currents, its spurious echoes, and
+        # the transmit gain, by which a suppression train's residual differs from exam to exam. What the operator set stays.
+        anew = int(np.random.SeedSequence([int(seed), self.queue.index(exam) + 1 if exam in self.queue else 0]).generate_state(1)[0])
+        drawn = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields(card)).params.sample(anew).to_dict()
+        state = {}
+        for group in STATE:             # a branch of leaves, or one leaf at the root (b1_scale)
+            for path, value in ([(f"{group}.{leaf}", v) for leaf, v in drawn[group].items()] if isinstance(drawn.get(group), dict)
+                                else [(group, drawn.get(group))]):
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    state[path] = float(value)
+        room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params({**state, **exam.overrides}),
+                         **self.fields(card),
                          # the array's noise is tied to the scanner's record AT THIS VOXEL, so every place has the record's SNR: what
                          # an array gives by place (better under its loops) is not in the console yet (info/HANDOFF.md item 196)
                          coils=None if coils is None else (coils.loaded(**({} if self.own_noise is None else {"own_noise": self.own_noise}))

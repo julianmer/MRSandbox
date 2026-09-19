@@ -32,7 +32,7 @@ import numpy as np
 from nicegui import Client, run, ui
 from PIL import Image
 
-from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, LENT, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
+from mrsandbox.console.session import ASSUMED, BLOCKS, EDITING, FIELDS, GEARS, IDEALS, LENT, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 
@@ -254,8 +254,8 @@ SPECTRUM = {
               "axisLine": {"lineStyle": {"color": LINE}}, "axisLabel": {"color": DIM}, "splitLine": {"show": False}},
     "yAxis": {"type": "value", "show": False, "scale": True},
     # the wheel zooms and a drag pans along ppm; the slider below shows where one is in -0.5 to 6.5
-    "dataZoom": [{"type": "inside", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "filterMode": "none"},
-                 {"type": "slider", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "height": 14, "bottom": 2, "filterMode": "none",
+    "dataZoom": [{"type": "inside", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "filterMode": "filter"},
+                 {"type": "slider", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "height": 14, "bottom": 2, "filterMode": "filter",
                   "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)", "textStyle": {"color": DIM}}],
     "series": [{"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": SAND, "width": 1.3},
                 "areaStyle": {"color": COPPER, "opacity": 0.12}},
@@ -423,10 +423,10 @@ async def console(client: Client):
                         ui.label(f"{values:.1f}").classes("value")
         for name, tool in tools.items():
             on = {"ovs": card.ovs, "shifts": chosen["shifts"], "flip": chosen["flipped"], "real": card.real or card.sequence == "HERCULES"}.get(
-                name, card.water_suppression != "off")
+                name, card.water_suppression in SUPPRESSION)
             tool.classes(add="on" if on else "", remove="" if on else "on")
         tools["water"].text = "water " + card.water_suppression
-        tools["water"].props(f"icon={'format_color_reset' if card.water_suppression == 'off' else 'water_drop'}")
+        tools["water"].props(f"icon={'water_drop' if card.water_suppression in SUPPRESSION else 'format_color_reset'}")
 
     def listing():
         """Redraw the exam cards."""
@@ -964,7 +964,7 @@ async def console(client: Client):
             ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
                        "grid": {"left": 12, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
                        "xAxis": {**axis, "inverse": True, "min": -0.5, "max": 6.5, "name": "ppm"},
-                       "dataZoom": [{"type": "inside", "startValue": exam.window[0], "endValue": exam.window[1], "filterMode": "none"}],
+                       "dataZoom": [{"type": "inside", "startValue": exam.window[0], "endValue": exam.window[1], "filterMode": "filter"}],
                        "yAxis": {"type": "value", "show": False, "scale": True},
                        "series": [{"type": "line", "name": name, "showSymbol": False, "lineStyle": {"width": 1.2},
                                    "data": [[float(p), float(v)] for p, v in zip(exam.ppm, real)]}
@@ -1411,7 +1411,7 @@ async def console(client: Client):
         elif name == "real":
             card.real = not card.real
         else:
-            schemes = ["off"] + list(SUPPRESSION)
+            schemes = [*SUPPRESSION, "off", ASSUMED]
             card.water_suppression = schemes[(schemes.index(card.water_suppression) + 1) % len(schemes)]
         draw()
 
@@ -1599,7 +1599,10 @@ async def console(client: Client):
                                         "off: ideal pulses that act at once and select the voxel exactly (fast). on: shaped pulses under gradients, played in "
                                         "time, so the voxel has a profile, shifts displace, and the scan takes longer to simulate")
                                     tools["water"] = ui.button("water off", icon="water_drop", on_click=lambda: toggle("water")).props(
-                                        "flat dense no-caps stack").classes("tool").tooltip("water suppression before the localization: off, VAPOR, WET, CHESS")
+                                        "flat dense no-caps stack").classes("tool").tooltip(
+                                        "the water is a spin system of its own, played through the sequence at its full amplitude. VAPOR, WET, CHESS: "
+                                        "the train is played and suppresses it as far as its physics does on this scanner. off: the whole water "
+                                        "line. assumed residual: no train, the water scaled to a drawn residual (the package's shortcut, fast)")
                                     tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
                                         "flat dense no-caps stack").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
                                     ui.button("design", icon="architecture", on_click=lambda: (session.protocol.sequence != "Custom" and session.adopt(), designer())).props("flat dense no-caps stack").classes("tool").tooltip(

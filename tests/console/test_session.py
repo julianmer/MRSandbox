@@ -31,6 +31,7 @@ class TestSession:
     def test_the_planes_are_squares_and_a_click_on_the_voxel_leaves_it_there(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         planes = session.planes()
         assert {image.shape for image, *_ in planes.values()} == {(115, 115)}
         assert all(image.max() > 200 and image.dtype == np.uint8 for image, *_ in planes.values())
@@ -46,6 +47,7 @@ class TestSession:
     def test_leafing_through_a_plane_leaves_the_voxel_and_a_click_places_it_on_the_slice(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         before = list(session.position_mm)
         session.scroll("tra", 20)
         image, _, cut, *_ = session.planes()["tra"]
@@ -60,6 +62,7 @@ class TestSession:
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.real = False                                      # ideal pulses select exactly
         assert session.displacement(4.65) == [0.0, 0.0, 0.0] and session.planes()["tra"][4] == {}
         session.protocol.real = True                                       # the default
@@ -77,6 +80,7 @@ class TestSession:
 
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         assert session.field == "bigbrain_mr" and 1.0 < session.linewidth() < 5.0   # the measured field, shimmed, by default
         session.field = "uniform"
         assert session.linewidth() is None                                 # a uniform field broadens nothing
@@ -97,6 +101,7 @@ class TestSession:
     def test_one_subject_lies_on_the_table_and_a_water_reference_follows_its_card(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.real, session.protocol.averages, session.protocol.npoints, session.protocol.water_reference = False, 4, 512, 2
         session.size_mm = [30.0, 20.0, 15.0]                                # an anisotropic voxel
         session.run_settings = {"events_per_min": 0.0}
@@ -113,6 +118,7 @@ class TestSession:
     def test_the_scanner_drifts_through_the_session_and_a_prescan_centres_it(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
         session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 30, 256
         session.run_settings = {"ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "events_per_min": 0.0}     # the drift alone
         session.prescan = False
@@ -132,6 +138,7 @@ class TestSession:
 
         session = Session(ICBM)
         session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
         session.field, session.protocol.real, session.protocol.averages, session.seed = "uniform", False, 32, 4
         session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
         exam = session.run(session.plan())
@@ -150,6 +157,7 @@ class TestSession:
 
         session = Session(ICBM)
         session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
         session.protocol.sequence, session.protocol.averages, session.protocol.npoints = "Custom", 8, 512
         press = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in TEMPLATES["PRESS, TE 30"]]
         session.designs = {"A": press, "B": [(kind, dict(settings)) for kind, settings in press]}
@@ -167,6 +175,7 @@ class TestSession:
     def test_real_designs_are_fitted_to_the_scanners_transmitter(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"                    # the localization alone: a train has its own timing to say
         prisma = {name: None for name in ("PRESS", "STEAM")}
         for name in prisma:
             session.protocol.sequence = name
@@ -190,8 +199,11 @@ class TestSession:
 
         session = Session(ICBM)
         session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
         session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.field = "Custom", 8, 1024, "uniform"
-        session.overrides = {"noise.sigma": 0.0}
+        # nothing of the scanner's own state, which is drawn anew for every exam: the exams below differ by their designs alone
+        session.overrides = {"noise.sigma": 0.0, "acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0, "acquisition.eddy_std_rad": 0.0,
+                             "spurious.amplitude": 0.0, "b1_scale": 1.0}
         session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "phase_jitter_deg": 0.0,
                                 "amp_jitter_frac": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
         # a spin echo without any filter or crusher, its refocusing pulse 40 degrees short: the 140 leaves a free induction
@@ -232,11 +244,31 @@ class TestSession:
         session.scanner = "generic_7t"                                                  # stronger and no faster gradients: the slew decides
         assert "1631 Hz" in session.encoding()["said"]
 
+    def test_the_person_stays_the_scanners_state_is_drawn_anew_and_the_water_is_physics(self):
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.real, session.protocol.averages, session.protocol.npoints, session.seed = False, 4, 512, 4
+        session.run_settings = {"events_per_min": 0.0}
+        assert session.protocol.water_suppression == "VAPOR"                        # the console's default: the train is played
+        heights, truths = {}, []
+        for scheme in ("VAPOR", "VAPOR", "off", "assumed residual"):
+            session.protocol.water_suppression = scheme
+            exam = session.run(session.plan())
+            water, naa = (exam.ppm > 4.4) & (exam.ppm < 4.9), (exam.ppm > 1.9) & (exam.ppm < 2.1)
+            heights.setdefault(scheme, []).append(np.abs(exam.frames[-1][1][water]).max() / exam.frames[-1][1][naa].max())
+            truths.append(exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"])
+        assert len({truth["conc"]["NAA"] for truth in truths}) == 1                 # one person through all four exams
+        assert len({truth["acquisition"]["shift_hz"] for truth in truths}) == 4     # the scanner's state anew every time
+        assert heights["VAPOR"][0] != heights["VAPOR"][1]                           # so a train's residual differs from exam to exam
+        assert heights["off"][0] > 5.0 * max(heights["VAPOR"])                      # without a train, the whole water line
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
+        session.protocol.water_suppression = "off"
         bare = len(session.sequence().events)
         session.protocol.water_suppression, session.protocol.ovs = "VAPOR", True
         assert len(session.sequence().events) == bare + len(Vapor().events) + 12     # six slabs, a filter after each
@@ -249,6 +281,7 @@ class TestSession:
 
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.averages, session.protocol.npoints, session.protocol.real = 4, 512, False   # the maps are the point
         body = session.body()
         for name, data in (("gm", body.gm), ("wm", body.wm), ("csf", body.csf), ("b0", np.full(body.gm.shape, 7.0)),
@@ -266,6 +299,7 @@ class TestSession:
     def test_the_card_promises_and_the_exam_delivers(self, tmp_path):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.averages, session.protocol.npoints = 6, 1024
         look = session.outlook()
         assert look["gm"] + look["wm"] + look["csf"] == pytest.approx(1.0, abs=0.02)
@@ -287,6 +321,7 @@ class TestSession:
     def test_a_phantom_and_an_array_are_in_the_room_as_a_brain_is(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.subject, session.position_mm, session.coil = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0], "head array"
         assert session.outlook()["gm"] == pytest.approx(1.0)
         assert {image.shape[0] == image.shape[1] for image, *_ in session.planes().values()} == {True}
@@ -297,6 +332,7 @@ class TestSession:
     def test_the_gear_opens_every_leaf_and_a_setting_reaches_the_scan(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
         assert leaves["noise.sigma"] == ("range", (3.7, 6.9)) and leaves["water.temperature_c"] == ("fixed", (37.0,))
         assert leaves["water.t1_s"][0] == "other"                               # a tissue record, shown and not edited
@@ -310,6 +346,7 @@ class TestSession:
     def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.real = False
         drawn = session.diagram()                                               # the card's ideal PRESS, TE 30
         assert [text for _, text in drawn["pulses"]] == ["90°", "180°", "180°"]
@@ -333,6 +370,7 @@ class TestSession:
     def test_an_edited_card_interleaves_its_sub_experiments_and_reviews_them(self, tmp_path, monkeypatch):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS", 8, 1024, [30.0] * 3
         session.protocol.real = False                                           # the interleaving is the point
         exam = session.run(session.plan(), seed=1)
@@ -355,6 +393,7 @@ class TestSession:
     def test_a_spectroscopic_image_is_a_card_too(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
+        session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.sequence, session.protocol.npoints, session.protocol.bandwidth_hz = "MRSI PRESS", 512, 2000.0
         session.protocol.matrix, session.protocol.matrix_y, session.size_mm, session.position_mm = 6, 6, [14.0] * 3, [0.0, -10.0, 35.0]
         assert session.outlook()["scan_time_s"] == 72.0                         # a repetition per phase encode
