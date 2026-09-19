@@ -153,25 +153,30 @@ class SdatSpar:
 #                                                                                                  #
 #**************************************************************************************************#
 class LabRaw:
-    """The scanner's own raw stream: int16 samples of every channel per label, and the
+    """The scanner's own raw stream: the samples of every channel per label, and the
     noise label.
 
     The .lab file holds one 64-byte label per block of the .raw file (its size, its
     control type, the loop counters, the receiver's phases), the .sin file the number of
-    measured channels. After Welch's loadLABRAW.m with Boer's changes for release 5 (the
-    block sizes count as stored, the channels come from the .sin file). The samples are
-    the receiver's, oversampled: no filter or decimation is applied here. Newer releases
-    store the blocks compressed (the .raw file is then smaller than its labels' sizes
-    add up to); the codec is not public and such a file is refused: export data/list.
+    measured channels. Two generations exist. The older one (its .sin file names
+    `enable_pda`) stores int16 samples as they are; after Welch's loadLABRAW.m with
+    Boer's changes. The newer one stores int32 samples, bit-packed where the label's raw
+    format is 4 or 6: chunks of groups of sixteen values, each group with its own bit
+    width and shift, and the blocks follow each other by their coded size. Layout and
+    decoder after the ISMRMRD project's converter (github.com/ismrmrd/philips_to_ismrmrd,
+    main.cpp and philips.h, reverse engineered there). The samples are the receiver's,
+    oversampled: no filter or decimation is applied here.
 
     Attributes:
         labels: {field: array over labels}, the parsed label fields.
         channels: Measured channels.
+        packed: True for the newer generation.
     """
 
     NORMAL_DATA, NOISE_DATA, STANDARD_LABEL = 0, 16, 32513
     # (field, word of the label, shift, mask)
-    FIELDS = (("size", 0, 0, 0xFFFFFFFF), ("label_type", 3, 16, 0xFFFF), ("control", 4, 0, 0xFF),
+    FIELDS = (("size", 0, 0, 0xFFFFFFFF), ("coded_size", 1, 0, 0xFFFFFFFF),
+              ("label_type", 3, 16, 0xFFFF), ("control", 4, 0, 0xFF), ("raw_format", 5, 8, 0xFF),
               ("measurement_phase", 4, 16, 0xFF), ("measurement_sign", 4, 24, 0xFF),
               ("mix", 6, 16, 0xFFFF), ("dynamic", 7, 0, 0xFFFF), ("cardiac_phase", 7, 16, 0xFFFF),
               ("echo", 8, 0, 0xFFFF), ("location", 8, 16, 0xFFFF), ("row", 9, 0, 0xFFFF),
@@ -181,12 +186,16 @@ class LabRaw:
     #**********#
     #   init   #
     #**********#
-    def __init__(self, labels, channels, raw_path):
+    def __init__(self, labels, channels, packed, raw_path):
         self.labels = labels
         self.channels = channels
+        self.packed = packed
         self._raw_path = raw_path
-        # the blocks follow a 512-byte header one after another
-        self._offsets = 512 + np.concatenate([[0], np.cumsum(labels["size"][:-1].astype(np.int64))])
+        # the blocks follow a 512-byte header one after another, by their stored size
+        stored = labels["size"].astype(np.int64)
+        if packed:  # a bit-packed block takes its coded size, every other one is stored as it is
+            stored = np.where(np.isin(labels["raw_format"], (4, 6)), labels["coded_size"].astype(np.int64), stored)
+        self._offsets = 512 + np.concatenate([[0], np.cumsum(stored[:-1])])
 
     #**********#
     #   load   #
@@ -198,11 +207,9 @@ class LabRaw:
         labels = {name: (words[:, word] >> np.uint32(shift)) & np.uint32(mask)
                   for name, word, shift, mask in cls.FIELDS}
         with open(_sibling(path, ".sin")) as handle:
-            channels = next(int(line.split()[-1]) for line in handle if "nr_measured_channels" in line)
-        raw_path = _sibling(path, ".raw")
-        if os.path.getsize(raw_path) < 512 + int(labels["size"].astype(np.int64).sum()):
-            raise NotImplementedError("the .raw file is compressed; export the scan as data/list")
-        return cls(labels, channels, raw_path)
+            sin = handle.read()
+        channels = next(int(line.split()[-1]) for line in sin.splitlines() if "nr_measured_channels" in line)
+        return cls(labels, channels, "enable_pda" not in sin, _sibling(path, ".raw"))
 
     #************#
     #   blocks   #
@@ -233,7 +240,30 @@ class LabRaw:
         return np.concatenate([self._block(k) for k in self.which(self.NOISE_DATA)], axis=0)
 
     def _block(self, k):
-        count = int(self.labels["size"][k]) // 2
-        samples = np.fromfile(self._raw_path, dtype="<i2", count=count, offset=int(self._offsets[k]))
-        pairs = samples.astype(np.float32).reshape(self.channels, -1, 2)
+        size, offset = int(self.labels["size"][k]), int(self._offsets[k])
+        if not self.packed:
+            values = np.fromfile(self._raw_path, dtype="<i2", count=size // 2, offset=offset)
+        elif self.labels["raw_format"][k] not in (4, 6):
+            values = np.fromfile(self._raw_path, dtype="<i4", count=size // 4, offset=offset)
+        else:
+            coded = np.fromfile(self._raw_path, dtype="u1", count=int(self.labels["coded_size"][k]), offset=offset)
+            values, at = np.zeros(size // 4, dtype=np.int64), 0
+            while at < coded.size:
+                # a chunk: decoded bytes, coded bytes, and where its values go; then 32-bit
+                # words read from their top bit down
+                decoded, length = (int(v) for v in coded[at:at + 4].view("<u2"))
+                start = int(coded[at + 4:at + 8].view("<u4")[0]) // 4
+                words = coded[at + 8:at + 8 + length]
+                bits = np.unpackbits(words[:words.size // 4 * 4].view("<u4").astype(">u4").view("u1"))
+                bit, done, count = 0, 0, decoded // 4
+                while done < count:
+                    width, shift = (int(bits[b:b + 5] @ (16, 8, 4, 2, 1)) for b in (bit, bit + 5))
+                    group = min(16, count - done)
+                    field = bits[bit + 10:bit + 10 + group * width].reshape(group, width).astype(np.int64)
+                    number = field @ (1 << np.arange(width - 1, -1, -1, dtype=np.int64)) if width else np.zeros(group, np.int64)
+                    number = number - (field[:, 0] << width) if width else number        # two's complement
+                    values[start + done:start + done + group] = (number << shift) + ((1 << shift) >> 1)
+                    bit, done = bit + 10 + group * width, done + group
+                at += 8 + length
+        pairs = values.astype(np.float32).reshape(self.channels, -1, 2)
         return (pairs[..., 0] + 1j * pairs[..., 1]).T

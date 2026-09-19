@@ -65,28 +65,49 @@ def test_sdat_reads_vax_floats(tmp_path):
 #*******************#
 #   lab / raw / sin #
 #*******************#
-def test_lab_raw_reads_blocks_phases_and_noise_and_refuses_compression(tmp_path):
+def test_lab_raw_reads_the_older_plain_and_the_newer_bit_packed_stream(tmp_path):
     rng = np.random.default_rng(1)
-    channels, samples = 2, 8
-    blocks = rng.integers(-1000, 1000, (3, channels, samples, 2)).astype("<i2")     # noise, two normal
+    channels, samples = 2, 24
+    blocks = rng.integers(-1000, 1000, (3, channels, samples, 2))                   # noise, two normal
     labels = np.zeros((3, 16), dtype="<u4")
-    labels[:, 0] = channels * samples * 4
     labels[:, 3] = LabRaw.STANDARD_LABEL << 16
     labels[0, 4] = LabRaw.NOISE_DATA
     labels[2, 4] = (2 << 16) | (1 << 24)                                           # half a turn, reversed
-    labels.tofile(tmp_path / "scan.lab")
-    (tmp_path / "scan.sin").write_text(" 01 00 00: nr_measured_channels           :     2\n")
-    with open(tmp_path / "scan.raw", "wb") as handle:
-        handle.write(bytes(512) + blocks.tobytes())
-
-    scan = LabRaw.load(tmp_path / "scan.raw")
     stored = blocks[..., 0] + 1j * blocks[..., 1]
-    assert np.allclose(scan.noise(), stored[0].T)
-    data = scan.data()
-    assert data.shape == (samples, channels, 2) and np.allclose(data[:, :, 0], stored[1].T)
-    assert np.allclose(data[:, :, 1], -stored[2].T[::-1], atol=1e-3)
 
-    with open(tmp_path / "scan.raw", "wb") as handle:
-        handle.write(bytes(512) + blocks.tobytes()[:40])
-    with pytest.raises(NotImplementedError, match="compressed"):
-        LabRaw.load(tmp_path / "scan.raw")
+    # the older generation: int16 as they are, the .sin file names enable_pda
+    labels[:, 0] = channels * samples * 4
+    labels.tofile(tmp_path / "old.lab")
+    (tmp_path / "old.sin").write_text(" 01 00 00: nr_measured_channels  :  2\n 01 00 00: enable_pda  :  1\n")
+    with open(tmp_path / "old.raw", "wb") as handle:
+        handle.write(bytes(512) + blocks.astype("<i2").tobytes())
+
+    # the newer one: int32, bit-packed in chunks of groups of sixteen, each group its own width
+    coded = []
+    for block in blocks:
+        values, stream = block.ravel(), b""
+        for first in range(0, values.size, 40):                                    # chunks of 40 values
+            chunk, bits = values[first:first + 40], ""
+            for g in range(0, chunk.size, 16):
+                group = chunk[g:g + 16]
+                width = int(max(abs(int(v)) for v in group)).bit_length() + 1
+                bits += format(width, "05b") + format(0, "05b") + "".join(format(int(v) % (1 << width), f"0{width}b") for v in group)
+            bits += "0" * (-len(bits) % 32)
+            words = np.array([int(bits[k:k + 32], 2) for k in range(0, len(bits), 32)], dtype="<u4").tobytes()
+            stream += np.array([chunk.size * 4, len(words)], dtype="<u2").tobytes() + np.array([first * 4], dtype="<u4").tobytes() + words
+        coded.append(stream)
+    labels[:, 0] = channels * samples * 8
+    labels[:, 1] = [len(stream) for stream in coded]
+    labels[:, 5] = 6 << 8                                                          # raw format 6
+    labels.tofile(tmp_path / "new.lab")
+    (tmp_path / "new.sin").write_text(" 01 00 00: nr_measured_channels  :  2\n")
+    with open(tmp_path / "new.raw", "wb") as handle:
+        handle.write(bytes(512) + b"".join(coded))
+
+    for name, packed in (("old", False), ("new", True)):
+        scan = LabRaw.load(tmp_path / f"{name}.raw")
+        assert scan.packed is packed and scan.channels == channels
+        assert np.allclose(scan.noise(), stored[0].T)
+        data = scan.data()
+        assert data.shape == (samples, channels, 2) and np.allclose(data[:, :, 0], stored[1].T)
+        assert np.allclose(data[:, :, 1], -stored[2].T[::-1], atol=1e-3)
