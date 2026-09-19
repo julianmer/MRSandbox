@@ -77,3 +77,23 @@ class TestSession:
         session.protocol.averages, session.protocol.npoints = 2, 512
         exam = session.run(session.plan(), seed=1)
         assert exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]["conc"]["NAA"] == 20.0
+
+    def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
+        session = Session()
+        drawn = session.diagram()                                               # the card's ideal PRESS, TE 30
+        spikes = sorted(time for time, height in drawn["rf"] if height > 0.4)
+        assert np.allclose(spikes, [0.0, 5.5, 20.5], atol=0.6) and drawn["adc"][0] == pytest.approx(30.0)
+        assert len(drawn["marks"]) == 3 and max(abs(g) for _, g in drawn["x"]) == 0.0   # filters, no gradient played
+        session.protocol.sequence = "Custom"                                    # the starter: a spin echo with crushers
+        drawn = session.diagram()
+        assert drawn["adc"][0] == pytest.approx(30.0) and max(abs(g) for _, g in drawn["x"]) > 5.0
+        assert max(abs(g) for _, g in drawn["y"]) == 0.0
+        session.design.insert(0, ("water suppression", {"scheme": "VAPOR"}))
+        from mrsandbox import Vapor
+
+        assert len(session.sequence().events) == len(session.design) - 1 + len(Vapor().events)   # the module's own train
+        session.design.pop(0)
+        session.protocol.averages, session.protocol.npoints = 2, 1024
+        exam = session.run(session.plan(), seed=1)
+        assert exam.name == "1 Custom" and exam.status == "done"
+        assert abs(exam.ppm[exam.frames[-1][1].argmax()] - 2.01) < 0.05

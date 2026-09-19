@@ -21,10 +21,13 @@ import pathlib
 import numpy as np
 
 from mrsandbox.hardware import CoilArray
+from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Params, Uniform
 from mrsandbox.phantom import Brain, Phantom
 from mrsandbox.scan import Multiplex, ScannerProfile
-from mrsandbox.sequences import Press, SemiLaser, Steam
+from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Press, Pulse, SemiLaser, Sequence,
+                                 ShapedPulse, Steam, Vapor, Wet)
+from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
 #   subjects   #
@@ -45,6 +48,31 @@ SEQUENCES = {
     "STEAM": lambda te_s, tr_s: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
     "sLASER": lambda te_s, tr_s: SemiLaser(te_s=te_s, tr_s=tr_s),
 }
+
+
+#************#
+#   blocks   #
+#************#
+# the building blocks of a custom design: what the designer offers, the settings each takes with
+# their defaults, and how a block becomes events
+BLOCKS = {
+    "hard pulse": (dict(flip_deg=90.0, phase_deg=0.0), lambda b: (Pulse(b["flip_deg"], phase_deg=b["phase_deg"]),)),
+    "shaped pulse": (dict(shape="sinc", flip_deg=90.0, duration_ms=2.6, offset_ppm=3.0, phase_deg=0.0,
+                          slice_axis="none", slice_hz_per_mm=0.0),
+                     lambda b: (getattr(ShapedPulse, b["shape"])(
+                         b["flip_deg"], b["duration_ms"] / 1000.0, offset_ppm=b["offset_ppm"], phase_deg=b["phase_deg"],
+                         **({} if b["slice_axis"] == "none" else dict(gradient_hz_per_mm=b["slice_hz_per_mm"],
+                                                                      gradient_axis=b["slice_axis"]))),)),
+    "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
+    "crusher": (dict(axis="x", cycles_per_mm=0.15), lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
+    "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
+    "water suppression": (dict(scheme="VAPOR"),
+                          lambda b: {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}[b["scheme"]]().events),
+}
+# a spin echo with played crushers, the design the designer opens with
+STARTER = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)), ("crusher", dict(axis="x", cycles_per_mm=0.15)),
+           ("hard pulse", dict(flip_deg=180.0, phase_deg=90.0)), ("crusher", dict(axis="x", cycles_per_mm=0.15)),
+           ("delay", dict(ms=15.0))]
 
 
 #**************************************************************************************************#
@@ -90,6 +118,7 @@ class Exam:
         ppm: The display's axis, 0.2 to 4.2 ppm.
         frames: The display as the scan comes in, [(transients so far, real spectrum)].
         records: What the header says of the calibration records in force.
+        sequence: The design as it was when the exam was planned.
     """
 
     name: str
@@ -101,6 +130,7 @@ class Exam:
     ppm: object = None
     frames: list = dataclasses.field(default_factory=list)
     records: dict = dataclasses.field(default_factory=dict)
+    sequence: object = None
 
 
 #**************************************************************************************************#
@@ -139,6 +169,7 @@ class Session:
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
+        self.design = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]
         self._bodies = {}
 
     #**********#
@@ -150,9 +181,56 @@ class Session:
             self._bodies[self.subject] = SUBJECTS[self.subject]()
         return self._bodies[self.subject]
 
+    @staticmethod
+    def scanners():
+        """What can stand on the floor: the package's presets, and the operator's own scanners,
+        the profiles saved as JSON (scan.profile) in ./data/profiles and ~/MRSandbox/profiles."""
+        folders = (pathlib.Path.cwd() / "data" / "profiles", pathlib.Path.home() / "MRSandbox" / "profiles")
+        return sorted(PRESETS) + sorted(str(path) for folder in folders for path in folder.glob("*.json"))
+
     def profile(self):
-        """The scanner on the floor with its records."""
-        return ScannerProfile.preset(self.scanner)
+        """The scanner on the floor with its records: a preset, or a saved profile."""
+        return ScannerProfile.load(self.scanner) if self.scanner.endswith(".json") else ScannerProfile.preset(self.scanner)
+
+    #**************#
+    #   sequence   #
+    #**************#
+    def sequence(self, card=None):
+        """The design of a card: one of the library's at the card's timings, or the
+        operator's own, the blocks of `design` in order ("Custom")."""
+        card = card if card is not None else self.protocol
+        if card.sequence == "Custom":
+            events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
+            return Sequence(*events, tr_s=card.tr_ms / 1000.0)
+        return SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+
+    def diagram(self, sequence=None, readout_ms=12.0):
+        """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
+        with hard pulses as spikes of their flip over 180 and shaped pulses as their
+        envelopes, "marks": [(t, text)] for what takes no time and has no height (coherence
+        filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner would play them
+        (sequences.timeline), "adc": (start, end)}."""
+        sequence = sequence if sequence is not None else self.sequence()
+        spans = event_spans(sequence)
+        end_ms = 1000.0 * spans[-1][1] if spans else 0.0
+        rf, marks = [(0.0, 0.0)], []
+        for event, (start, stop) in zip(sequence.events, spans):
+            start, stop = 1000.0 * start, 1000.0 * stop
+            if isinstance(event, ShapedPulse):
+                envelope = np.abs(np.asarray(event.envelope, dtype=float))
+                height = 1.0 if event.flip_deg is None else float(event.flip_deg) / 180.0
+                times = np.linspace(start, stop, envelope.size)
+                rf += [(start, 0.0)] + [(float(a), float(height * b / envelope.max())) for a, b in zip(times, envelope)] + [(stop, 0.0)]
+            elif isinstance(event, CoherenceFilter):
+                marks.append((start, f"p = {event.orders if hasattr(event, 'orders') else ''}".strip()))
+            elif hasattr(event, "flip_deg") and not isinstance(event, (Delay, Gradient)):
+                rf += [(start - 0.05, 0.0), (start, float(event.flip_deg) / 180.0), (start + 0.05, 0.0)]
+        rf.append((end_ms + readout_ms, 0.0))
+        until_s = (end_ms + readout_ms) / 1000.0
+        times, waves = gradient_waveforms(sequence, self.profile().scanner, 5e-5, until_s)
+        lanes = {axis: [(float(a), float(b)) for a, b in zip(1000.0 * times[::4], waves.get(axis, np.zeros(times.size))[::4])]
+                 for axis in "xyz"}
+        return {"rf": rf, "marks": marks, **lanes, "adc": (end_ms, end_ms + readout_ms)}
 
     #************#
     #   leaves   #
@@ -174,8 +252,7 @@ class Session:
         [(path, kind, numbers, changed)]: kind "fixed" with (value,), "range" with (low,
         high), or "other" with the prior's own text (a distribution, a tissue record, a
         map), which the console shows and does not edit."""
-        card = self.protocol
-        sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        sequence = self.sequence()
         found = []
 
         def walk(node, path):
@@ -266,7 +343,7 @@ class Session:
         scanner's limits and why the design would not play on them (empty when it does),
         and the calibration records a scan would run under with where it departs."""
         card = self.protocol
-        sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        sequence = self.sequence()
         profile = self.profile()
         scan = profile.scan(self.body(), sequence, params=self.params())
         fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
@@ -283,9 +360,9 @@ class Session:
     def plan(self):
         """Put the card with the voxel as they stand into the queue; returns the exam."""
         card = dataclasses.replace(self.protocol, averages=int(self.protocol.averages), npoints=int(self.protocol.npoints))
-        exam = Exam(name=f"{len(self.queue) + 1} {card.sequence} TE {card.te_ms:g}", card=card,
-                    position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
-                    records=self.outlook()["records"])
+        name = f"{len(self.queue) + 1} {card.sequence}" + ("" if card.sequence == "Custom" else f" TE {card.te_ms:g}")
+        exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
+                    records=self.outlook()["records"], sequence=self.sequence(card))
         self.queue.append(exam)
         return exam
 
@@ -294,8 +371,7 @@ class Session:
         (scan.Multiplex.transients: drift, breathing, motion), and the display as it
         builds up over the transients."""
         exam.status = "running"
-        card = exam.card
-        sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        card, sequence = exam.card, exam.sequence
         profile = self.profile()
         coils = self.COILS[self.coil]()
         room = Multiplex(self.body(), profile.scanner, {"scan": sequence}, records=profile.records, params=self.params(),

@@ -27,8 +27,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from mrsandbox.console.session import SEQUENCES, SUBJECTS, Session
-from mrsandbox.hardware.scanners import PRESETS
+from mrsandbox.console.session import BLOCKS, SEQUENCES, SUBJECTS, Session
 
 #*************#
 #   palette   #
@@ -48,6 +47,34 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
 .q-field--outlined .q-field__control:before {{ border-color: {LINE} !important; }}
 """
 MM = 1.0 / 40.0  # the 3D view's units per millimetre
+CHOICES = {"shape": ["sinc", "gaussian", "hermite"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
+           "scheme": ["VAPOR", "WET", "CHESS"]}
+
+
+#*************#
+#   diagram   #
+#*************#
+def lanes(drawn):
+    """The chart of a pulse sequence diagram (Session.diagram): RF, the three gradients, and the
+    readout as five lanes over one time axis in ms."""
+    names = ("RF", "Gx", "Gy", "Gz", "ADC")
+    start, stop = drawn["adc"]
+    traces = (drawn["rf"], drawn["x"], drawn["y"], drawn["z"], [(0.0, 0.0), (start, 0.0), (start, 1.0), (stop, 1.0), (stop, 0.0)])
+    colours = (GLOW, SAND, SAND, SAND, GOOD)
+    grids = [{"left": 44, "right": 14, "top": f"{6 + 18.5 * k}%", "height": "14%"} for k in range(5)]
+    return {
+        "backgroundColor": "transparent", "animation": False, "grid": grids,
+        "xAxis": [{"type": "value", "gridIndex": k, "min": 0, "max": round(stop, 1), "show": k == 4, "name": "ms" if k == 4 else "",
+                   "axisLine": {"lineStyle": {"color": LINE}}, "axisLabel": {"color": DIM}, "splitLine": {"show": False}} for k in range(5)],
+        "yAxis": [{"type": "value", "gridIndex": k, "name": names[k], "nameLocation": "middle", "nameRotate": 0, "nameGap": 24,
+                   "nameTextStyle": {"color": DIM, "fontSize": 10}, "axisLabel": {"show": False}, "axisTick": {"show": False},
+                   "axisLine": {"show": False}, "splitLine": {"show": False}, "scale": False} for k in range(5)],
+        "series": [{"type": "line", "xAxisIndex": k, "yAxisIndex": k, "showSymbol": False, "data": [list(p) for p in traces[k]],
+                    "lineStyle": {"color": colours[k], "width": 1.2}, "areaStyle": {"color": colours[k], "opacity": 0.18},
+                    **({"markLine": {"symbol": "none", "silent": True, "lineStyle": {"color": DIM, "type": "dotted"},
+                                     "label": {"show": False}, "data": [{"xAxis": t} for t, _ in drawn["marks"]]}} if k == 0 else {})}
+                   for k in range(5)],
+    }
 
 
 #**********#
@@ -89,6 +116,9 @@ def console():
             views[name].content = (f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" '
                                    f'fill="none" stroke="{GLOW}" stroke-width="1" />')
         chosen["box"].move(*(np.asarray(session.position_mm) * MM))
+        diagram.options.clear()
+        diagram.options.update(lanes(session.diagram()))
+        diagram.update()
         look = session.outlook()
         texts["position"].text = "  ".join(f"{v:+.0f}" for v in session.position_mm) + " mm"
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
@@ -194,6 +224,60 @@ def console():
                                     ui.label("fixed" if kind == "fixed" else "drawn between").classes("label")
         dialog.open()
 
+    def designer():
+        """The sequence designer: the operator's own design as blocks in order, each with its
+        settings, and its diagram as it grows."""
+        def rebuild():
+            listing_of_blocks.clear()
+            with listing_of_blocks:
+                for index, (kind, settings) in enumerate(session.design):
+                    with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
+                        ui.label(f"{index + 1}").classes("label").style("width: 18px")
+                        ui.label(kind).style(f"width: 140px; color: {SAND}")
+                        for key, value in settings.items():
+                            if key in CHOICES:
+                                ui.select(CHOICES[key], value=value, label=key, on_change=lambda e, s=settings, k=key: (
+                                    s.__setitem__(k, e.value), refresh())).props("dense outlined dark").style("width: 120px")
+                            else:
+                                ui.number(key, value=value, format="%.6g", on_change=lambda e, s=settings, k=key: (
+                                    e.value is not None and s.__setitem__(k, float(e.value)), refresh())).props(
+                                    "dense outlined dark").style("width: 120px")
+                        ui.space()
+                        ui.button("↑", on_click=lambda _, i=index: move(i, -1)).props("flat dense")
+                        ui.button("↓", on_click=lambda _, i=index: move(i, +1)).props("flat dense")
+                        ui.button("✕", on_click=lambda _, i=index: (session.design.pop(i), rebuild(), refresh())).props("flat dense")
+
+        def move(index, step):
+            other = index + step
+            if 0 <= other < len(session.design):
+                session.design[index], session.design[other] = session.design[other], session.design[index]
+                rebuild()
+                refresh()
+
+        def refresh():
+            try:
+                preview.options.clear()
+                preview.options.update(lanes(session.diagram()))
+                preview.update()
+                problem.text = ""
+            except Exception as error:  # a half-typed block is not a design yet: say why and keep the last diagram
+                problem.text = str(error)[:140]
+
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1100px; max-width: 1400px"):
+            with ui.row().classes("w-full items-center"):
+                ui.label("Sequence designer · blocks play in order, top to bottom").classes("label")
+                ui.space()
+                new_kind = ui.select(list(BLOCKS), value="delay").props("dense outlined dark").style("width: 190px")
+                ui.button("Add block", on_click=lambda: (session.design.append((new_kind.value, dict(BLOCKS[new_kind.value][0]))),
+                                                         rebuild(), refresh())).props("outline dense")
+                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense")
+            preview = ui.echart(lanes(session.diagram())).style("height: 300px").classes("w-full")
+            problem = ui.label("").style(f"color: {BAD}")
+            with ui.scroll_area().style("height: 300px; width: 100%"):
+                listing_of_blocks = ui.column().classes("w-full").style("gap: 4px")
+            rebuild()
+        dialog.open()
+
     def changed(attribute, target=None):
         """A handler that writes a control's value to the session (or the card) and redraws."""
         def handle(event):
@@ -217,7 +301,7 @@ def console():
         ui.html(f'<img alt="MRSandbox" width="72" height="48" style="border-radius: 2px; display: block" '
                 f'src="data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}">')
         ui.label("MRSandbox").style(f"color: {SAND}; font-size: 17px; letter-spacing: .08em")
-        for attribute, caption, options, width in (("scanner", "scanner", sorted(PRESETS), 215),
+        for attribute, caption, options, width in (("scanner", "scanner", {name: pathlib.Path(name).stem for name in session.scanners()}, 230),
                                                    ("coil", "receive array", list(session.COILS), 215),
                                                    ("subject", "on the table", list(SUBJECTS), 240)):
             ui.select(options, value=getattr(session, attribute), label=caption, on_change=changed(attribute)).props(
@@ -262,13 +346,15 @@ def console():
                 "yAxis": {"type": "value", "show": False, "scale": True},
                 "series": [{"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": SAND, "width": 1.3},
                             "areaStyle": {"color": COPPER, "opacity": 0.12}}],
-            }).style("height: 240px").classes("w-full")
+            }).style("height: 220px").classes("w-full")
+            ui.label("Sequence · RF, gradients as this scanner plays them, readout").classes("label")
+            diagram = ui.echart(lanes(session.diagram())).style("height: 230px").classes("w-full")
 
         # the protocol card and the hardware it must play on
         with ui.column().classes("pane").style("width: 270px"):
             ui.label("Protocol card").classes("label")
             card = session.protocol
-            ui.select(list(SEQUENCES), value=card.sequence, label="sequence", on_change=changed("sequence", "card")).props(
+            ui.select(list(SEQUENCES) + ["Custom"], value=card.sequence, label="sequence", on_change=changed("sequence", "card")).props(
                 "dense outlined dark").classes("w-full")
             for attribute, caption, step in (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0), ("averages", "averages", 1),
                                              ("npoints", "points", 512), ("bandwidth_hz", "bandwidth (Hz)", 500.0)):
@@ -276,6 +362,8 @@ def console():
                     "dense outlined dark").classes("w-full")
             ui.number("voxel size (mm)", value=session.size_mm, step=5.0, min=5.0, on_change=changed("size_mm")).props(
                 "dense outlined dark").classes("w-full")
+            ui.button("Design a sequence", on_click=lambda: (setattr(card, "sequence", "Custom"), designer())).props(
+                "outline").classes("w-full")
             ui.label("Hardware limits").classes("label").style("margin-top: 6px")
             texts["limits"] = ui.label("").classes("value")
             texts["verdict"] = ui.label("").classes("value")
