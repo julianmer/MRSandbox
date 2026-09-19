@@ -558,6 +558,21 @@ class Session:
             return ScannerProfile.load(self.calibration) if self.calibration.endswith(".json") else ScannerProfile.preset(self.calibration)
         return ScannerProfile.preset(self.scanner)
 
+    def calibrate(self, source, name, folder=None):
+        """Calibrate the scanner on the floor from one raw acquisition of the operator's own
+        (scan.profile ScannerProfile.read): `source` is NIfTI-MRS with the transients apart (and
+        the coils, where the file has them), and the card, the voxel, and the room as they stand
+        are its virtual twin, so set them as the scan was acquired first. The noise and the line
+        broadening become records of a profile saved under `name` in ~/MRSandbox/profiles, which
+        stays on this machine and is then this scanner's calibration; returns its path."""
+        twin = self.profile().scan(self.body(), self.sequence(), params=self.params(), **self.fields()).voxel(
+            tuple(self.position_mm), tuple(self.size_mm), compiled=True)
+        folder = pathlib.Path(folder) if folder is not None else pathlib.Path.home() / "MRSandbox" / "profiles"
+        folder.mkdir(parents=True, exist_ok=True)
+        ScannerProfile.read(str(source), twin, dataset=name).save(folder / f"{name}.json")
+        self.calibration = str(folder / f"{name}.json")
+        return folder / f"{name}.json"
+
     #**************#
     #   sequence   #
     #**************#
@@ -982,7 +997,7 @@ class Session:
             window = np.exp(-np.pi * 3.0 * np.arange(card.npoints) / card.bandwidth_hz)
             spectra = np.fft.fftshift(np.fft.fft(fids * window, 2 * card.npoints, axis=-1), axes=-1)
             f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
-            ppm = np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
+            ppm = 4.65 + np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz   # the file's frame: the centre at 4.65
             upfield = (ppm > 0.2) & (ppm < 4.2)
             exam.ppm, spectra = ppm[upfield], spectra[..., upfield]
             exam.maps = {name: np.abs(spectra[..., (exam.ppm > low) & (exam.ppm < high)]).max(axis=-1)
@@ -1013,7 +1028,7 @@ class Session:
         # the display a console gives: light apodization, zero filled, phased on the tallest line upfield of water
         window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
         f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
-        ppm = np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
+        ppm = 4.65 + np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz   # the file's frame: the centre at 4.65
         # a water reference shows its water line, every other exam the metabolites upfield of it
         upfield = (ppm > 3.4) & (ppm < 5.9) if exam.overrides.get("water.residual_fraction") == 1.0 else (ppm > 0.2) & (ppm < 4.2)
         played = np.asarray(schedule)

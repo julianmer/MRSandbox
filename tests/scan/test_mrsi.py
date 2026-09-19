@@ -119,8 +119,7 @@ class TestContrast:
         mrsi, data = acquisition
         volume = np.asarray(data[:])[:, :, 0]
         spec = np.abs(np.fft.fft(volume[4, 4]))
-        freqs = np.fft.fftfreq(128, d=1.0 / 4000.0) % 4000.0
-        ppm = freqs / (42.5774785 * 3.0)
+        ppm = 4.65 + np.fft.fftfreq(128, d=1.0 / 4000.0) / (42.5774785 * 3.0)      # the file's frame: the centre at 4.65 ppm
         naa = spec[np.abs(ppm - 2.008) < 0.3].max()
         empty = spec[(ppm > 6.0) & (ppm < 8.0)].max()
         # at 128 points the broad MM components leak across the short spectrum, so the
@@ -538,7 +537,9 @@ class TestTrajectory:
 
     def acquired(self, scan, npoints=64, **kw):
         data = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0, **kw)
-        return data, np.asarray(data.acquire(seed=3, npoints=npoints)[:])[:, :, 0]
+        # back in the engine's frame (0 ppm on the carrier), where the singlet falls on a bin and its ghost half the band away
+        turn = np.exp(2j * np.pi * 4.65 * 3.0 * 42.5774785 * np.arange(npoints) / 4000.0)
+        return data, np.asarray(data.acquire(seed=3, npoints=npoints)[:])[:, :, 0] * turn
 
     #********************#
     #   the exact clock  #
@@ -815,7 +816,8 @@ class TestExcitedBox:
         # a cell is the box's voxel at that place
         cell = scan.voxel((5.0, 5.0, 0.0), (10.0, 10.0, 15.0), box_center_mm=(0.0, 0.0, 0.0),
                           box_axes="xy").fid(seed=3, npoints=64)[1]
-        np.testing.assert_allclose(np.asarray(data[:])[2, 2, 0], cell, atol=1e-4 * np.abs(cell).max())
+        turn = np.exp(-2j * np.pi * 4.65 * f0_mhz * np.arange(64) / 4000.0)      # the file has its centre at 4.65 ppm, the FID at 0
+        np.testing.assert_allclose(np.asarray(data[:])[2, 2, 0], cell * turn, atol=1e-4 * np.abs(cell).max())
         grid = data.hdr_ext["SimulationGrid"]
         assert grid["box_center_mm"] == [0.0, 0.0, 0.0] and sum(grid["cells"].values()) == 16
         # a design without a localization excites every cell alike, as before

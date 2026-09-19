@@ -20,7 +20,7 @@ import numpy as np
 
 from mrsandbox.engine import Engine
 from mrsandbox.scan.virtual_scan import VirtualScan
-from mrsandbox.scan.voxel import draw, receiver_noise
+from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
 
 
 #**************************************************************************************************#
@@ -92,8 +92,6 @@ class Multiplex:
         subject over many steps takes fresh noise each time), and every condition is
         the average of `averages` transients.
         """
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-
         conditions = tuple(self.conditions if conditions is None else conditions)
         seed, truth, rng = draw(self.params, seed, step)
         stack = []
@@ -103,7 +101,7 @@ class Multiplex:
             stack.append(fid + self._noise(voxel, truth, rng, npoints, dwell_s, averages))
         data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(conditions))
         hdr = self._header(conditions, position_mm, size_mm, seed, step, averages, truth)
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+        return nifti_mrs(data, dwell_s, hdr)
 
     def acquire_components(self, position_mm, size_mm, seed=None, npoints=2048,
                            dwell_s=1.0 / 4000.0, conditions=None, step=0, averages=1):
@@ -114,8 +112,6 @@ class Multiplex:
         conditions in order of appearance, a component silent in a condition being
         zero there, and noise last), so the components sum to the acquisition
         exactly. The second file of a training pair (Voxel.acquire_components)."""
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-
         conditions = tuple(self.conditions if conditions is None else conditions)
         seed, truth, rng = draw(self.params, seed, step)
         parts, names = [], []
@@ -135,7 +131,7 @@ class Multiplex:
         hdr.set_user_def("SimulationComponents", {"names": names},
                          "MRSandbox: the components on DIM_USER_0, in order; they sum to "
                          "the acquisition of the same seed and step.")
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+        return nifti_mrs(data, dwell_s, hdr)
 
     @staticmethod
     def _noise(voxel, truth, rng, npoints, dwell_s, averages):
@@ -252,7 +248,6 @@ class Multiplex:
             raise ImportError("transients need Augmentrum (the mrsandbox[augment] extra; "
                               "its fsl-mrs dependency is not on PyPI, see pyproject.toml "
                               "for the install recipe)") from error
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
         from nifti_mrs.hdr_ext import Hdr_Ext
 
         if isinstance(schedule, int):
@@ -349,4 +344,4 @@ class Multiplex:
              "size_mm": list(size_mm) if hasattr(size_mm, "__len__") else float(size_mm)},
             "MRSandbox: the virtual brain and the voxel placement.",
         )
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+        return nifti_mrs(data, dwell_s, hdr)

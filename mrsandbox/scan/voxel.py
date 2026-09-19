@@ -61,6 +61,22 @@ def draw(params, seed, step=0):
         np.random.SeedSequence(seed, spawn_key=(int(step),)))
 
 
+#***************#
+#   nifti mrs   #
+#***************#
+def nifti_mrs(data, dwell_s, hdr, **kwargs):
+    """Simulated FIDs (the time axis fourth) as NIfTI-MRS in the standard's frame. The engine
+    renders with 0 ppm on the carrier; the standard has no field for that and every reader
+    (FSL-MRS, Osprey, spec2nii's own tools) puts the receiver's centre of a proton spectrum at
+    4.65 ppm, as a scanner with water on resonance stores it. The FIDs are moved there, so a
+    line the engine has at 2.01 ppm is read at 2.01 ppm from the file."""
+    from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
+
+    data = np.asarray(data)
+    turn = np.exp(-2j * np.pi * 4.65 * float(hdr.to_dict()["SpectrometerFrequency"][0]) * np.arange(data.shape[3]) * dwell_s)
+    return gen_nifti_mrs_hdr_ext((data * turn.reshape((1, 1, 1, -1) + (1,) * (data.ndim - 4))).astype(np.complex64), dwell_s, hdr, **kwargs)
+
+
 #**********************#
 #   noise scale        #
 #**********************#
@@ -760,8 +776,6 @@ class Voxel:
         complex sensitivity at this voxel plus correlated noise (covariance sigma^2 R),
         and the data gains a DIM_COIL dimension.
         """
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-
         seed, truth, rng = draw(self.scan.params, seed, step)
         coils = self.scan.coils
         sigma = self.noise_sigma(truth, dwell_s, averages)
@@ -777,7 +791,7 @@ class Voxel:
         hdr = self._header(seed, step, averages, truth)
         if coils is not None:
             hdr.set_dim_info(0, "DIM_COIL")
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+        return nifti_mrs(data, dwell_s, hdr)
 
     def acquire_components(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0, averages=1,
                            step=0):
@@ -791,8 +805,6 @@ class Voxel:
         the coils' correlated noise. The second file of a training pair: one
         acquisition, one decomposition, never squeezed into the acquisition's own
         dimensions."""
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-
         seed, truth, rng = draw(self.scan.params, seed, step)
         coils = self.scan.coils
         sigma = self.noise_sigma(truth, dwell_s, averages)
@@ -820,7 +832,7 @@ class Voxel:
         hdr.set_user_def("SimulationComponents", {"names": names},
                          "MRSandbox: the components on DIM_USER_0, in order; they sum to "
                          "the acquisition of the same seed and step.")
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr)
+        return nifti_mrs(data, dwell_s, hdr)
 
     def _header(self, seed, step, averages, truth):
         """The header extension every acquisition of this voxel carries."""

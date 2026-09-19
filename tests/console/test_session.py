@@ -127,6 +127,23 @@ class TestSession:
         session.protocol.real = True
         assert np.argmin(np.abs(session.displacement(4.65))) == 2                     # the 90, the broad one, selects along z now
 
+    def test_a_scan_of_the_console_calibrates_a_scanner_back_to_what_was_drawn(self, tmp_path):
+        import json
+
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.field, session.protocol.real, session.protocol.averages = "uniform", False, 32
+        session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
+        exam = session.run(session.plan())
+        drawn = exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]
+        profile = json.loads(session.calibrate(session.export(exam, tmp_path), "mine", folder=tmp_path).read_text())
+        read = {record["leaf"]: record["value"] for record in profile["records"]}
+        # the file is in the standard's frame (the centre at 4.65 ppm), so the reading finds NAA where a scanner's data has it
+        # one subject's NAA against the twin's median subject: the reading is as good as this subject is typical
+        assert read["noise.sigma"] == pytest.approx(drawn["noise"]["sigma"], rel=0.25)
+        assert read["lineshape.gauss_hz"] == pytest.approx(drawn["lineshape"]["gauss_hz"], rel=0.2)
+        assert profile["scanner"]["name"] == session.scanner
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 

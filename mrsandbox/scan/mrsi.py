@@ -23,7 +23,7 @@ import os
 
 import numpy as np
 
-from mrsandbox.scan.voxel import draw, noise_scale, receiver_noise
+from mrsandbox.scan.voxel import draw, nifti_mrs, noise_scale, receiver_noise
 from mrsandbox.sequences.events import Projection
 
 
@@ -364,15 +364,13 @@ class MRSI:
         in k-space with the acquisition-weighted scheme's per-count scaling. With a
         CoilArray on the scan the data gains a trailing DIM_COIL dimension.
         """
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-
         seed, truth, rng = draw(self.scan.params, seed)
         data, _, n_dead = self._decoded(truth, npoints, dwell_s)
         noise = self._noise(truth, rng, npoints, dwell_s)
         if noise is not None:
             data = data + noise
         hdr = self._header(seed, truth, dwell_s, n_dead)
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
+        return nifti_mrs(data, dwell_s, hdr, affine=self.affine)
 
     def acquire_components(self, seed=None, npoints=512, dwell_s=1.0 / 4000.0):
         """Acquire the slice component by component and return NIfTI-MRS on DIM_USER_0
@@ -382,8 +380,6 @@ class MRSI:
         the cells in order of appearance, noise last), each encoded and decoded on
         its own, so the components sum to the acquisition exactly (the encoding is
         linear). The second file of a training pair (Voxel.acquire_components)."""
-        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
-
         seed, truth, rng = draw(self.scan.params, seed)
         data, names, n_dead = self._decoded(truth, npoints, dwell_s, components=True)
         noise = self._noise(truth, rng, npoints, dwell_s)
@@ -397,7 +393,7 @@ class MRSI:
         hdr.set_user_def("SimulationComponents", {"names": names},
                          "MRSandbox: the components on DIM_USER_0, in order; they sum to "
                          "the acquisition of the same seed.")
-        return gen_nifti_mrs_hdr_ext(data, dwell_s, hdr, affine=self.affine)
+        return nifti_mrs(data, dwell_s, hdr, affine=self.affine)
 
     def _decoded(self, truth, npoints, dwell_s, components=False):
         """The clean decoded lattice of one truth, (nx, ny, nz, npoints[, coils]) or with

@@ -16,7 +16,6 @@
 #   imports   #
 #*************#
 import numpy as np
-import pytest
 
 from mrsandbox.io.philips import DataList, LabRaw, SdatSpar
 

@@ -209,8 +209,7 @@ class TestMultiplex:
         volume = np.asarray(acquisition[:])[0, 0, 0]
         diff_fid = volume[:, 0] - volume[:, 1]
         spec = np.abs(np.fft.fft(diff_fid))
-        freqs = np.fft.fftfreq(2048, d=1.0 / 4000.0) % 4000.0
-        ppm = freqs / 127.73
+        ppm = 4.65 + np.fft.fftfreq(2048, d=1.0 / 4000.0) / 127.73               # the file's frame: the centre at 4.65 ppm
         at_gaba = spec[np.abs(ppm - 3.01) < 0.15].max()
         at_quiet = spec[(ppm > 8.0) & (ppm < 9.5)].max()
         # co-edited neighbours (NAA at 2.008 sits inside the ON band, as in vivo) put

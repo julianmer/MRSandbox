@@ -56,7 +56,8 @@ sphere = VirtualScan(Phantom.spectre(temperature_c=21.0), Scanner.preset("generi
 batches = scan.generator((0, -45, 35), 20.0, batch_size=16, seed=0)
 ```
 
-The data are NIfTI-MRS, and the header of every acquisition carries its ground truth: the drawn
+The data are NIfTI-MRS as a scanner stores it, with the receiver's centre at 4.65 ppm, so FSL-MRS
+and Osprey read a line where it is. The header of every acquisition carries its ground truth: the drawn
 parameters, the tissue in the voxel, the calibration records in force and where the scan departs
 from the conditions they were measured under.
 

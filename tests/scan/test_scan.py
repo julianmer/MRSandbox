@@ -100,7 +100,10 @@ class TestVirtualScan:
         # FID, and the acquisition of a seed agree, and the noise is the seed's own
         assert voxel.sample(seed=11).to_dict() == typed_truth(voxel, 11)
         _, fid = voxel.fid(seed=11, npoints=256)
-        np.testing.assert_array_equal(fid, np.asarray(voxel.acquire(seed=11, npoints=256)[:])[0, 0, 0])
+        # the file holds that FID in the standard's frame, the receiver's centre at 4.65 ppm
+        turn = np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(256) / 4000.0)
+        np.testing.assert_allclose(np.asarray(voxel.acquire(seed=11, npoints=256)[:])[0, 0, 0], fid * turn,
+                                   atol=1e-5 * np.abs(fid).max())
         # a numpy integer (a loop drawing seeds from its own generator) records as a
         # plain int and means the same acquisition
         typed = voxel.acquire(seed=np.int64(11), npoints=256)

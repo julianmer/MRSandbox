@@ -1075,6 +1075,23 @@ def console():
     def calibration():
         """What the scanner is calibrated by: the records in force with their sources, and, where
         the package has records of the same hardware read under another coil, the choice of them."""
+        async def read(event):
+            if not named.value:
+                said.text = "Give the calibration a name first"
+                return
+            busy.set_visibility(True)
+            try:
+                path = await run.io_bound(session.calibrate, await keep(event), named.value)
+            except Exception as error:
+                said.text = f"Not read: {error}"[:260]
+                return
+            finally:
+                busy.set_visibility(False)
+            dialog.close()
+            draw()
+            calibration()
+            ui.notify(f"This scanner is now calibrated by {path.name}")
+
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px"):
             with ui.row().classes("w-full items-center"):
                 ui.label("Calibration · the records this scanner's noise, line shape and levels come from").classes("label")
@@ -1098,9 +1115,18 @@ def console():
                                                else ((w, None) for w in record["extrapolated"])))).style(f"color: {BAD}")
                     else:
                         ui.label("your setup matches that measurement").style(f"color: {GOOD}")
-            ui.label("Records read from your own scans (ScannerProfile.read in Python, saved as JSON to ~/MRSandbox/profiles or "
-                     "./data/profiles) show here under their scanner, on this machine only. Reading them here from an uploaded scan is "
-                     "not in the console yet.").classes("label").style("text-transform: none; letter-spacing: 0")
+            ui.label("Calibrate this scanner from a scan of your own").classes("label").style("margin-top: 8px")
+            ui.label("First set the card, the voxel and the room as your scan was acquired: they are its virtual twin. Then give raw "
+                     "NIfTI-MRS with the transients apart (spec2nii writes it). The noise level and the line broadening are read from "
+                     "it and kept as this scanner's calibration, on this machine only.").classes("label").style(
+                "text-transform: none; letter-spacing: 0; white-space: normal")
+            with ui.row().classes("w-full items-center no-wrap"):
+                named = ui.input("name of the calibration").props("dense outlined dark").style("width: 240px")
+                ui.upload(label="your scan, .nii.gz", auto_upload=True, on_upload=lambda e: read(e)).props(
+                    "flat dense dark accept=.nii,.gz").style("width: 260px")
+                busy = ui.spinner(size="28px", color=SAND)
+                busy.set_visibility(False)
+            said = ui.label("").classes("value").style("white-space: normal")
         dialog.open()
 
     def coil_gear():
