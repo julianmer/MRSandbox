@@ -30,7 +30,7 @@ import time
 
 import numpy as np
 from nicegui import Client, run, ui
-from PIL import Image, ImageFilter
+from PIL import Image
 
 from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, LENT, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
 from mrsandbox.io import read_dicom
@@ -116,38 +116,18 @@ EDGES = {"tra": ("A", "P", "L", "R", 2, "z"), "sag": ("H", "F", "P", "A", 0, "x"
 #**********#
 #   mark   #
 #**********#
-# the logo for the bar, its studio backdrop cut away once at the start: the sand and the tray are grainy, the
-# backdrop and the glow behind the peak are smooth, so what is smooth and joined to the border goes
+# the logo as its file has it, its own transparency kept, trimmed to what is drawn: small for the bar, and large
+# for the loading screen at three device pixels per shown one, so that it stays sharp on a dense display
 MARK = MARK_LARGE = None
 if LOGO is not None:
-    full = Image.open(LOGO).convert("RGB").crop((60, 200, 964, 800))
-    small = full.resize((452, 300), Image.LANCZOS)
-    tone = np.asarray(full.convert("L")).astype(float)
-    rough = np.abs(tone - np.asarray(full.convert("L").filter(ImageFilter.BoxBlur(3))).astype(float))
-    grain = np.asarray(Image.fromarray(np.uint8(np.clip(8.0 * rough, 0, 255))).filter(ImageFilter.BoxBlur(6)).resize((452, 300)))
-    smooth = (grain < 8 * 2.2) & (np.asarray(small).max(axis=2) > 40)
-    backdrop = np.zeros(smooth.shape, dtype=bool)
-    backdrop[0, :] = backdrop[-1, :] = backdrop[:, 0] = backdrop[:, -1] = True
-    backdrop &= smooth
-    while True:
-        grown = backdrop.copy()
-        for shift in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            grown |= np.roll(backdrop, shift, (0, 1)) & smooth
-        if (grown == backdrop).all():
-            break
-        backdrop = grown
-    # the cut is drawn in by a few pixels: the rim between sand and backdrop still carries the backdrop's glow
-    kept = Image.fromarray(np.uint8(255 * ~backdrop)).filter(ImageFilter.MinFilter(7))
-    small.putalpha(kept.filter(ImageFilter.GaussianBlur(1.0)))
-    buffer = io.BytesIO()
-    small.resize((151, 100), Image.LANCZOS).save(buffer, format="PNG")
-    MARK = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
-    # and large for the loading screen, from the original's own pixels (the cut carried up to them), three
-    # device pixels per shown one, so that it stays sharp on a dense display
-    full.putalpha(kept.resize(full.size, Image.LANCZOS).filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.5)))
-    buffer = io.BytesIO()
-    full.resize((678, 450), Image.LANCZOS).save(buffer, format="PNG")
-    MARK_LARGE = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+    drawn = Image.open(LOGO).convert("RGBA")
+    drawn = drawn.crop(drawn.getchannel("A").getbbox())
+    sizes = {}
+    for height in (100, 450):
+        buffer = io.BytesIO()
+        drawn.resize((round(height * drawn.width / drawn.height), height), Image.LANCZOS).save(buffer, format="PNG")
+        sizes[height] = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+    MARK, MARK_LARGE = sizes[100], sizes[450]
 
 
 #*************#
