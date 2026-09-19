@@ -117,3 +117,15 @@ class TestSession:
         assert session.export_seq(session.plan(), tmp_path).read_text().startswith("# Pulseq")
         with pytest.raises(Exception, match="(?i)ideal|filter|coherence"):
             session.export_seq(exam, tmp_path)                                  # MEGA's ideal bands do not play on hardware
+
+    def test_a_spectroscopic_image_is_a_card_too(self):
+        session = Session()
+        session.protocol.sequence, session.protocol.npoints, session.protocol.bandwidth_hz = "MRSI PRESS", 512, 2000.0
+        session.protocol.matrix, session.size_mm, session.position_mm = 6, 14.0, [0.0, -10.0, 35.0]
+        assert session.outlook()["scan_time_s"] == 72.0                         # a repetition per phase encode
+        _, (_, _, width, height) = session.planes()["tra"]
+        assert width == height == pytest.approx(6 * 14.0 / 2.0)                 # the whole grid on the plane, 2 mm cells
+        exam = session.run(session.plan(), seed=1)
+        assert exam.data.shape[:3] == (6, 6, 1) and exam.cells.shape[:2] == (6, 6) and set(exam.maps) == {"NAA", "Cr", "Cho", "lipid"}
+        assert exam.maps["NAA"][3, 3] > 0.0 and exam.maps["NAA"].shape == (6, 6)
+        assert abs(exam.ppm[exam.cells[3, 3].argmax()] - 2.01) < 0.05           # a cell in the brain shows NAA

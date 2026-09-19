@@ -63,6 +63,14 @@ EDITING = {
     "HERMES GABA GSH": (lambda tr_s: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
 }
 
+#**********#
+#   mrsi   #
+#**********#
+# the spectroscopic imaging card: one slice of matrix x matrix cells of the voxel's size about the planned
+# place, PRESS at the card's timings, ideal boxes (scan.mrsi); and the lines its maps are read at, ppm windows
+MRSI = "MRSI PRESS"
+MAPS = {"NAA": (1.9, 2.1), "Cr": (2.95, 3.1), "Cho": (3.13, 3.28), "lipid": (0.9, 1.5)}
+
 #************#
 #   blocks   #
 #************#
@@ -105,10 +113,12 @@ class Protocol:
     averages: int = 64
     npoints: int = 2048
     bandwidth_hz: float = 4000.0
+    matrix: int = 8
 
     @property
     def scan_time_s(self):
-        return self.averages * self.tr_ms / 1000.0
+        """One repetition per transient, or per phase encode of a spectroscopic image."""
+        return (int(self.matrix) ** 2 if self.sequence == "MRSI PRESS" else self.averages) * self.tr_ms / 1000.0
 
 
 #**************************************************************************************************#
@@ -139,6 +149,8 @@ class Exam:
         spectra: After the run, {name: real spectrum} of every condition and combination.
         tracks: What the scanner and the subject did over the transients, {name: values}.
         truth: The drawn concentrations in mM, {metabolite: value}.
+        maps, cells: Of a spectroscopic imaging exam, {line: (nx, ny) heights} and the cells' real
+            spectra (nx, ny, points), each phased on its own tallest line.
     """
 
     name: str
@@ -157,6 +169,8 @@ class Exam:
     spectra: dict = dataclasses.field(default_factory=dict)
     tracks: dict = dataclasses.field(default_factory=dict)
     truth: dict = dataclasses.field(default_factory=dict)
+    maps: dict = dataclasses.field(default_factory=dict)
+    cells: object = None
 
 
 #**************************************************************************************************#
@@ -227,6 +241,8 @@ class Session:
         card = card if card is not None else self.protocol
         if card.sequence in EDITING:
             return next(iter(EDITING[card.sequence][0](card.tr_ms / 1000.0).values()))
+        if card.sequence == MRSI:
+            return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0)
         if card.sequence == "Custom":
             events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
             return Sequence(*events, tr_s=card.tr_ms / 1000.0)
@@ -313,6 +329,8 @@ class Session:
         nx, ny, nz = tissue.shape
         i, j, k = min(max(i, 0), nx - 1), min(max(j, 0), ny - 1), min(max(k, 0), nz - 1)
         half = 0.5 * self.size_mm / step
+        if self.protocol.sequence == MRSI:          # the slice's whole grid in the plane, one cell thick
+            half = half * np.array([self.protocol.matrix, self.protocol.matrix, 1.0])
         side = max(nx, ny, nz)
 
         def framed(plane, left, top, width, height):
@@ -388,7 +406,7 @@ class Session:
     def plan(self):
         """Put the card with the voxel as they stand into the queue; returns the exam."""
         card = dataclasses.replace(self.protocol, averages=int(self.protocol.averages), npoints=int(self.protocol.npoints))
-        timed = card.sequence in SEQUENCES          # an edited or an own design has its own timings
+        timed = card.sequence in SEQUENCES or card.sequence == MRSI   # an edited or an own design has its own timings
         name = f"{len(self.queue) + 1} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
                     records=self.outlook()["records"], sequence=self.sequence(card))
@@ -408,6 +426,28 @@ class Session:
         card, sequence = exam.card, exam.sequence
         profile = self.profile()
         coils = self.COILS[self.coil]()
+        if card.sequence == MRSI:
+            grid = profile.scan(self.body(), sequence, params=self.params()).mrsi(
+                center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm)
+            exam.data = grid.acquire(seed=seed, npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
+            fids = np.asarray(exam.data[:])[:, :, 0]
+            window = np.exp(-np.pi * 3.0 * np.arange(card.npoints) / card.bandwidth_hz)
+            spectra = np.fft.fftshift(np.fft.fft(fids * window, 2 * card.npoints, axis=-1), axes=-1)
+            f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
+            ppm = np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
+            upfield = (ppm > 0.2) & (ppm < 4.2)
+            exam.ppm, spectra = ppm[upfield], spectra[..., upfield]
+            exam.maps = {name: np.abs(spectra[..., (exam.ppm > low) & (exam.ppm < high)]).max(axis=-1)
+                         for name, (low, high) in MAPS.items()}
+            top = np.take_along_axis(spectra, np.abs(spectra).argmax(axis=-1)[..., None], axis=-1)
+            exam.cells = (spectra * np.exp(-1j * np.angle(top))).real
+            centre = int(card.matrix) // 2
+            exam.frames = [(1, exam.cells[centre, centre])]
+            exam.spectra = {"centre cell": exam.cells[centre, centre]}
+            exam.truth = {name: float(value) for name, value in exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]["conc"].items()
+                          if isinstance(value, (int, float))}
+            exam.status = "done"
+            return exam
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(),
                          coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)

@@ -27,7 +27,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from mrsandbox.console.session import BLOCKS, EDITING, SEQUENCES, SUBJECTS, Session
+from mrsandbox.console.session import BLOCKS, EDITING, MRSI, SEQUENCES, SUBJECTS, Session
 
 #*************#
 #   palette   #
@@ -293,6 +293,39 @@ def console():
                 ui.label(f"Review · {exam.name}").classes("label")
                 ui.space()
                 ui.button("Close", on_click=dialog.close).props("flat dense")
+            if exam.maps:
+                def painted(name):
+                    grid = exam.maps[name]
+                    return {"backgroundColor": "transparent", "animation": False, "tooltip": {},
+                            "grid": {"left": 30, "right": 12, "top": 10, "bottom": 30},
+                            "xAxis": {"type": "category", "data": list(range(grid.shape[0])), "axisLabel": {"color": DIM}},
+                            "yAxis": {"type": "category", "data": list(range(grid.shape[1])), "axisLabel": {"color": DIM}},
+                            "visualMap": {"min": 0, "max": float(grid.max()), "show": False,
+                                          "inRange": {"color": ["#000000", COPPER, SAND, "#FFF2D8"]}},
+                            "series": [{"type": "heatmap", "data": [[i, j, float(grid[i, j])] for i in range(grid.shape[0])
+                                                                    for j in range(grid.shape[1])]}]}
+
+                def cell(event):
+                    i, j = int(event.data[0]), int(event.data[1])
+                    one.options["series"][0]["data"] = [[float(p), float(v)] for p, v in zip(exam.ppm, exam.cells[i, j])]
+                    one.options["title"]["text"] = f"cell {i}, {j}"
+                    one.update()
+
+                with ui.row().classes("w-full no-wrap").style("gap: 10px"):
+                    with ui.column().style("width: 420px"):
+                        which = ui.select(list(exam.maps), value="NAA", label="map · click a cell").props("dense outlined dark").classes("w-full")
+                        image = ui.echart(painted("NAA"), on_point_click=cell).style("height: 400px").classes("w-full")
+                        which.on_value_change(lambda e: (image.options.clear(), image.options.update(painted(e.value)), image.update()))
+                    one = ui.echart({"backgroundColor": "transparent", "animation": False,
+                                     "title": {"text": "centre cell", "textStyle": {"color": DIM, "fontSize": 11, "fontWeight": "normal"}},
+                                     "grid": {"left": 12, "right": 12, "top": 28, "bottom": 28},
+                                     "xAxis": {**axis, "inverse": True, "min": 0.2, "max": 4.2, "name": "ppm"},
+                                     "yAxis": {"type": "value", "show": False, "scale": True},
+                                     "series": [{"type": "line", "showSymbol": False, "lineStyle": {"color": SAND, "width": 1.3},
+                                                 "data": [[float(p), float(v)] for p, v in zip(exam.ppm, exam.spectra["centre cell"])]}]
+                                     }).style("height: 440px; flex: 1")
+                dialog.open()
+                return
             ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
                        "grid": {"left": 12, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
                        "xAxis": {**axis, "inverse": True, "min": 0.2, "max": 4.2, "name": "ppm"},
@@ -406,10 +439,11 @@ def console():
         with ui.column().classes("pane").style("width: 270px"):
             ui.label("Protocol card").classes("label")
             card = session.protocol
-            ui.select(list(SEQUENCES) + list(EDITING) + ["Custom"], value=card.sequence, label="sequence",
+            ui.select(list(SEQUENCES) + list(EDITING) + [MRSI, "Custom"], value=card.sequence, label="sequence",
                       on_change=changed("sequence", "card")).bind_value(card, "sequence").props("dense outlined dark").classes("w-full")
             for attribute, caption, step in (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0), ("averages", "averages", 1),
-                                             ("npoints", "points", 512), ("bandwidth_hz", "bandwidth (Hz)", 500.0)):
+                                             ("npoints", "points", 512), ("bandwidth_hz", "bandwidth (Hz)", 500.0),
+                                             ("matrix", "matrix (MRSI)", 2)):
                 ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")).bind_value(
                     card, attribute).props("dense outlined dark").classes("w-full")
             ui.number("voxel size (mm)", value=session.size_mm, step=5.0, min=5.0, on_change=changed("size_mm")).props(
