@@ -340,6 +340,11 @@ class Session:
             without moving the voxel.
         protocol: The protocol card being edited.
         queue: The exams, in the order they were planned.
+        designs, condition, weights: The operator's own design. One sub-acquisition ("A") is a plain
+            sequence. Several, each its own blocks, are interleaved over the transients as an
+            edited scan is (scan.Multiplex), and `weights` says how they combine, {name of the
+            combination: {sub-acquisition: weight}}: a difference, a Hadamard scheme, anything.
+            `condition` is the one the designer shows, and `design` is its blocks.
         overrides: The operator's own settings of leaves, {path: value, (low, high), or the
             path of a NIfTI map in the leaf's units, which every voxel reads where it lies}.
         subjects: Who can lie on the table, SUBJECTS and the operator's own anatomies.
@@ -389,7 +394,8 @@ class Session:
         self.shim, self.shim_mm = "linear", None
         self.overlay = "anatomy"
         self.coil_settings = {name: dict(settings) for name, settings in self.COIL_SETTINGS.items()}
-        self.design = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]
+        self.designs = {"A": [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]}
+        self.condition, self.weights = "A", {}
         self._bodies = {}
         try:
             self.body()
@@ -603,9 +609,26 @@ class Session:
             design = prelude + design
         return design
 
-    def own(self, tr_s=None):
-        """The operator's own design, the blocks of `design` in order, as a Sequence."""
-        return Sequence(*(event for kind, settings in self.design for event in BLOCKS[kind][1](settings)), tr_s=tr_s)
+    @property
+    def design(self):
+        return self.designs[self.condition]
+
+    @design.setter
+    def design(self, blocks):
+        self.designs[self.condition] = blocks
+
+    def own(self, tr_s=None, condition=None):
+        """The operator's own design (the sub-acquisition shown, or the one named), its blocks in
+        order, as a Sequence."""
+        blocks = self.designs[self.condition if condition is None else condition]
+        return Sequence(*(event for kind, settings in blocks for event in BLOCKS[kind][1](settings)), tr_s=tr_s)
+
+    def combinations(self):
+        """How the own design's sub-acquisitions combine: the operator's `weights` where they name
+        sub-acquisitions that exist, else their plain sum."""
+        kept = {name: {c: float(w) for c, w in mix.items() if c in self.designs and w} for name, mix in self.weights.items()}
+        kept = {name: mix for name, mix in kept.items() if mix}
+        return kept or {"sum": {name: 1.0 for name in self.designs}}
 
     def adopt(self):
         """Make the own design the sequence the card plays now, block by block, so the designer opens
@@ -930,6 +953,12 @@ class Session:
         if card.sequence in EDITING:
             _, exam.combinations, exam.shown = EDITING[card.sequence]
             exam.conditions = self.editing(card)
+        elif card.sequence == "Custom" and len(self.designs) > 1:       # the operator's own multiplexed design
+            exam.conditions = {name: self.own(card.tr_ms / 1000.0, name) for name in self.designs}
+            for prelude in reversed(self.preludes(card).values()):
+                exam.conditions = {name: prelude + design for name, design in exam.conditions.items()}
+            exam.combinations = self.combinations()
+            exam.shown = next(iter(exam.combinations))
         else:
             exam.conditions, exam.combinations = {"scan": exam.sequence}, {"scan": {"scan": 1.0}}
         if instead_of is not None:
@@ -966,8 +995,9 @@ class Session:
         residual water, frequency and phase errors, eddy currents, spurious echoes), the run
         still. Returns (ppm, real spectrum) on 0.2 to 4.2 ppm."""
         clean = Session("Brain, ICBM152 average, 2 mm")
-        clean.scanner, clean.field, clean.design = self.scanner, "uniform", self.design
-        clean.protocol = dataclasses.replace(self.protocol, sequence="Custom", averages=2, water_reference=0, water_suppression="off", ovs=False)
+        clean.scanner, clean.field = self.scanner, "uniform"
+        clean.designs, clean.condition, clean.weights = self.designs, self.condition, self.weights
+        clean.protocol = dataclasses.replace(self.protocol, sequence="Custom", averages=2 * len(self.designs), water_reference=0, water_suppression="off", ovs=False)
         clean.overrides = {path: value for leaves in IDEALS.values() for path, value in leaves.items()}
         clean.run_settings = {argument: off for argument, off in RUN.values()}
         exam = clean.run(clean.plan(queued=False), seed=0)
@@ -1033,17 +1063,20 @@ class Session:
         upfield = (ppm > 3.4) & (ppm < 5.9) if exam.overrides.get("water.residual_fraction") == 1.0 else (ppm > 0.2) & (ppm < 4.2)
         played = np.asarray(schedule)
         if self.align and fids.shape[1] > 1:
-            # frequency and phase of every transient against the run's mean: the shift that best overlays the apodized
-            # spectra within 20 Hz (to a tenth of a bin by zero filling), then the phase of what is left
+            # frequency and phase of every transient against the mean of ITS OWN sub-acquisition (what tells the
+            # sub-acquisitions apart, an editing pulse or a phase, must stay): the shift that best overlays the apodized
+            # spectra within 20 Hz (to an eighth of a bin by zero filling), then the phase of what is left
             clock = np.arange(card.npoints) / card.bandwidth_hz
             fill = 8 * card.npoints
-            mean = np.fft.fft(fids.mean(axis=1) * window * np.exp(-np.pi * 4.0 * clock), fill)
             reach = int(np.ceil(20.0 * fill / card.bandwidth_hz))
+            means = {name: fids[:, played == name].mean(axis=1) for name in names}
             for k in range(fids.shape[1]):
+                mean = means[played[k]]
+                target = np.fft.fft(mean * window * np.exp(-np.pi * 4.0 * clock), fill)
                 own = np.fft.fft(fids[:, k] * window * np.exp(-np.pi * 4.0 * clock), fill)
-                overlay = [np.abs(np.vdot(np.roll(own, shift), mean)) for shift in range(-reach, reach + 1)]
+                overlay = [np.abs(np.vdot(np.roll(own, shift), target)) for shift in range(-reach, reach + 1)]
                 moved = fids[:, k] * np.exp(2j * np.pi * (int(np.argmax(overlay)) - reach) * card.bandwidth_hz / fill * clock)
-                fids[:, k] = moved * np.exp(1j * np.angle(np.vdot(moved, fids.mean(axis=1))))
+                fids[:, k] = moved * np.exp(1j * np.angle(np.vdot(moved, mean)))
 
         def combined(weights, count):
             """The spectrum of a combination over the first `count` transients: every condition's
@@ -1090,12 +1123,12 @@ class Session:
     def save_protocol(self, name):
         """Keep the card as it stands, with the voxel's size, the operator's own design, and
         the advanced settings, as one JSON file of the protocol library; returns the path."""
-        if any(kind == "as the card plays it" for kind, _ in self.design):
+        if any(kind == "as the card plays it" for blocks in self.designs.values() for kind, _ in blocks):
             raise ValueError("a design that holds events taken over from a card is not saved yet: they are objects, not settings")
         self.LIBRARY.mkdir(parents=True, exist_ok=True)
         path = self.LIBRARY / f"{name}.json"
         path.write_text(json.dumps({"card": dataclasses.asdict(self.protocol), "size_mm": list(self.size_mm),
-                                    "design": self.design, "overrides": self.overrides}, indent=2))
+                                    "designs": self.designs, "weights": self.weights, "overrides": self.overrides}, indent=2))
         return path
 
     def load_protocol(self, name):
@@ -1104,7 +1137,9 @@ class Session:
         for attribute, value in stored["card"].items():       # in place: the console's fields hold this card
             setattr(self.protocol, attribute, value)
         self.size_mm = [float(v) for v in (stored["size_mm"] if isinstance(stored["size_mm"], list) else [stored["size_mm"]] * 3)]
-        self.design = [(kind, dict(settings)) for kind, settings in stored["design"]]
+        stored_designs = stored.get("designs") or {"A": stored["design"]}           # a protocol saved before designs had sub-acquisitions
+        self.designs = {name: [(kind, dict(settings)) for kind, settings in blocks] for name, blocks in stored_designs.items()}
+        self.condition, self.weights = next(iter(self.designs)), stored.get("weights", {})
         self.overrides = {path: tuple(value) if isinstance(value, list) else value for path, value in stored["overrides"].items()}
 
     #************#

@@ -712,6 +712,60 @@ def console():
                 problem.text = str(error)[:160]
                 problem.style(f"color: {BAD}")
 
+        def parts():
+            """The design's sub-acquisitions and how they combine: one is a plain sequence; several are
+            interleaved over the transients as an edited scan is, and the weights say what is shown."""
+            def another():
+                name = next(chr(65 + k) for k in range(26) if chr(65 + k) not in session.designs)
+                session.designs[name] = [(kind, dict(settings)) for kind, settings in session.design]
+                session.condition = name
+                parts()
+                refresh()
+
+            def without():
+                session.designs.pop(session.condition)
+                session.condition = next(iter(session.designs))
+                state["at"] = 0
+                parts()
+                refresh()
+
+            def scheme(rows):
+                names = list(session.designs)
+                session.weights = {label: dict(zip(names, signs)) for label, signs in rows}
+                parts()
+
+            several.clear()
+            with several:
+                with ui.row().classes("w-full items-center").style("gap: 6px"):
+                    ui.label("sub-acquisitions").classes("label")
+                    for name in session.designs:
+                        ui.button(name, on_click=lambda _, name=name: (setattr(session, "condition", name), state.__setitem__("at", 0), parts(),
+                                                                       refresh())).props("flat dense no-caps").classes(
+                            "tool" + (" on" if name == session.condition else "")).style("width: 44px; height: 30px")
+                    ui.button("another, a copy of this one", icon="add", on_click=another).props("flat dense no-caps")
+                    if len(session.designs) > 1:
+                        ui.button("remove this one", icon="remove", on_click=without).props("flat dense no-caps")
+                        ui.space()
+                        if len(session.designs) == 2:
+                            ui.button("difference", on_click=lambda: scheme((("difference", (1.0, -1.0)), ("sum", (1.0, 1.0))))).props(
+                                "outline dense no-caps")
+                        if len(session.designs) == 4:
+                            ui.button("Hadamard", on_click=lambda: scheme((("sum", (1.0, 1.0, 1.0, 1.0)), ("A+B-C-D", (1.0, 1.0, -1.0, -1.0)), (
+                                "A-B+C-D", (1.0, -1.0, 1.0, -1.0)), ("A-B-C+D", (1.0, -1.0, -1.0, 1.0))))).props("outline dense no-caps")
+                        ui.button("a combination", icon="add", on_click=lambda: (session.weights.__setitem__(
+                            f"combination {len(session.weights) + 1}", {name: 1.0 for name in session.designs}), parts())).props("flat dense no-caps")
+                for label, mix in (session.weights.items() if len(session.designs) > 1 else ()):
+                    with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
+                        ui.label(label).style(f"width: 160px; color: {SAND}")
+                        for name in session.designs:
+                            ui.number(name, value=mix.get(name, 0.0), step=1.0, format="%.3g", on_change=lambda e, mix=mix, name=name: (
+                                e.value is not None and mix.__setitem__(name, float(e.value)))).props("dense outlined dark").style("width: 84px")
+                        ui.button(icon="close", on_click=lambda _, label=label: (session.weights.pop(label), parts())).props("flat dense round size=sm")
+                if len(session.designs) > 1:
+                    ui.label("The sub-acquisitions take turns over the transients. The first combination is what Live shows; Review and the "
+                             "show select have them all, and every sub-acquisition alone.").classes("label").style(
+                        "text-transform: none; letter-spacing: 0")
+
         def drop(onto):
             """A dragged block takes the place of the one it is dropped on."""
             dragged = state.pop("dragged", None)
@@ -801,6 +855,7 @@ def console():
                         "height: 340px").classes("w-full")
                     busy = ui.spinner(size="56px", color=SAND).style("position: absolute; top: 42%; left: 46%")
                     busy.set_visibility(False)
+            several = ui.column().classes("w-full").style("gap: 4px")
             ui.label("The design, in the order it plays · press a block to choose it · drag one onto another to move it there").classes("label")
             strip = ui.row().classes("w-full").style("gap: 4px")
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch; flex: 1"):
@@ -812,6 +867,7 @@ def console():
                                 "outline dense no-caps align=left").style("width: 190px; height: 34px; flex: none")
                             ui.label(BLOCK_NOTES[kind].split(".")[0]).classes("label").style("text-transform: none; letter-spacing: 0")
                 inspector = ui.column().classes("pane").style("flex: 1; min-width: 0")
+            parts()
             refresh()
         dialog.open()
 

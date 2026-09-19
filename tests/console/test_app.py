@@ -53,6 +53,10 @@ class TestApp:
                 await user.should_see("16 blocks")                      # the card's real PRESS came over, 15 blocks, and one more
                 await user.should_see("1 · as the card plays it")       # its slice-selective 90 as the card plays it
                 user.find("all pulses ideal").click()
+                user.find("another, a copy of this one").click()        # a second sub-acquisition, and how the two combine
+                await user.should_see("remove this one")
+                user.find("difference").click()
+                await user.should_see("The sub-acquisitions take turns")
                 user.find("Use this design").click()                    # the card plays it from here on, not before
                 user.find("maps").click()
                 await user.should_see("B0 field")

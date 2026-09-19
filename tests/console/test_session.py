@@ -144,6 +144,25 @@ class TestSession:
         assert read["lineshape.gauss_hz"] == pytest.approx(drawn["lineshape"]["gauss_hz"], rel=0.2)
         assert profile["scanner"]["name"] == session.scanner
 
+    def test_an_own_design_of_two_sub_acquisitions_is_multiplexed_as_its_weights_say(self):
+        from mrsandbox.console.session import BLOCKS, TEMPLATES
+
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.sequence, session.protocol.averages, session.protocol.npoints = "Custom", 8, 512
+        press = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in TEMPLATES["PRESS, TE 30"]]
+        session.designs = {"A": press, "B": [(kind, dict(settings)) for kind, settings in press]}
+        session.designs["B"][0][1]["phase_deg"] = 180.0                             # the same echo, excited the other way round
+        assert session.combinations() == {"sum": {"A": 1.0, "B": 1.0}}              # no weights yet: the plain sum
+        session.weights = {"A minus B": {"A": 1.0, "B": -1.0}, "A plus B": {"A": 1.0, "B": 1.0}, "of nothing": {"C": 1.0}}
+        exam = session.run(session.plan(), seed=1)
+        assert list(exam.conditions) == ["A", "B"] and exam.shown == "A minus B" and "of nothing" not in exam.combinations
+        assert exam.data.hdr_ext.to_dict()["SimulationSchedule"]["conditions"][:4] == ["A", "B", "A", "B"]
+        upfield = (exam.ppm > 1.8) & (exam.ppm < 2.2)
+        tall, flat = (np.abs(exam.spectra[name][upfield]).max() for name in ("A minus B", "A plus B"))
+        assert tall > 10.0 * flat                                                   # opposite signs add in the difference
+        assert session.showcase()[1].shape == session.showcase()[0].shape
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 
