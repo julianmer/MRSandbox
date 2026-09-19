@@ -49,3 +49,8 @@ data/noise_data/
 
 # a Philips phantom session (raw, sdat, DICOM), placed by hand
 data/phantomMRS/
+
+# everything else under data/ stays local: private scan sessions and the public raw datasets the
+# calibrations are read from (fetched by hand, gigabytes). Only the challenge basis is tracked.
+data/*
+!data/mrsi_challenge/

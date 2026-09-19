@@ -99,7 +99,9 @@ class DataList:
         pairs = [self._raw[row["offset"] // 4:(row["offset"] + row["size"]) // 4] for row in rows]
         vectors = np.stack([(pair[0::2] + 1j * pair[1::2]) * (row["sign"] if signed and typ == "STD" else 1)
                             for pair, row in zip(pairs, rows)], axis=-1)
-        return np.stack([vectors[:, rows["chan"] == channel] for channel in np.unique(rows["chan"])], axis=1)
+        each = [vectors[:, rows["chan"] == channel] for channel in np.unique(rows["chan"])]
+        complete = min(channel.shape[1] for channel in each)  # a scan stopped mid-average leaves some channels one short
+        return np.stack([channel[:, :complete] for channel in each], axis=1)
 
     def rows(self, typ="STD", mix=0):
         """The list rows of a type and mix, in file order."""

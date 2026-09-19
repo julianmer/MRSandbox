@@ -197,9 +197,11 @@ class NoiseReading:
         # a phantom's water line is as narrow as the grid and has no sure phase at its top: it is
         # found and phased under the apodization, here and on the twin
         mean = np.fft.fftshift(np.fft.fft(fids.mean(axis=1) * (window if line == "water" else 1.0)))
-        # the sign of the frequency axis differs between conventions: the one with the line wins
+        # the sign of the frequency axis differs between conventions: the one with the line wins,
+        # a line being what stands above its surroundings (a water residual's foot is tall and flat)
         ppm = max((WATER_PPM + sign * hz / f0_mhz for sign in (1.0, -1.0)),
-                  key=lambda axis: np.abs(mean[np.abs(axis - center) < 0.15]).max())
+                  key=lambda axis: (np.abs(mean[np.abs(axis - center) < 0.15]).max()
+                                    - np.median(np.abs(mean[np.abs(axis - center) < 0.5]))))
         peak = np.argmax(np.abs(mean) * (np.abs(ppm - center) < 0.15))
         phase = np.exp(-1j * np.angle(mean[peak]))
         quiet, near = (ppm > -4.0) & (ppm < -1.0), np.abs(ppm - ppm[peak]) < 0.05
