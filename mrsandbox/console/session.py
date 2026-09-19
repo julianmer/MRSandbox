@@ -26,8 +26,8 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Params, Uniform
 from mrsandbox.phantom import Brain, Phantom
 from mrsandbox.scan import Multiplex, ScannerProfile
-from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hermes, MegaPress, Press, Pulse, SemiLaser,
-                                 Sequence, ShapedPulse, Steam, Vapor, Wet)
+from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, MegaPress,
+                                 Press, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
@@ -54,13 +54,31 @@ SEQUENCES = {
 #*************#
 #   editing   #
 #*************#
-# the edited acquisitions of the library: the sub-experiments a card interleaves over its transients, how
-# they combine, and the combination the console shows while it scans (ideal editing bands: fast, right for
-# the edited target, not for co-editing at the bands' flanks; sequences.library HadamardEditing)
+# the edited acquisitions of the library: the sub-experiments a card interleaves over its transients (made
+# from the repetition time, the spectrometer frequency, and the voxel's size), how they combine, and the
+# combination the console shows while it scans. The ideal editing bands are fast and right for the edited
+# target, not for co-editing at the bands' flanks; the played schemes (20 ms Gaussian editing pulses and
+# the localization's profiles) reproduce raw in vivo HERMES and HERCULES without a fit and take minutes
+# (sequences.library HadamardEditing).
+DIFFERENCE = {"difference": {"on": 1.0, "off": -1.0}, "sum": {"on": 1.0, "off": 1.0}}
 EDITING = {
-    "MEGA-PRESS GABA": (lambda tr_s: MegaPress.pair(tr_s=tr_s),
-                        {"difference": {"on": 1.0, "off": -1.0}, "sum": {"on": 1.0, "off": 1.0}}, "difference"),
-    "HERMES GABA GSH": (lambda tr_s: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
+    "MEGA-PRESS GABA": (lambda tr_s, f0_mhz, size_mm: MegaPress.pair(tr_s=tr_s), DIFFERENCE, "difference"),
+    "HERMES GABA GSH": (lambda tr_s, f0_mhz, size_mm: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
+    "MEGA-PRESS GABA, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.pair(f0_mhz, size_mm=size_mm, tr_s=tr_s),
+                                DIFFERENCE, "difference"),
+    "HERMES, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hermes, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+                       Hermes.combinations, "gaba"),
+    "HERCULES, played": (lambda tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+                         Hercules.combinations, "gaba"),
+}
+
+#***********#
+#   gears   #
+#***********#
+# which branches of the parameter tree each panel's gear opens
+GEARS = {
+    "subject": ("conc", "t1", "t2", "contrast", "diffusion", "mm", "downfield", "lipids", "water"),
+    "scanner": ("noise", "lineshape", "b1_scale", "gradients", "acquisition", "spurious"),
 }
 
 #**********#
@@ -240,13 +258,17 @@ class Session:
         operator's own, the blocks of `design` in order ("Custom")."""
         card = card if card is not None else self.protocol
         if card.sequence in EDITING:
-            return next(iter(EDITING[card.sequence][0](card.tr_ms / 1000.0).values()))
+            return next(iter(self.editing(card).values()))
         if card.sequence == MRSI:
             return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0)
         if card.sequence == "Custom":
             events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
             return Sequence(*events, tr_s=card.tr_ms / 1000.0)
         return SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+
+    def editing(self, card):
+        """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
+        return EDITING[card.sequence][0](card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, float(self.size_mm))
 
     def diagram(self, sequence=None, readout_ms=12.0):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
@@ -411,8 +433,8 @@ class Session:
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
                     records=self.outlook()["records"], sequence=self.sequence(card))
         if card.sequence in EDITING:
-            make, exam.combinations, exam.shown = EDITING[card.sequence]
-            exam.conditions = make(card.tr_ms / 1000.0)
+            _, exam.combinations, exam.shown = EDITING[card.sequence]
+            exam.conditions = self.editing(card)
         else:
             exam.conditions, exam.combinations = {"scan": exam.sequence}, {"scan": {"scan": 1.0}}
         self.queue.append(exam)

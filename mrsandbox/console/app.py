@@ -27,7 +27,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from mrsandbox.console.session import BLOCKS, EDITING, MRSI, SEQUENCES, SUBJECTS, Session
+from mrsandbox.console.session import BLOCKS, EDITING, GEARS, MRSI, SEQUENCES, SUBJECTS, Session
 
 #*************#
 #   palette   #
@@ -186,9 +186,10 @@ def console():
             return
         ui.notify(f"Exported {session.export(exam, pathlib.Path.home() / 'MRSandbox' / 'exports')}")
 
-    def gear():
+    def gear(panel=None):
         """The advanced settings: every leaf of the parameter tree with its prior, a number or
-        a range open to the operator, the rest shown as it is."""
+        a range open to the operator, the rest shown as it is; a panel's gear opens its own
+        branches (GEARS), the top bar's the whole tree."""
         def put(path, kind, index):
             def handle(event):
                 if event.value is None:
@@ -202,10 +203,11 @@ def console():
 
         groups = {}
         for path, kind, numbers, touched in session.leaves():
-            groups.setdefault(path.split(".")[0], []).append((path, kind, numbers, touched))
+            if panel is None or path.split(".")[0] in GEARS[panel]:
+                groups.setdefault(path.split(".")[0], []).append((path, kind, numbers, touched))
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px; max-width: 900px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Advanced settings · the parameter tree").classes("label")
+                ui.label(f"Advanced settings · {panel or 'the whole parameter tree'}").classes("label")
                 ui.space()
                 ui.button("Reset all to their sources", on_click=lambda: (session.overrides.clear(), dialog.close(), draw())).props(
                     "flat dense")
@@ -389,8 +391,11 @@ def console():
                                                    ("subject", "on the table", list(SUBJECTS), 240)):
             ui.select(options, value=getattr(session, attribute), label=caption, on_change=changed(attribute)).props(
                 "dense outlined dark").style(f"min-width: {width}px")
+            if attribute in GEARS:
+                ui.button("⚙", on_click=lambda _, panel=attribute: gear(panel)).props("flat dense").style(
+                    f"color: {GLOW}; margin-left: -10px")
         ui.space()
-        ui.button("⚙ advanced", on_click=gear).props("flat dense").style(f"color: {GLOW}")
+        ui.button("⚙ all settings", on_click=lambda: gear()).props("flat dense").style(f"color: {GLOW}")
         status = ui.label("idle").classes("label")
 
     with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch"):
