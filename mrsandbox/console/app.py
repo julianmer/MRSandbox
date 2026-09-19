@@ -59,6 +59,7 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
 .tool .q-icon {{ font-size: 19px; }}
 .chip {{ border: 1px solid {LINE}; border-radius: 2px; color: {INK} !important; width: 118px; height: 50px; padding: 0; font-size: 10.5px;
          line-height: 1.15; cursor: grab; }}
+.chip.over {{ border-left: 4px solid {GLOW}; }}
 .chip.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .tool.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .info {{ display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 5px; align-content: start; white-space: nowrap; }}
@@ -68,6 +69,7 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
 .q-field--outlined .q-field__control:before {{ border-color: {LINE} !important; }}
 """
 MM = 1.0 / 40.0  # the 3D view's units per millimetre
+BLANK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 # the logo has one home, the repository's assets/; an installed package carries that file in its
 # environment's share/mrsandbox (pyproject.toml, data-files)
 LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "logo" / "logo.png",
@@ -92,6 +94,10 @@ CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)", "duration_
             "axis": "along", "cycles_per_mm": "dephasing (cycles/mm)", "order": "coherence order kept", "scheme": "scheme",
             "envelope": "envelope, amplitudes apart by commas",
             "bandwidth_hz": "bandwidth (Hz)", "peak_hz": "peak B1 (Hz)"}
+# the calibration records in plain words
+RECORDS = {"noise.sigma": "Noise level (the simulation's unit: one transient, 8 mL, 3 T)", "lineshape.gauss_hz": "Line broadening (Hz)",
+           "conc.Cr": "Creatine level the amplitudes are scaled by (mM)", "coils.loaded.own_noise": "Share of a channel's noise that is its own",
+           "mm.level_mm": "Macromolecule level"}
 # the settings' groups by name, and the ways a parameter can be set
 GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2": "T2 of the metabolites (s)",
           "contrast": "Grey to white matter concentration ratio", "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
@@ -171,7 +177,7 @@ def lanes(drawn, width=470.0, lane=46.0, mark=None):
     middles = [top + 0.72 * tall] + [top + tall + lane * (k + 0.5) for k in range(4)]
     height = top + tall + 4 * lane + 24.0
     peak = max([abs(v) for axis in "xyz" for _, v in drawn[axis]] + [1e-9])
-    reach = 0.62 * tall / max([abs(v) for _, v in drawn["rf"]] + [h for _, h in drawn["bars"]] + [1e-9])
+    reach = 0.62 * tall / max([abs(v) for _, v in drawn["rf"]] + [h for _, h, _ in drawn["bars"]] + [1e-9])
     out = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" style="display: block" font-family="inherit" font-size="10">']
     if mark is not None:
         out.append(f'<rect x="{x(mark[0]) - 5:.1f}" y="{top - 4}" width="{x(mark[1]) - x(mark[0]) + 10:.1f}" height="{tall + 4 * lane + 8}" rx="3" '
@@ -186,7 +192,12 @@ def lanes(drawn, width=470.0, lane=46.0, mark=None):
                    f'<line x1="{left}" x2="{width - right}" y1="{middle:.1f}" y2="{middle:.1f}" stroke="{LINE}" />')
     out.append(f'<path d="{path(drawn["rf"], middles[0], reach)}" fill="{GLOW}" fill-opacity="0.22" stroke="{GLOW}" '
                f'stroke-width="1.2" stroke-linejoin="round" />')
-    for t, tallness in drawn["bars"]:
+    for t, tallness, selective in drawn["bars"]:
+        if selective:       # a band-selective pulse (water suppression, editing) is drawn as a Gaussian, as in Tkac 1999 and Mescher 1998
+            bell = " ".join(f"L{x(t) + 9.0 * u:.1f},{middles[0] - reach * tallness * np.exp(-4.5 * u * u):.1f}" for u in np.linspace(-1.0, 1.0, 21))
+            out.append(f'<path d="M{x(t) - 9:.1f},{middles[0]:.1f} {bell} L{x(t) + 9:.1f},{middles[0]:.1f}" fill="{GLOW}" fill-opacity="0.3" '
+                       f'stroke="{GLOW}" stroke-width="1.1" />')
+            continue
         out.append(f'<rect x="{x(t) - 3:.1f}" y="{middles[0] - reach * tallness:.1f}" width="6" height="{reach * tallness:.1f}" fill="{GLOW}" '
                    f'fill-opacity="{0.35 if tallness < 0.75 else 0.85}" stroke="{GLOW}" />')
     for k, axis in enumerate("xyz"):
@@ -252,18 +263,18 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, shown, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None}
+    views, shown, hung, letters, crosses, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False}
 
     def room():
-        """Rebuild the 3D view: the subject's surface, the receive loops, the voxel's box."""
+        """Rebuild the 3D view: the three planes hung where they cut the subject (paint fills them,
+        with the overlay they carry), the receive loops, the voxel's box."""
         drawn = session.scene()
         view.clear()
+        hung.clear()
+        shown.clear()
         with view:
-            cloud = drawn["cloud"] * MM
-            shade = 0.45 + 0.55 * (cloud[:, 2] - cloud[:, 2].min()) / max(float(np.ptp(cloud[:, 2])), 1e-6)
-            ui.scene.point_cloud(cloud.tolist(), (shade[:, None] * np.array([0.89, 0.65, 0.37])).tolist(), point_size=0.035)
-            if len(drawn["lipid"]):                                # the lipid layer about the brain, to judge a voxel near it
-                ui.scene.point_cloud((drawn["lipid"] * MM).tolist(), [[0.85, 0.55, 0.69]] * len(drawn["lipid"]), point_size=0.03)
+            for name, (_, _, _, _, _, corners) in session.planes().items():
+                hung[name] = ui.scene.texture(BLANK, (np.asarray(corners) * MM).tolist())
             for centre, normal, radius in drawn["loops"]:
                 n = np.asarray(normal, dtype=float) / np.linalg.norm(normal)
                 a = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
@@ -278,13 +289,20 @@ def console():
         """Redraw the planes (the slice on view, the voxel's outline where the slice cuts it, the
         other planes' cross, a spectroscopic image's grid) and the 3D box: what a drag needs."""
         cells = int(session.protocol.matrix) if session.protocol.sequence == MRSI else 1
-        for name, (image, (left, top, width, height), cut, (column, row), shifted) in session.planes().items():
+        for name, (image, (left, top, width, height), cut, (column, row), shifted, corners) in session.planes().items():
             stamp = hash(image.tobytes())
             if shown.get(name) != stamp:                            # a moved voxel changes the outlines, not the picture
                 shown[name] = stamp
                 buffer = io.BytesIO()
                 Image.fromarray(image).save(buffer, format="PNG")
                 views[name].set_source("data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode())
+                # the same picture in space, see-through where there is nothing
+                colour = np.asarray(Image.fromarray(image).convert("RGBA")).copy()
+                colour[..., 3] = np.where(colour[..., :3].max(axis=2) > 10, 235, 0)
+                buffer = io.BytesIO()
+                Image.fromarray(colour).save(buffer, format="PNG")
+                hung[name].set_url("data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode())
+                hung[name].set_coordinates((np.asarray(corners) * MM).tolist())
             side = image.shape[0]
             grid = "".join(f'<line x1="{left + width * n / cells:.1f}" x2="{left + width * n / cells:.1f}" y1="{top:.1f}" '
                            f'y2="{top + height:.1f}" /><line y1="{top + height * n / cells:.1f}" y2="{top + height * n / cells:.1f}" '
@@ -303,6 +321,16 @@ def console():
             axis, letter = EDGES[name][4:]
             texts[name].text = f"{name.upper()}  {letter} {session.view_mm[axis]:+.0f} mm"
         chosen["box"].move(*(np.asarray(session.position_mm) * MM))
+        for name, labels in letters.items():       # a flipped view mirrors the pictures left to right, and the letters with them
+            mirrored = chosen["flipped"] and name in ("tra", "cor")
+            views[name].style("transform: scaleX(-1)" if mirrored else "transform: none")
+            top, bottom, left, right = EDGES[name][:4]
+            labels[2].text, labels[3].text = (right, left) if mirrored else (left, right)
+            crosses[name].content = (
+                f'<svg width="54" height="54" viewBox="0 0 54 54" font-size="9" font-family="inherit"><g stroke="{SAND}" fill="{SAND}">'
+                f'<line x1="20" y1="34" x2="46" y2="34" /><line x1="20" y1="34" x2="20" y2="8" />'
+                f'<path d="M46,34 l-5,-3 v6 z" /><path d="M20,8 l-3,5 h6 z" /></g>'
+                f'<text x="48" y="46" fill="{SAND}" text-anchor="end">{labels[3].text}</text><text x="6" y="12" fill="{SAND}">{top}</text></svg>')
         wash = session.wash()
         texts["window"].text = ("" if wash is None or not wash[3] else f"blue {wash[1]:+.3g} · red {wash[2]:+.3g}"
                                 + (" Hz" if session.overlay == "B0 field" else "")) if session.overlay != "anatomy" else ""
@@ -313,6 +341,8 @@ def console():
 
     def draw():
         """Redraw everything the card and the room decide: the planes, the diagram, the outlook."""
+        if not chosen["ready"]:         # a bound control speaks its first value while the page is still being built
+            return
         paint()
         card = session.protocol
         try:
@@ -350,11 +380,12 @@ def console():
         records.clear()
         with records:
             for leaf, record in look["records"].items():
-                ui.label(f"{leaf}  {record['value']:g}").classes("value")
-                ui.label(record["source"][:44] + (f" · departs in {', '.join(record['extrapolated'])}" if record["extrapolated"] else "")
+                ui.label(f"{RECORDS.get(leaf, leaf).split(' (')[0]}: {record['value']:g}").classes("value")
+                ui.label("measured in " + record["source"][:40] + (f" · your setup differs in {', '.join(record['extrapolated'])}"
+                                                                   if record["extrapolated"] else " · matches your setup")
                          ).classes("label").style(f"text-transform: none; letter-spacing: 0; color: {BAD if record['extrapolated'] else DIM}")
         for name, tool in tools.items():
-            on = {"ovs": card.ovs, "shifts": chosen["shifts"], "real": card.real or card.sequence == "HERCULES"}.get(
+            on = {"ovs": card.ovs, "shifts": chosen["shifts"], "flip": chosen["flipped"], "real": card.real or card.sequence == "HERCULES"}.get(
                 name, card.water_suppression != "off")
             tool.classes(add="on" if on else "", remove="" if on else "on")
         tools["water"].text = "water " + card.water_suppression
@@ -614,7 +645,14 @@ def console():
                         "chip" + (" on" if index == state["at"] else ""))
                     chip.on("dragstart", lambda _, i=index: state.__setitem__("dragged", i))
                     chip.on("dragover.prevent", lambda: None)
+                    chip.on("dragenter", lambda _, chip=chip: chip.classes(add="over"))      # the bar where the block will land
+                    chip.on("dragleave", lambda _, chip=chip: chip.classes(remove="over"))
                     chip.on("drop", lambda _, i=index: drop(i))
+                    with chip, ui.context_menu().props("dark"):
+                        ui.menu_item("Copy", lambda i=index: state.__setitem__("copied", (session.design[i][0], dict(session.design[i][1]))))
+                        ui.menu_item("Paste after this", lambda i=index: "copied" in state and (
+                            state.__setitem__("at", i), place(state["copied"][0], dict(state["copied"][1]))))
+                        ui.menu_item("Remove", lambda i=index: (state.__setitem__("at", i), remove()))
             inspector.clear()
             with inspector:
                 if session.design:
@@ -651,7 +689,7 @@ def console():
 
         def redraw():
             try:
-                drawn = session.diagram()
+                drawn = session.diagram(session.own())             # the design itself, whatever the card plays
                 counts = np.cumsum([0] + [len(BLOCKS[kind][1](settings)) for kind, settings in session.design])
                 spans = drawn["spans"][counts[state["at"]]:counts[state["at"] + 1]] if session.design else []
                 preview.content = lanes(drawn, width=820.0, lane=44.0, mark=(spans[0][0], spans[-1][1]) if spans else None)
@@ -699,20 +737,30 @@ def console():
             refresh()
 
         async def look():
-            """The design's spectrum at the planned voxel, eight transients, beside its diagram."""
+            """What the design does to a spectrum (Session.showcase): a fixed subject in normal tissue,
+            a uniform field, no noise, no water, nothing but the sequence."""
             busy.set_visibility(True)
             try:
-                exam = session.plan(queued=False)
-                exam.card = dataclasses.replace(exam.card, averages=8)
-                await run.io_bound(session.run, exam)
+                ppm, real = await run.io_bound(session.showcase)
             except Exception as error:
                 problem.text = str(error)[:160]
                 problem.style(f"color: {BAD}")
                 return
             finally:
                 busy.set_visibility(False)
-            outcome.options["series"][0]["data"] = [[float(a), float(b)] for a, b in zip(exam.ppm, exam.frames[-1][1])]
+            outcome.options["series"][0]["data"] = [[float(a), float(b)] for a, b in zip(ppm, real)]
             outcome.update()
+
+        def key(event):
+            """Delete removes the chosen block; ctrl or cmd with C copies it, with V pastes after it."""
+            if not event.action.keydown or not session.design:
+                return
+            if event.key in ("Delete", "Backspace"):
+                remove()
+            elif (event.modifiers.ctrl or event.modifiers.meta) and event.key == "c":
+                state["copied"] = (session.design[state["at"]][0], dict(session.design[state["at"]][1]))
+            elif (event.modifiers.ctrl or event.modifiers.meta) and event.key == "v" and "copied" in state:
+                place(state["copied"][0], dict(state["copied"][1]))
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1300px; max-width: 1500px"):
             with ui.row().classes("w-full items-center"):
@@ -727,7 +775,12 @@ def console():
                 ui.button("all pulses shaped", icon="waves", on_click=lambda: ([reshape(i, True) for i in range(len(session.design))], refresh())
                           ).props("outline dense no-caps")
                 ui.button("Spectrum of this design", icon="insights", on_click=look).props("outline dense no-caps")
-                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
+                ui.button("Close", on_click=lambda: (setattr(keys, "active", False), dialog.close())).props("flat dense no-caps").tooltip(
+                    "the design is kept; the card plays what it played")
+                ui.button("Use this design", icon="check", on_click=lambda: (
+                    setattr(keys, "active", False), setattr(session.protocol, "sequence", "Custom"), dialog.close(), draw())).props(
+                    "unelevated dense no-caps").tooltip("the card plays this design (Custom); water suppression and OVS stay the card's switches")
+                keys = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
                 with ui.element("div").style("flex: 2; min-width: 0; position: relative"):
@@ -743,7 +796,7 @@ def console():
                     for kind in BLOCKS:
                         with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                             ui.button(kind, icon=BLOCK_ICONS[kind], on_click=lambda _, kind=kind: place(kind, dict(BLOCKS[kind][0]))).props(
-                                "outline dense no-caps align=left").style("width: 190px")
+                                "outline dense no-caps align=left").style("width: 190px; height: 34px; flex: none")
                             ui.label(BLOCK_NOTES[kind].split(".")[0]).classes("label").style("text-transform: none; letter-spacing: 0")
                 inspector = ui.column().classes("pane").style("flex: 1; min-width: 0")
             refresh()
@@ -879,10 +932,10 @@ def console():
             parts[which] = await keep(event)
 
         def shelve():
-            if len(parts) < 3 or not name.value:
+            if not {"GM", "WM", "CSF"} <= set(parts) or not name.value:
                 ui.notify("A name and the three maps, GM, WM, CSF")
                 return
-            session.anatomy(name.value, parts["GM"], parts["WM"], parts["CSF"])
+            session.anatomy(name.value, parts["GM"], parts["WM"], parts["CSF"], picture=parts.get("T1w picture"))
             pickers["subject"].set_options(list(session.subjects), value=name.value)
             dialog.close()
 
@@ -906,10 +959,11 @@ def console():
                 ui.button("nominal", on_click=lambda: (setattr(session, "transmit", None), setattr(shown, "text", "nominal everywhere"))).props(
                     "flat dense no-caps")
                 ui.upload(label="your own", auto_upload=True, on_upload=transmit).props("flat dense dark accept=.nii,.gz").style("width: 220px")
-            ui.label("Your own anatomy · probability maps of one grid, a segmentation of your T1-weighted image").classes("label")
+            ui.label("Your own subject · GM, WM, CSF probability maps of one grid (your segmentation of an MPRAGE: FSL FAST, SPM, "
+                     "FreeSurfer), and that image for the planes to show").classes("label").style("white-space: normal")
             with ui.row().classes("w-full items-center no-wrap"):
                 name = ui.input("name").props("dense outlined dark").style("width: 170px")
-                for which in ("GM", "WM", "CSF"):
+                for which in ("GM", "WM", "CSF", "T1w picture"):
                     ui.upload(label=which, auto_upload=True, on_upload=lambda e, which=which: tissue(e, which)).props(
                         "flat dense dark accept=.nii,.gz").style("width: 150px")
                 ui.button("On the shelf", icon="person_add", on_click=shelve).props("outline dense no-caps")
@@ -1007,10 +1061,19 @@ def console():
                 ui.radio({None: "the package's records for this scanner", **others}, value=session.calibration if session.calibration in others else None,
                          on_change=lambda e: (setattr(session, "calibration", e.value), dialog.close(), draw(), calibration())).props("dense color=accent")
             for leaf, record in session.outlook()["records"].items():
-                with ui.row().classes("w-full no-wrap").style("gap: 10px"):
-                    ui.label(f"{leaf}  {record['value']:g}").classes("value").style("width: 200px")
-                    ui.label(record["source"] + (f" · departs in {', '.join(record['extrapolated'])}" if record["extrapolated"] else "")).classes(
-                        "label").style("text-transform: none; letter-spacing: 0")
+                measured = record.get("scanner") or {}
+                with ui.column().classes("w-full").style(f"gap: 2px; border-top: 1px solid {LINE}; padding-top: 6px"):
+                    ui.label(f"{RECORDS.get(leaf, leaf)}: {record['value']:g}").style(f"color: {SAND}")
+                    ui.label(f"measured in: {record['source']}" + (f", on a {measured.get('vendor', '')} {measured.get('model', '')} "
+                             f"at {measured.get('field_t', '')} T" if measured else "") + (f", with {record['sequence']}" if record.get("sequence") else "")
+                             ).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+                    if record["extrapolated"]:
+                        ui.label("your setup differs from that measurement in: " + "; ".join(
+                            f"{what} ({' → '.join(str(v) for v in pair)})" if isinstance(pair, (list, tuple)) else str(what)
+                            for what, pair in (record["extrapolated"].items() if isinstance(record["extrapolated"], dict)
+                                               else ((w, None) for w in record["extrapolated"])))).style(f"color: {BAD}")
+                    else:
+                        ui.label("your setup matches that measurement").style(f"color: {GOOD}")
             ui.label("Records read from your own scans (ScannerProfile.read in Python, saved as JSON to ~/MRSandbox/profiles or "
                      "./data/profiles) show here under their scanner, on this machine only. Reading them here from an uploaded scan is "
                      "not in the console yet.").classes("label").style("text-transform: none; letter-spacing: 0")
@@ -1026,6 +1089,9 @@ def console():
             for key, value in settings.items():
                 ui.number(key.replace("_mm", " (mm)").replace("_", " "), value=value, format="%.6g", on_change=lambda e, key=key: (
                     e.value is not None and (settings.__setitem__(key, float(e.value)), room(), draw()))).props("dense outlined dark").classes("w-full")
+            ui.button("Back to the defaults", icon="restart_alt", on_click=lambda: (
+                settings.clear(), settings.update(session.COIL_SETTINGS[session.coil]), dialog.close(), room(), draw(), coil_gear())).props(
+                "flat dense no-caps")
             ui.label("The loops show in the 3D view. Their sensitivities and noise follow from their geometry and the subject's load.").classes(
                 "label").style("text-transform: none; letter-spacing: 0")
             ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
@@ -1050,7 +1116,8 @@ def console():
                     with ui.column().style("gap: 4px; flex: 1"):
                         ui.label(family).classes("label")
                         for name in names:
-                            ui.button(name, on_click=lambda _, name=name: pick(name)).props("outline dense no-caps align=left").classes("w-full")
+                            ui.button(name, on_click=lambda _, name=name: pick(name)).mark(f"protocol {name}").props(
+                                "outline dense no-caps align=left").classes("w-full")
                 with ui.column().style("gap: 4px; flex: 1"):
                     ui.label("Saved").classes("label")
                     for name in session.protocols():
@@ -1137,6 +1204,10 @@ def console():
                     chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
                     "display only: draws where water (blue) and lipid (pink) are really selected. With real pulses the displacement is "
                     "always in the signal; this button does not switch it off (ideal pulses do)")
+                tools["flip"] = ui.button("L on the right", icon="flip", on_click=lambda: (
+                    chosen.__setitem__("flipped", not chosen["flipped"]), draw())).props("flat dense no-caps stack").classes("tool").tooltip(
+                    "off: the subject's left is on the picture's left (neurological). on: mirrored, left on the right, as a radiologist "
+                    "reads it. The letters and the axes' crosses follow")
                 ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
                     "what happens over the transients: drift, breathing, jitter, motion")
                 ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: (setattr(session, "overlay", e.value), paint())).props(
@@ -1155,12 +1226,13 @@ def console():
                         views[name].on("wheel.prevent", lambda e, plane=name: (
                             session.scroll(plane, 1 if e.args["deltaY"] < 0 else -1), paint()), args=["deltaY"], throttle=0.04)
                         texts[name] = ui.label("").classes("tag").style("top: 4px; left: 6px")
-                        for letter, place in zip(EDGES[name][:4], ("top: 4px; left: 50%", "bottom: 4px; left: 50%",
-                                                                   "top: 48%; left: 6px", "top: 48%; right: 6px")):
-                            ui.label(letter).classes("tag").style(place)
+                        letters[name] = [ui.label(letter).classes("tag").style(place) for letter, place in zip(
+                            EDGES[name][:4], ("top: 4px; left: 50%", "bottom: 4px; left: 50%", "top: 48%; left: 6px", "top: 48%; right: 6px"))]
+                        # the axes' cross, lower right: where the picture's right and its top point in the subject
+                        crosses[name] = ui.html("", sanitize=False).classes("tag").style("right: 6px; bottom: 6px")
             with ui.row().classes("w-full no-wrap").style("gap: 6px; flex: 1; min-height: 0; align-items: stretch"):
                 # the card's parameters by tab, what follows from them beside
-                with ui.column().classes("pane").style("width: 590px; flex: none"):
+                with ui.column().classes("pane").style("width: 590px; flex: none; min-height: 0; overflow: hidden"):
                     card = session.protocol
                     with ui.tabs().props("dense align=left").style(f"color: {DIM}") as tabs:
                         for name in ("Geometry", "Contrast", "Acquisition", "Imaging"):
@@ -1173,9 +1245,8 @@ def console():
                                         e.value is not None and abs(e.value - session.position_mm[axis]) > 0.05 and (
                                             session.position_mm.__setitem__(axis, float(e.value)), draw()))).props(
                                         "dense outlined dark").classes("w-full"))
-                                ui.label("voxel size (mm)").classes("label")
                                 with ui.row().classes("w-full no-wrap").style("gap: 4px"):
-                                    for axis, caption in enumerate(("x", "y", "z")):
+                                    for axis, caption in enumerate(("size x", "size y", "size z")):
                                         edges.append(ui.number(caption, value=session.size_mm[axis], step=5.0, min=3.0, on_change=lambda e, axis=axis: (
                                             e.value is not None and e.value != session.size_mm[axis] and (
                                                 session.size_mm.__setitem__(axis, float(e.value)), room(), draw()))).props(
@@ -1204,7 +1275,7 @@ def console():
                             for tab, fields in (("Contrast", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
                                                 ("Acquisition", (("averages", "averages", 1), ("npoints", "points", 512),
                                                                  ("bandwidth_hz", "bandwidth (Hz)", 500.0),
-                                                                 ("water_reference", "water reference transients", 2)))):
+                                                                 ("water_reference", "water reference transients", 1)))):
                                 with ui.tab_panel(tab):
                                     if tab == "Contrast":
                                         ui.button(on_click=browse).bind_text_from(card, "sequence").props(
@@ -1227,7 +1298,7 @@ def console():
                                         ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
                                                   ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
                         with ui.element("div").classes("info").style(
-                                f"flex: 1; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
+                                f"flex: 1; min-height: 0; overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
                             ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
                             for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
                                                  ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
@@ -1251,9 +1322,8 @@ def console():
                                         "flat dense no-caps stack").classes("tool").tooltip("water suppression before the localization: off, VAPOR, WET, CHESS")
                                     tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
                                         "flat dense no-caps stack").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
-                                    ui.button("design", icon="architecture", on_click=lambda: (
-                                        setattr(session.protocol, "sequence", "Custom"), designer())).props("flat dense no-caps stack").classes("tool").tooltip(
-                                        "the sequence designer")
+                                    ui.button("design", icon="architecture", on_click=designer).props("flat dense no-caps stack").classes("tool").tooltip(
+                                        "the sequence designer: your own design in blocks. The card keeps playing what it plays until you use the design")
                                 diagram = ui.html("", sanitize=False).style("flex: 1; min-width: 0")
                         with ui.tab_panel("Live"):
                             with ui.row().classes("w-full items-center no-wrap"):
@@ -1291,9 +1361,10 @@ def console():
                 view = ui.scene(width=272, height=272, grid=False, background_color="#000000")
                 view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
                 ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
-            ui.label("Calibration records in force").classes("label").style("margin-top: 6px")
+            ui.label("What the scanner is calibrated by").classes("label").style("margin-top: 6px")
             with ui.scroll_area().style("flex: 1; width: 100%"):
                 records = ui.column().classes("w-full").style("gap: 1px")
+    chosen["ready"] = True
     room()
     draw()
 

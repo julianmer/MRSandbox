@@ -30,6 +30,7 @@ class TestSession:
 
     def test_the_planes_are_squares_and_a_click_on_the_voxel_leaves_it_there(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         planes = session.planes()
         assert {image.shape for image, *_ in planes.values()} == {(115, 115)}
         assert all(image.max() > 200 and image.dtype == np.uint8 for image, *_ in planes.values())
@@ -44,6 +45,7 @@ class TestSession:
 
     def test_leafing_through_a_plane_leaves_the_voxel_and_a_click_places_it_on_the_slice(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         before = list(session.position_mm)
         session.scroll("tra", 20)
         image, _, cut, *_ = session.planes()["tra"]
@@ -57,6 +59,7 @@ class TestSession:
 
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.real = False                                      # ideal pulses select exactly
         assert session.displacement(4.65) == [0.0, 0.0, 0.0] and session.planes()["tra"][4] == {}
         session.protocol.real = True                                       # the default
@@ -64,7 +67,7 @@ class TestSession:
         assert np.all(water < 0.0) and np.all(lipid > 0.0)                 # either side of the 3 ppm the slabs are centred for
         assert abs(water[1]) > 2.0 * abs(water[0])                         # the narrow 180s displace more than the 90
         assert np.allclose(water / lipid, (4.65 - 3.0) / (1.3 - 3.0))
-        _, (left, top, _, _), _, _, shifted = session.planes()["tra"]
+        _, (left, top, _, _), _, _, shifted, _ = session.planes()["tra"]
         assert shifted["water"][0] < left and shifted["water"][1] > top    # towards lower x and lower y (rows run down)
         session.protocol.sequence = "sLASER"                               # broadband adiabatic pairs: a tenth of it
         assert abs(session.displacement(4.65)[1]) < 0.15 * abs(water[1])
@@ -73,6 +76,7 @@ class TestSession:
         import nibabel as nib
 
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         assert session.field == "bigbrain_mr" and 1.0 < session.linewidth() < 5.0   # the measured field, shimmed, by default
         session.field = "uniform"
         assert session.linewidth() is None                                 # a uniform field broadens nothing
@@ -92,12 +96,13 @@ class TestSession:
 
     def test_one_subject_lies_on_the_table_and_a_water_reference_follows_its_card(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.real, session.protocol.averages, session.protocol.npoints, session.protocol.water_reference = False, 4, 512, 2
         session.size_mm = [30.0, 20.0, 15.0]                                # an anisotropic voxel
         session.run_settings = {"events_per_min": 0.0}
         session.plan()
-        assert [exam.name for exam in session.queue] == ["1 PRESS TE 30", "2 PRESS water reference"]
-        scan, water = (session.run(exam) for exam in session.queue)
+        assert [exam.name for exam in session.queue] == ["1 PRESS water reference", "2 PRESS TE 30"]   # the reference first, the default
+        water, scan = (session.run(exam) for exam in session.queue)
         assert scan.truth == water.truth                                    # the same draw of the population
         assert abs(water.ppm[np.argmax(water.frames[-1][1])] - 4.65) < 0.1 and water.card.averages == 2
         assert water.frames[-1][1].max() > 5.0 * scan.frames[-1][1].max()   # unsuppressed
@@ -109,6 +114,7 @@ class TestSession:
         from mrsandbox import Vapor
 
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         bare = len(session.sequence().events)
         session.protocol.water_suppression, session.protocol.ovs = "VAPOR", True
         assert len(session.sequence().events) == bare + len(Vapor().events) + 12     # six slabs, a filter after each
@@ -120,6 +126,7 @@ class TestSession:
         import nibabel as nib
 
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.averages, session.protocol.npoints, session.protocol.real = 4, 512, False   # the maps are the point
         body = session.body()
         for name, data in (("gm", body.gm), ("wm", body.wm), ("csf", body.csf), ("b0", np.full(body.gm.shape, 7.0)),
@@ -136,6 +143,7 @@ class TestSession:
 
     def test_the_card_promises_and_the_exam_delivers(self, tmp_path):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.averages, session.protocol.npoints = 6, 1024
         look = session.outlook()
         assert look["gm"] + look["wm"] + look["csf"] == pytest.approx(1.0, abs=0.02)
@@ -156,6 +164,7 @@ class TestSession:
 
     def test_a_phantom_and_an_array_are_in_the_room_as_a_brain_is(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.subject, session.position_mm, session.coil = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0], "head array"
         assert session.outlook()["gm"] == pytest.approx(1.0)
         assert {image.shape[0] == image.shape[1] for image, *_ in session.planes().values()} == {True}
@@ -165,6 +174,7 @@ class TestSession:
 
     def test_the_gear_opens_every_leaf_and_a_setting_reaches_the_scan(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
         assert leaves["noise.sigma"] == ("range", (3.7, 6.9)) and leaves["water.temperature_c"] == ("fixed", (37.0,))
         assert leaves["water.t1_s"][0] == "other"                               # a tissue record, shown and not edited
@@ -177,6 +187,7 @@ class TestSession:
 
     def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.real = False
         drawn = session.diagram()                                               # the card's ideal PRESS, TE 30
         assert [text for _, text in drawn["pulses"]] == ["90°", "180°", "180°"]
@@ -199,6 +210,7 @@ class TestSession:
 
     def test_an_edited_card_interleaves_its_sub_experiments_and_reviews_them(self, tmp_path, monkeypatch):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS", 8, 1024, [30.0] * 3
         session.protocol.real = False                                           # the interleaving is the point
         exam = session.run(session.plan(), seed=1)
@@ -220,6 +232,7 @@ class TestSession:
 
     def test_a_spectroscopic_image_is_a_card_too(self):
         session = Session(ICBM)
+        session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.sequence, session.protocol.npoints, session.protocol.bandwidth_hz = "MRSI PRESS", 512, 2000.0
         session.protocol.matrix, session.size_mm, session.position_mm = 6, [14.0] * 3, [0.0, -10.0, 35.0]
         assert session.outlook()["scan_time_s"] == 72.0                         # a repetition per phase encode

@@ -51,6 +51,10 @@ class TestApp:
                 await user.should_see("the readout opens at")
                 user.find("crusher").click()                            # a block from the palette, after the chosen one
                 await user.should_see("7 blocks")
+                user.find("all pulses shaped").click()                  # ideal pulses become shaped ones of the same flip
+                await user.should_see("1 · shaped pulse")
+                user.find("all pulses ideal").click()
+                user.find("Use this design").click()                    # the card plays it from here on, not before
                 user.find("maps").click()
                 await user.should_see("B0 field")
                 user.find("the run").click()
@@ -61,7 +65,7 @@ class TestApp:
                 user.find("Done").click()
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
-                user.find("PRESS").click()                              # real pulses are the default: the displaced voxels in words
+                user.find(marker="protocol PRESS").click()                              # real pulses are the default: the displaced voxels in words
                 await user.should_see("water -1.8 -4.4 -4.4 mm")
                 user.find(kind=ui.button, content="real pulses").click()   # by kind: a click takes the first match, and a tooltip names it too
                 await user.should_see("none, the localization is ideal")
@@ -69,28 +73,28 @@ class TestApp:
                 await user.should_see("on is real, off is ideal")
                 user.find("Done").click()
                 user.find("New scan").click()
-                user.find("STEAM").click()
+                user.find(marker="protocol STEAM").click()
                 next(e for e in user.find(kind=ui.number).elements if e.props.get("label") == "averages").value = 4
                 user.find("Accept").click()
-                await user.should_see("1 STEAM TE 30")
+                await user.should_see("2 STEAM TE 30")                 # the water reference runs first, the default
                 user.find("Start").click()
                 await user.should_see("simulated in", retries=100)
-                await user.should_see("4 / 4")
+                await user.should_see("4 / 4", retries=300)                # after the reference, which runs first
                 user.find("Export raw transients").click()              # the exam that just ran, into a folder of the test's own
-                await user.should_see("Export · 1 STEAM TE 30")
+                await user.should_see("Export · 2 STEAM TE 30")
                 next(e for e in user.find(kind=ui.input).elements if e.props.get("label") == "folder").value = str(tmp_path)
                 user.find(marker="write the export").click()
                 await user.should_see("Written:")
                 assert list(tmp_path.glob("*.nii.gz"))
                 user.find("Close").click()
                 user.find("New scan").click()
-                user.find("sLASER").click()
+                user.find(marker="protocol sLASER").click()
                 user.find("Accept").click()
-                user.find(marker="card 2 sLASER TE 30").click()             # a planned card opens for editing, in its place
+                user.find(marker="card 4 sLASER TE 30").click()             # a planned card opens for editing, in its place
                 await user.should_see("Accept changes")
                 next(e for e in user.find(kind=ui.number).elements if e.props.get("label") == "TE (ms)").value = 40
                 user.find("Accept changes").click()
-                await user.should_see("2 sLASER TE 40")
+                await user.should_see("4 sLASER TE 40")
                 await user.should_not_see("Accept changes")
 
         asyncio.run(visit())

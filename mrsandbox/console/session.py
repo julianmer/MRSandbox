@@ -28,7 +28,7 @@ from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
-                                 OuterVolumeSuppression, Press, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
+                                 OuterVolumeSuppression, Press, SelectivePulse, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
@@ -217,8 +217,8 @@ class Protocol:
     water_suppression: str = "off"
     ovs: bool = False
     real: bool = True
-    water_reference: int = 0
-    water_reference_first: bool = False
+    water_reference: int = 1
+    water_reference_first: bool = True
     edit_on_ppm: float = 1.88
     edit_off_ppm: float = 7.5
     # a spectroscopic image's encoding (scan.mrsi): how finely the subject is rendered under each cell (1: ideal boxes,
@@ -369,7 +369,7 @@ class Session:
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
-        self.subjects = dict(SUBJECTS)
+        self.subjects, self.pictures = dict(SUBJECTS), dict(PICTURES)
         self.field = FIELDS.get(self.subject, "uniform")
         self.transmit = None
         self.shim, self.shim_mm = "linear", None
@@ -397,8 +397,8 @@ class Session:
         key = ("picture", self.subject)
         if key not in self._bodies:
             body = self.body()
-            shown = PICTURES[self.subject]() if self.subject in PICTURES else 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
-            low, high = np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in PICTURES else (0.0, float(shown.max()))
+            shown = self.pictures[self.subject]() if self.subject in self.pictures else 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
+            low, high = np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in self.pictures else (0.0, float(shown.max()))
             self._bodies[key] = np.uint8(255 * np.clip((shown - low) / max(float(high - low), 1e-6), 0.0, 1.0) * (shown > 0))
         return self._bodies[key]
 
@@ -439,11 +439,14 @@ class Session:
         return Volume(np.asarray(image.get_fdata(), dtype=np.float32), np.array(image.affine, dtype=np.float64),
                       name=pathlib.Path(path).name)
 
-    def anatomy(self, name, gm, wm, csf):
+    def anatomy(self, name, gm, wm, csf, picture=None):
         """Put the operator's own subject on the shelf: three NIfTI probability maps on one grid
-        (a segmentation of their own T1-weighted image)."""
+        (a segmentation of their own T1-weighted image), and that image on the same grid for
+        the planes to show, where given."""
         maps = [self.volume(path) for path in (gm, wm, csf)]
         self.subjects[name] = lambda: Brain.from_maps(*(m.data for m in maps), maps[0].affine, name=name)
+        if picture is not None:
+            self.pictures[name] = lambda: self.volume(picture).data
 
     def fields(self):
         """The room's B0 and B1+ as VirtualScan takes them, made once per choice."""
@@ -553,14 +556,27 @@ class Session:
             return next(iter(self.editing(card).values()))
         if card.sequence == MRSI:
             return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None)
+        scanner = self.profile().scanner
         if card.sequence == "Custom":
-            events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
-            return Sequence(*events, tr_s=card.tr_ms / 1000.0)
-        design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0,
-                                          42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm))
+            design = self.own(card.tr_ms / 1000.0)
+        else:
+            design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0, 42.5774785 * scanner.b0_t, tuple(self.size_mm))
+        if card.sequence == "PRESS, played":
+            # a vendor fits its pulses to its transmitter: where the refocusing pulses ask for more B1 than the scanner
+            # has, they are played longer at the same time-bandwidth product, so narrower, and displace more
+            peaks = [float(e.peak_hz) for e in design.events if isinstance(e, ShapedPulse) and e.peak_hz is not None]
+            over = max(peaks) / (42.5774785 * scanner.peak_b1_ut)
+            if over > 1.0:
+                te1 = min(0.014 * over, card.te_ms / 2000.0)
+                design = LocalizedPress(te1, card.te_ms / 1000.0 - te1, 42.5774785 * scanner.b0_t, size_mm=tuple(self.size_mm),
+                                        refocusing_s=0.0065 * 1.02 * over, tr_s=card.tr_ms / 1000.0)
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
+
+    def own(self, tr_s=None):
+        """The operator's own design, the blocks of `design` in order, as a Sequence."""
+        return Sequence(*(event for kind, settings in self.design for event in BLOCKS[kind][1](settings)), tr_s=tr_s)
 
     def preludes(self, card):
         """What a timed card plays before its localization, in order, {name: design}."""
@@ -581,7 +597,8 @@ class Session:
         f0_mhz = 42.5774785 * self.profile().scanner.b0_t
         moved = [0.0, 0.0, 0.0]
         card = self.protocol
-        skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in SEQUENCES else 0
+        skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in (
+            *SEQUENCES, "Custom") else 0
         for event in self.sequence().events[skip:]:
             if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
                 shift = -(ppm - float(event.offset_ppm)) * f0_mhz / float(event.gradient_hz_per_mm)
@@ -597,13 +614,14 @@ class Session:
     def diagram(self, sequence=None, readout_ms=12.0):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
         of the shaped pulses' envelopes (a real envelope keeps its lobes' signs), "bars":
-        [(t, height)] the ideal pulses, which take no time, their flip over 180, "pulses": [(t, text)] every
+        [(t, height, selective)] the ideal pulses, which take no time, their flip over 180 and whether
+        they act on a band alone (a suppression or editing pulse), "pulses": [(t, text)] every
         pulse's centre and flip, "marks": [(t, text)] for what takes no time and has no
         height (coherence filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner
         would play them (sequences.timeline), "spans": [(start, end)] of every event, "crushers": [(start, end, axis)] the spans
         that are crushers and no slice selection, "groups": [(start, end, name)] the
         card's preludes (water suppression, OVS), "adc": (start, end)}."""
-        preludes = self.preludes(self.protocol) if sequence is None and self.protocol.sequence in SEQUENCES else {}
+        preludes = self.preludes(self.protocol) if sequence is None and self.protocol.sequence in (*SEQUENCES, "Custom") else {}
         sequence = sequence if sequence is not None else self.sequence()
         spans = [list(span) for span in event_spans(sequence)]
         # a prelude without duration (an ideal CHESS: selective pulses and filters that take no time) is laid out
@@ -639,7 +657,7 @@ class Session:
             elif isinstance(event, Gradient):
                 crushers.append((start, stop, event.axis))
             elif hasattr(event, "flip_deg") and not isinstance(event, Delay):
-                bars.append((start, float(event.flip_deg) / 180.0))       # no time in the engine, a bar on paper
+                bars.append((start, float(event.flip_deg) / 180.0, isinstance(event, SelectivePulse)))   # no time in the engine
                 pulses.append((start, f"{float(event.flip_deg):.0f}°"))
         rf.append((end_ms + readout_ms, 0.0))
         until_s = (end_ms + readout_ms) / 1000.0
@@ -702,7 +720,9 @@ class Session:
         outline (left, top, width, height) in the image's pixels, whether this slice cuts
         the voxel, where the other two planes cross it (column, row), and the other
         outlines {name: (left, top, width, height)}: the displaced voxels of SHIFTED (none
-        for an ideal design) and the "shim" box where the operator set one."""
+        for an ideal design) and the "shim" box where the operator set one; and last the
+        world corners of the square picture, [[top left, top right], [bottom left, bottom
+        right]] in mm, for a view that hangs the three planes in space."""
         body, tissue, wash = self.body(), self.picture(), self.wash()
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
         nx, ny, nz = tissue.shape
@@ -738,12 +758,24 @@ class Session:
             rows, columns = (side - shade.shape[0]) // 2, (side - shade.shape[1]) // 2
             square = np.zeros((side, side) + shade.shape[2:], dtype=np.uint8)
             square[rows:rows + shade.shape[0], columns:columns + shade.shape[1]] = shade
+            # the picture's corners in the world: a column runs along `across`, a row down along `up`, the plane lies at the view
+            normal = 3 - across - up
+            corners = []
+            for row in (0, side - 1):
+                corners.append([])
+                for column in (0, side - 1):
+                    point = [0.0, 0.0, 0.0]
+                    point[normal] = float(origin[normal] + step[normal] * (a, b, c)[normal])
+                    point[across] = float(origin[across] + step[across] * (column - columns))
+                    point[up] = float(origin[up] + step[up] * (tissue.shape[up] - 1 - (row - rows)))
+                    corners[-1].append(point)
             return (square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows),
                     {**{name: (left + columns + by[across], top + rows - by[up], width, height) for name, by in moved.items()},
                      **({} if self.shim_mm is None else {"shim": (
                          left + columns + 0.5 * width - 0.5 * self.shim_mm / step[across],
                          top + rows + 0.5 * height - 0.5 * self.shim_mm / step[up],
-                         self.shim_mm / step[across], self.shim_mm / step[up])})})
+                         self.shim_mm / step[across], self.shim_mm / step[up])})},
+                    corners)
 
         return {
             "tra": framed(lambda v: v[:, ::-1, c].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1],
@@ -846,9 +878,25 @@ class Session:
                     exam, name=f"{number + 1} {card.sequence} water reference", frames=[], spectra={}, tracks={}, truth={},
                     card=dataclasses.replace(card, averages=int(card.water_reference), water_suppression="off", water_reference=0),
                     overrides={**exam.overrides, "water.residual_fraction": 1.0, "downfield.presaturated": False}))
-                if card.water_reference_first:          # the reference runs before its card, the names say which is which
+                if card.water_reference_first:          # the reference runs before its card, and the numbers follow the order
                     self.queue[-2], self.queue[-1] = self.queue[-1], self.queue[-2]
+                    self.queue[-2].name, exam.name = f"{number} {card.sequence} water reference", exam.name.replace(f"{number} ", f"{number + 1} ", 1)
         return exam
+
+    def showcase(self):
+        """What the own design does to a spectrum, to show the sequence and not a result: two
+        transients of a fixed subject (seed 0) in the average brain's parietal white and grey
+        matter, a uniform field, and everything of IDEALS off (no noise, macromolecules, lipids,
+        residual water, frequency and phase errors, eddy currents, spurious echoes), the run
+        still. Returns (ppm, real spectrum) on 0.2 to 4.2 ppm."""
+        clean = Session("Brain, ICBM152 average, 2 mm")
+        clean.scanner, clean.field, clean.design = self.scanner, "uniform", self.design
+        clean.protocol = dataclasses.replace(self.protocol, sequence="Custom", averages=2, water_reference=0, water_suppression="off", ovs=False)
+        clean.overrides = {path: value for leaves in IDEALS.values() for path, value in leaves.items()}
+        clean.run_settings = {argument: off for argument, off in RUN.values()}
+        exam = clean.run(clean.plan(queued=False), seed=0)
+        shown = (exam.ppm > 0.2) & (exam.ppm < 4.2)
+        return exam.ppm[shown], exam.frames[-1][1][shown]
 
     def run(self, exam, seed=None):
         """Acquire an exam: every transient apart, with the instabilities of a real run
@@ -895,7 +943,7 @@ class Session:
                                     step=self.queue.index(exam) + 1 if exam in self.queue else 0, **exam.run,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
         fids = np.asarray(exam.data[:])[0, 0, 0]
-        fids = fids if fids.ndim == 2 else fids.sum(axis=1)             # channels summed for the display alone
+        fids = fids[:, None] if fids.ndim == 1 else fids if fids.ndim == 2 else fids.sum(axis=1)   # one transient; channels summed for the display alone
         # the display a console gives: light apodization, zero filled, phased on the tallest line upfield of water
         window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
         f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
