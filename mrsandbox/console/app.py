@@ -1029,75 +1029,59 @@ async def console(client: Client):
         return folder / event.file.name
 
     def maps():
-        """What the operator brings: a subject from their T1-weighted image alone (one file chosen, NIfTI or DICOM of
-        any vendor), or from their own tissue maps; and for the subject on the table its B0, B1+ and lipid maps, the
-        package's measured ones or the operator's own, brought onto the anatomy by the scanner's coordinates."""
-        box = "width: 172px"        # every upload box one size
+        """What lies on the table, line by line: the anatomy, its three tissues, and its B0, B1+ and lipid maps. Every line
+        says what is loaded now, offers what the package has stored and "your own file ..." on top (one file dialog, NIfTI
+        or DICOM of any vendor), and has the one action that belongs to it: an anatomy is segmented into its tissues, every
+        other map is registered to the anatomy."""
+        own, selects = {}, {}          # the operator's files by line, and the lines' drop-downs
 
-        async def chosen_image():
-            """One file is chosen and the subject is made: a DICOM file gives its own series (io.read_dicom), FSL extracts
-            and segments the brain (Session.segment)."""
+        async def file_of(what):
+            """One file chosen with a click; a DICOM file gives its series as NIfTI (io.read_dicom)."""
             window = app.native.main_window
-            if window is not None:
-                picked = await window.create_file_dialog(allow_multiple=False)
-                picked = picked[0] if picked else None
-            else:
-                picked = image.value or None                # a browser cannot hand over a path: it is typed
-            if not picked or not pathlib.Path(picked).expanduser().exists():
-                told.text = "No file chosen" if window is not None else "Type the path of the image on this machine"
-                return
-            picked = pathlib.Path(picked).expanduser()
-            label = name.value or picked.name.split(".")[0]
-            working.set_visibility(True)
-            try:
-                if not picked.name.endswith((".nii", ".nii.gz")):
-                    told.text = "Reading the DICOM"
-                    volumes = await run.io_bound(read_dicom, picked)
-                    picked = max(volumes.values(), key=lambda path: path.stat().st_size)
-                told.text = f"Extracting the brain of {picked.name} and segmenting it with FSL: about two minutes"
-                await run.io_bound(session.segment, picked, label)
-            except Exception as error:
-                told.text = f"Not made: {error}"[:260]
-                return
-            finally:
-                working.set_visibility(False)
-            pickers["subject"].set_options(list(session.subjects), value=label)
-            dialog.close()
+            if window is None:
+                own["waiting"] = what
+                told.text = f"In a browser: upload the {what} file below"
+                return None
+            files = await window.create_file_dialog(allow_multiple=False)
+            if not files:
+                return None
+            chosen_file = pathlib.Path(files[0])
+            if not chosen_file.name.endswith((".nii", ".nii.gz")):
+                told.text = "Reading the DICOM"
+                chosen_file = max((await run.io_bound(read_dicom, chosen_file)).values(), key=lambda path: path.stat().st_size)
+            return chosen_file
 
-        def put(what, path):
-            """A file becomes the subject's map, brought onto its grid where it lies in the scanner's coordinates."""
-            path = session.onto(path)
-            own_files[what] = str(path)
-            if what == "B0":
-                session.field = str(path)
-            elif what == "B1+":
-                session.transmit = str(path)
-            else:
-                session.lipids(path)
+        def taken(what, path):
+            """A file takes its line. An anatomy and its tissues wait until they are used together; a B0, B1+ or lipid map
+            is brought onto the anatomy's grid by the scanner's coordinates and is in force at once."""
+            if what in ("B0", "B1+", "lipid"):
+                path = session.onto(path)
+                if what == "B0":
+                    session.field = str(path)
+                elif what == "B1+":
+                    session.transmit = str(path)
+                else:
+                    session.lipids(path)
+                draw()
+            own[what] = str(path)
             selects[what].options[str(path)] = pathlib.Path(path).name
             selects[what].update()
             selects[what].set_value(str(path))
-            told.text = f"{pathlib.Path(path).name} is the {what} map now, on the anatomy's grid"
-            draw()
+            told.text = {"anatomy": "A new anatomy: segment it, or give its three tissue maps below and use them"}.get(
+                what, f"{pathlib.Path(path).name} is the {what} map")
 
         async def picked(what, value):
-            """A stored map by name, or, with "your own file" on top, one chosen with a click (NIfTI or DICOM)."""
             if value == OWN:
-                window = app.native.main_window
-                if window is None:
-                    own_files["waiting"] = what
-                    told.text = f"Upload the {what} map below"
-                    return
-                files = await window.create_file_dialog(allow_multiple=False)
-                if not files:
-                    return
                 try:
-                    chosen_file = pathlib.Path(files[0])
-                    if not chosen_file.name.endswith((".nii", ".nii.gz")):
-                        chosen_file = max((await run.io_bound(read_dicom, chosen_file)).values(), key=lambda path: path.stat().st_size)
-                    put(what, chosen_file)
+                    path = await file_of(what)
+                    if path is not None:
+                        taken(what, path)
                 except Exception as error:
                     told.text = f"Not taken: {error}"[:260]
+            elif what == "anatomy" and value in session.subjects:
+                pickers["subject"].set_value(value)         # the same as the picker in the top bar
+                dialog.close()
+                maps()
             elif what == "B0":
                 session.field = value
                 draw()
@@ -1114,81 +1098,82 @@ async def console(client: Client):
                     told.text = str(error)[:260]
 
         async def uploaded(event):
-            if "waiting" in own_files:
-                put(own_files.pop("waiting"), await keep(event))
+            if "waiting" in own:
+                taken(own.pop("waiting"), await keep(event))
 
-        async def registered(what):
-            if what not in own_files:
-                told.text = "Choose your own file first: the package's maps lie on their anatomy already"
+        async def act(what):
+            """The line's action: segment a new anatomy into its tissues, register any other file of the operator's."""
+            if what not in own:
+                told.text = "Choose your own file on this line first: what the package has stored lies where it should already"
                 return
             working.set_visibility(True)
             try:
-                put(what, await run.io_bound(session.register, own_files[what]))
+                if what == "anatomy":
+                    label = name.value or pathlib.Path(own["anatomy"]).name.split(".")[0]
+                    told.text = "Cropping the neck, extracting the brain and segmenting it with FSL: about two minutes"
+                    await run.io_bound(session.segment, own["anatomy"], label)
+                    pickers["subject"].set_options(list(session.subjects), value=label)
+                    dialog.close()
+                else:
+                    taken(what, await run.io_bound(session.register, own[what], own.get("anatomy") if what in ("GM", "WM", "CSF") else None))
+                    told.text = f"The {what} map is registered to the anatomy"
             except Exception as error:
-                told.text = f"Not registered: {error}"[:260]
+                told.text = f"Not done: {error}"[:260]
             finally:
                 working.set_visibility(False)
 
-        async def tissue(event, which):
-            parts[which] = await keep(event)
-
-        def shelve():
-            if not {"GM", "WM", "CSF"} <= set(parts) or not name.value:
-                told.text = "A name and the three maps, GM, WM, CSF"
+        def use():
+            """The operator's own anatomy from their own tissue maps."""
+            if not {"GM", "WM", "CSF"} <= set(own):
+                told.text = "Your own GM, WM and CSF maps are needed (or segment the anatomy instead)"
                 return
-            session.anatomy(name.value, parts["GM"], parts["WM"], parts["CSF"], picture=parts.get("T1w"))
-            pickers["subject"].set_options(list(session.subjects), value=name.value)
+            label = name.value or "my anatomy"
+            session.anatomy(label, own["GM"], own["WM"], own["CSF"], picture=own.get("anatomy"))
+            pickers["subject"].set_options(list(session.subjects), value=label)
             dialog.close()
 
-        parts, selects, own_files = {}, {}, {}
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 800px"):
+        fat = getattr(session.body(), "fat", None)
+        lines = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject, "Segment into tissues"),
+                 ("GM", "grey matter", [f"of {session.subject}"], f"of {session.subject}", "Register to the anatomy"),
+                 ("WM", "white matter", [f"of {session.subject}"], f"of {session.subject}", "Register to the anatomy"),
+                 ("CSF", "CSF", [f"of {session.subject}"], f"of {session.subject}", "Register to the anatomy"),
+                 ("B0", "B0 field (Hz)", ["uniform", *FieldMap.PRESETS], session.field, "Register to the anatomy"),
+                 ("B1+", "B1+ (of nominal)", ["nominal"], session.transmit or "nominal", "Register to the anatomy"),
+                 ("lipid", "lipid layer (0 to 1)", ["its own" if fat is not None else "none", LENT], "its own" if fat is not None else "none",
+                  "Register to the anatomy"))
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Your own anatomy and maps").style(f"color: {SAND}; font-size: 15px")
+                ui.label("What lies on the table").style(f"color: {SAND}; font-size: 15px")
                 ui.space()
                 working = ui.spinner(size="26px", color=SAND)
                 working.set_visibility(False)
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
             told = ui.label("").classes("value").style("white-space: normal")
-
-            ui.label("The anatomy from a T1-weighted image · NIfTI, or DICOM of any vendor").classes("label")
-            with ui.row().classes("w-full items-center no-wrap"):
-                name = ui.input("name (the file's, if empty)").props("dense outlined dark").style("width: 240px")
-                image = ui.input("path of the image").props("dense outlined dark").style("flex: 1")
-                image.set_visibility(app.native.main_window is None)
-                ui.button("Choose the image", icon="folder_open", on_click=chosen_image).props("unelevated dense no-caps").tooltip(
-                    "FSL crops the neck, extracts the brain and segments grey matter, white matter and CSF; the bright tissue beyond the "
-                    "bone becomes the lipid layer. FSL must be installed")
-
-            ui.label("Or from your own tissue maps of one grid").classes("label").style("margin-top: 6px")
-            with ui.row().classes("w-full items-center").style("gap: 6px"):
-                for which in ("T1w", "GM", "WM", "CSF"):
-                    ui.upload(label=which, auto_upload=True, on_upload=lambda e, which=which: tissue(e, which)).props(
-                        "flat dense dark accept=.nii,.gz").style(box)
-                ui.button("Use these maps as the anatomy", icon="person_add", on_click=shelve).props("outline dense no-caps").tooltip(
-                    "makes an anatomy of the three tissue maps (and the image, to show it), adds it to the picker in the top bar, and puts "
-                    "it on the table")
-
-            ui.label(f"Maps for what lies on the table · {session.subject}").classes("label").style("margin-top: 6px")
-            for what, stored in (("B0", ["uniform", *FieldMap.PRESETS]), ("B1+", ["nominal"]), ("lipid", ["its own", LENT])):
-                with ui.row().classes("w-full items-center no-wrap").style("gap: 6px"):
-                    ui.label({"B0": "B0 field (Hz)", "B1+": "B1+ (of nominal)", "lipid": "lipid layer (0 to 1)"}[what]).style("width: 150px")
-                    now = {"B0": session.field, "B1+": session.transmit or "nominal", "lipid": own_files.get("lipid", "its own")}[what]
-                    selects[what] = ui.select({OWN: OWN, **{name: name for name in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
+            for what, caption, stored, now, action in lines:
+                with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
+                    ui.label(caption).style("width: 170px")
+                    selects[what] = ui.select({OWN: OWN, **{option: option for option in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
                                               value=now, on_change=lambda e, what=what: picked(what, e.value)).props(
                         "dense outlined dark options-dense").style("flex: 1")
-                    ui.button("Register to the anatomy", icon="my_location", on_click=lambda _, what=what: registered(what)).props(
-                        "outline dense no-caps").style("width: 210px").tooltip(
-                        "for a map of ANOTHER session: FSL flirt, rigid, onto the anatomy's picture. A map of this session lies where the "
-                        "anatomy lies already and is only brought onto its grid. A field map in Hz shows no anatomy: register its magnitude")
+                    ui.button(action, icon="psychology" if what == "anatomy" else "my_location", on_click=lambda _, what=what: act(what)).props(
+                        "outline dense no-caps").style("width: 220px").tooltip(
+                        "FSL crops the neck, extracts the brain and segments grey matter, white matter and CSF; the bright tissue beyond the "
+                        "bone becomes the lipid layer. It fills the three lines below and puts the anatomy on the table" if what == "anatomy" else
+                        "for a file of ANOTHER session: FSL flirt, rigid, onto the anatomy. A file of the same session lies where the anatomy "
+                        "lies already. A field map in Hz shows no anatomy: register its magnitude image instead")
+                if what == "CSF":
+                    with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
+                        name = ui.input("name of a new anatomy (the file's, if empty)").props("dense outlined dark").style("flex: 1")
+                        ui.button("Use my three tissue maps", icon="person_add", on_click=use).props("outline dense no-caps").style("width: 220px").tooltip(
+                            "in place of segmenting: your own GM, WM and CSF maps, with the anatomy above as the picture, become what lies "
+                            "on the table")
             ui.switch("the B0 map was measured after my own shim: apply none", value=session.shim == "none", on_change=lambda e: (
                 setattr(session, "shim", "none" if e.value else "linear"), draw())).props("dense color=accent")
-            image_upload = ui.upload(label="in a browser: upload the map chosen above", auto_upload=True, on_upload=lambda e: uploaded(e)).props(
-                "flat dense dark accept=.nii,.gz").style(box)
-            image_upload.set_visibility(app.native.main_window is None)
-            ui.label("A map of the same session lies where the anatomy lies: it is brought onto its grid by the scanner's "
-                     "coordinates, whatever its own grid and angulation. A map of another session wants registering first (FSL flirt of its "
-                     "magnitude image onto the anatomy). T1, T2, concentrations and every other parameter take a map at their line in the "
-                     "settings (the gears).").classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+            fallback = ui.upload(label="in a browser: upload the file chosen above", auto_upload=True, on_upload=lambda e: uploaded(e)).props(
+                "flat dense dark accept=.nii,.gz").style("width: 320px")
+            fallback.set_visibility(app.native.main_window is None)
+            ui.label("T1, T2, concentrations and every other parameter take a map at their line in the settings (the gears); coil "
+                     "sensitivities belong to the coils.").classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
         dialog.open()
 
     def realism():

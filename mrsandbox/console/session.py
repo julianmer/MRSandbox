@@ -758,12 +758,14 @@ class Session:
         self.own_noise = float(CovarianceReading.from_nifti(str(source)).own_noise(array))
         return self.own_noise
 
-    def register(self, path):
+    def register(self, path, reference=None):
         """Bring a map of ANOTHER session onto the subject on the table: FSL flirt, rigid (six degrees of freedom,
         normalized mutual information), of the map's own image onto the subject's picture, then resampled onto its
         grid. Right for a map that shows anatomy (a lipid or tissue map, a B1+ magnitude, an anatomical image); a
         field map in Hz shows none, and wants its MAGNITUDE image registered and the transform applied, which is
-        not built. A map of the same session needs none of this (`onto`). Returns the registered NIfTI's path."""
+        not built. A map of the same session needs none of this (`onto`). `reference` is the image to register
+        onto where it is not the picture of what lies on the table (an anatomy still being put together). Returns the
+        registered NIfTI's path."""
         import os
         import shutil
         import subprocess
@@ -774,9 +776,9 @@ class Session:
             "~/fsl/share/fsl/bin"))
         if flirt is None:
             raise RuntimeError("FSL's flirt is needed to register a map (fsl.fmrib.ox.ac.uk)")
-        body, folder = self.body(), pathlib.Path(path).parent
-        reference = folder / "registration_reference.nii.gz"
-        nib.save(nib.Nifti1Image(self.picture().astype(np.float32), body.affine), str(reference))
+        if reference is None:
+            reference = pathlib.Path(path).parent / "registration_reference.nii.gz"
+            nib.save(nib.Nifti1Image(self.picture().astype(np.float32), self.body().affine), str(reference))
         out = pathlib.Path(str(path).replace(".nii", "_registered.nii", 1))
         subprocess.run([flirt, "-in", str(path), "-ref", str(reference), "-out", str(out), "-dof", "6", "-cost", "normmi"], check=True,
                        env={**os.environ, "FSLOUTPUTTYPE": "NIFTI_GZ", "FSLDIR": os.environ.get("FSLDIR", str(pathlib.Path(flirt).parents[3]))})
