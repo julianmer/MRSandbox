@@ -29,7 +29,7 @@ tensorflow = ["tensorflow"]
 # dependencies, then spec2nii, tqdm, shutup, matplotlib, and nifti-mrs-plus[ops].
 augment = ["augmentrum>=0.0.2"]
 # the virtual scanner console (mrsandbox.console): uvx --from "mrsandbox[console]" mrsandbox-console
-console = ["nicegui", "pillow", "mrsandbox[jax]"]
+console = ["nicegui", "pywebview", "pillow", "mrsandbox[jax]"]
 dev = ["pytest", "pypulseq", "ruff", "mrsandbox[jax]"]
 
 [project.scripts]

@@ -66,14 +66,15 @@ from the conditions they were measured under.
 uvx --from "mrsandbox[console]" mrsandbox-console
 ```
 
-A virtual scanner console in the browser. Choose the scanner (a preset, or your own saved
-profile), the receive array, and who lies on the table. Plan the voxel or the MRSI grid on three
-planes and in 3D, fill an exam queue with protocol cards, and run it: the spectrum builds up
-over the transients, which come with the drift and motion of a real run. Design your own
-sequence from blocks and see it as a pulse sequence diagram, with the gradients as the chosen
-scanner would play them. Open any parameter of the simulation through the gears. Review the
-spectra beside the truth, and export what a scanner exports: the raw transients as NIfTI-MRS and
-the sequence as Pulseq.
+A virtual scanner console in a window of its own. Choose the scanner (a preset, or your own saved
+profile), the receive array, and who lies on the table, or bring your own anatomy, B0, and B1+
+maps. Leaf through three planes, place the voxel or the MRSI grid, switch water suppression and
+OVS, fill the exam cards, and run them: the spectrum builds up over the transients, which come
+with the drift and motion of a real run. Design your own sequence from blocks, your own pulse
+shapes among them, and see its pulse sequence diagram and its spectrum. Open any parameter of the
+simulation through the gears, as a number, a range, or a map. Review the spectra beside the
+truth, and export what a scanner exports: the raw transients as NIfTI-MRS and the sequence as
+Pulseq.
 
 ## Overview
 

@@ -23,11 +23,11 @@ import numpy as np
 
 from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.scanners import PRESETS
-from mrsandbox.params import Fixed, Params, Uniform
-from mrsandbox.phantom import Brain, Phantom
+from mrsandbox.params import Fixed, Mapped, Params, Uniform
+from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, MegaPress,
-                                 Press, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
+                                 OuterVolumeSuppression, Press, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
@@ -49,6 +49,12 @@ SEQUENCES = {
     "STEAM": lambda te_s, tr_s: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
     "sLASER": lambda te_s, tr_s: SemiLaser(te_s=te_s, tr_s=tr_s),
 }
+
+# what a timed card can play before its localization: the water suppression trains, and outer-volume
+# suppression as six slabs of OVS_MM about the voxel's faces. The slabs play between the train and the
+# excitation, where they saturate what the excitation would see; the train's last delay grows by them.
+SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}
+OVS_MM = 30.0
 
 
 #*************#
@@ -96,6 +102,10 @@ MAPS = {"NAA": (1.9, 2.1), "Cr": (2.95, 3.1), "Cho": (3.13, 3.28), "lipid": (0.9
 # their defaults, and how a block becomes events
 BLOCKS = {
     "hard pulse": (dict(flip_deg=90.0, phase_deg=0.0), lambda b: (Pulse(b["flip_deg"], phase_deg=b["phase_deg"]),)),
+    "own pulse": (dict(flip_deg=90.0, duration_ms=3.0, envelope="0, 0.3, 0.8, 1, 0.8, 0.3, 0", offset_ppm=3.0, phase_deg=0.0),
+                  lambda b: (ShapedPulse(b["flip_deg"], b["duration_ms"] / 1000.0,
+                                         np.array([float(a) for a in b["envelope"].replace(";", ",").split(",") if a.strip()]),
+                                         offset_ppm=b["offset_ppm"], phase_deg=b["phase_deg"]),)),
     "shaped pulse": (dict(shape="sinc", flip_deg=90.0, duration_ms=2.6, offset_ppm=3.0, phase_deg=0.0,
                           slice_axis="none", slice_hz_per_mm=0.0),
                      lambda b: (getattr(ShapedPulse, b["shape"])(
@@ -105,8 +115,7 @@ BLOCKS = {
     "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15), lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
     "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
-    "water suppression": (dict(scheme="VAPOR"),
-                          lambda b: {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}[b["scheme"]]().events),
+    "water suppression": (dict(scheme="VAPOR"), lambda b: SUPPRESSION[b["scheme"]]().events),
 }
 # a spin echo with played crushers, the design the designer opens with
 STARTER = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)), ("crusher", dict(axis="x", cycles_per_mm=0.15)),
@@ -132,6 +141,8 @@ class Protocol:
     npoints: int = 2048
     bandwidth_hz: float = 4000.0
     matrix: int = 8
+    water_suppression: str = "off"
+    ovs: bool = False
 
     @property
     def scan_time_s(self):
@@ -206,9 +217,16 @@ class Session:
         coil: Name of the receive array (a key of COILS).
         subject: Name of the subject on the table (a key of SUBJECTS).
         position_mm, size_mm: The voxel being planned, world millimetres.
+        view_mm: The point the three planes cut through, which the operator scrolls
+            without moving the voxel.
         protocol: The protocol card being edited.
         queue: The exams, in the order they were planned.
-        overrides: The operator's own settings of leaves, {path: value or (low, high)}.
+        overrides: The operator's own settings of leaves, {path: value, (low, high), or the
+            path of a NIfTI map in the leaf's units, which every voxel reads where it lies}.
+        subjects: Who can lie on the table, SUBJECTS and the operator's own anatomies.
+        field: The B0 field of the room: "uniform", a measured preset (phantom.FieldMap),
+            or the path of the operator's own NIfTI map of offsets in Hz.
+        transmit: The path of a NIfTI map of the relative B1+, or None for the nominal field.
     """
 
     # the receive arrays on the shelf
@@ -223,10 +241,14 @@ class Session:
         self.coil = "one ideal channel"
         self.subject = "Brain, ICBM152 average"
         self.position_mm = [0.0, -45.0, 35.0]
+        self.view_mm = [0.0, -45.0, 35.0]
         self.size_mm = 20.0
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
+        self.subjects = dict(SUBJECTS)
+        self.field = "uniform"
+        self.transmit = None
         self.design = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]
         self._bodies = {}
 
@@ -236,8 +258,33 @@ class Session:
     def body(self):
         """The subject on the table, made once per name."""
         if self.subject not in self._bodies:
-            self._bodies[self.subject] = SUBJECTS[self.subject]()
+            self._bodies[self.subject] = self.subjects[self.subject]()
         return self._bodies[self.subject]
+
+    @staticmethod
+    def volume(path):
+        """A NIfTI file as a phantom.Volume in the file's own world frame."""
+        import nibabel as nib
+
+        image = nib.load(str(path))
+        return Volume(np.asarray(image.get_fdata(), dtype=np.float32), np.array(image.affine, dtype=np.float64),
+                      name=pathlib.Path(path).name)
+
+    def anatomy(self, name, gm, wm, csf):
+        """Put the operator's own subject on the shelf: three NIfTI probability maps on one grid
+        (a segmentation of their own T1-weighted image)."""
+        maps = [self.volume(path) for path in (gm, wm, csf)]
+        self.subjects[name] = lambda: Brain.from_maps(*(m.data for m in maps), maps[0].affine, name=name)
+
+    def fields(self):
+        """The room's B0 and B1+ as VirtualScan takes them, made once per choice."""
+        key = (self.field, self.transmit)
+        if key not in self._bodies:
+            field = None if self.field == "uniform" else (
+                FieldMap.load(self.field, b0_t=self.profile().scanner.b0_t) if self.field in FieldMap.PRESETS
+                else FieldMap.from_map(self.volume(self.field).data, self.volume(self.field).affine, name=pathlib.Path(self.field).name))
+            self._bodies[key] = dict(field=field, transmit=None if self.transmit is None else self.volume(self.transmit))
+        return self._bodies[key]
 
     @staticmethod
     def scanners():
@@ -264,7 +311,21 @@ class Session:
         if card.sequence == "Custom":
             events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
             return Sequence(*events, tr_s=card.tr_ms / 1000.0)
-        return SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        for prelude in reversed(self.preludes(card).values()):
+            design = prelude + design
+        return design
+
+    def preludes(self, card):
+        """What a timed card plays before its localization, in order, {name: design}."""
+        found = {}
+        if card.water_suppression != "off":
+            found[card.water_suppression] = SUPPRESSION[card.water_suppression]()
+        if card.ovs:
+            reach = 0.5 * (float(self.size_mm) + OVS_MM) + 2.0
+            found["OVS"] = OuterVolumeSuppression([(axis, side * reach, OVS_MM) for axis in "xyz" for side in (-1.0, 1.0)],
+                                                  42.5774785 * self.profile().scanner.b0_t, extent_mm=float(self.size_mm))
+        return found
 
     def editing(self, card):
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
@@ -272,31 +333,45 @@ class Session:
 
     def diagram(self, sequence=None, readout_ms=12.0):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
-        with hard pulses as spikes of their flip over 180 and shaped pulses as their
-        envelopes, "marks": [(t, text)] for what takes no time and has no height (coherence
-        filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner would play them
-        (sequences.timeline), "adc": (start, end)}."""
+        with hard pulses as bars of their flip over 180 and shaped pulses as their
+        envelopes (a real envelope keeps its lobes' signs), "pulses": [(t, text)] every
+        pulse's centre and flip, "marks": [(t, text)] for what takes no time and has no
+        height (coherence filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner
+        would play them (sequences.timeline), "crushers": [(start, end, axis)] the spans
+        that are crushers and no slice selection, "groups": [(start, end, name)] the
+        card's preludes (water suppression, OVS), "adc": (start, end)}."""
+        preludes = self.preludes(self.protocol) if sequence is None and self.protocol.sequence in SEQUENCES else {}
         sequence = sequence if sequence is not None else self.sequence()
         spans = event_spans(sequence)
         end_ms = 1000.0 * spans[-1][1] if spans else 0.0
-        rf, marks = [(0.0, 0.0)], []
+        rf, pulses, marks, crushers, groups, first = [(0.0, 0.0)], [], [], [], [], 0
+        for name, prelude in preludes.items():
+            groups.append((1000.0 * spans[first][0], 1000.0 * spans[first + len(prelude.events) - 1][1], name))
+            first += len(prelude.events)
         for event, (start, stop) in zip(sequence.events, spans):
             start, stop = 1000.0 * start, 1000.0 * stop
             if isinstance(event, ShapedPulse):
-                envelope = np.abs(np.asarray(event.envelope, dtype=float))
+                envelope = np.asarray(event.envelope)
+                envelope = np.abs(envelope) if np.iscomplexobj(envelope) else envelope.astype(float)
                 height = 1.0 if event.flip_deg is None else float(event.flip_deg) / 180.0
                 times = np.linspace(start, stop, envelope.size)
-                rf += [(start, 0.0)] + [(float(a), float(height * b / envelope.max())) for a, b in zip(times, envelope)] + [(stop, 0.0)]
+                rf += [(start, 0.0)] + [(float(a), float(height * b / np.abs(envelope).max())) for a, b in zip(times, envelope)] + [(stop, 0.0)]
+                pulses.append((0.5 * (start + stop), "" if event.flip_deg is None else f"{float(event.flip_deg):.0f}°"))
             elif isinstance(event, CoherenceFilter):
                 marks.append((start, f"p = {event.orders if hasattr(event, 'orders') else ''}".strip()))
-            elif hasattr(event, "flip_deg") and not isinstance(event, (Delay, Gradient)):
-                rf += [(start - 0.05, 0.0), (start, float(event.flip_deg) / 180.0), (start + 0.05, 0.0)]
+            elif isinstance(event, Gradient):
+                crushers.append((start, stop, event.axis))
+            elif hasattr(event, "flip_deg") and not isinstance(event, Delay):
+                height = float(event.flip_deg) / 180.0                     # no time in the engine, a bar on paper
+                rf += [(start - 0.15, 0.0), (start - 0.15, height), (start + 0.15, height), (start + 0.15, 0.0)]
+                pulses.append((start, f"{float(event.flip_deg):.0f}°"))
         rf.append((end_ms + readout_ms, 0.0))
         until_s = (end_ms + readout_ms) / 1000.0
         times, waves = gradient_waveforms(sequence, self.profile().scanner, 5e-5, until_s)
         lanes = {axis: [(float(a), float(b)) for a, b in zip(1000.0 * times[::4], waves.get(axis, np.zeros(times.size))[::4])]
                  for axis in "xyz"}
-        return {"rf": rf, "marks": marks, **lanes, "adc": (end_ms, end_ms + readout_ms)}
+        return {"rf": rf, "pulses": pulses, "marks": marks, **lanes, "crushers": crushers, "groups": groups,
+                "adc": (end_ms, end_ms + readout_ms)}
 
     #************#
     #   leaves   #
@@ -310,7 +385,7 @@ class Session:
             *branch, leaf = path.split(".")
             for key in branch:
                 node = node.setdefault(key, {})
-            node[leaf] = value
+            node[leaf] = Mapped(self.volume(value)) if isinstance(value, str) else value
         return Params(tree)
 
     def leaves(self):
@@ -331,48 +406,60 @@ class Session:
                 elif isinstance(value, Uniform):
                     found.append((".".join(here), "range", (float(value.low), float(value.high)), ".".join(here) in self.overrides))
                 else:
-                    found.append((".".join(here), "other", repr(value)[:60], False))
+                    found.append((".".join(here), "other", repr(value)[:60], ".".join(here) in self.overrides))
 
-        walk(self.profile().scan(self.body(), sequence, params=self.params()).params, ())
+        walk(self.profile().scan(self.body(), sequence, params=self.params(), **self.fields()).params, ())
         return found
 
     #************#
     #   planes   #
     #************#
     def planes(self):
-        """The three planning planes through the voxel's centre as {"tra", "sag", "cor"}:
-        each (image, rectangle), an 8-bit array drawn with its first row at the top
-        (anterior up in the transverse plane, superior up in the other two) and the
-        voxel's outline (left, top, width, height) in the image's pixels."""
+        """The three planning planes through the view point as {"tra", "sag", "cor"}: each
+        (image, rectangle, cut, cross), an 8-bit array drawn with its first row at the top
+        (anterior up in the transverse plane, superior up in the other two), the voxel's
+        outline (left, top, width, height) in the image's pixels, whether this slice cuts
+        the voxel, and where the other two planes cross it (column, row)."""
         body = self.body()
         tissue = 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
-        i, j, k = (int(round(c)) for c in (np.asarray(self.position_mm) - origin) / step)
         nx, ny, nz = tissue.shape
-        i, j, k = min(max(i, 0), nx - 1), min(max(j, 0), ny - 1), min(max(k, 0), nz - 1)
+        i, j, k = (np.asarray(self.position_mm) - origin) / step          # the voxel's centre, the outline's
+        a, b, c = (int(min(max(round(v), 0), n - 1)) for v, n in zip((np.asarray(self.view_mm) - origin) / step, (nx, ny, nz)))
         half = 0.5 * self.size_mm / step
         if self.protocol.sequence == MRSI:          # the slice's whole grid in the plane, one cell thick
             half = half * np.array([self.protocol.matrix, self.protocol.matrix, 1.0])
         side = max(nx, ny, nz)
 
-        def framed(plane, left, top, width, height):
+        def framed(plane, left, top, width, height, cut, cross):
             """A plane shaded to 8 bits and centred in a square of the largest grid side, all three
-            planes then drawing alike; the voxel's outline moves with it."""
+            planes then drawing alike; the voxel's outline and the cross move with it."""
             shade = np.uint8(255 * np.clip(plane / max(float(tissue.max()), 1e-6), 0.0, 1.0))
             rows, columns = (side - shade.shape[0]) // 2, (side - shade.shape[1]) // 2
             square = np.zeros((side, side), dtype=np.uint8)
             square[rows:rows + shade.shape[0], columns:columns + shade.shape[1]] = shade
-            return square, (left + columns, top + rows, width, height)
+            return square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows)
 
         return {
-            "tra": framed(tissue[:, ::-1, k].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1]),
-            "sag": framed(tissue[i, :, ::-1].T, j - half[1], nz - 1 - k - half[2], 2 * half[1], 2 * half[2]),
-            "cor": framed(tissue[:, j, ::-1].T, i - half[0], nz - 1 - k - half[2], 2 * half[0], 2 * half[2]),
+            "tra": framed(tissue[:, ::-1, c].T, i - half[0], ny - 1 - j - half[1], 2 * half[0], 2 * half[1],
+                          abs(c - k) <= half[2], (a, ny - 1 - b)),
+            "sag": framed(tissue[a, :, ::-1].T, j - half[1], nz - 1 - k - half[2], 2 * half[1], 2 * half[2],
+                          abs(a - i) <= half[0], (b, nz - 1 - c)),
+            "cor": framed(tissue[:, b, ::-1].T, i - half[0], nz - 1 - k - half[2], 2 * half[0], 2 * half[2],
+                          abs(b - j) <= half[1], (a, nz - 1 - c)),
         }
 
+    def scroll(self, plane, slices):
+        """Leaf through a plane by `slices` of the subject's grid; the voxel stays."""
+        body = self.body()
+        axis = {"sag": 0, "cor": 1, "tra": 2}[plane]
+        step, origin = np.diag(body.affine)[axis], body.affine[axis, 3]
+        index = min(max(round((self.view_mm[axis] - origin) / step) + slices, 0), body.gm.shape[axis] - 1)
+        self.view_mm[axis] = float(origin + step * index)
+
     def place(self, plane, column, row):
-        """Move the voxel to the point clicked in a plane, (column, row) in image pixels;
-        the coordinate the plane does not show stays."""
+        """Move the voxel to the point clicked in a plane, (column, row) in image pixels; the
+        coordinate the plane does not show becomes the slice on view, as the click was on it."""
         body = self.body()
         step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
         nx, ny, nz = body.gm.shape
@@ -382,8 +469,7 @@ class Session:
         index = {"tra": (column - px, ny - 1 - (row - py), None), "sag": (None, column - py, nz - 1 - (row - pz)),
                  "cor": (column - px, None, nz - 1 - (row - pz))}[plane]
         for axis, value in enumerate(index):
-            if value is not None:
-                self.position_mm[axis] = float(origin[axis] + step[axis] * value)
+            self.position_mm[axis] = self.view_mm[axis] if value is None else float(origin[axis] + step[axis] * value)
 
     #***********#
     #   scene   #
@@ -413,7 +499,7 @@ class Session:
         card = self.protocol
         sequence = self.sequence()
         profile = self.profile()
-        scan = profile.scan(self.body(), sequence, params=self.params())
+        scan = profile.scan(self.body(), sequence, params=self.params(), **self.fields())
         fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
         limits = profile.scanner
         return {"gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
@@ -425,8 +511,9 @@ class Session:
     #***********#
     #   queue   #
     #***********#
-    def plan(self):
-        """Put the card with the voxel as they stand into the queue; returns the exam."""
+    def plan(self, queued=True):
+        """Put the card with the voxel as they stand into the queue; returns the exam. An exam
+        that is not queued is a preview (the designer's look at a design's spectrum)."""
         card = dataclasses.replace(self.protocol, averages=int(self.protocol.averages), npoints=int(self.protocol.npoints))
         timed = card.sequence in SEQUENCES or card.sequence == MRSI   # an edited or an own design has its own timings
         name = f"{len(self.queue) + 1} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
@@ -437,7 +524,8 @@ class Session:
             exam.conditions = self.editing(card)
         else:
             exam.conditions, exam.combinations = {"scan": exam.sequence}, {"scan": {"scan": 1.0}}
-        self.queue.append(exam)
+        if queued:
+            self.queue.append(exam)
         return exam
 
     def run(self, exam, seed=None):
@@ -449,7 +537,7 @@ class Session:
         profile = self.profile()
         coils = self.COILS[self.coil]()
         if card.sequence == MRSI:
-            grid = profile.scan(self.body(), sequence, params=self.params()).mrsi(
+            grid = profile.scan(self.body(), sequence, params=self.params(), **self.fields()).mrsi(
                 center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm)
             exam.data = grid.acquire(seed=seed, npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
             fids = np.asarray(exam.data[:])[:, :, 0]
@@ -471,6 +559,7 @@ class Session:
             exam.status = "done"
             return exam
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(),
+                         **self.fields(),
                          coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)
         schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs

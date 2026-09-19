@@ -29,15 +29,58 @@ class TestSession:
     def test_the_planes_are_squares_and_a_click_on_the_voxel_leaves_it_there(self):
         session = Session()
         planes = session.planes()
-        assert {image.shape for image, _ in planes.values()} == {(115, 115)}
-        assert all(image.max() > 200 and image.dtype == np.uint8 for image, _ in planes.values())
+        assert {image.shape for image, *_ in planes.values()} == {(115, 115)}
+        assert all(image.max() > 200 and image.dtype == np.uint8 for image, *_ in planes.values())
         before = list(session.position_mm)
-        for name, (_, (left, top, width, height)) in planes.items():
+        for name, (_, (left, top, width, height), cut, _) in planes.items():
+            assert cut
             session.place(name, left + width / 2.0, top + height / 2.0)
         assert np.allclose(session.position_mm, before, atol=1.0)          # half a 2 mm cell
         height = session.position_mm[2]
         session.place("tra", 80.0, 40.0)                                   # a transverse click leaves the height
         assert session.position_mm[2] == height and session.position_mm[0] != before[0]
+
+    def test_leafing_through_a_plane_leaves_the_voxel_and_a_click_places_it_on_the_slice(self):
+        session = Session()
+        before = list(session.position_mm)
+        session.scroll("tra", 20)
+        image, _, cut, _ = session.planes()["tra"]
+        assert session.position_mm == before and session.view_mm[2] > before[2] + 30.0 and not cut
+        session.scroll("tra", 10 ** 6)                                     # the grid's last slice, no further
+        assert session.view_mm[2] < 200.0
+        session.scroll("tra", -10 ** 6)
+        session.scroll("tra", 45)
+        session.place("tra", 60.0, 60.0)                                   # a click is on the slice on view
+        assert session.position_mm[2] == session.view_mm[2] and session.planes()["tra"][2]
+
+    def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
+        from mrsandbox import Vapor
+
+        session = Session()
+        bare = len(session.sequence().events)
+        session.protocol.water_suppression, session.protocol.ovs = "VAPOR", True
+        assert len(session.sequence().events) == bare + len(Vapor().events) + 12     # six slabs, a filter after each
+        drawn = session.diagram()
+        assert [name for _, _, name in drawn["groups"]] == ["VAPOR", "OVS"]
+        assert drawn["groups"][0][1] == pytest.approx(drawn["groups"][1][0]) and drawn["adc"][0] > 30.0
+
+    def test_the_operators_own_maps_go_through_a_scan(self, tmp_path):
+        import nibabel as nib
+
+        session = Session()
+        session.protocol.averages, session.protocol.npoints = 4, 512
+        body = session.body()
+        for name, data in (("gm", body.gm), ("wm", body.wm), ("csf", body.csf), ("b0", np.full(body.gm.shape, 7.0)),
+                           ("b1", np.full(body.gm.shape, 0.9)), ("t1", np.full(body.gm.shape, 1.23))):
+            nib.save(nib.Nifti1Image(np.asarray(data, dtype=np.float32), body.affine), tmp_path / f"{name}.nii.gz")
+        before = session.outlook()["gm"]
+        session.anatomy("mine", *(tmp_path / f"{name}.nii.gz" for name in ("gm", "wm", "csf")))
+        session.subject, session.field, session.transmit = "mine", str(tmp_path / "b0.nii.gz"), str(tmp_path / "b1.nii.gz")
+        session.overrides["t1.NAA"] = str(tmp_path / "t1.nii.gz")                  # a leaf read from a map
+        assert session.outlook()["gm"] == pytest.approx(before)
+        assert ("t1.NAA", "other") in {(path, kind) for path, kind, _, touched in session.leaves() if touched}
+        exam = session.run(session.plan(), seed=1)
+        assert exam.status == "done" and np.isfinite(exam.frames[-1][1]).all()
 
     def test_the_card_promises_and_the_exam_delivers(self, tmp_path):
         session = Session()
@@ -61,7 +104,7 @@ class TestSession:
         session = Session()
         session.subject, session.position_mm, session.coil = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0], "head array, 32 channels"
         assert session.outlook()["gm"] == pytest.approx(1.0)
-        assert {image.shape[0] == image.shape[1] for image, _ in session.planes().values()} == {True}
+        assert {image.shape[0] == image.shape[1] for image, *_ in session.planes().values()} == {True}
         drawn = session.scene(points=500)
         assert drawn["cloud"].shape == (500, 3) and len(drawn["loops"]) == 32 and drawn["voxel"] == ((0.0, 0.0, 0.0), 20.0)
         assert np.allclose(np.linalg.norm(drawn["cloud"], axis=1), 90.0, atol=5.0)  # the sphere's surface
@@ -81,8 +124,8 @@ class TestSession:
     def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
         session = Session()
         drawn = session.diagram()                                               # the card's ideal PRESS, TE 30
-        spikes = sorted(time for time, height in drawn["rf"] if height > 0.4)
-        assert np.allclose(spikes, [0.0, 5.5, 20.5], atol=0.6) and drawn["adc"][0] == pytest.approx(30.0)
+        assert [text for _, text in drawn["pulses"]] == ["90°", "180°", "180°"]
+        assert np.allclose([time for time, _ in drawn["pulses"]], [0.0, 5.5, 20.5], atol=0.6) and drawn["adc"][0] == pytest.approx(30.0)
         assert len(drawn["marks"]) == 3 and max(abs(g) for _, g in drawn["x"]) == 0.0   # filters, no gradient played
         session.protocol.sequence = "Custom"                                    # the starter: a spin echo with crushers
         drawn = session.diagram()
@@ -123,7 +166,7 @@ class TestSession:
         session.protocol.sequence, session.protocol.npoints, session.protocol.bandwidth_hz = "MRSI PRESS", 512, 2000.0
         session.protocol.matrix, session.size_mm, session.position_mm = 6, 14.0, [0.0, -10.0, 35.0]
         assert session.outlook()["scan_time_s"] == 72.0                         # a repetition per phase encode
-        _, (_, _, width, height) = session.planes()["tra"]
+        _, (_, _, width, height), *_ = session.planes()["tra"]
         assert width == height == pytest.approx(6 * 14.0 / 2.0)                 # the whole grid on the plane, 2 mm cells
         exam = session.run(session.plan(), seed=1)
         assert exam.data.shape[:3] == (6, 6, 1) and exam.cells.shape[:2] == (6, 6) and set(exam.maps) == {"NAA", "Cr", "Cho", "lipid"}
