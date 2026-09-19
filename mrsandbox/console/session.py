@@ -465,12 +465,13 @@ class Session:
         return Volume(np.asarray(image.get_fdata(), dtype=np.float32), np.array(image.affine, dtype=np.float64),
                       name=pathlib.Path(path).name)
 
-    def anatomy(self, name, gm, wm, csf, picture=None):
+    def anatomy(self, name, gm, wm, csf, picture=None, fat=None):
         """Put the operator's own subject on the shelf: three NIfTI probability maps on one grid
         (a segmentation of their own T1-weighted image), and that image on the same grid for
-        the planes to show, where given."""
+        the planes to show, and a map of the fat-bearing layer about the skull, where given."""
         maps = [self.volume(path) for path in (gm, wm, csf)]
-        self.subjects[name] = lambda: Brain.from_maps(*(m.data for m in maps), maps[0].affine, name=name)
+        self.subjects[name] = lambda: Brain.from_maps(*(m.data for m in maps), maps[0].affine, name=name,
+                                                      fat=None if fat is None else self.volume(fat).data)
         if picture is not None:
             self.pictures[name] = lambda: self.volume(picture).data
 
@@ -479,7 +480,8 @@ class Session:
         file or a folder of DICOM of any vendor (io.read_dicom) with the `series` to take from it:
         the image is brought onto an axis-aligned 1 mm grid in scanner coordinates (nibabel's conform),
         the neck cropped and the brain extracted (FSL robustfov, bet) and segmented into CSF, grey, and white matter partial volumes
-        (FSL fast), which become the subject's tissue maps with the image as its picture. FSL must
+        (FSL fast), which become the subject's tissue maps with the image as its picture, and the bright
+        tissue beyond the bone its lipid layer. FSL must
         be installed (it is no dependency of the package); minutes. The files are kept in `folder`
         (~/MRSandbox/subjects/<name> unless given). Returns the folder."""
         import os
@@ -513,8 +515,14 @@ class Session:
         onto = nibabel.processing.resample_from_to(mask, whole, order=0)
         nib.save(nib.Nifti1Image(np.asarray(whole.dataobj) * (np.asarray(onto.dataobj) > 0), whole.affine), str(folder / "brain.nii.gz"))
         subprocess.run([tools["fast"], "-t", "1", "-n", "3", "-o", str(folder / "tissue"), str(folder / "brain")], check=True, env=environment)
+        # the lipid layer: fat is the brightest tissue of a T1-weighted image, so what outside the brain is brighter than
+        # white matter, and lies beyond the bone (phantom.Brain.scalp), is scalp fat (and marrow, which a voxel never meets)
+        image, white = np.asarray(whole.dataobj, dtype=np.float32), np.asarray(nib.load(str(folder / "tissue_pve_2.nii.gz")).dataobj)
+        inside = np.asarray(onto.dataobj) > 0
+        layer = ((image > np.median(image[white > 0.9])) & ~inside).astype(np.float32)
+        nib.save(nib.Nifti1Image(Brain.scalp(layer, inside.astype(np.float32), whole.affine), whole.affine), str(folder / "fat.nii.gz"))
         self.anatomy(name, folder / "tissue_pve_1.nii.gz", folder / "tissue_pve_2.nii.gz", folder / "tissue_pve_0.nii.gz",
-                     picture=folder / "t1.nii.gz")
+                     picture=folder / "t1.nii.gz", fat=folder / "fat.nii.gz")
         return folder
 
     def home(self):
