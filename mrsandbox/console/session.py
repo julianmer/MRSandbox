@@ -16,6 +16,7 @@
 #   imports   #
 #*************#
 import dataclasses
+import json
 import pathlib
 
 import numpy as np
@@ -25,8 +26,8 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Params, Uniform
 from mrsandbox.phantom import Brain, Phantom
 from mrsandbox.scan import Multiplex, ScannerProfile
-from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Press, Pulse, SemiLaser, Sequence,
-                                 ShapedPulse, Steam, Vapor, Wet)
+from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hermes, MegaPress, Press, Pulse, SemiLaser,
+                                 Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
@@ -49,6 +50,18 @@ SEQUENCES = {
     "sLASER": lambda te_s, tr_s: SemiLaser(te_s=te_s, tr_s=tr_s),
 }
 
+
+#*************#
+#   editing   #
+#*************#
+# the edited acquisitions of the library: the sub-experiments a card interleaves over its transients, how
+# they combine, and the combination the console shows while it scans (ideal editing bands: fast, right for
+# the edited target, not for co-editing at the bands' flanks; sequences.library HadamardEditing)
+EDITING = {
+    "MEGA-PRESS GABA": (lambda tr_s: MegaPress.pair(tr_s=tr_s),
+                        {"difference": {"on": 1.0, "off": -1.0}, "sum": {"on": 1.0, "off": 1.0}}, "difference"),
+    "HERMES GABA GSH": (lambda tr_s: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
+}
 
 #************#
 #   blocks   #
@@ -118,7 +131,14 @@ class Exam:
         ppm: The display's axis, 0.2 to 4.2 ppm.
         frames: The display as the scan comes in, [(transients so far, real spectrum)].
         records: What the header says of the calibration records in force.
-        sequence: The design as it was when the exam was planned.
+        sequence: The design as it was when the exam was planned (an edited card's first
+            sub-experiment).
+        conditions, combinations, shown: The sub-experiments {name: design} interleaved over
+            the transients, how they combine {name: {condition: weight}}, and the
+            combination the display shows; one condition "scan" for an unedited card.
+        spectra: After the run, {name: real spectrum} of every condition and combination.
+        tracks: What the scanner and the subject did over the transients, {name: values}.
+        truth: The drawn concentrations in mM, {metabolite: value}.
     """
 
     name: str
@@ -131,6 +151,12 @@ class Exam:
     frames: list = dataclasses.field(default_factory=list)
     records: dict = dataclasses.field(default_factory=dict)
     sequence: object = None
+    conditions: dict = dataclasses.field(default_factory=dict)
+    combinations: dict = dataclasses.field(default_factory=dict)
+    shown: str = "scan"
+    spectra: dict = dataclasses.field(default_factory=dict)
+    tracks: dict = dataclasses.field(default_factory=dict)
+    truth: dict = dataclasses.field(default_factory=dict)
 
 
 #**************************************************************************************************#
@@ -199,6 +225,8 @@ class Session:
         """The design of a card: one of the library's at the card's timings, or the
         operator's own, the blocks of `design` in order ("Custom")."""
         card = card if card is not None else self.protocol
+        if card.sequence in EDITING:
+            return next(iter(EDITING[card.sequence][0](card.tr_ms / 1000.0).values()))
         if card.sequence == "Custom":
             events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
             return Sequence(*events, tr_s=card.tr_ms / 1000.0)
@@ -360,9 +388,15 @@ class Session:
     def plan(self):
         """Put the card with the voxel as they stand into the queue; returns the exam."""
         card = dataclasses.replace(self.protocol, averages=int(self.protocol.averages), npoints=int(self.protocol.npoints))
-        name = f"{len(self.queue) + 1} {card.sequence}" + ("" if card.sequence == "Custom" else f" TE {card.te_ms:g}")
+        timed = card.sequence in SEQUENCES          # an edited or an own design has its own timings
+        name = f"{len(self.queue) + 1} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
                     records=self.outlook()["records"], sequence=self.sequence(card))
+        if card.sequence in EDITING:
+            make, exam.combinations, exam.shown = EDITING[card.sequence]
+            exam.conditions = make(card.tr_ms / 1000.0)
+        else:
+            exam.conditions, exam.combinations = {"scan": exam.sequence}, {"scan": {"scan": 1.0}}
         self.queue.append(exam)
         return exam
 
@@ -374,9 +408,11 @@ class Session:
         card, sequence = exam.card, exam.sequence
         profile = self.profile()
         coils = self.COILS[self.coil]()
-        room = Multiplex(self.body(), profile.scanner, {"scan": sequence}, records=profile.records, params=self.params(),
+        room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(),
                          coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
-        exam.data = room.transients(exam.position_mm, exam.size_mm, card.averages, tr_s=card.tr_ms / 1000.0, seed=seed,
+        names = list(exam.conditions)
+        schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
+        exam.data = room.transients(exam.position_mm, exam.size_mm, schedule, tr_s=card.tr_ms / 1000.0, seed=seed,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
         fids = np.asarray(exam.data[:])[0, 0, 0]
         fids = fids if fids.ndim == 2 else fids.sum(axis=1)             # channels summed for the display alone
@@ -385,18 +421,79 @@ class Session:
         f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
         ppm = np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
         upfield = (ppm > 0.2) & (ppm < 4.2)
-        final = np.fft.fftshift(np.fft.fft(fids.mean(axis=1) * window, 2 * card.npoints))
-        phase = np.exp(-1j * np.angle(final[np.flatnonzero(upfield)[np.abs(final[upfield]).argmax()]]))
+        played = np.asarray(schedule)
+
+        def combined(weights, count):
+            """The spectrum of a combination over the first `count` transients: every condition's
+            mean so far, weighted; None while a condition has not played yet."""
+            total = 0.0
+            for condition, weight in weights.items():
+                mine = np.flatnonzero(played[:count] == condition)
+                if mine.size == 0:
+                    return None
+                total = total + weight * fids[:, mine].mean(axis=1)
+            return np.fft.fftshift(np.fft.fft(total * window, 2 * card.npoints))
+
+        everything = combined({name: 1.0 for name in names}, card.averages)
+        phase = np.exp(-1j * np.angle(everything[np.flatnonzero(upfield)[np.abs(everything[upfield]).argmax()]]))
         exam.ppm, exam.frames = ppm[upfield], []
-        for count in sorted({max(1, round(card.averages * step / 12)) for step in range(1, 13)}):
-            partial = np.fft.fftshift(np.fft.fft(fids[:, :count].mean(axis=1) * window, 2 * card.npoints))
-            exam.frames.append((count, (partial * phase).real[upfield]))
+        for count in sorted({max(len(names), round(card.averages * step / 12)) for step in range(1, 13)}):
+            partial = combined(exam.combinations[exam.shown], count)
+            if partial is not None:
+                exam.frames.append((count, (partial * phase).real[upfield]))
+        exam.spectra = {name: (combined(weights, card.averages) * phase).real[upfield]
+                        for name, weights in {**{n: {n: 1.0} for n in names if len(names) > 1}, **exam.combinations}.items()}
+        header = exam.data.hdr_ext.to_dict()
+        exam.tracks = {key: header["SimulationSchedule"][key] for key in ("frequency_hz", "phase_deg", "amplitude")
+                       if key in header.get("SimulationSchedule", {})}
+        exam.truth = {name: float(value) for name, value in header["SimulationGroundTruth"]["params"]["conc"].items()
+                      if isinstance(value, (int, float))}
         exam.status = "done"
         return exam
+
+    #*************#
+    #   library   #
+    #*************#
+    LIBRARY = pathlib.Path.home() / "MRSandbox" / "protocols"
+
+    def protocols(self):
+        """The names of the protocols the operator saved."""
+        return sorted(path.stem for path in self.LIBRARY.glob("*.json"))
+
+    def save_protocol(self, name):
+        """Keep the card as it stands, with the voxel's size, the operator's own design, and
+        the advanced settings, as one JSON file of the protocol library; returns the path."""
+        self.LIBRARY.mkdir(parents=True, exist_ok=True)
+        path = self.LIBRARY / f"{name}.json"
+        path.write_text(json.dumps({"card": dataclasses.asdict(self.protocol), "size_mm": self.size_mm,
+                                    "design": self.design, "overrides": self.overrides}, indent=2))
+        return path
+
+    def load_protocol(self, name):
+        """Put a saved protocol on the card."""
+        stored = json.loads((self.LIBRARY / f"{name}.json").read_text())
+        for attribute, value in stored["card"].items():       # in place: the console's fields hold this card
+            setattr(self.protocol, attribute, value)
+        self.size_mm = float(stored["size_mm"])
+        self.design = [(kind, dict(settings)) for kind, settings in stored["design"]]
+        self.overrides = {path: tuple(value) if isinstance(value, list) else value for path, value in stored["overrides"].items()}
 
     #************#
     #   export   #
     #************#
+    def export_seq(self, exam, folder):
+        """Write an exam's design as a Pulseq file (io.pulseq.write_seq); a design with an
+        idealization Pulseq cannot play (a coherence filter, an ideal selective pulse)
+        says so."""
+        from mrsandbox.io import write_seq
+
+        folder = pathlib.Path(folder).expanduser()
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / (exam.name.replace(" ", "_").replace(".", "p") + ".seq")
+        f0_mhz = 42.5774785 * self.profile().scanner.b0_t
+        write_seq(exam.sequence, str(path), exam.card.npoints, 1.0 / exam.card.bandwidth_hz, f0_mhz)
+        return path
+
     def export(self, exam, folder):
         """Write an exam's raw data, the transients apart, as NIfTI-MRS into `folder`;
         returns the path."""

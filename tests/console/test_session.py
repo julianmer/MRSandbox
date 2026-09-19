@@ -97,3 +97,23 @@ class TestSession:
         exam = session.run(session.plan(), seed=1)
         assert exam.name == "1 Custom" and exam.status == "done"
         assert abs(exam.ppm[exam.frames[-1][1].argmax()] - 2.01) < 0.05
+
+    def test_an_edited_card_interleaves_its_sub_experiments_and_reviews_them(self, tmp_path, monkeypatch):
+        session = Session()
+        session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS GABA", 8, 1024, 30.0
+        exam = session.run(session.plan(), seed=1)
+        assert exam.name == "1 MEGA-PRESS GABA" and list(exam.conditions) == ["on", "off"] and exam.shown == "difference"
+        assert set(exam.spectra) == {"on", "off", "difference", "sum"} and exam.data.shape[-1] == 8
+        difference, near = exam.spectra["difference"], lambda lo, hi: (exam.ppm > lo) & (exam.ppm < hi)
+        assert difference[near(1.9, 2.1)].min() < 0.0 < difference[near(2.9, 3.1)].max()   # NAA goes with the ON pulse, GABA stays
+        assert len(exam.tracks["frequency_hz"]) == 8 and 0.5 < exam.truth["GABA"] < 3.0
+        # the library keeps a card with its design and settings; Pulseq takes a design it can play
+        monkeypatch.setattr(Session, "LIBRARY", tmp_path / "protocols")
+        session.protocol.sequence, session.overrides["conc.NAA"] = "Custom", 15.0
+        session.save_protocol("echo")
+        session.design, session.overrides = [], {}
+        session.load_protocol("echo")
+        assert session.protocols() == ["echo"] and len(session.design) == 6 and session.overrides == {"conc.NAA": 15.0}
+        assert session.export_seq(session.plan(), tmp_path).read_text().startswith("# Pulseq")
+        with pytest.raises(Exception, match="(?i)ideal|filter|coherence"):
+            session.export_seq(exam, tmp_path)                                  # MEGA's ideal bands do not play on hardware

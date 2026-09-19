@@ -27,7 +27,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from mrsandbox.console.session import BLOCKS, SEQUENCES, SUBJECTS, Session
+from mrsandbox.console.session import BLOCKS, EDITING, SEQUENCES, SUBJECTS, Session
 
 #*************#
 #   palette   #
@@ -278,6 +278,56 @@ def console():
             rebuild()
         dialog.open()
 
+    def review():
+        """The Review room of the chosen exam: every condition and combination, what the scanner
+        and the subject did over the transients, and the truth no scanner has."""
+        exam = chosen["exam"]
+        if exam is None or not exam.spectra:
+            ui.notify("Select an exam that has run")
+            return
+        axis = {"type": "value", "axisLine": {"lineStyle": {"color": LINE}}, "axisLabel": {"color": DIM}, "splitLine": {"show": False}}
+        legend = {"textStyle": {"color": INK}, "top": 0}
+        palette = [SAND, GLOW, COPPER, GOOD, "#9FB7C9", "#C9A0B8", BAD]
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1100px; max-width: 1400px"):
+            with ui.row().classes("w-full items-center"):
+                ui.label(f"Review · {exam.name}").classes("label")
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense")
+            ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
+                       "grid": {"left": 12, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
+                       "xAxis": {**axis, "inverse": True, "min": 0.2, "max": 4.2, "name": "ppm"},
+                       "yAxis": {"type": "value", "show": False, "scale": True},
+                       "series": [{"type": "line", "name": name, "showSymbol": False, "lineStyle": {"width": 1.2},
+                                   "data": [[float(p), float(v)] for p, v in zip(exam.ppm, real)]}
+                                  for name, real in exam.spectra.items()]}).style("height: 300px").classes("w-full")
+            with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch"):
+                with ui.column().style("flex: 2; min-width: 0"):
+                    ui.label("Over the transients · what the scanner and the subject did").classes("label")
+                    ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
+                               "grid": {"left": 40, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
+                               "xAxis": {**axis, "name": "transient"}, "yAxis": {**axis, "scale": True},
+                               "series": [{"type": "line", "name": name, "showSymbol": False,
+                                           "data": [[k + 1, float(v)] for k, v in enumerate(values)]}
+                                          for name, values in exam.tracks.items()]}).style("height: 230px").classes("w-full")
+                with ui.column().style("flex: 1; min-width: 0"):
+                    ui.label("Ground truth · mM").classes("label")
+                    with ui.scroll_area().style("height: 230px"):
+                        for name, value in sorted(exam.truth.items(), key=lambda item: -item[1]):
+                            with ui.row().classes("w-full").style("justify-content: space-between"):
+                                ui.label(name)
+                                ui.label(f"{value:.2f}").classes("value")
+        dialog.open()
+
+    def export_seq():
+        exam = chosen["exam"]
+        if exam is None:
+            ui.notify("Select an exam")
+            return
+        try:
+            ui.notify(f"Exported {session.export_seq(exam, pathlib.Path.home() / 'MRSandbox' / 'exports')}")
+        except Exception as error:  # an idealization Pulseq cannot play: the design says which
+            ui.notify(f"Not exported: {error}", type="warning", multi_line=True)
+
     def changed(attribute, target=None):
         """A handler that writes a control's value to the session (or the card) and redraws."""
         def handle(event):
@@ -317,7 +367,9 @@ def console():
             rows = ui.column().classes("w-full").style("gap: 4px")
             ui.button("Add card to queue", on_click=plan).props("outline").classes("w-full")
             button = ui.button("Run queue", on_click=scan_queue).props("unelevated").classes("w-full")
+            ui.button("Review", on_click=review).props("outline").classes("w-full")
             ui.button("Export raw transients", on_click=export).props("outline").classes("w-full")
+            ui.button("Export Pulseq .seq", on_click=export_seq).props("outline").classes("w-full")
             ui.label("Outlook").classes("label").style("margin-top: 10px")
             for key, caption in (("position", "voxel at"), ("tissue", "tissue"), ("time", "scan time")):
                 ui.label(caption).classes("label")
@@ -354,16 +406,26 @@ def console():
         with ui.column().classes("pane").style("width: 270px"):
             ui.label("Protocol card").classes("label")
             card = session.protocol
-            ui.select(list(SEQUENCES) + ["Custom"], value=card.sequence, label="sequence", on_change=changed("sequence", "card")).props(
-                "dense outlined dark").classes("w-full")
+            ui.select(list(SEQUENCES) + list(EDITING) + ["Custom"], value=card.sequence, label="sequence",
+                      on_change=changed("sequence", "card")).bind_value(card, "sequence").props("dense outlined dark").classes("w-full")
             for attribute, caption, step in (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0), ("averages", "averages", 1),
                                              ("npoints", "points", 512), ("bandwidth_hz", "bandwidth (Hz)", 500.0)):
-                ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")).props(
-                    "dense outlined dark").classes("w-full")
+                ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")).bind_value(
+                    card, attribute).props("dense outlined dark").classes("w-full")
             ui.number("voxel size (mm)", value=session.size_mm, step=5.0, min=5.0, on_change=changed("size_mm")).props(
                 "dense outlined dark").classes("w-full")
             ui.button("Design a sequence", on_click=lambda: (setattr(card, "sequence", "Custom"), designer())).props(
                 "outline").classes("w-full")
+            ui.label("Protocol library").classes("label").style("margin-top: 6px")
+            saved = ui.select(session.protocols(), label="saved protocols", with_input=True, new_value_mode="add-unique").props(
+                "dense outlined dark").classes("w-full")
+            with ui.row().classes("w-full no-wrap").style("gap: 6px"):
+                ui.button("Save", on_click=lambda: saved.value and (
+                    session.save_protocol(saved.value), saved.set_options(session.protocols(), value=saved.value),
+                    ui.notify(f"Saved {saved.value}"))).props("outline dense").style("flex: 1")
+                ui.button("Load", on_click=lambda: saved.value in session.protocols() and (
+                    session.load_protocol(saved.value), draw(), ui.notify(f"Loaded {saved.value}"))).props(
+                    "outline dense").style("flex: 1")
             ui.label("Hardware limits").classes("label").style("margin-top: 6px")
             texts["limits"] = ui.label("").classes("value")
             texts["verdict"] = ui.label("").classes("value")
