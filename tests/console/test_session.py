@@ -132,15 +132,16 @@ class TestSession:
 
         session = Session(ICBM)
         session.protocol.water_reference = 0
-        session.field, session.protocol.real, session.protocol.averages = "uniform", False, 32
+        session.field, session.protocol.real, session.protocol.averages, session.seed = "uniform", False, 32, 4
         session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
         exam = session.run(session.plan())
         drawn = exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]
         profile = json.loads(session.calibrate(session.export(exam, tmp_path), "mine", folder=tmp_path).read_text())
         read = {record["leaf"]: record["value"] for record in profile["records"]}
         # the file is in the standard's frame (the centre at 4.65 ppm), so the reading finds NAA where a scanner's data has it
-        # one subject's NAA against the twin's median subject: the reading is as good as this subject is typical
-        assert read["noise.sigma"] == pytest.approx(drawn["noise"]["sigma"], rel=0.25)
+        # one subject's NAA level against the twin's median subject: within 15 percent over five subjects tried, the width
+        # being read first and held in the twin (it was 40 percent off when the twin had the population's widths)
+        assert read["noise.sigma"] == pytest.approx(drawn["noise"]["sigma"], rel=0.2)
         assert read["lineshape.gauss_hz"] == pytest.approx(drawn["lineshape"]["gauss_hz"], rel=0.2)
         assert profile["scanner"]["name"] == session.scanner
 
@@ -162,6 +163,24 @@ class TestSession:
         tall, flat = (np.abs(exam.spectra[name][upfield]).max() for name in ("A minus B", "A plus B"))
         assert tall > 10.0 * flat                                                   # opposite signs add in the difference
         assert session.showcase()[1].shape == session.showcase()[0].shape
+
+    def test_real_designs_are_fitted_to_the_scanners_transmitter(self):
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        prisma = {name: None for name in ("PRESS", "STEAM")}
+        for name in prisma:
+            session.protocol.sequence = name
+            prisma[name] = np.abs(session.displacement(4.65))
+        session.scanner = "philips_achieva_3t"                                     # 13.5 uT against the Prisma's 25
+        for name in prisma:
+            session.protocol.sequence = name
+            look = session.outlook()
+            assert look["violations"] == ()                                        # longer pulses at the same time-bandwidth product
+            assert np.all(np.abs(session.displacement(4.65)) >= prisma[name]) and np.abs(session.displacement(4.65)).max() > prisma[name].max()
+        session.protocol.sequence = "sLASER"                                       # TE 30 does not hold a longer excitation: it says so
+        assert "a longer TE may" in session.outlook()["violations"][-1]
+        session.protocol.te_ms = 40.0
+        assert all("90" not in problem and "TE" not in problem for problem in session.outlook()["violations"])
 
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor

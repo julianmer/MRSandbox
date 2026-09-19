@@ -84,8 +84,10 @@ class ScannerProfile:
         the share of the channels' noise that is their own (CovarianceReading; `load` says
         what was in the coil), and the profile's coils are the array so loaded, its
         combined noise the drawn sigma at the twin's place."""
-        noise = NoiseReading.from_nifti(source, excitations).record(voxel, dataset)
-        records, coils = (noise, SpectrumReading.from_nifti(source).record(voxel, dataset)), None
+        # the width first: the noise is then read against a twin as broad as the acquisition is
+        shim = SpectrumReading.from_nifti(source).record(voxel, dataset)
+        noise = NoiseReading.from_nifti(source, excitations).record(voxel, dataset, gauss_hz=shim.value)
+        records, coils = (noise, shim), None
         if array is not None:
             share = dataclasses.replace(CovarianceReading.from_nifti(source).record(array, dataset, load=load),
                                         scanner=noise.scanner)

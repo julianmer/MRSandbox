@@ -229,12 +229,16 @@ class NoiseReading:
     #***********#
     #   sigma   #
     #***********#
-    def sigma(self, voxel, seeds=12):
+    def sigma(self, voxel, seeds=12, gauss_hz=None):
         """The reference noise level (the noise.sigma leaf) at which `voxel`, a Voxel of a
         scan set up as the acquisition was (field, sequence, timings, place, size),
         reproduces the reading: (plain, apodized), each the median over `seeds` drawn
         subjects. Nothing is drawn for the noise: white noise of sigma per real FID point
-        leaves sigma times the root of the summed squared window in the real spectrum."""
+        leaves sigma times the root of the summed squared window in the real spectrum.
+        `gauss_hz` holds the twin's Gaussian broadening at the value read from the same
+        data (SpectrumReading): a line's height goes with its width, so a twin as broad as
+        the acquisition reads its noise, where a twin of the population's widths reads it
+        only as well as this shim is typical."""
         dwell_s = 1.0 / self.bandwidth_hz
         window = np.exp(-np.pi * APODIZATION_HZ * np.arange(self.npoints) * dwell_s)
         ppm = np.fft.fftshift(np.fft.fftfreq(self.npoints, dwell_s)) / voxel._f0_mhz()
@@ -242,7 +246,10 @@ class NoiseReading:
                                                   self.excitations)
         found = []
         for seed in range(seeds):
-            _, fid = voxel._clean_fid(voxel.sample(seed), self.npoints, dwell_s)
+            truth = voxel.sample(seed)
+            if gauss_hz is not None:
+                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))  # a realized leaf, as drawn
+            _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
             row = []
             near = np.abs(ppm - LINES[self.line][0]) < LINES[self.line][1]
             # phased at the line's top as the data are, a phantom's water line under the apodization
@@ -258,12 +265,12 @@ class NoiseReading:
     #************#
     #   record   #
     #************#
-    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=12):
+    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=12, gauss_hz=None):
         """The Calibration of noise.sigma this reading makes with `voxel` as its virtual
         twin: the value is the apodized reading's, the prior a quarter either side of it
         (one acquisition has no spread of its own; stated), the conditions the file's and
-        the twin's."""
-        plain, apodized = self.sigma(voxel, seeds)
+        the twin's; `gauss_hz` as for `sigma`."""
+        plain, apodized = self.sigma(voxel, seeds, gauss_hz)
         sequence = voxel.scan.sequence
         return Calibration(
             leaf="noise.sigma", value=round(apodized, 2),

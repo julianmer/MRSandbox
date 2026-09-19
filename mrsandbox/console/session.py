@@ -57,13 +57,14 @@ PICTURES = {
 # the design. The ideal ones select the voxel exactly and at once; the played ones play their slice-selective
 # pulses under gradients, so the voxel has a profile and every shift its own displaced voxel (SHIFTED).
 SEQUENCES = {
-    "PRESS": lambda te_s, tr_s, f0_mhz, size_mm: Press(te1_s=min(0.011, te_s / 2.0), te2_s=te_s - min(0.011, te_s / 2.0), tr_s=tr_s),
-    "STEAM": lambda te_s, tr_s, f0_mhz, size_mm: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
-    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm: SemiLaser(te_s=te_s, tr_s=tr_s),
-    "PRESS, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedPress(
-        min(0.014, te_s / 2.0), te_s - min(0.014, te_s / 2.0), f0_mhz, size_mm=size_mm, tr_s=tr_s),
-    "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedSteam(te_s, 0.010, f0_mhz, size_mm=size_mm, tr_s=tr_s),
-    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm: LocalizedSemiLaser(te_s, f0_mhz, size_mm=size_mm, tr_s=tr_s),
+    "PRESS": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: Press(te1_s=min(0.011, te_s / 2.0), te2_s=te_s - min(0.011, te_s / 2.0), tr_s=tr_s),
+    "STEAM": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
+    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: SemiLaser(te_s=te_s, tr_s=tr_s),
+    "PRESS, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: LocalizedPress(
+        min(0.014 * fit.grow[180], te_s / 2.0), te_s - min(0.014 * fit.grow[180], te_s / 2.0), f0_mhz, size_mm=size_mm, tr_s=tr_s, axes=axes,
+        excitation_s=0.0026 * fit.grow[90], refocusing_s=0.0065 * fit.grow[180]),
+    "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: fit(LocalizedSteam)(te_s, 0.010, f0_mhz, size_mm=size_mm, tr_s=tr_s),
+    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: fit(LocalizedSemiLaser)(te_s, f0_mhz, size_mm=size_mm, tr_s=tr_s),
 }
 # a card's design with its pulses real (Protocol.real): shaped pulses under gradients, played in time, in place
 # of ideal ones that act at once and select exactly. HERCULES has no ideal design and is always real.
@@ -122,14 +123,14 @@ OVS_MM = 30.0
 TARGETS = {"GABA": (1.88, 7.5), "GSH": (4.56, 7.5), "lactate": (4.1, 7.5)}
 DIFFERENCE = {"difference": {"on": 1.0, "off": -1.0}, "sum": {"on": 1.0, "off": 1.0}}
 EDITING = {
-    "MEGA-PRESS": (lambda card, tr_s, f0_mhz, size_mm: MegaPress.pair(on_ppm=card.edit_on_ppm, off_ppm=card.edit_off_ppm, tr_s=tr_s),
+    "MEGA-PRESS": (lambda card, tr_s, f0_mhz, size_mm, fit: MegaPress.pair(on_ppm=card.edit_on_ppm, off_ppm=card.edit_off_ppm, tr_s=tr_s),
                    DIFFERENCE, "difference"),
-    "HERMES GABA GSH": (lambda card, tr_s, f0_mhz, size_mm: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
-    "MEGA-PRESS, played": (lambda card, tr_s, f0_mhz, size_mm: LocalizedMegaPress.pair(
+    "HERMES GABA GSH": (lambda card, tr_s, f0_mhz, size_mm, fit: Hermes.scheme(tr_s=tr_s), Hermes.combinations, "gaba"),
+    "MEGA-PRESS, played": (lambda card, tr_s, f0_mhz, size_mm, fit: fit(LocalizedMegaPress).pair(
         f0_mhz, on_ppm=card.edit_on_ppm, off_ppm=card.edit_off_ppm, size_mm=size_mm, tr_s=tr_s), DIFFERENCE, "difference"),
-    "HERMES, played": (lambda card, tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hermes, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+    "HERMES, played": (lambda card, tr_s, f0_mhz, size_mm, fit: fit(LocalizedMegaPress).scheme(Hermes, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
                        Hermes.combinations, "gaba"),
-    "HERCULES": (lambda card, tr_s, f0_mhz, size_mm: LocalizedMegaPress.scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
+    "HERCULES": (lambda card, tr_s, f0_mhz, size_mm, fit: fit(LocalizedMegaPress).scheme(Hercules, f0_mhz, edit_s=0.020, size_mm=size_mm, tr_s=tr_s),
                          Hercules.combinations, "gaba"),
 }
 
@@ -385,6 +386,7 @@ class Session:
         self.run_settings, self.motion_mm = {}, None
         self.align = True
         self.prescan, self.clock_s, self._drift = True, 0.0, None
+        self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
@@ -566,8 +568,9 @@ class Session:
 
     def calibrate(self, source, name, folder=None):
         """Calibrate the scanner on the floor from one raw acquisition of the operator's own
-        (scan.profile ScannerProfile.read): `source` is NIfTI-MRS with the transients apart (and
-        the coils, where the file has them), and the card, the voxel, and the room as they stand
+        (scan.profile ScannerProfile.read): `source` is NIfTI-MRS with the transients apart (with
+        the coils apart too and an array chosen in the room, the array's own noise share is read as
+        well), and the card, the voxel, and the room as they stand
         are its virtual twin, so set them as the scan was acquired first. The noise and the line
         broadening become records of a profile saved under `name` in ~/MRSandbox/profiles, which
         stays on this machine and is then this scanner's calibration; returns its path."""
@@ -575,7 +578,13 @@ class Session:
             tuple(self.position_mm), tuple(self.size_mm), compiled=True)
         folder = pathlib.Path(folder) if folder is not None else pathlib.Path.home() / "MRSandbox" / "profiles"
         folder.mkdir(parents=True, exist_ok=True)
-        ScannerProfile.read(str(source), twin, dataset=name).save(folder / f"{name}.json")
+        import nibabel as nib
+
+        # a file with its coils apart, and an array in the room standing in for the coil's geometry: the share of the
+        # channels' noise that is their own is read too, and the profile carries the array so loaded
+        tags = json.loads(nib.load(str(source)).header.extensions[0].get_content())
+        array = self.array() if "DIM_COIL" in (tags.get("dim_5"), tags.get("dim_6"), tags.get("dim_7")) else None
+        ScannerProfile.read(str(source), twin, dataset=name, array=array).save(folder / f"{name}.json")
         self.calibration = str(folder / f"{name}.json")
         return folder / f"{name}.json"
 
@@ -590,21 +599,13 @@ class Session:
         if card.sequence in EDITING:
             return next(iter(self.editing(card).values()))
         if card.sequence == MRSI:
-            return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None)
+            return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None, None, None)
         scanner = self.profile().scanner
         if card.sequence == "Custom":
             design = self.own(card.tr_ms / 1000.0)
         else:
-            design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0, 42.5774785 * scanner.b0_t, tuple(self.size_mm))
-        if card.sequence == "PRESS, played":
-            # a vendor fits its pulses to its transmitter: where the refocusing pulses ask for more B1 than the scanner
-            # has, they are played longer at the same time-bandwidth product, so narrower, and displace more
-            peaks = [float(e.peak_hz) for e in design.events if isinstance(e, ShapedPulse) and e.peak_hz is not None]
-            over = max(max(peaks) / (42.5774785 * scanner.peak_b1_ut), 1.0)
-            if over > 1.0 or card.axes != "xyz":    # and the operator's order of the axes: which the 90 selects, which the 180s
-                te1 = min(0.014 * over, card.te_ms / 2000.0)
-                design = LocalizedPress(te1, card.te_ms / 1000.0 - te1, 42.5774785 * scanner.b0_t, size_mm=tuple(self.size_mm),
-                                        refocusing_s=0.0065 * (1.02 * over if over > 1.0 else 1.0), tr_s=card.tr_ms / 1000.0, axes=card.axes)
+            design = self.fitted(lambda fit: SEQUENCES[card.sequence](
+                card.te_ms / 1000.0, card.tr_ms / 1000.0, 42.5774785 * scanner.b0_t, tuple(self.size_mm), fit, card.axes))
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
@@ -616,6 +617,37 @@ class Session:
     @design.setter
     def design(self, blocks):
         self.designs[self.condition] = blocks
+
+    def fitted(self, build):
+        """A real design fitted to the scanner's transmitter, as a vendor fits its pulses: `build(fit)`
+        makes the design (or the sub-experiments of an edited one), and where its amplitude-modulated 90s
+        or 180s ask for more B1 than the scanner has, they are played longer by that factor at the same
+        time-bandwidth product, so narrower, and displace a shift more. `fit(cls)` is the design's class
+        with its pulse durations grown; `fit.grow` the factors by flip angle. An adiabatic pulse is left as
+        it is (its peak is an adiabatic threshold, not a flip), and a design whose timings do not hold
+        the longer pulses stays as it was: either then says so among the card's problems."""
+        def fit(cls, grow=None):
+            grow = fit.grow if grow is None else grow
+            longer = {name: getattr(cls, name) * grow[flip] for name, flip in (("PULSE_S", 90), ("EXCITATION_S", 90), ("REFOCUSING_S", 180))
+                      if hasattr(cls, name) and grow[flip] > 1.0}
+            return type(cls.__name__, (cls,), longer) if longer else cls
+
+        fit.grow, self.unfitted = {90: 1.0, 180: 1.0}, ""
+        probe = build(fit)
+        limit = 42.5774785 * self.profile().scanner.peak_b1_ut
+        for design in (probe.values() if isinstance(probe, dict) else (probe,)):
+            for event in design.events:
+                if isinstance(event, ShapedPulse) and event.peak_hz is not None and event.flip_deg is not None and float(event.flip_deg) in (90.0, 180.0):
+                    fit.grow[int(event.flip_deg)] = max(fit.grow[int(event.flip_deg)], 1.02 * float(event.peak_hz) / limit)
+        fit.grow = {flip: factor if factor > 1.02 else 1.0 for flip, factor in fit.grow.items()}
+        if max(fit.grow.values()) == 1.0:
+            return probe
+        try:
+            return build(fit)
+        except ValueError as error:
+            self.unfitted = (f"fitted to this scanner's {self.profile().scanner.peak_b1_ut:g} uT the 90s would last {fit.grow[90]:.2f} and the 180s "
+                             f"{fit.grow[180]:.2f} times as long, which these timings do not hold ({error}): a longer TE may")
+            return probe
 
     def own(self, tr_s=None, condition=None):
         """The operator's own design (the sub-acquisition shown, or the one named), its blocks in
@@ -686,7 +718,8 @@ class Session:
     def editing(self, card):
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
         card = dataclasses.replace(card, sequence=REAL[card.sequence]) if card.real and card.sequence in REAL else card
-        conditions = EDITING[card.sequence][0](card, card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm))
+        conditions = self.fitted(lambda fit: EDITING[card.sequence][0](
+            card, card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm), fit))
         for prelude in reversed(self.preludes(card).values()):      # water suppression and OVS before every sub-experiment
             conditions = {name: prelude + design for name, design in conditions.items()}
         return conditions
@@ -933,7 +966,7 @@ class Session:
                 "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
-                "violations": tuple(sequence.violations(limits)),
+                "violations": tuple(dict.fromkeys(sequence.violations(limits))) + ((self.unfitted,) if self.unfitted else ()),
                 "records": {leaf: record.record(scan) for leaf, record in profile.calibrations().items()}}
 
     #***********#
