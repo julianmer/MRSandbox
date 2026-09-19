@@ -118,7 +118,7 @@ EDGES = {"tra": ("A", "P", "L", "R", 2, "z"), "sag": ("H", "F", "P", "A", 0, "x"
 #**********#
 # the logo for the bar, its studio backdrop cut away once at the start: the sand and the tray are grainy, the
 # backdrop and the glow behind the peak are smooth, so what is smooth and joined to the border goes
-MARK = None
+MARK = MARK_LARGE = None
 if LOGO is not None:
     full = Image.open(LOGO).convert("RGB").crop((60, 200, 964, 800))
     small = full.resize((452, 300), Image.LANCZOS)
@@ -140,6 +140,12 @@ if LOGO is not None:
     buffer = io.BytesIO()
     small.resize((151, 100), Image.LANCZOS).save(buffer, format="PNG")
     MARK = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+    # and large for the loading screen, from the original's own pixels (the cut carried up to them), three
+    # device pixels per shown one, so that it stays sharp on a dense display
+    full.putalpha(Image.fromarray(np.uint8(255 * ~backdrop)).resize(full.size, Image.LANCZOS).filter(ImageFilter.GaussianBlur(2.0)))
+    buffer = io.BytesIO()
+    full.resize((678, 450), Image.LANCZOS).save(buffer, format="PNG")
+    MARK_LARGE = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 
 #*************#
@@ -270,7 +276,7 @@ async def console(client: Client):
     with ui.element("div").style(f"position: fixed; inset: 0; z-index: 9999; background: {GROUND}; display: flex; flex-direction: column; "
                                  "align-items: center; justify-content: center; gap: 18px") as loading:
         if MARK is not None:
-            ui.html(f'<img alt="MRSandbox" style="height: 120px" src="{MARK}">', sanitize=False)
+            ui.html(f'<img alt="MRSandbox" style="height: 150px" src="{MARK_LARGE}">', sanitize=False)
         ui.label("MRSandbox").style(f"color: {SAND}; font-size: 22px; letter-spacing: .14em")
         ui.spinner("bars", size="34px", color=SAND)
     await client.connected()
