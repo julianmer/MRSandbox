@@ -20,9 +20,9 @@ import pathlib
 
 import numpy as np
 
-from mrsandbox.hardware.scanners import PRESETS
+from mrsandbox.hardware import CoilArray
 from mrsandbox.phantom import Brain, Phantom
-from mrsandbox.scan import ScannerProfile
+from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import Press, SemiLaser, Steam
 
 #**************#
@@ -70,6 +70,39 @@ class Protocol:
 
 
 #**************************************************************************************************#
+#                                            Class Exam                                            #
+#**************************************************************************************************#
+#                                                                                                  #
+# One entry of the exam queue: a card with its voxel, and after it ran, its data.                  #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass
+class Exam:
+    """One entry of the exam queue: a card with its voxel, and after it ran, its data.
+
+    Args:
+        name: What the queue shows.
+        card: The Protocol as it was when the exam was planned.
+        position_mm, size_mm: The voxel as it was planned.
+        status: "planned", "running", or "done".
+        data: NIfTI-MRS with the transients apart (DIM_DYN), once it ran.
+        ppm: The display's axis, 0.2 to 4.2 ppm.
+        frames: The display as the scan comes in, [(transients so far, real spectrum)].
+        records: What the header says of the calibration records in force.
+    """
+
+    name: str
+    card: Protocol
+    position_mm: tuple
+    size_mm: float
+    status: str = "planned"
+    data: object = None
+    ppm: object = None
+    frames: list = dataclasses.field(default_factory=list)
+    records: dict = dataclasses.field(default_factory=dict)
+
+
+#**************************************************************************************************#
 #                                          Class Session                                           #
 #**************************************************************************************************#
 #                                                                                                  #
@@ -81,30 +114,29 @@ class Session:
 
     Attributes:
         scanner: Name of the scanner preset on the floor.
+        coil: Name of the receive array (a key of COILS).
         subject: Name of the subject on the table (a key of SUBJECTS).
-        position_mm, size_mm: The planned voxel, world millimetres.
+        position_mm, size_mm: The voxel being planned, world millimetres.
         protocol: The protocol card being edited.
-        scans: What ran, newest last: {"name", "protocol", "data" (NIfTI-MRS), "ppm", "spectrum"}.
+        queue: The exams, in the order they were planned.
     """
+
+    # the receive arrays on the shelf
+    COILS = {"one ideal channel": lambda: None, "head array, 32 channels": CoilArray.helmet,
+             "ring, 8 channels": lambda: CoilArray.ring(8)}
 
     #**********#
     #   init   #
     #**********#
     def __init__(self):
         self.scanner = "siemens_prisma_3t"
+        self.coil = "one ideal channel"
         self.subject = "Brain, ICBM152 average"
         self.position_mm = [0.0, -45.0, 35.0]
         self.size_mm = 20.0
         self.protocol = Protocol()
-        self.scans = []
+        self.queue = []
         self._bodies = {}
-
-    #************#
-    #   choices  #
-    #************#
-    @staticmethod
-    def scanners():
-        return sorted(PRESETS)
 
     #**********#
     #   body   #
@@ -114,6 +146,10 @@ class Session:
         if self.subject not in self._bodies:
             self._bodies[self.subject] = SUBJECTS[self.subject]()
         return self._bodies[self.subject]
+
+    def profile(self):
+        """The scanner on the floor with its records."""
+        return ScannerProfile.preset(self.scanner)
 
     #************#
     #   planes   #
@@ -163,54 +199,91 @@ class Session:
                 self.position_mm[axis] = float(origin[axis] + step[axis] * value)
 
     #***********#
-    #   voxel   #
+    #   scene   #
     #***********#
-    def voxel(self):
-        """The planned voxel of a scan of this room under the card's sequence."""
+    def scene(self, points=5000):
+        """What the room's 3D view draws, world millimetres: the subject's surface as a
+        cloud of `points`, the receive loops as (centre, normal, radius), the voxel's box
+        as (centre, size)."""
+        body = self.body()
+        inside = (body.gm + body.wm) > 0.5
+        surface = inside & ~(np.roll(inside, 1, 0) & np.roll(inside, -1, 0) & np.roll(inside, 1, 1)
+                             & np.roll(inside, -1, 1) & np.roll(inside, 1, 2) & np.roll(inside, -1, 2))
+        index = np.argwhere(surface)
+        index = index[np.random.default_rng(0).choice(len(index), size=min(points, len(index)), replace=False)]
+        cloud = index * np.diag(body.affine)[:3] + body.affine[:3, 3]
+        coils = self.COILS[self.coil]()
+        loops = [] if coils is None else [(tuple(loop.center_mm), tuple(loop.normal), float(loop.radius_mm)) for loop in coils.loops]
+        return {"cloud": cloud.astype(np.float32), "loops": loops, "voxel": (tuple(self.position_mm), float(self.size_mm))}
+
+    #*************#
+    #   outlook   #
+    #*************#
+    def outlook(self):
+        """What the card promises before it runs: tissue in the voxel, the scan time, the
+        scanner's limits and why the design would not play on them (empty when it does),
+        and the calibration records a scan would run under with where it departs."""
         card = self.protocol
         sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
-        scan = ScannerProfile.preset(self.scanner).scan(self.body(), sequence)
-        return scan.voxel(tuple(self.position_mm), self.size_mm)
-
-    def outlook(self):
-        """What the card promises before it runs: tissue in the voxel, the scan time, and
-        why the design would not play on this scanner (empty when it does)."""
-        voxel = self.voxel()
-        fractions = voxel.fractions
+        profile = self.profile()
+        scan = profile.scan(self.body(), sequence)
+        fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
+        limits = profile.scanner
         return {"gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
-                "scan_time_s": self.protocol.scan_time_s,
-                "violations": tuple(voxel.scan.sequence.violations(voxel.scan.scanner))}
+                "scan_time_s": card.scan_time_s,
+                "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
+                "violations": tuple(sequence.violations(limits)),
+                "records": {leaf: record.record(scan) for leaf, record in profile.calibrations().items()}}
 
-    #*********#
-    #   run   #
-    #*********#
-    def run(self, seed=None):
-        """Acquire the card at the planned voxel and keep the scan; returns it."""
-        card = self.protocol
-        npoints = int(card.npoints)
-        data = self.voxel().acquire(seed=seed, npoints=npoints, dwell_s=1.0 / card.bandwidth_hz,
-                                    averages=int(card.averages))
-        fid = np.asarray(data[:]).reshape(-1)[:npoints]
-        # the display a console gives: light apodization, zero filled, phased on its tallest line upfield of water
-        window = np.exp(-np.pi * 2.0 * np.arange(npoints) / card.bandwidth_hz)
-        spectrum = np.fft.fftshift(np.fft.fft(fid * window, 2 * npoints))
-        f0_mhz = float(data.hdr_ext["SpectrometerFrequency"][0])
-        ppm = np.fft.fftshift(np.fft.fftfreq(2 * npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
+    #***********#
+    #   queue   #
+    #***********#
+    def plan(self):
+        """Put the card with the voxel as they stand into the queue; returns the exam."""
+        card = dataclasses.replace(self.protocol, averages=int(self.protocol.averages), npoints=int(self.protocol.npoints))
+        exam = Exam(name=f"{len(self.queue) + 1} {card.sequence} TE {card.te_ms:g}", card=card,
+                    position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
+                    records=self.outlook()["records"])
+        self.queue.append(exam)
+        return exam
+
+    def run(self, exam, seed=None):
+        """Acquire an exam: every transient apart, with the instabilities of a real run
+        (scan.Multiplex.transients: drift, breathing, motion), and the display as it
+        builds up over the transients."""
+        exam.status = "running"
+        card = exam.card
+        sequence = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0)
+        profile = self.profile()
+        coils = self.COILS[self.coil]()
+        room = Multiplex(self.body(), profile.scanner, {"scan": sequence}, records=profile.records,
+                         coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
+        exam.data = room.transients(exam.position_mm, exam.size_mm, card.averages, tr_s=card.tr_ms / 1000.0, seed=seed,
+                                    npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
+        fids = np.asarray(exam.data[:])[0, 0, 0]
+        fids = fids if fids.ndim == 2 else fids.sum(axis=1)             # channels summed for the display alone
+        # the display a console gives: light apodization, zero filled, phased on the tallest line upfield of water
+        window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
+        f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
+        ppm = np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
         upfield = (ppm > 0.2) & (ppm < 4.2)
-        top = np.flatnonzero(upfield)[np.abs(spectrum[upfield]).argmax()]
-        spectrum = spectrum * np.exp(-1j * np.angle(spectrum[top]))
-        scan = {"name": f"{len(self.scans) + 1} {card.sequence} TE {card.te_ms:g}", "protocol": dataclasses.replace(card),
-                "data": data, "ppm": ppm[upfield], "spectrum": spectrum.real[upfield]}
-        self.scans.append(scan)
-        return scan
+        final = np.fft.fftshift(np.fft.fft(fids.mean(axis=1) * window, 2 * card.npoints))
+        phase = np.exp(-1j * np.angle(final[np.flatnonzero(upfield)[np.abs(final[upfield]).argmax()]]))
+        exam.ppm, exam.frames = ppm[upfield], []
+        for count in sorted({max(1, round(card.averages * step / 12)) for step in range(1, 13)}):
+            partial = np.fft.fftshift(np.fft.fft(fids[:, :count].mean(axis=1) * window, 2 * card.npoints))
+            exam.frames.append((count, (partial * phase).real[upfield]))
+        exam.status = "done"
+        return exam
 
     #************#
     #   export   #
     #************#
-    def export(self, scan, folder):
-        """Write a scan as NIfTI-MRS into `folder`; returns the path."""
+    def export(self, exam, folder):
+        """Write an exam's raw data, the transients apart, as NIfTI-MRS into `folder`;
+        returns the path."""
         folder = pathlib.Path(folder).expanduser()
         folder.mkdir(parents=True, exist_ok=True)
-        path = folder / (scan["name"].replace(" ", "_").replace(".", "p") + ".nii.gz")
-        scan["data"].save(path)
+        path = folder / (exam.name.replace(" ", "_").replace(".", "p") + ".nii.gz")
+        exam.data.save(path)
         return path

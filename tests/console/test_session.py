@@ -39,20 +39,29 @@ class TestSession:
         session.place("tra", 80.0, 40.0)                                   # a transverse click leaves the height
         assert session.position_mm[2] == height and session.position_mm[0] != before[0]
 
-    def test_the_card_promises_and_the_scan_delivers(self, tmp_path):
+    def test_the_card_promises_and_the_exam_delivers(self, tmp_path):
         session = Session()
-        session.protocol.averages, session.protocol.npoints = 4, 1024
+        session.protocol.averages, session.protocol.npoints = 6, 1024
         look = session.outlook()
         assert look["gm"] + look["wm"] + look["csf"] == pytest.approx(1.0, abs=0.02)
-        assert look["scan_time_s"] == 8.0 and look["violations"] == ()
-        scan = session.run(seed=1)
-        assert scan["name"] == "1 PRESS TE 30" and len(session.scans) == 1
-        assert abs(scan["ppm"][scan["spectrum"].argmax()] - 2.01) < 0.03    # phased on NAA, the tallest line
-        path = session.export(scan, tmp_path)
+        assert look["scan_time_s"] == 12.0 and look["violations"] == () and look["limits"] == (25.0, 80.0, 200.0)
+        assert look["records"]["noise.sigma"]["source"].startswith("COWS")     # the Prisma's own record
+        exam = session.plan()
+        assert exam.name == "1 PRESS TE 30" and exam.status == "planned" and session.queue == [exam]
+        session.position_mm = [20.0, 0.0, 30.0]                                 # the exam keeps the voxel it was planned with
+        session.run(exam, seed=1)
+        assert exam.status == "done" and exam.position_mm == (0.0, -45.0, 35.0)
+        assert exam.data.shape[-1] == 6                                         # the transients apart, as a scanner exports them
+        assert [count for count, _ in exam.frames][-1] == 6 and len(exam.frames) <= 12
+        assert abs(exam.ppm[exam.frames[-1][1].argmax()] - 2.01) < 0.03         # phased on NAA, the tallest line
+        path = session.export(exam, tmp_path)
         assert path.exists() and path.name == "1_PRESS_TE_30.nii.gz"
 
-    def test_a_phantom_lies_on_the_table_as_a_brain_does(self):
+    def test_a_phantom_and_an_array_are_in_the_room_as_a_brain_is(self):
         session = Session()
-        session.subject, session.position_mm = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0]
+        session.subject, session.position_mm, session.coil = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0], "head array, 32 channels"
         assert session.outlook()["gm"] == pytest.approx(1.0)
         assert {image.shape[0] == image.shape[1] for image, _ in session.planes().values()} == {True}
+        drawn = session.scene(points=500)
+        assert drawn["cloud"].shape == (500, 3) and len(drawn["loops"]) == 32 and drawn["voxel"] == ((0.0, 0.0, 0.0), 20.0)
+        assert np.allclose(np.linalg.norm(drawn["cloud"], axis=1), 90.0, atol=5.0)  # the sphere's surface
