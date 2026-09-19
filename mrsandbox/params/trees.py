@@ -25,16 +25,6 @@ import numpy as np
 from mrsandbox.params.values import Value
 
 
-#********************#
-#   leaf seed keys   #
-#********************#
-@functools.lru_cache(maxsize=4096)
-def _path_entropy(path):
-    """A stable integer derived from a leaf's key path, mixed with the draw seed to
-    give every leaf its own independent stream."""
-    return int.from_bytes(hashlib.sha256("/".join(path).encode()).digest()[:8], "little")
-
-
 #**************************************************************************************************#
 #                                           Class Params                                           #
 #**************************************************************************************************#
@@ -135,6 +125,16 @@ class Params(dict):
             root = int(seed)
         return self._realize(root, ())
 
+    #********************#
+    #   leaf seed keys   #
+    #********************#
+    @staticmethod
+    @functools.lru_cache(maxsize=4096)
+    def _path_entropy(path):
+        """A stable integer derived from a leaf's key path, mixed with the draw seed to
+        give every leaf its own independent stream."""
+        return int.from_bytes(hashlib.sha256("/".join(path).encode()).digest()[:8], "little")
+
     def _realize(self, root, path):
         """Realize the subtree at `path`, giving every leaf its path-keyed generator."""
         realization = Params()
@@ -144,7 +144,7 @@ class Params(dict):
                 drawn = value._realize(root, path + (key,))
             else:
                 rng = np.random.default_rng(
-                    np.random.SeedSequence([root, _path_entropy(path + (key,))]))
+                    np.random.SeedSequence([root, self._path_entropy(path + (key,))]))
                 drawn = value.sample(rng)
             dict.__setitem__(realization, key, drawn)
         return realization
