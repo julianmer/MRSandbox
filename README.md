@@ -115,6 +115,11 @@ This repository consists of the following main structures:
   virtual twin alike. None of the readers fits anything. The creatine range is calibrated the same way, on the
   height of the 3.03 ppm singlet against NAA's in three datasets. Only quantities read off
   raw data enter a record, never concentrations a fitting program reported.
+* The `mrsandbox/scan/profile.py` file holds the `ScannerProfile`, the virtual copy of one
+  scanner: its limits, its coils, gradient impulse response, and receiver, and the records
+  measured on its own raw data, which outrank the package's. `ScannerProfile.read(path, voxel,
+  dataset, array=...)` makes one from a single raw NIfTI-MRS file and its virtual twin, and
+  `profile.scan(brain, sequence)` is a `VirtualScan` of that scanner.
 * The `mrsandbox/sequences/` folder builds sequences as event lists of pulses, delays, gradients,
   and coherence filters. Hard, ideal selective, and shaped pulses (Gaussian, sinc, Hermite,
   hyperbolic secant, Shinnar-Le Roux designs, gradient-modulated GOIA-WURST, or any sampled

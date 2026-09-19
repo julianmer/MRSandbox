@@ -80,6 +80,8 @@ class VirtualScan:
             onset, the noise its band edges). None samples the ideal FID.
         isochromats: Ensemble size for gradient-bearing sequences, handed to the
             engine; raise it for dense multi-axis gradient schemes.
+        records: The scanner's own Calibrations (a scan.profile ScannerProfile hands them
+            over); they outrank the package's records in the priors and the header.
         engine: An Engine to share (its compiled graphs and renderers) between scans
             of one scanner, as a Multiplex does; None builds one for this scan.
     """
@@ -90,7 +92,8 @@ class VirtualScan:
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=37.0,
-                 ph=7.0, field_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0)):
+                 ph=7.0, field_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0),
+                 records=()):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -108,9 +111,11 @@ class VirtualScan:
         self.transmit = transmit
         self.girf = girf
         self.receiver = receiver
+        self.records = tuple(records)
         self.temperature_c = float(temperature_c)
         self.ph = float(ph)
-        self.params = (default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner)
+        self.params = (default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner,
+                                      records=self.records)
                        | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
         self._lines = None

@@ -69,7 +69,7 @@ def _gm_wm_ratio(name):
 #**********************#
 #   default catalogue  #
 #**********************#
-def default_params(database=None, b0_t=3.0, scanner=None):
+def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     """Concentration priors and pooled literature relaxation for every metabolite that
     has both a spin system and a de Graaf range. Total choline is covered by GPC and
     PCho, its two constituents, so there is no separate Cho entry.
@@ -87,6 +87,7 @@ def default_params(database=None, b0_t=3.0, scanner=None):
         scanner: The hardware.Scanner (or its preset name); a leaf calibrated on in vivo
             data takes the record that serves the preset, else the leaf's fallback
             (scan.calibrations).
+        records: The scanner's own Calibrations (scan.profile), which outrank those.
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
@@ -96,7 +97,7 @@ def default_params(database=None, b0_t=3.0, scanner=None):
     # the total creatine of three in vivo datasets; the calibrated range replaces it
     # (scan.calibrations CREATINE_THREE_DATASETS_3T)
     if "Cr" in conc:
-        conc = conc | Params(Cr=calibrations(scanner)["conc.Cr"].prior)
+        conc = conc | Params(Cr=calibrations(scanner, records)["conc.Cr"].prior)
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
     water_t1, water_t2 = _water_relaxation(tesla)
     # background signal inherent to the voxel: residual water, lipids, and the
@@ -199,7 +200,7 @@ def default_params(database=None, b0_t=3.0, scanner=None):
         #   line at f hertz is exp(+i 2 pi f t): the plain transform puts NAA at
         #   2.01 ppm (a first calibration read the conjugate with a 4.65 ppm carrier,
         #   the multiplets near 2.64 ppm). tests/scan/test_scan TestNoiseModel gates it.
-        noise=dict(sigma=calibrations(scanner)["noise.sigma"].prior),
+        noise=dict(sigma=calibrations(scanner, records)["noise.sigma"].prior),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),

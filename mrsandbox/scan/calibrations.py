@@ -392,9 +392,10 @@ CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN
                 NOISE_BIG_GABA_GE_3T, NOISE_NEUROMET_7T, CREATINE_THREE_DATASETS_3T)
 
 
-def calibrations(scanner=None):
+def calibrations(scanner=None, records=()):
     """{leaf: Calibration} for a hardware.Scanner (or a preset name): the record that
-    names its preset, else the leaf's fallback."""
+    names its preset, else the leaf's fallback. `records` are the scanner's own
+    (scan.profile) and outrank both."""
     name = getattr(scanner, "name", scanner)
     chosen = {}
     for record in CALIBRATIONS:
@@ -402,6 +403,7 @@ def calibrations(scanner=None):
     for record in CALIBRATIONS:
         if name in record.presets:
             chosen[record.leaf] = record
+    chosen.update({record.leaf: record for record in records})
     return chosen
 
 

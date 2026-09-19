@@ -23,7 +23,7 @@ from mrsandbox.params import (Clipped, Fixed, Mapped, Normal, Params, PerTissue,
 from mrsandbox.phantom import (Brain, ChallengeMM, CoupledMM, FieldMap, MeasuredMM, NoDownfield,
                                NoLipids, NoMM, NoWater, ParameterizedDownfield, ParameterizedMM,
                                Skull, Suppressed, Unsuppressed, Volume)
-from mrsandbox.scan import MRSI, Generator, Multiplex, VirtualScan, Voxel
+from mrsandbox.scan import MRSI, Generator, Multiplex, ScannerProfile, VirtualScan, Voxel
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cycled, Delay, Gradient, HadamardEditing,
                                  Hercules, Hermes, InducedKick, LocalizedMegaPress,
                                  LocalizedMegaSemiLaser, LocalizedPress, LocalizedSemiLaser,
