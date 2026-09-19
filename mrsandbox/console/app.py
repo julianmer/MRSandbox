@@ -32,7 +32,7 @@ import numpy as np
 from nicegui import Client, app, run, ui
 from PIL import Image, ImageFilter
 
-from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
+from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, LENT, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 
@@ -395,7 +395,7 @@ async def console(client: Client):
             any(moved) for moved in look["displaced"].values()) else "none, the localization is ideal"
         texts["linewidth"].text = ("uniform field, none" if look["linewidth_hz"] is None else
                                    f"{look['linewidth_hz']:.1f} Hz on a 1 Hz line, {session.shim} shim")
-        texts["lipid"].text = ("this subject has no lipid layer" if look["lipid_mm"] is None else
+        texts["lipid"].text = ("no lipid layer on the table" if look["lipid_mm"] is None else
                                f"{look['lipid_mm'][0]:.0f} mm from the voxel, {look['lipid_mm'][1]:.0f} mm from where lipid is selected")
         texts["lipid"].style(f"color: {BAD if look['lipid_mm'] is not None and min(look['lipid_mm']) < 1.0 else INK}")
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
@@ -648,7 +648,7 @@ async def console(client: Client):
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px; max-width: 1000px"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"Settings · {panel or 'everything'}").classes("label")
+                ui.label(f"Settings · {dict(subject='on the table').get(panel, panel) if panel else 'everything'}").classes("label")
                 ui.space()
                 ui.input(placeholder="search, e.g. NAA or t2", on_change=lambda e: build(e.value or "")).props(
                     "dense outlined dark clearable debounce=300").style("width: 260px")
@@ -656,7 +656,7 @@ async def console(client: Client):
                     "flat dense no-caps")
                 ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
             ui.label("Every exam draws its values from these lines. Left as they are, they are the population's, each from its source. "
-                     "Set one to a number for a subject you decide on, or let it vary between two.").classes("label").style(
+                     "Set one to a number to decide it yourself, or let it vary between two.").classes("label").style(
                 "text-transform: none; letter-spacing: 0")
             with ui.scroll_area().style("height: 580px; width: 100%"):
                 body = ui.column().classes("w-full").style("gap: 0")
@@ -970,7 +970,7 @@ async def console(client: Client):
                                   for name, real in exam.spectra.items()]}).style("height: 300px").classes("w-full")
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch"):
                 with ui.column().style("flex: 2; min-width: 0"):
-                    ui.label("Over the transients · what the scanner and the subject did").classes("label")
+                    ui.label("Over the transients · what the scanner and what lay on the table did").classes("label")
                     ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
                                "grid": {"left": 40, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
                                "xAxis": {**axis, "name": "transient"}, "yAxis": {**axis, "scale": True},
@@ -1077,7 +1077,7 @@ async def console(client: Client):
             selects[what].options[str(path)] = pathlib.Path(path).name
             selects[what].update()
             selects[what].set_value(str(path))
-            told.text = f"{pathlib.Path(path).name} is the subject's {what} map, on the anatomy's grid"
+            told.text = f"{pathlib.Path(path).name} is the {what} map now, on the anatomy's grid"
             draw()
 
         async def picked(what, value):
@@ -1104,6 +1104,14 @@ async def console(client: Client):
             elif what == "B1+" and value == "nominal":
                 session.transmit = None
                 draw()
+            elif what == "lipid" and value == LENT:
+                try:
+                    session.lipids(LENT)
+                    told.text = "The QSM head's lipid layer lies about this brain now"
+                    room()
+                    draw()
+                except Exception as error:
+                    told.text = str(error)[:260]
 
         async def uploaded(event):
             if "waiting" in own_files:
@@ -1111,7 +1119,7 @@ async def console(client: Client):
 
         async def registered(what):
             if what not in own_files:
-                told.text = "Choose your own file first: the package's maps lie on their subjects already"
+                told.text = "Choose your own file first: the package's maps lie on their anatomy already"
                 return
             working.set_visibility(True)
             try:
@@ -1135,14 +1143,14 @@ async def console(client: Client):
         parts, selects, own_files = {}, {}, {}
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 800px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Your own subject and maps").style(f"color: {SAND}; font-size: 15px")
+                ui.label("Your own anatomy and maps").style(f"color: {SAND}; font-size: 15px")
                 ui.space()
                 working = ui.spinner(size="26px", color=SAND)
                 working.set_visibility(False)
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
             told = ui.label("").classes("value").style("white-space: normal")
 
-            ui.label("A subject from a T1-weighted image · NIfTI, or DICOM of any vendor").classes("label")
+            ui.label("The anatomy from a T1-weighted image · NIfTI, or DICOM of any vendor").classes("label")
             with ui.row().classes("w-full items-center no-wrap"):
                 name = ui.input("name (the file's, if empty)").props("dense outlined dark").style("width: 240px")
                 image = ui.input("path of the image").props("dense outlined dark").style("flex: 1")
@@ -1156,28 +1164,28 @@ async def console(client: Client):
                 for which in ("T1w", "GM", "WM", "CSF"):
                     ui.upload(label=which, auto_upload=True, on_upload=lambda e, which=which: tissue(e, which)).props(
                         "flat dense dark accept=.nii,.gz").style(box)
-                ui.button("Use these maps as the subject", icon="person_add", on_click=shelve).props("outline dense no-caps").tooltip(
-                    "makes a subject of the three tissue maps (and the image, to show it), adds it to the picker in the top bar, and puts "
+                ui.button("Use these maps as the anatomy", icon="person_add", on_click=shelve).props("outline dense no-caps").tooltip(
+                    "makes an anatomy of the three tissue maps (and the image, to show it), adds it to the picker in the top bar, and puts "
                     "it on the table")
 
-            ui.label(f"Maps of the subject on the table · {session.subject}").classes("label").style("margin-top: 6px")
-            for what, stored in (("B0", ["uniform", *FieldMap.PRESETS]), ("B1+", ["nominal"]), ("lipid", ["the subject's own"])):
+            ui.label(f"Maps for what lies on the table · {session.subject}").classes("label").style("margin-top: 6px")
+            for what, stored in (("B0", ["uniform", *FieldMap.PRESETS]), ("B1+", ["nominal"]), ("lipid", ["its own", LENT])):
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 6px"):
                     ui.label({"B0": "B0 field (Hz)", "B1+": "B1+ (of nominal)", "lipid": "lipid layer (0 to 1)"}[what]).style("width: 150px")
-                    now = {"B0": session.field, "B1+": session.transmit or "nominal", "lipid": own_files.get("lipid", "the subject's own")}[what]
+                    now = {"B0": session.field, "B1+": session.transmit or "nominal", "lipid": own_files.get("lipid", "its own")}[what]
                     selects[what] = ui.select({OWN: OWN, **{name: name for name in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
                                               value=now, on_change=lambda e, what=what: picked(what, e.value)).props(
                         "dense outlined dark options-dense").style("flex: 1")
                     ui.button("Register to the anatomy", icon="my_location", on_click=lambda _, what=what: registered(what)).props(
                         "outline dense no-caps").style("width: 210px").tooltip(
-                        "for a map of ANOTHER session: FSL flirt, rigid, onto the subject's picture. A map of this session lies where the "
+                        "for a map of ANOTHER session: FSL flirt, rigid, onto the anatomy's picture. A map of this session lies where the "
                         "anatomy lies already and is only brought onto its grid. A field map in Hz shows no anatomy: register its magnitude")
             ui.switch("the B0 map was measured after my own shim: apply none", value=session.shim == "none", on_change=lambda e: (
                 setattr(session, "shim", "none" if e.value else "linear"), draw())).props("dense color=accent")
             image_upload = ui.upload(label="in a browser: upload the map chosen above", auto_upload=True, on_upload=lambda e: uploaded(e)).props(
                 "flat dense dark accept=.nii,.gz").style(box)
             image_upload.set_visibility(app.native.main_window is None)
-            ui.label("A map of the same session lies where the anatomy lies: it is brought onto the subject's grid by the scanner's "
+            ui.label("A map of the same session lies where the anatomy lies: it is brought onto its grid by the scanner's "
                      "coordinates, whatever its own grid and angulation. A map of another session wants registering first (FSL flirt of its "
                      "magnitude image onto the anatomy). T1, T2, concentrations and every other parameter take a map at their line in the "
                      "settings (the gears).").classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
@@ -1232,7 +1240,7 @@ async def console(client: Client):
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 680px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("The run · what the scanner and the subject do over the transients").classes("label")
+                ui.label("The run · what happens over the transients").classes("label")
                 ui.space()
                 ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
             ui.switch("centre the frequency before every exam (prescan)", value=session.prescan, on_change=lambda e: setattr(
@@ -1367,7 +1375,7 @@ async def console(client: Client):
                                             "the array of loops chosen here")
             said = ui.label("" if session.own_noise is None else f"own noise share {session.own_noise:.2f}, read from your scan").classes("value").style(
                 "white-space: normal")
-            ui.label("The loops show in the 3D view. Their sensitivities and noise follow from their geometry and the subject's load.").classes(
+            ui.label("The loops show in the 3D view. Their sensitivities and noise follow from their geometry and the load in them.").classes(
                 "label").style("text-transform: none; letter-spacing: 0")
             ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
         dialog.open()
@@ -1444,11 +1452,11 @@ async def console(client: Client):
                     f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
             if attribute in GEARS or attribute == "coil":
                 ui.button(icon="settings", on_click=(lambda _, panel=attribute: gear(panel)) if attribute in GEARS else coil_gear).props("flat dense round size=sm").style(
-                    f"color: {GLOW}; margin-left: -10px").tooltip(f"the {attribute}'s parameters and ranges")
+                    f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of what lies on the table"}.get(attribute, f"the {attribute}'s parameters and ranges"))
         ui.button(icon="person_add_alt", on_click=lambda: (setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
-                                                           ui.notify("A new subject of the population lies on the table"))).props(
+                                                           ui.notify("A new draw of the population lies on the table"))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
-            "every exam scans the same subject, one draw of the population; this puts a new one on the table")
+            "every exam scans the same draw of the population; this puts a new one on the table")
         ui.space()
         ui.button("all settings", icon="tune", on_click=lambda: gear()).props("flat dense no-caps").style(f"color: {GLOW}")
         status = ui.label("idle").classes("label")
@@ -1485,14 +1493,14 @@ async def console(client: Client):
                     "always in the signal; this button does not switch it off (ideal pulses do)")
                 tools["flip"] = ui.button("L on the right", icon="flip", on_click=lambda: (
                     chosen.__setitem__("flipped", not chosen["flipped"]), draw())).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "off: the subject's left is on the picture's left (neurological). on: mirrored, left on the right, as a radiologist "
+                    "off: left is on the picture's left (neurological). on: mirrored, left on the right, as a radiologist "
                     "reads it. The letters and the axes' crosses follow")
                 ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
                     "what happens over the transients: drift, breathing, jitter, motion")
                 ui.button("coils", icon="settings_input_antenna", on_click=coil_gear).props("flat dense no-caps stack").classes("tool").tooltip(
                     "the receive array: its loops, your own sensitivity maps, the noise its channels share")
                 ui.button("maps", icon="layers", on_click=maps).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "load your own: a subject from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
+                    "load your own: the anatomy from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
                 overlays = ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: e.value and (
                     setattr(session, "overlay", e.value), paint())).props(
                     "dense outlined dark options-dense").style("width: 150px").tooltip(
@@ -1542,7 +1550,7 @@ async def console(client: Client):
                                 ui.select({axes: f"90 along {axes[0]}, 180s along {axes[1]} and {axes[2]}" for axes in (
                                     "xyz", "xzy", "yxz", "yzx", "zxy", "zyx")}, label="slice order (real PRESS)", on_change=changed("axes", "card")
                                           ).bind_value(card, "axes").props("dense outlined dark options-dense").classes("w-full").tooltip(
-                                    "the narrow 180s displace a shift the most: the order decides along which two axes of the subject")
+                                    "the narrow 180s displace a shift the most: the order decides along which two axes")
                                 ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
                                     "dense outlined dark").classes("w-full")
                                 ui.number("shim box (mm)", value=session.shim_mm, step=5.0, min=5.0,
@@ -1657,7 +1665,7 @@ async def console(client: Client):
                 view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
                 ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
             panel = ui.label("This voxel").classes("label").tooltip(
-                "one draw of the population, scanned by every exam until a new subject is put on the table (the person icon); "
+                "one draw of the population, scanned by every exam until a new one is put on the table (the person icon); "
                 "the truth a real scanner never shows").classes("label").style("margin-top: 6px")
             with ui.scroll_area().style("flex: 1; width: 100%"):
                 records = ui.column().classes("w-full").style("gap: 1px")

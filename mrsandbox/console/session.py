@@ -101,6 +101,7 @@ IDEALS = {
 }
 # what the planes can wash over the anatomy: the room's maps and the subject's tissues
 OVERLAYS = ("anatomy", "B0 field", "B1+", "grey matter", "white matter", "CSF", "lipid layer")
+LENT = "the QSM head's, carried over"      # a lipid layer for the brains that have no scalp
 # the shifts whose displaced voxels the planes draw beside the planned one
 SHIFTED = {"water": 4.65, "lipid": 1.3}
 
@@ -493,9 +494,19 @@ class Session:
         return out
 
     def lipids(self, path):
-        """Give the subject on the table a lipid layer of the operator's own: a map of the fat-bearing tissue, 0 to 1,
-        brought onto the subject's grid (`onto`)."""
-        self.body().fat = Volume(self.volume(self.onto(path)).data, self.body().affine, name=pathlib.Path(path).name)
+        """Give what lies on the table a lipid layer: the operator's own map of the fat-bearing tissue, 0 to 1, brought
+        onto the anatomy's grid (`onto`); or, with LENT, the QSM challenge head's layer carried into the average brain's
+        or BigBrain-MR's world (resources.qsm QSMHead.fat), which have no scalp of their own."""
+        if path == LENT:
+            from mrsandbox.resources.qsm import QSMHead
+
+            space = {"Brain, ICBM152 average, 2 mm": "icbm152", "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr"}.get(self.subject)
+            if space is None:
+                raise ValueError("the QSM head's layer is carried into the average brain and BigBrain-MR only: another anatomy would need "
+                                 "it registered")
+            self.body().fat = QSMHead.fat(space)
+        else:
+            self.body().fat = Volume(self.volume(self.onto(path)).data, self.body().affine, name=pathlib.Path(path).name)
         for key in [k for k in self._bodies if isinstance(k, tuple) and k[0] in ("fat", "wash")]:
             self._bodies.pop(key)
 

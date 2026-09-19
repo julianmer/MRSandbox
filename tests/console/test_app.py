@@ -59,7 +59,7 @@ class TestApp:
                 await user.should_see("The sub-acquisitions take turns")
                 user.find("Use this design").click()                    # the card plays it from here on, not before
                 user.find(kind=ui.button, content="maps").click()      # a tooltip names the maps too
-                await user.should_see("Your own subject and maps")
+                await user.should_see("Your own anatomy and maps")
                 user.find("Done").click()
                 user.find("the run").click()
                 await user.should_see("a motion event moves the head by")
