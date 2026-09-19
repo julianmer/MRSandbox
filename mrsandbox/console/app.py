@@ -33,6 +33,7 @@ from nicegui import run, ui
 from PIL import Image, ImageFilter
 
 from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
+from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 
 #*************#
@@ -977,6 +978,7 @@ def console():
                     return
                 session.position_mm = [0.0, 0.0, 0.0] if hasattr(session.body(), "contents") else [0.0, -45.0, 35.0]
                 session.view_mm = list(session.position_mm)
+                session.home()
                 if session.field in FieldMap.PRESETS or session.field == "uniform":       # the operator's own map stays
                     session.field = FIELDS.get(session.subject, "uniform")
             if attribute in ("subject", "coil"):
@@ -1013,7 +1015,45 @@ def console():
             pickers["subject"].set_options(list(session.subjects), value=name.value)
             dialog.close()
 
-        parts = {}
+        async def series_of():
+            """The image series under a DICOM folder, converted once (io.read_dicom); a NIfTI file is its own."""
+            source = pathlib.Path(image.value or "").expanduser()
+            if not source.exists():
+                told.text = "No such file or folder on this machine"
+                return
+            if source.is_file() and source.name.endswith((".nii", ".nii.gz")):
+                found.clear()
+                found[source.name] = source
+            else:
+                working.set_visibility(True)
+                try:
+                    found.clear()
+                    found.update(await run.io_bound(read_dicom, source))
+                except Exception as error:
+                    told.text = str(error)[:200]
+                    return
+                finally:
+                    working.set_visibility(False)
+            which.set_options(list(found), value=next((k for k in found if "T1" in k.upper() or "MPRAGE" in k.upper()), next(iter(found))))
+            told.text = f"{len(found)} series; choose the T1-weighted one"
+
+        async def segmented():
+            if not name.value or which.value not in found:
+                told.text = "A name above, and the series to segment"
+                return
+            working.set_visibility(True)
+            told.text = "Extracting the brain and segmenting it with FSL: a few minutes"
+            try:
+                await run.io_bound(session.segment, found[which.value], name.value)
+            except Exception as error:
+                told.text = str(error)[:260]
+                return
+            finally:
+                working.set_visibility(False)
+            pickers["subject"].set_options(list(session.subjects), value=name.value)
+            dialog.close()
+
+        parts, found = {}, {}
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 760px"):
             with ui.row().classes("w-full items-center"):
                 ui.label("Maps of the room · NIfTI, world millimetres").classes("label")
@@ -1041,6 +1081,18 @@ def console():
                     ui.upload(label=which, auto_upload=True, on_upload=lambda e, which=which: tissue(e, which)).props(
                         "flat dense dark accept=.nii,.gz").style("width: 150px")
                 ui.button("On the shelf", icon="person_add", on_click=shelve).props("outline dense no-caps")
+            ui.label("Or from the T1-weighted image alone · a NIfTI file, or a folder of DICOM of any vendor, on this machine").classes(
+                "label").style("white-space: normal")
+            with ui.row().classes("w-full items-center no-wrap"):
+                image = ui.input("path of the image or the DICOM folder").props("dense outlined dark").style("flex: 1")
+                ui.button("find", icon="search", on_click=series_of).props("outline dense no-caps")
+            with ui.row().classes("w-full items-center no-wrap"):
+                which = ui.select([], label="series").props("dense outlined dark").style("flex: 1")
+                working = ui.spinner(size="26px", color=SAND)
+                working.set_visibility(False)
+                ui.button("Segment, and on the shelf", icon="psychology", on_click=segmented).props("outline dense no-caps").tooltip(
+                    "FSL extracts the brain and segments grey matter, white matter and CSF (FSL must be installed); the name is the one above")
+            told = ui.label("").classes("value").style("white-space: normal")
             ui.label("T1, T2, concentrations and every other parameter take a map at their line in the settings (the gears).").classes(
                 "label").style("text-transform: none; letter-spacing: 0")
         dialog.open()

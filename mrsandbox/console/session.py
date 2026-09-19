@@ -473,6 +473,59 @@ class Session:
         if picture is not None:
             self.pictures[name] = lambda: self.volume(picture).data
 
+    def segment(self, t1, name, folder=None, series=None):
+        """Put a subject on the shelf from their T1-weighted image alone (an MPRAGE, a 3D TFE), a NIfTI
+        file or a folder of DICOM of any vendor (io.read_dicom) with the `series` to take from it:
+        the image is brought onto an axis-aligned 1 mm grid in scanner coordinates (nibabel's conform),
+        the neck cropped and the brain extracted (FSL robustfov, bet) and segmented into CSF, grey, and white matter partial volumes
+        (FSL fast), which become the subject's tissue maps with the image as its picture. FSL must
+        be installed (it is no dependency of the package); minutes. The files are kept in `folder`
+        (~/MRSandbox/subjects/<name> unless given). Returns the folder."""
+        import os
+        import shutil
+        import subprocess
+
+        import nibabel as nib
+        import nibabel.processing
+
+        tools = {tool: shutil.which(tool) or shutil.which(tool, path=os.path.expandvars("$FSLDIR/bin") + os.pathsep + os.path.expanduser(
+            "~/fsl/share/fsl/bin")) for tool in ("robustfov", "bet", "fast")}
+        if None in tools.values():
+            raise RuntimeError("FSL's robustfov, bet and fast are needed to segment an image (fsl.fmrib.ox.ac.uk); or give the three tissue maps")
+        folder = pathlib.Path(folder) if folder is not None else pathlib.Path.home() / "MRSandbox" / "subjects" / name
+        folder.mkdir(parents=True, exist_ok=True)
+        if pathlib.Path(t1).is_dir():
+            from mrsandbox.io import read_dicom
+
+            found = read_dicom(t1, folder / "dicom")
+            if series not in found:
+                raise ValueError("which series is the T1-weighted image? " + ", ".join(found))
+            t1 = found[series]
+        nib.save(nibabel.processing.conform(nib.load(str(t1)), out_shape=(256, 256, 256), voxel_size=(1.0, 1.0, 1.0), orientation="RAS"),
+                 str(folder / "t1.nii.gz"))
+        environment = {**os.environ, "FSLOUTPUTTYPE": "NIFTI_GZ", "FSLDIR": os.environ.get("FSLDIR", str(pathlib.Path(tools["bet"]).parents[3]))}
+        # the neck first: a sagittal 3D image reaches far below the brain, and bet then takes neck and scalp for brain. The
+        # cropped image only finds the brain; its mask is carried back onto the whole image's grid by their affines
+        subprocess.run([tools["robustfov"], "-i", str(folder / "t1"), "-r", str(folder / "cropped")], check=True, env=environment, capture_output=True)
+        subprocess.run([tools["bet"], str(folder / "cropped"), str(folder / "cropped_brain"), "-R", "-f", "0.4", "-m"], check=True, env=environment)
+        whole, mask = nib.load(str(folder / "t1.nii.gz")), nib.load(str(folder / "cropped_brain_mask.nii.gz"))
+        onto = nibabel.processing.resample_from_to(mask, whole, order=0)
+        nib.save(nib.Nifti1Image(np.asarray(whole.dataobj) * (np.asarray(onto.dataobj) > 0), whole.affine), str(folder / "brain.nii.gz"))
+        subprocess.run([tools["fast"], "-t", "1", "-n", "3", "-o", str(folder / "tissue"), str(folder / "brain")], check=True, env=environment)
+        self.anatomy(name, folder / "tissue_pve_1.nii.gz", folder / "tissue_pve_2.nii.gz", folder / "tissue_pve_0.nii.gz",
+                     picture=folder / "t1.nii.gz")
+        return folder
+
+    def home(self):
+        """Bring the voxel and the view to the middle of the subject's brain where the planned place holds
+        no tissue (a subject of the operator's own lies in their scanner's coordinates, not the atlas's)."""
+        body = self.body()
+        if sum(body.fractions(tuple(self.position_mm), tuple(self.size_mm))) < 0.2:
+            tissue = np.asarray(body.gm) + np.asarray(body.wm)
+            middle = [float((tissue.sum(axis=tuple(b for b in range(3) if b != a)) * np.arange(tissue.shape[a])).sum() / tissue.sum()) for a in range(3)]
+            self.position_mm = [float(body.affine[a, 3] + body.affine[a, a] * middle[a]) for a in range(3)]
+            self.view_mm = list(self.position_mm)
+
     def fields(self):
         """The room's B0 and B1+ as VirtualScan takes them, made once per choice."""
         key = (self.field, self.transmit)
