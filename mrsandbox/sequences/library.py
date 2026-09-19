@@ -820,6 +820,14 @@ class HadamardEditing(MegaPress):
     and keep the FID-A convention of 5 ms from excitation to the first refocusing
     pulse, which then sits TE/2 before the second: a stated assumption.
 
+    The editing bands here are ideal top hats: right for the edited targets, wrong on the
+    flanks. Against raw in vivo HERMES (OpenNeuro ds005371, six subjects, read without a
+    fit) the ideal bands co-edit glutamate at 3.75 ppm 2.3 times too strongly (its 2.1 ppm
+    partner lies inside the hat, where a Gaussian turns it in part) and leave out half
+    the GABA+ (the macromolecules' partners on a Gaussian's skirts); with the pulses
+    played, `LocalizedMegaPress.scheme(Hermes, ...)`, the same readings agree within a
+    seventh. Take the played scheme where co-editing matters.
+
     Args:
         edit_ppm: Editing band centre(s) in ppm of one sub-experiment.
         taus_s: The five inter-pulse delays in seconds; their sum is the echo time.
