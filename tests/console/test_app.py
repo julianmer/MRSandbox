@@ -50,9 +50,8 @@ class TestApp:
                 user.find("design").click()
                 await user.should_see("the readout opens at")
                 user.find("crusher").click()                            # a block from the palette, after the chosen one
-                await user.should_see("7 blocks")
-                user.find("all pulses shaped").click()                  # ideal pulses become shaped ones of the same flip
-                await user.should_see("1 · shaped pulse")
+                await user.should_see("16 blocks")                      # the card's real PRESS came over, 15 blocks, and one more
+                await user.should_see("1 · as the card plays it")       # its slice-selective 90 as the card plays it
                 user.find("all pulses ideal").click()
                 user.find("Use this design").click()                    # the card plays it from here on, not before
                 user.find("maps").click()
