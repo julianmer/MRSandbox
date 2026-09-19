@@ -679,24 +679,33 @@ class Session:
         makes the design (or the sub-experiments of an edited one), and where its amplitude-modulated 90s
         or 180s ask for more B1 than the scanner has, they are played longer by that factor at the same
         time-bandwidth product, so narrower, and displace a shift more. `fit(cls)` is the design's class
-        with its pulse durations grown; `fit.grow` the factors by flip angle. An adiabatic pulse is left as
-        it is (its peak is an adiabatic threshold, not a flip), and a design whose timings do not hold
-        the longer pulses stays as it was: either then says so among the card's problems."""
+        with its pulse durations grown; `fit.grow` the factors by flip angle. An adiabatic full passage
+        whose peak exceeds the scanner's is played at the scanner's peak and longer by the square of the
+        ratio, which keeps its adiabaticity (peak squared times duration over bandwidth) and with it the
+        inversion: a Bloch simulation of the GOIA-WURST pair pulse gives Mz -0.991 in the slab as designed
+        (15 uT, 4.5 ms), -0.980 at 13.5 uT unfitted, -0.993 fitted (5.56 ms), and -0.915 against -0.995 at
+        11 uT. A design whose timings do not hold the longer pulses stays as it was and says so among the
+        card's problems."""
+        limit = 42.5774785 * self.profile().scanner.peak_b1_ut
+
         def fit(cls, grow=None):
             grow = fit.grow if grow is None else grow
             longer = {name: getattr(cls, name) * grow[flip] for name, flip in (("PULSE_S", 90), ("EXCITATION_S", 90), ("REFOCUSING_S", 180))
                       if hasattr(cls, name) and grow[flip] > 1.0}
+            if fit.adiabatic and getattr(cls, "AFP_PEAK_HZ", 0.0) > limit:
+                longer.update(AFP_PEAK_HZ=0.99 * limit, AFP_S=cls.AFP_S * (cls.AFP_PEAK_HZ / (0.99 * limit)) ** 2)
             return type(cls.__name__, (cls,), longer) if longer else cls
 
-        fit.grow, self.unfitted = {90: 1.0, 180: 1.0}, ""
+        fit.grow, fit.adiabatic, self.unfitted = {90: 1.0, 180: 1.0}, False, ""           # the probe is the design as it is typed
         probe = build(fit)
-        limit = 42.5774785 * self.profile().scanner.peak_b1_ut
         for design in (probe.values() if isinstance(probe, dict) else (probe,)):
             for event in design.events:
                 if isinstance(event, ShapedPulse) and event.peak_hz is not None and event.flip_deg is not None and float(event.flip_deg) in (90.0, 180.0):
                     fit.grow[int(event.flip_deg)] = max(fit.grow[int(event.flip_deg)], 1.02 * float(event.peak_hz) / limit)
         fit.grow = {flip: factor if factor > 1.02 else 1.0 for flip, factor in fit.grow.items()}
-        if max(fit.grow.values()) == 1.0:
+        fit.adiabatic = any(isinstance(event, ShapedPulse) and event.flip_deg is None and event.peak_hz is not None and float(event.peak_hz) > limit
+                        for design in (probe.values() if isinstance(probe, dict) else (probe,)) for event in design.events)
+        if max(fit.grow.values()) == 1.0 and not fit.adiabatic:
             return probe
         try:
             return build(fit)

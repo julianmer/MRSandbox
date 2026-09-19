@@ -177,10 +177,13 @@ class TestSession:
             look = session.outlook()
             assert look["violations"] == ()                                        # longer pulses at the same time-bandwidth product
             assert np.all(np.abs(session.displacement(4.65)) >= prisma[name]) and np.abs(session.displacement(4.65)).max() > prisma[name].max()
-        session.protocol.sequence = "sLASER"                                       # TE 30 does not hold a longer excitation: it says so
+        session.protocol.sequence = "sLASER"                                       # TE 30 does not hold the longer pulses: it says so
         assert "a longer TE may" in session.outlook()["violations"][-1]
-        session.protocol.te_ms = 40.0
-        assert all("90" not in problem and "TE" not in problem for problem in session.outlook()["violations"])
+        session.protocol.te_ms = 40.0                                              # the adiabatic pairs at the scanner's peak, longer
+        assert session.outlook()["violations"] == ()
+        pairs = [event for event in session.sequence().events if getattr(event, "flip_deg", 0) is None and hasattr(event, "peak_hz")]
+        assert len(pairs) == 4 and all(float(event.peak_hz) <= 42.5774785 * 13.5 for event in pairs)
+        assert float(pairs[0].duration_s) == pytest.approx(0.0045 * (15.0 / (0.99 * 13.5)) ** 2)   # peak squared times duration held
 
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
