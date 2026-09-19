@@ -108,6 +108,8 @@ GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2"
           "spurious": "Spurious echoes"}
 WAYS = ["as its source gives it", "set to", "vary between", "from a map"]
 OWN = "your own file ..."      # on top of every drop-down of stored maps
+# the package's stored maps by one name each, the same on every line
+STORED = {"qsm_rc2": "QSM head", "bigbrain_mr": "BigBrain-MR", LENT: "QSM head"}
 # the displaced voxels' colours on the planes (session.SHIFTED)
 SHIFT_COLOURS = {"water": "#7FB2D9", "lipid": "#D98BB0", "shim": "#E6D84A"}
 # the planes' edges as a console letters them (top, bottom, left, right), and the axis each plane leafs along
@@ -1063,12 +1065,23 @@ async def console(client: Client):
             told.text = f"{pathlib.Path(path).name} waits as the {what}: Apply puts it in force"
 
         async def register(what):
-            if what not in own:
-                told.text = "Choose your own file on this line first: what the package has stored lies where it should already"
+            """A file of the operator's own is registered to the anatomy; a stored map of one of the package's heads is
+            carried over onto an anatomy of the operator's own, by registering that head onto it (Session.borrow)."""
+            stored = shown_now[what] if shown_now[what] in STORED else None
+            if what not in own and (stored is None or what not in ("B0", "lipid")):
+                told.text = "Choose your own file, or a stored map of another head, on this line first"
+                return
+            if what not in own and session.subject not in session.images:
+                told.text = ("This anatomy is the package's own and has its maps where they belong. Put an anatomy of your own in force "
+                             "first (Apply), then carry the stored map over onto it")
                 return
             working.set_visibility(True)
             try:
-                stage(what, await run.io_bound(session.register, own[what], own.get("anatomy")))
+                if what in own:
+                    stage(what, await run.io_bound(session.register, own[what], own.get("anatomy")))
+                else:
+                    told.text = f"Registering the {STORED[stored]} onto your anatomy and carrying its {what} map over: some minutes the first time"
+                    stage(what, await run.io_bound(session.borrow, what, "bigbrain_mr" if stored == "bigbrain_mr" else "qsm_rc2"))
                 told.text = f"The {what} is registered to the anatomy and waits for Apply"
             except Exception as error:
                 told.text = f"Not registered: {error}"[:260]
@@ -1107,7 +1120,7 @@ async def console(client: Client):
             dialog.close()
             room()
             draw()
-            maps(f"In force: {session.subject}, B0 {pathlib.Path(session.field).name}, B1+ "       # the pop-up stays, showing what is
+            maps(f"In force: {session.subject}, B0 {STORED.get(session.field, pathlib.Path(session.field).name)}, B1+ "       # the pop-up stays, showing what is
                  f"{'nominal' if session.transmit is None else pathlib.Path(session.transmit).name}")  # loaded now, for the next change
 
         fat = getattr(session.body(), "fat", None)
@@ -1129,14 +1142,15 @@ async def console(client: Client):
                 shown_now[what] = now
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                     ui.label(caption).style("width: 170px")
-                    selects[what] = ui.select({OWN: OWN, **{option: option for option in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
+                    selects[what] = ui.select({OWN: OWN, **{option: STORED.get(option, option) for option in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
                                               value=now, on_change=lambda e, what=what: picked(what, e.value)).mark(f"line {what}").props(
                         "dense outlined dark options-dense").style("flex: 1")
                     if what != "anatomy":
                         ui.button("Register", icon="my_location", on_click=lambda _, what=what: register(what)).props("outline dense no-caps").style(
                             "width: 130px").tooltip(
-                            "for a file of ANOTHER session: FSL flirt, rigid, onto the anatomy. A file of the same session lies where the "
-                            "anatomy lies already. A field map in Hz shows no anatomy: register its magnitude image instead")
+                            "a file of yours from ANOTHER session: FSL flirt, rigid, onto the anatomy (one of the same session lies where the "
+                            "anatomy lies already; a field map in Hz shows no anatomy: register its magnitude image instead). A stored B0 or "
+                            "lipid map of the QSM head or BigBrain-MR: that head is registered onto your own anatomy and its map carried over")
                     else:       # the same as Apply does for a new anatomy without tissue maps, at once
                         ui.button("Segment", icon="psychology", on_click=apply).props("outline dense no-caps").style("width: 130px").tooltip(
                             "your own image into grey matter, white matter and CSF (FSL, about two minutes), with everything else "
@@ -1511,10 +1525,12 @@ async def console(client: Client):
                                             e.value is not None and e.value != session.size_mm[axis] and (
                                                 session.size_mm.__setitem__(axis, float(e.value)), room(), draw()))).props(
                                             "dense outlined dark").style("flex: 1; min-width: 0"))
-                                ui.select({axes: f"90 along {axes[0]}, 180s along {axes[1]} and {axes[2]}" for axes in (
-                                    "xyz", "xzy", "yxz", "yzx", "zxy", "zyx")}, label="slice order (real PRESS)", on_change=changed("axes", "card")
-                                          ).bind_value(card, "axes").props("dense outlined dark options-dense").classes("w-full").tooltip(
-                                    "the narrow 180s displace a shift the most: the order decides along which two axes")
+                                ui.select({axes: ", ".join(axes) for axes in ("xyz", "xzy", "yxz", "yzx", "zxy", "zyx")}, label="slice order (real pulses)",
+                                          on_change=changed("axes", "card")).bind_value(card, "axes").props(
+                                    "dense outlined dark options-dense").classes("w-full").tooltip(
+                                    "along which axis the first, the second and the third slice pulse selects, for every sequence: a PRESS's 90 "
+                                    "and its two 180s, a STEAM's three 90s, an sLASER's 90 and its two pairs. The narrowest pulses displace a "
+                                    "shift the most, so the order decides along which axes that happens")
                                 ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
                                     "dense outlined dark").classes("w-full")
                                 ui.number("shim box (mm)", value=session.shim_mm, step=5.0, min=5.0,

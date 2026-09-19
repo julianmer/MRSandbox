@@ -15,6 +15,7 @@
 #*************#
 #   imports   #
 #*************#
+import copy
 import dataclasses
 import json
 import pathlib
@@ -401,7 +402,7 @@ class Session:
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
-        self.subjects, self.pictures = dict(SUBJECTS), dict(PICTURES)
+        self.subjects, self.pictures, self.images = dict(SUBJECTS), dict(PICTURES), {}
         self.field = FIELDS.get(self.subject, "uniform")
         self.transmit = None
         self.shim, self.shim_mm = "linear", None
@@ -519,6 +520,7 @@ class Session:
                                                       fat=None if fat is None else self.volume(fat).data)
         if picture is not None:
             self.pictures[name] = lambda: self.volume(picture).data
+            self.images[name] = pathlib.Path(picture)
 
     def segment(self, t1, name, folder=None, series=None):
         """Put a subject on the shelf from their T1-weighted image alone (an MPRAGE, a 3D TFE), a NIfTI
@@ -758,6 +760,49 @@ class Session:
         self.own_noise = float(CovarianceReading.from_nifti(str(source)).own_noise(array))
         return self.own_noise
 
+    def borrow(self, what, source="qsm_rc2"):
+        """Lend an anatomy of the operator's own a map of one of the package's heads: the QSM challenge head's B0 field
+        or lipid layer, or BigBrain-MR's field, carried over by registering that head's own anatomical image (its R1
+        map) onto the operator's T1-weighted image, FSL flirt with twelve degrees of freedom, and playing the transform
+        on the map. It is ANOTHER head's field and scalp in this head's shape: a fair stand-in where no map of the
+        operator's exists, not a measurement of them. The transform is kept beside the anatomy's image and found again.
+        Returns the path of the carried map, on the anatomy's grid."""
+        import os
+        import shutil
+        import subprocess
+
+        import nibabel as nib
+
+        if self.subject not in self.images:
+            raise ValueError("a map is carried over onto an anatomy of your own with its image; the package's heads have their own maps")
+        flirt = shutil.which("flirt") or shutil.which("flirt", path=os.path.expandvars("$FSLDIR/bin") + os.pathsep + os.path.expanduser(
+            "~/fsl/share/fsl/bin"))
+        if flirt is None:
+            raise RuntimeError("FSL's flirt is needed to carry a map over (fsl.fmrib.ox.ac.uk)")
+        environment = {**os.environ, "FSLOUTPUTTYPE": "NIFTI_GZ", "FSLDIR": os.environ.get("FSLDIR", str(pathlib.Path(flirt).parents[3]))}
+        image = self.images[self.subject]
+        folder = image.parent / "carried_over"
+        folder.mkdir(exist_ok=True)
+        transform = folder / f"{source}_to_this.mat"
+        if not transform.exists():
+            theirs = Volume.load("qsm_rc2/r1") if source == "qsm_rc2" else Volume.load("bigbrain_mr/t1map_800um")
+            shown = theirs.data if source == "qsm_rc2" else np.where(theirs.data > 0.0, 1.0 / np.maximum(theirs.data, 0.5), 0.0)
+            nib.save(nib.Nifti1Image(np.asarray(shown, dtype=np.float32), theirs.affine), str(folder / f"{source}_anatomy.nii.gz"))
+            subprocess.run([flirt, "-in", str(folder / f"{source}_anatomy"), "-ref", str(image), "-omat", str(transform), "-dof", "12",
+                            "-cost", "normmi", "-searchrx", "-30", "30", "-searchry", "-30", "30", "-searchrz", "-30", "30"],
+                           check=True, env=environment)
+        if what == "B0":
+            field = FieldMap.load(source, b0_t=self.profile().scanner.b0_t)
+            moving = nib.Nifti1Image(np.asarray(field.volume.data, dtype=np.float32), field.volume.affine)
+        else:
+            fat = Brain.load("qsm_rc2").fat
+            moving = nib.Nifti1Image(np.asarray(fat.data, dtype=np.float32), fat.affine)
+        nib.save(moving, str(folder / f"{source}_{what}.nii.gz"))
+        out = folder / f"{source}_{what}_on_this.nii.gz"
+        subprocess.run([flirt, "-in", str(folder / f"{source}_{what}"), "-ref", str(image), "-applyxfm", "-init", str(transform), "-out", str(out)],
+                       check=True, env=environment)
+        return self.onto(out)
+
     def register(self, path, reference=None):
         """Bring a map of ANOTHER session onto the subject on the table: FSL flirt, rigid (six degrees of freedom,
         normalized mutual information), of the map's own image onto the subject's picture, then resampled onto its
@@ -844,10 +889,10 @@ class Session:
             return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None, None, None)
         scanner = self.profile().scanner
         if card.sequence == "Custom":
-            design = self.own(card.tr_ms / 1000.0)
+            design = self.turned(self.own(card.tr_ms / 1000.0), card.axes)
         else:
-            design = self.fitted(lambda fit: SEQUENCES[card.sequence](
-                card.te_ms / 1000.0, card.tr_ms / 1000.0, 42.5774785 * scanner.b0_t, tuple(self.size_mm), fit, card.axes))
+            design = self.turned(self.fitted(lambda fit: SEQUENCES[card.sequence](
+                card.te_ms / 1000.0, card.tr_ms / 1000.0, 42.5774785 * scanner.b0_t, self.edges(card.axes), fit, "xyz")), card.axes)
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
@@ -859,6 +904,30 @@ class Session:
     @design.setter
     def design(self, blocks):
         self.designs[self.condition] = blocks
+
+    def edges(self, axes):
+        """The voxel's edges in the order a design's first, second and third slice pulse will select them: the
+        designs are made along x, y, z and then turned (`turned`), so the first pulse gets the edge of axes[0]."""
+        return tuple(float(self.size_mm["xyz".index(axis)]) for axis in axes)
+
+    @staticmethod
+    def turned(design, axes):
+        """The same design with its slice order as the operator wants it, "yzx" say: what it plays along x (its first
+        slice pulse and that pulse's gradients), it plays along axes[0], and so on, for every design alike: PRESS and
+        sLASER (the 90, then the two pairs), STEAM (its three 90s), the edited ones, and an own design of slice-selective
+        pulses and crushers. Every event is copied once, so a pulse played four times stays one object and is computed once."""
+        if axes == "xyz":
+            return design
+        copies = {}
+        for event in design.events:
+            if id(event) not in copies:
+                copies[id(event)] = event = copy.copy(event)
+                for name in ("gradient_axis", "axis"):
+                    if getattr(event, name, None) in ("x", "y", "z"):
+                        setattr(event, name, axes["xyz".index(getattr(event, name))])
+        turned = copy.copy(design)
+        turned.events = tuple(copies[id(event)] for event in design.events)
+        return turned
 
     def fitted(self, build):
         """A real design fitted to the scanner's transmitter, as a vendor fits its pulses: `build(fit)`
@@ -993,7 +1062,8 @@ class Session:
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
         card = dataclasses.replace(card, sequence=REAL[card.sequence]) if card.real and card.sequence in REAL else card
         conditions = self.fitted(lambda fit: EDITING[card.sequence][0](
-            card, card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm), fit))
+            card, card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, self.edges(card.axes), fit))
+        conditions = {name: self.turned(design, card.axes) for name, design in conditions.items()}
         for prelude in reversed(self.preludes(card).values()):      # water suppression and OVS before every sub-experiment
             conditions = {name: prelude + design for name, design in conditions.items()}
         return conditions
