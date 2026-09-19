@@ -1187,8 +1187,9 @@ def console():
                     field.on_value_change(lambda: setattr(session, "motion_mm", None if low.value is None or high.value is None
                                                           else (float(min(low.value, high.value)), float(max(low.value, high.value)))))
             ui.label("Empty: the head stays, the events kick the frequency, the phase and the amplitude alone. A moved head is scanned "
-                     "where it then lies, under the shim of the planned place. Review shows the tracks of every exam. Phase cycling is "
-                     "not played: the engine keeps the wanted coherence pathway by crushers and filters.").classes("label").style(
+                     "where it then lies, under the shim of the planned place. Review shows the tracks of every exam. A phase cycle is "
+                     "set in the designer (a pulse's phase stepped over the transients, the receiver following); the cards keep their "
+                     "pathways by crushers and filters.").classes("label").style(
                 "text-transform: none; letter-spacing: 0")
         dialog.open()
 
