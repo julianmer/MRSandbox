@@ -29,7 +29,7 @@ import sys
 import time
 
 import numpy as np
-from nicegui import Client, app, run, ui
+from nicegui import Client, run, ui
 from PIL import Image, ImageFilter
 
 from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, LENT, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
@@ -136,13 +136,15 @@ if LOGO is not None:
         if (grown == backdrop).all():
             break
         backdrop = grown
-    small.putalpha(Image.fromarray(np.uint8(255 * ~backdrop)).filter(ImageFilter.GaussianBlur(1.2)))
+    # the cut is drawn in by a few pixels: the rim between sand and backdrop still carries the backdrop's glow
+    kept = Image.fromarray(np.uint8(255 * ~backdrop)).filter(ImageFilter.MinFilter(7))
+    small.putalpha(kept.filter(ImageFilter.GaussianBlur(1.0)))
     buffer = io.BytesIO()
     small.resize((151, 100), Image.LANCZOS).save(buffer, format="PNG")
     MARK = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
     # and large for the loading screen, from the original's own pixels (the cut carried up to them), three
     # device pixels per shown one, so that it stays sharp on a dense display
-    full.putalpha(Image.fromarray(np.uint8(255 * ~backdrop)).resize(full.size, Image.LANCZOS).filter(ImageFilter.GaussianBlur(2.0)))
+    full.putalpha(kept.resize(full.size, Image.LANCZOS).filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.5)))
     buffer = io.BytesIO()
     full.resize((678, 450), Image.LANCZOS).save(buffer, format="PNG")
     MARK_LARGE = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
@@ -242,6 +244,23 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
                    f'<text x="{x(begin + t):.1f}" y="{height - 7}" fill="{DIM}" text-anchor="middle" font-size="9">{t:g}</text>')
     out.append(f'<text x="6" y="{height - 7}" fill="{DIM}" font-size="9">ms</text></svg>')
     return "".join(out)
+
+
+#*****************#
+#   choose file   #
+#*****************#
+def choose_file(prompt):
+    """The operating system's own file dialog, as a process of its own, and the chosen path or None. The console
+    runs on the operator's machine, so its server can ask; the embedded window's dialog (pywebview through
+    NiceGUI) came back empty at once on macOS here and is not relied on. macOS: AppleScript's choose file;
+    elsewhere: Tk's, in a Python of its own, because Tk wants a main thread."""
+    if sys.platform == "darwin":
+        command = ["osascript", "-e", f'POSIX path of (choose file with prompt "{prompt}")']
+    else:
+        command = [sys.executable, "-c", "import tkinter, tkinter.filedialog as d; r = tkinter.Tk(); r.withdraw(); "
+                                         f"r.attributes('-topmost', True); print(d.askopenfilename(title={prompt!r}))"]
+    chosen = subprocess.run(command, capture_output=True, text=True).stdout.strip()
+    return pathlib.Path(chosen) if chosen else None
 
 
 # the spectrum display's chart, the console's and the designer's
@@ -395,7 +414,7 @@ async def console(client: Client):
             any(moved) for moved in look["displaced"].values()) else "none, the localization is ideal"
         texts["linewidth"].text = ("uniform field, none" if look["linewidth_hz"] is None else
                                    f"{look['linewidth_hz']:.1f} Hz on a 1 Hz line, {session.shim} shim")
-        texts["lipid"].text = ("no lipid layer on the table" if look["lipid_mm"] is None else
+        texts["lipid"].text = ("this anatomy has no lipid layer" if look["lipid_mm"] is None else
                                f"{look['lipid_mm'][0]:.0f} mm from the voxel, {look['lipid_mm'][1]:.0f} mm from where lipid is selected")
         texts["lipid"].style(f"color: {BAD if look['lipid_mm'] is not None and min(look['lipid_mm']) < 1.0 else INK}")
         texts["tissue"].text = f"GM {look['gm']:.2f}  WM {look['wm']:.2f}  CSF {look['csf']:.2f}"
@@ -406,7 +425,7 @@ async def console(client: Client):
         texts["verdict"].text = "plays on this scanner" if not look["violations"] else "; ".join(look["violations"])
         texts["verdict"].style(f"color: {GOOD if not look['violations'] else BAD}")
         records.clear()
-        with records:       # the draw of the population that lies on the table, at the planned voxel: what the exams will scan
+        with records:       # the draw of the population that is scanned, at the planned voxel: what the exams will scan
             where = session.view_mm if chosen["looking"] else session.position_mm
             panel.text = "Where you look (shift)" if chosen["looking"] else "This voxel"
             for group, values in session.place_of(where).items():
@@ -648,7 +667,7 @@ async def console(client: Client):
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px; max-width: 1000px"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"Settings · {dict(subject='on the table').get(panel, panel) if panel else 'everything'}").classes("label")
+                ui.label(f"Settings · {dict(subject='anatomy or phantom').get(panel, panel) if panel else 'everything'}").classes("label")
                 ui.space()
                 ui.input(placeholder="search, e.g. NAA or t2", on_change=lambda e: build(e.value or "")).props(
                     "dense outlined dark clearable debounce=300").style("width: 260px")
@@ -970,7 +989,7 @@ async def console(client: Client):
                                   for name, real in exam.spectra.items()]}).style("height: 300px").classes("w-full")
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch"):
                 with ui.column().style("flex: 2; min-width: 0"):
-                    ui.label("Over the transients · what the scanner and what lay on the table did").classes("label")
+                    ui.label("Over the transients · frequency, phase and amplitude as they ran").classes("label")
                     ui.echart({"backgroundColor": "transparent", "animation": False, "legend": legend, "color": palette,
                                "grid": {"left": 40, "right": 12, "top": 34, "bottom": 28}, "tooltip": {"trigger": "axis"},
                                "xAxis": {**axis, "name": "transient"}, "yAxis": {**axis, "scale": True},
@@ -1029,151 +1048,126 @@ async def console(client: Client):
         return folder / event.file.name
 
     def maps():
-        """What lies on the table, line by line: the anatomy, its three tissues, and its B0, B1+ and lipid maps. Every line
-        says what is loaded now, offers what the package has stored and "your own file ..." on top (one file dialog, NIfTI
-        or DICOM of any vendor), and has the one action that belongs to it: an anatomy is segmented into its tissues, every
-        other map is registered to the anatomy."""
-        own, selects = {}, {}          # the operator's files by line, and the lines' drop-downs
+        """The anatomy and its maps, line by line: the anatomy (a T1-weighted image), its three tissues, and its B0, B1+ and
+        lipid maps. Every line says what is loaded now and offers what the package has stored, with "your own file ..." on
+        top (the system's file dialog; NIfTI, or DICOM of any vendor). What is chosen waits; "Apply" at the end puts it all
+        in force at once: a new anatomy with own tissue maps is used as it is, one without them is segmented first, and
+        every map is brought onto the anatomy's grid. "Register" on a line is for a file of another session."""
+        own, selects, shown_now = {}, {}, {}          # the operator's files by line, the lines' drop-downs, what each shows
 
-        async def file_of(what):
-            """One file chosen with a click; a DICOM file gives its series as NIfTI (io.read_dicom)."""
-            window = app.native.main_window
-            if window is None:
-                own["waiting"] = what
-                told.text = f"In a browser: upload the {what} file below"
-                return None
-            files = await window.create_file_dialog(allow_multiple=False)
-            if not files:
-                return None
-            chosen_file = pathlib.Path(files[0])
-            if not chosen_file.name.endswith((".nii", ".nii.gz")):
-                told.text = "Reading the DICOM"
-                chosen_file = max((await run.io_bound(read_dicom, chosen_file)).values(), key=lambda path: path.stat().st_size)
-            return chosen_file
+        async def picked(what, value):
+            """A stored choice waits as it is; "your own file ..." asks for the file, and a DICOM file gives its series."""
+            if value != OWN:
+                own.pop(what, None)
+                shown_now[what] = value
+                return
+            try:
+                chosen_file = await run.io_bound(choose_file, f"The {what} file: NIfTI, or any DICOM file of the series")
+                if chosen_file is None:
+                    selects[what].set_value(shown_now[what])       # back to what it showed, so that the line can be chosen again
+                    return
+                if not chosen_file.name.endswith((".nii", ".nii.gz")):
+                    told.text = "Reading the DICOM"
+                    chosen_file = max((await run.io_bound(read_dicom, chosen_file)).values(), key=lambda path: path.stat().st_size)
+                stage(what, chosen_file)
+            except Exception as error:
+                told.text = f"Not taken: {error}"[:260]
 
-        def taken(what, path):
-            """A file takes its line. An anatomy and its tissues wait until they are used together; a B0, B1+ or lipid map
-            is brought onto the anatomy's grid by the scanner's coordinates and is in force at once."""
-            if what in ("B0", "B1+", "lipid"):
-                path = session.onto(path)
-                if what == "B0":
-                    session.field = str(path)
-                elif what == "B1+":
-                    session.transmit = str(path)
-                else:
-                    session.lipids(path)
-                draw()
-            own[what] = str(path)
+        def stage(what, path):
+            own[what] = shown_now[what] = str(path)
             selects[what].options[str(path)] = pathlib.Path(path).name
             selects[what].update()
             selects[what].set_value(str(path))
-            told.text = {"anatomy": "A new anatomy: segment it, or give its three tissue maps below and use them"}.get(
-                what, f"{pathlib.Path(path).name} is the {what} map")
+            told.text = f"{pathlib.Path(path).name} waits as the {what}: Apply puts it in force"
 
-        async def picked(what, value):
-            if value == OWN:
-                try:
-                    path = await file_of(what)
-                    if path is not None:
-                        taken(what, path)
-                except Exception as error:
-                    told.text = f"Not taken: {error}"[:260]
-            elif what == "anatomy" and value in session.subjects:
-                pickers["subject"].set_value(value)         # the same as the picker in the top bar
-                dialog.close()
-                maps()
-            elif what == "B0":
-                session.field = value
-                draw()
-            elif what == "B1+" and value == "nominal":
-                session.transmit = None
-                draw()
-            elif what == "lipid" and value == LENT:
-                try:
-                    session.lipids(LENT)
-                    told.text = "The QSM head's lipid layer lies about this brain now"
-                    room()
-                    draw()
-                except Exception as error:
-                    told.text = str(error)[:260]
-
-        async def uploaded(event):
-            if "waiting" in own:
-                taken(own.pop("waiting"), await keep(event))
-
-        async def act(what):
-            """The line's action: segment a new anatomy into its tissues, register any other file of the operator's."""
+        async def register(what):
             if what not in own:
                 told.text = "Choose your own file on this line first: what the package has stored lies where it should already"
                 return
             working.set_visibility(True)
             try:
-                if what == "anatomy":
-                    label = name.value or pathlib.Path(own["anatomy"]).name.split(".")[0]
-                    told.text = "Cropping the neck, extracting the brain and segmenting it with FSL: about two minutes"
-                    await run.io_bound(session.segment, own["anatomy"], label)
-                    pickers["subject"].set_options(list(session.subjects), value=label)
-                    dialog.close()
-                else:
-                    taken(what, await run.io_bound(session.register, own[what], own.get("anatomy") if what in ("GM", "WM", "CSF") else None))
-                    told.text = f"The {what} map is registered to the anatomy"
+                stage(what, await run.io_bound(session.register, own[what], own.get("anatomy")))
+                told.text = f"The {what} is registered to the anatomy and waits for Apply"
             except Exception as error:
-                told.text = f"Not done: {error}"[:260]
+                told.text = f"Not registered: {error}"[:260]
             finally:
                 working.set_visibility(False)
 
-        def use():
-            """The operator's own anatomy from their own tissue maps."""
-            if not {"GM", "WM", "CSF"} <= set(own):
-                told.text = "Your own GM, WM and CSF maps are needed (or segment the anatomy instead)"
+        async def apply():
+            """Everything that waits, in the order it depends on: the anatomy first, then the maps onto it."""
+            working.set_visibility(True)
+            try:
+                if "anatomy" in own or {"GM", "WM", "CSF"} <= set(own):
+                    label = name.value or pathlib.Path(own.get("anatomy", own.get("GM", "anatomy"))).name.split(".")[0]
+                    if {"GM", "WM", "CSF"} <= set(own):
+                        session.anatomy(label, own["GM"], own["WM"], own["CSF"], picture=own.get("anatomy"))
+                    else:
+                        told.text = "Cropping the neck, extracting the brain and segmenting it with FSL: about two minutes"
+                        await run.io_bound(session.segment, own["anatomy"], label)
+                    pickers["subject"].set_options(list(session.subjects), value=label)
+                elif shown_now["anatomy"] != session.subject:
+                    pickers["subject"].set_value(shown_now["anatomy"])
+                for what in ("B0", "B1+", "lipid"):
+                    value = own.get(what, shown_now[what])
+                    if what in own:
+                        value = str(session.onto(own[what]))
+                    if what == "B0":
+                        session.field = value
+                    elif what == "B1+":
+                        session.transmit = None if value == "nominal" else value
+                    elif value == LENT or what in own:
+                        session.lipids(value)
+            except Exception as error:
+                told.text = f"Not applied: {error}"[:260]
                 return
-            label = name.value or "my anatomy"
-            session.anatomy(label, own["GM"], own["WM"], own["CSF"], picture=own.get("anatomy"))
-            pickers["subject"].set_options(list(session.subjects), value=label)
+            finally:
+                working.set_visibility(False)
             dialog.close()
+            room()
+            draw()
 
         fat = getattr(session.body(), "fat", None)
-        lines = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject, "Segment into tissues"),
-                 ("GM", "grey matter", [f"of {session.subject}"], f"of {session.subject}", "Register to the anatomy"),
-                 ("WM", "white matter", [f"of {session.subject}"], f"of {session.subject}", "Register to the anatomy"),
-                 ("CSF", "CSF", [f"of {session.subject}"], f"of {session.subject}", "Register to the anatomy"),
-                 ("B0", "B0 field (Hz)", ["uniform", *FieldMap.PRESETS], session.field, "Register to the anatomy"),
-                 ("B1+", "B1+ (of nominal)", ["nominal"], session.transmit or "nominal", "Register to the anatomy"),
-                 ("lipid", "lipid layer (0 to 1)", ["its own" if fat is not None else "none", LENT], "its own" if fat is not None else "none",
-                  "Register to the anatomy"))
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px"):
+        lines = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject),
+                 ("GM", "grey matter", [f"of {session.subject}"], f"of {session.subject}"),
+                 ("WM", "white matter", [f"of {session.subject}"], f"of {session.subject}"),
+                 ("CSF", "CSF", [f"of {session.subject}"], f"of {session.subject}"),
+                 ("B0", "B0 field (Hz)", ["uniform", *FieldMap.PRESETS], session.field),
+                 ("B1+", "B1+ (of nominal)", ["nominal"], session.transmit or "nominal"),
+                 ("lipid", "lipid layer (0 to 1)", ["its own" if fat is not None else "none", LENT], "its own" if fat is not None else "none"))
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 820px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("What lies on the table").style(f"color: {SAND}; font-size: 15px")
+                ui.label("Anatomy and maps").style(f"color: {SAND}; font-size: 15px")
                 ui.space()
                 working = ui.spinner(size="26px", color=SAND)
                 working.set_visibility(False)
-                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
             told = ui.label("").classes("value").style("white-space: normal")
-            for what, caption, stored, now, action in lines:
+            for what, caption, stored, now in lines:
+                shown_now[what] = now
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                     ui.label(caption).style("width: 170px")
                     selects[what] = ui.select({OWN: OWN, **{option: option for option in stored}, **({now: pathlib.Path(now).name} if now not in stored else {})},
                                               value=now, on_change=lambda e, what=what: picked(what, e.value)).props(
                         "dense outlined dark options-dense").style("flex: 1")
-                    ui.button(action, icon="psychology" if what == "anatomy" else "my_location", on_click=lambda _, what=what: act(what)).props(
-                        "outline dense no-caps").style("width: 220px").tooltip(
-                        "FSL crops the neck, extracts the brain and segments grey matter, white matter and CSF; the bright tissue beyond the "
-                        "bone becomes the lipid layer. It fills the three lines below and puts the anatomy on the table" if what == "anatomy" else
-                        "for a file of ANOTHER session: FSL flirt, rigid, onto the anatomy. A file of the same session lies where the anatomy "
-                        "lies already. A field map in Hz shows no anatomy: register its magnitude image instead")
-                if what == "CSF":
-                    with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
-                        name = ui.input("name of a new anatomy (the file's, if empty)").props("dense outlined dark").style("flex: 1")
-                        ui.button("Use my three tissue maps", icon="person_add", on_click=use).props("outline dense no-caps").style("width: 220px").tooltip(
-                            "in place of segmenting: your own GM, WM and CSF maps, with the anatomy above as the picture, become what lies "
-                            "on the table")
+                    if what != "anatomy":
+                        ui.button("Register", icon="my_location", on_click=lambda _, what=what: register(what)).props("outline dense no-caps").style(
+                            "width: 130px").tooltip(
+                            "for a file of ANOTHER session: FSL flirt, rigid, onto the anatomy. A file of the same session lies where the "
+                            "anatomy lies already. A field map in Hz shows no anatomy: register its magnitude image instead")
+                    else:       # the same as Apply does for a new anatomy without tissue maps, at once
+                        ui.button("Segment", icon="psychology", on_click=apply).props("outline dense no-caps").style("width: 130px").tooltip(
+                            "your own image into grey matter, white matter and CSF (FSL, about two minutes), with everything else "
+                            "that waits on the lines")
             ui.switch("the B0 map was measured after my own shim: apply none", value=session.shim == "none", on_change=lambda e: (
-                setattr(session, "shim", "none" if e.value else "linear"), draw())).props("dense color=accent")
-            fallback = ui.upload(label="in a browser: upload the file chosen above", auto_upload=True, on_upload=lambda e: uploaded(e)).props(
-                "flat dense dark accept=.nii,.gz").style("width: 320px")
-            fallback.set_visibility(app.native.main_window is None)
-            ui.label("T1, T2, concentrations and every other parameter take a map at their line in the settings (the gears); coil "
-                     "sensitivities belong to the coils.").classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+                setattr(session, "shim", "none" if e.value else "linear"))).props("dense color=accent")
+            ui.label("A new anatomy with your own three tissue maps is used as it is. Without them it is segmented on Apply (FSL: the neck "
+                     "cropped, the brain extracted, grey matter, white matter and CSF; the bright tissue beyond the bone becomes the lipid "
+                     "layer): about two minutes. T1, T2, concentrations and every other parameter take a map at their line in the "
+                     "settings (the gears); coil sensitivities belong to the coils.").classes("label").style(
+                "text-transform: none; letter-spacing: 0; white-space: normal")
+            with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
+                name = ui.input("name of a new anatomy (the file's, if empty)").props("dense outlined dark").style("flex: 1")
+                ui.button("Cancel", on_click=dialog.close).props("flat dense no-caps")
+                ui.button("Apply", icon="check", on_click=apply).mark("apply the maps").props("unelevated dense no-caps").style("width: 120px")
         dialog.open()
 
     def realism():
@@ -1334,11 +1328,12 @@ async def console(client: Client):
             async def own(kind):
                 """The operator's own: measured sensitivity maps (the array is then theirs), or a raw scan with the coils apart,
                 from which the channels' own share of the noise is read."""
-                window = app.native.main_window
-                files = await window.create_file_dialog(allow_multiple=False) if window is not None else None
-                if not files:
-                    said.text = "No file chosen" if window is not None else "Choosing a file needs the console's own window"
+                picked_file = await run.io_bound(choose_file, "Sensitivity maps, one NIfTI of all channels" if kind == "maps" else
+                                                 "A raw scan with the coils apart, NIfTI-MRS")
+                if picked_file is None:
+                    said.text = "No file chosen"
                     return
+                files = [str(picked_file)]
                 try:
                     if kind == "maps":
                         session.coil_maps(files[0], pathlib.Path(files[0]).name.split(".")[0])
@@ -1429,7 +1424,7 @@ async def console(client: Client):
         ui.label("MRSandbox").style(f"color: {SAND}; font-size: 16px; letter-spacing: .1em")
         for attribute, caption, options, width in (("scanner", "scanner", session.scanners(), 230),
                                                    ("coil", "receive array", list(session.coils), 215),
-                                                   ("subject", "on the table", list(session.subjects), 240)):
+                                                   ("subject", "anatomy or phantom", list(session.subjects), 240)):
             pickers[attribute] = ui.select(options, value=getattr(session, attribute), label=caption, on_change=changed(attribute)).props(
                 "dense outlined dark").style(f"min-width: {width}px")
             if attribute == "scanner":
@@ -1437,11 +1432,11 @@ async def console(client: Client):
                     f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
             if attribute in GEARS or attribute == "coil":
                 ui.button(icon="settings", on_click=(lambda _, panel=attribute: gear(panel)) if attribute in GEARS else coil_gear).props("flat dense round size=sm").style(
-                    f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of what lies on the table"}.get(attribute, f"the {attribute}'s parameters and ranges"))
+                    f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of the anatomy or phantom"}.get(attribute, f"the {attribute}'s parameters and ranges"))
         ui.button(icon="person_add_alt", on_click=lambda: (setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
-                                                           ui.notify("A new draw of the population lies on the table"))).props(
+                                                           ui.notify("A new draw of the population is scanned from here on"))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
-            "every exam scans the same draw of the population; this puts a new one on the table")
+            "every exam scans the same draw of the population; this takes a new one")
         ui.space()
         ui.button("all settings", icon="tune", on_click=lambda: gear()).props("flat dense no-caps").style(f"color: {GLOW}")
         status = ui.label("idle").classes("label")
@@ -1650,7 +1645,7 @@ async def console(client: Client):
                 view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
                 ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
             panel = ui.label("This voxel").classes("label").tooltip(
-                "one draw of the population, scanned by every exam until a new one is put on the table (the person icon); "
+                "one draw of the population, scanned by every exam until a new one is taken (the person icon); "
                 "the truth a real scanner never shows").classes("label").style("margin-top: 6px")
             with ui.scroll_area().style("flex: 1; width: 100%"):
                 records = ui.column().classes("w-full").style("gap: 1px")

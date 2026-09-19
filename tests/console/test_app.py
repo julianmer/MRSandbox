@@ -59,8 +59,11 @@ class TestApp:
                 await user.should_see("The sub-acquisitions take turns")
                 user.find("Use this design").click()                    # the card plays it from here on, not before
                 user.find(kind=ui.button, content="maps").click()      # a tooltip names the maps too
-                await user.should_see("What lies on the table")
-                user.find("Done").click()
+                await user.should_see("Anatomy and maps")
+                next(e for e in user.find(kind=ui.select).elements if e.value in ("qsm_rc2", "bigbrain_mr")).value = "uniform"
+                await asyncio.sleep(0.3)                                # the line's choice is taken in a task of its own
+                user.find(marker="apply the maps").click()              # by its marker: the settings have an Apply of their own
+                await user.should_see("uniform field, none", retries=50)
                 user.find("the run").click()
                 await user.should_see("a motion event moves the head by")
                 user.find("Done").click()
