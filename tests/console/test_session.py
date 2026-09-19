@@ -19,6 +19,8 @@ import pytest
 
 from mrsandbox.console.session import Session
 
+ICBM = "Brain, ICBM152 average, 2 mm"  # the subject every machine has; the console's own default is placed by hand
+
 
 #**************************************************************************************************#
 #                                        Class TestSession                                         #
@@ -27,7 +29,7 @@ from mrsandbox.console.session import Session
 class TestSession:
 
     def test_the_planes_are_squares_and_a_click_on_the_voxel_leaves_it_there(self):
-        session = Session()
+        session = Session(ICBM)
         planes = session.planes()
         assert {image.shape for image, *_ in planes.values()} == {(115, 115)}
         assert all(image.max() > 200 and image.dtype == np.uint8 for image, *_ in planes.values())
@@ -41,7 +43,7 @@ class TestSession:
         assert session.position_mm[2] == height and session.position_mm[0] != before[0]
 
     def test_leafing_through_a_plane_leaves_the_voxel_and_a_click_places_it_on_the_slice(self):
-        session = Session()
+        session = Session(ICBM)
         before = list(session.position_mm)
         session.scroll("tra", 20)
         image, _, cut, *_ = session.planes()["tra"]
@@ -54,7 +56,7 @@ class TestSession:
         assert session.position_mm[2] == session.view_mm[2] and session.planes()["tra"][2]
 
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
-        session = Session()
+        session = Session(ICBM)
         session.protocol.real = False                                      # ideal pulses select exactly
         assert session.displacement(4.65) == [0.0, 0.0, 0.0] and session.planes()["tra"][4] == {}
         session.protocol.real = True                                       # the default
@@ -70,7 +72,7 @@ class TestSession:
     def test_the_shim_and_its_box_set_the_line_width_a_b0_map_gives(self, tmp_path):
         import nibabel as nib
 
-        session = Session()
+        session = Session(ICBM)
         assert session.field == "bigbrain_mr" and 1.0 < session.linewidth() < 5.0   # the measured field, shimmed, by default
         session.field = "uniform"
         assert session.linewidth() is None                                 # a uniform field broadens nothing
@@ -88,10 +90,25 @@ class TestSession:
         assert session.planes()["tra"][4]["shim"][2] == pytest.approx(60.0 / np.diag(body.affine)[0])
         assert session.linewidth() == pytest.approx(widths["linear"], rel=0.05)    # a saddle has no slope: the same fit over a wider box
 
+    def test_one_subject_lies_on_the_table_and_a_water_reference_follows_its_card(self):
+        session = Session(ICBM)
+        session.protocol.real, session.protocol.averages, session.protocol.npoints, session.protocol.water_reference = False, 4, 512, 2
+        session.size_mm = [30.0, 20.0, 15.0]                                # an anisotropic voxel
+        session.run_settings = {"events_per_min": 0.0}
+        session.plan()
+        assert [exam.name for exam in session.queue] == ["1 PRESS TE 30", "2 PRESS water reference"]
+        scan, water = (session.run(exam) for exam in session.queue)
+        assert scan.truth == water.truth                                    # the same draw of the population
+        assert abs(water.ppm[np.argmax(water.frames[-1][1])] - 4.65) < 0.1 and water.card.averages == 2
+        assert water.frames[-1][1].max() > 5.0 * scan.frames[-1][1].max()   # unsuppressed
+        again = session.run(session.plan(queued=False))
+        session.queue.append(again)
+        assert not np.allclose(session.run(again).frames[-1][1], scan.frames[-1][1])   # its own noise at another place in the queue
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 
-        session = Session()
+        session = Session(ICBM)
         bare = len(session.sequence().events)
         session.protocol.water_suppression, session.protocol.ovs = "VAPOR", True
         assert len(session.sequence().events) == bare + len(Vapor().events) + 12     # six slabs, a filter after each
@@ -102,7 +119,7 @@ class TestSession:
     def test_the_operators_own_maps_go_through_a_scan(self, tmp_path):
         import nibabel as nib
 
-        session = Session()
+        session = Session(ICBM)
         session.protocol.averages, session.protocol.npoints, session.protocol.real = 4, 512, False   # the maps are the point
         body = session.body()
         for name, data in (("gm", body.gm), ("wm", body.wm), ("csf", body.csf), ("b0", np.full(body.gm.shape, 7.0)),
@@ -118,7 +135,7 @@ class TestSession:
         assert exam.status == "done" and np.isfinite(exam.frames[-1][1]).all()
 
     def test_the_card_promises_and_the_exam_delivers(self, tmp_path):
-        session = Session()
+        session = Session(ICBM)
         session.protocol.averages, session.protocol.npoints = 6, 1024
         look = session.outlook()
         assert look["gm"] + look["wm"] + look["csf"] == pytest.approx(1.0, abs=0.02)
@@ -136,16 +153,16 @@ class TestSession:
         assert path.exists() and path.name == "1_PRESS_TE_30.nii.gz"
 
     def test_a_phantom_and_an_array_are_in_the_room_as_a_brain_is(self):
-        session = Session()
-        session.subject, session.position_mm, session.coil = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0], "head array, 32 channels"
+        session = Session(ICBM)
+        session.subject, session.position_mm, session.coil = "Phantom, SPECTRE sphere", [0.0, 0.0, 0.0], "head array"
         assert session.outlook()["gm"] == pytest.approx(1.0)
         assert {image.shape[0] == image.shape[1] for image, *_ in session.planes().values()} == {True}
         drawn = session.scene(points=500)
-        assert drawn["cloud"].shape == (500, 3) and len(drawn["loops"]) == 32 and drawn["voxel"] == ((0.0, 0.0, 0.0), 20.0)
+        assert drawn["cloud"].shape == (500, 3) and len(drawn["loops"]) == 32 and drawn["voxel"] == ((0.0, 0.0, 0.0), (20.0, 20.0, 20.0))
         assert np.allclose(np.linalg.norm(drawn["cloud"], axis=1), 90.0, atol=5.0)  # the sphere's surface
 
     def test_the_gear_opens_every_leaf_and_a_setting_reaches_the_scan(self):
-        session = Session()
+        session = Session(ICBM)
         leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
         assert leaves["noise.sigma"] == ("range", (3.7, 6.9)) and leaves["water.temperature_c"] == ("fixed", (37.0,))
         assert leaves["water.t1_s"][0] == "other"                               # a tissue record, shown and not edited
@@ -157,7 +174,7 @@ class TestSession:
         assert exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]["conc"]["NAA"] == 20.0
 
     def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
-        session = Session()
+        session = Session(ICBM)
         session.protocol.real = False
         drawn = session.diagram()                                               # the card's ideal PRESS, TE 30
         assert [text for _, text in drawn["pulses"]] == ["90°", "180°", "180°"]
@@ -178,8 +195,8 @@ class TestSession:
         assert abs(exam.ppm[exam.frames[-1][1].argmax()] - 2.01) < 0.05
 
     def test_an_edited_card_interleaves_its_sub_experiments_and_reviews_them(self, tmp_path, monkeypatch):
-        session = Session()
-        session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS GABA", 8, 1024, 30.0
+        session = Session(ICBM)
+        session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.size_mm = "MEGA-PRESS GABA", 8, 1024, [30.0] * 3
         session.protocol.real = False                                           # the interleaving is the point
         exam = session.run(session.plan(), seed=1)
         assert exam.name == "1 MEGA-PRESS GABA" and list(exam.conditions) == ["on", "off"] and exam.shown == "difference"
@@ -199,9 +216,9 @@ class TestSession:
             session.export_seq(exam, tmp_path)                                  # MEGA's ideal bands do not play on hardware
 
     def test_a_spectroscopic_image_is_a_card_too(self):
-        session = Session()
+        session = Session(ICBM)
         session.protocol.sequence, session.protocol.npoints, session.protocol.bandwidth_hz = "MRSI PRESS", 512, 2000.0
-        session.protocol.matrix, session.size_mm, session.position_mm = 6, 14.0, [0.0, -10.0, 35.0]
+        session.protocol.matrix, session.size_mm, session.position_mm = 6, [14.0] * 3, [0.0, -10.0, 35.0]
         assert session.outlook()["scan_time_s"] == 72.0                         # a repetition per phase encode
         _, (_, _, width, height), *_ = session.planes()["tra"]
         assert width == height == pytest.approx(6 * 14.0 / 2.0)                 # the whole grid on the plane, 2 mm cells

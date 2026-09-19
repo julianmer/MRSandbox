@@ -72,8 +72,16 @@ REAL = {"PRESS": "PRESS, played", "STEAM": "STEAM, played", "sLASER": "sLASER, p
 # the scanners by name: what a preset stands for (hardware.scanners, scan.calibrations)
 SCANNERS = {"generic_1p5t": "Generic 1.5 T", "generic_3t": "Generic 3 T", "generic_7t": "Generic 7 T",
             "siemens_prisma_3t": "Siemens Prisma 3 T", "siemens_trio_3t": "Siemens Trio 3 T", "ge_mr750_3t": "GE MR750 3 T",
-            "ge_mr750_32ch_3t": "GE MR750 3 T, noise as read with its 32 channel head array",
-            "philips_elition_3t": "Philips Elition 3 T", "philips_achieva_3t": "Philips Achieva 3 T, noise as read with its T/R head coil"}
+            "philips_elition_3t": "Philips Elition 3 T", "philips_achieva_3t": "Philips Achieva 3 T"}
+# a scanner's other calibrations in the package, {scanner: {what it is: the preset that carries its records}}: the
+# hardware is the same, the records were read under another coil
+CALIBRATIONS = {"ge_mr750_3t": {"noise read with the 32 channel head array": "ge_mr750_32ch_3t"}}
+# a run's instabilities as the operator sets them (Augmentrum's TransientSynthesizer, scan.Multiplex.transients):
+# a name, the synthesizer's argument, and what switches it off; left alone, each is drawn from the 3 T envelope
+RUN = {"frequency drift (Hz per minute)": ("drift_hz_per_min", 0.0), "slow frequency wander (Hz)": ("ar_sigma_hz", 0.0),
+       "breathing (Hz)": ("resp_amp_hz", 0.0), "phase jitter (degrees)": ("phase_jitter_deg", 0.0),
+       "amplitude jitter (fraction)": ("amp_jitter_frac", 0.0), "broadening over the run (Hz)": ("broaden_hz", 0.0),
+       "motion events (per minute)": ("events_per_min", 0.0)}
 # the measured B0 field a subject lies in unless the operator chooses another (phantom.FieldMap.PRESETS); a
 # sphere of solution has none
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr", "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
@@ -89,7 +97,7 @@ IDEALS = {
     "spurious echoes": {"spurious.amplitude": 0.0},
 }
 # what the planes can wash over the anatomy: the room's maps and the subject's tissues
-OVERLAYS = ("anatomy", "B0 field", "B1+", "grey matter", "white matter", "CSF")
+OVERLAYS = ("anatomy", "B0 field", "B1+", "grey matter", "white matter", "CSF", "lipid layer")
 # the shifts whose displaced voxels the planes draw beside the planned one
 SHIFTED = {"water": 4.65, "lipid": 1.3}
 
@@ -197,6 +205,7 @@ class Protocol:
     water_suppression: str = "off"
     ovs: bool = False
     real: bool = True
+    water_reference: int = 0
 
     @property
     def scan_time_s(self):
@@ -232,6 +241,8 @@ class Exam:
         spectra: After the run, {name: real spectrum} of every condition and combination.
         tracks: What the scanner and the subject did over the transients, {name: values}.
         truth: The drawn concentrations in mM, {metabolite: value}.
+        overrides, run: The operator's settings and the run's instabilities as they stood when the
+            exam was planned; a water reference plays its card without water suppression.
         maps, cells: Of a spectroscopic imaging exam, {line: (nx, ny) heights} and the cells' real
             spectra (nx, ny, points), each phased on its own tallest line.
     """
@@ -239,7 +250,7 @@ class Exam:
     name: str
     card: Protocol
     position_mm: tuple
-    size_mm: float
+    size_mm: tuple
     status: str = "planned"
     problem: str = ""
     data: object = None
@@ -255,6 +266,8 @@ class Exam:
     truth: dict = dataclasses.field(default_factory=dict)
     maps: dict = dataclasses.field(default_factory=dict)
     cells: object = None
+    overrides: dict = dataclasses.field(default_factory=dict)
+    run: dict = dataclasses.field(default_factory=dict)
 
 
 #**************************************************************************************************#
@@ -271,7 +284,13 @@ class Session:
         scanner: Name of the scanner preset on the floor.
         coil: Name of the receive array (a key of COILS).
         subject: Name of the subject on the table (a key of SUBJECTS).
-        position_mm, size_mm: The voxel being planned, world millimetres.
+        position_mm, size_mm: The voxel being planned, its centre and its (x, y, z) edges, world mm.
+        calibration: None for the scanner's own records, or the preset whose records stand in
+            (CALIBRATIONS).
+        seed: The subject on the table: every exam scans this one draw of the population, each
+            with noise of its own; a new subject is a new seed.
+        run, motion_mm: A run's instabilities the operator set, {synthesizer argument: value}
+            (RUN), and the step in mm a motion event moves the head by, (low, high) or None.
         view_mm: The point the three planes cut through, which the operator scrolls
             without moving the voxel.
         protocol: The protocol card being edited.
@@ -288,26 +307,32 @@ class Session:
 
     # the receive arrays on the shelf: how each is made from its settings, and the settings it starts with (mm)
     COILS = {"one ideal channel": lambda: None,
-             "head array, 32 channels": lambda loop_radius_mm: CoilArray.helmet(loop_radius_mm=loop_radius_mm),
+             "head array": lambda loops_at_0_deg, loops_at_35_deg, loops_at_65_deg, loops_at_95_deg, loop_radius_mm: CoilArray.helmet(
+                 rows=tuple((angle, int(count)) for angle, count in zip((0.0, 35.0, 65.0, 95.0), (
+                     loops_at_0_deg, loops_at_35_deg, loops_at_65_deg, loops_at_95_deg)) if count >= 1),
+                 loop_radius_mm=loop_radius_mm),
              "ring of loops": lambda channels, ring_radius_mm, loop_radius_mm, z_mm: CoilArray.ring(
                  int(channels), ring_radius_mm=ring_radius_mm, loop_radius_mm=loop_radius_mm, z_mm=z_mm),
              "surface loop": lambda x_mm, y_mm, z_mm, loop_radius_mm: CoilArray.surface(       # facing the head's centre
                  (x_mm, y_mm, z_mm), tuple(c - v for c, v in zip(CoilArray.HEAD_CENTER_MM, (x_mm, y_mm, z_mm))),
                  loop_radius_mm=loop_radius_mm)}
-    COIL_SETTINGS = {"one ideal channel": {}, "head array, 32 channels": dict(loop_radius_mm=38.0),
+    COIL_SETTINGS = {"one ideal channel": {}, "head array": dict(loops_at_0_deg=1, loops_at_35_deg=6, loops_at_65_deg=10, loops_at_95_deg=15, loop_radius_mm=38.0),
                      "ring of loops": dict(channels=8, ring_radius_mm=110.0, loop_radius_mm=40.0, z_mm=0.0),
                      "surface loop": dict(x_mm=0.0, y_mm=-105.0, z_mm=35.0, loop_radius_mm=50.0)}
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self):
+    def __init__(self, subject="Head, QSM challenge, 0.64 mm"):
         self.scanner = "siemens_prisma_3t"
         self.coil = "one ideal channel"
-        self.subject = "Brain, ICBM152 average, 2 mm"
+        self.subject = subject
         self.position_mm = [0.0, -45.0, 35.0]
         self.view_mm = [0.0, -45.0, 35.0]
-        self.size_mm = 20.0
+        self.size_mm = [20.0, 20.0, 20.0]
+        self.calibration = None
+        self.seed = int(np.random.default_rng().integers(2 ** 31))
+        self.run_settings, self.motion_mm = {}, None
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
@@ -319,6 +344,11 @@ class Session:
         self.coil_settings = {name: dict(settings) for name, settings in self.COIL_SETTINGS.items()}
         self.design = [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in STARTER]
         self._bodies = {}
+        try:
+            self.body()
+        except Exception:       # the head's files are placed by hand (resources.qsm): without them, the average brain
+            self.subject = "Brain, ICBM152 average, 2 mm"
+        self.field = FIELDS.get(self.subject, "uniform")
 
     #**********#
     #   body   #
@@ -345,7 +375,9 @@ class Session:
         grid is read at the nearest cell, NaN outside it."""
         body, fields = self.body(), self.fields()
         source = {"B0 field": fields["field"] and fields["field"].volume, "B1+": fields["transmit"], "grey matter": body.gm,
-                  "white matter": body.wm, "CSF": body.csf}.get(self.overlay)
+                  "white matter": body.wm, "CSF": body.csf, "lipid layer": getattr(body, "fat", None)}.get(self.overlay)
+        if self.overlay == "lipid layer" and source is not None:       # a tissue of the subject's own grid, outside the brain
+            source = source.data if source.data.shape[:3] == body.gm.shape else None
         if source is None:
             return None
         key = ("wash", self.subject, self.overlay, self.field, self.transmit)
@@ -422,7 +454,7 @@ class Session:
         if field is None:
             return None
         t = np.arange(8192) / 1000.0
-        line = np.fft.fft(field.kernel(tuple(self.position_mm), self.size_mm, t) * np.exp(-np.pi * t), 8 * t.size).real
+        line = np.fft.fft(field.kernel(tuple(self.position_mm), tuple(self.size_mm), t) * np.exp(-np.pi * t), 8 * t.size).real
         above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())    # between the outermost crossings: a coarse map's
         return float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size))    # cells give a comb of lines, one width
 
@@ -438,12 +470,14 @@ class Session:
         ~/MRSandbox/profiles, which stay on this machine."""
         folders = (pathlib.Path.cwd() / "data" / "profiles", pathlib.Path.home() / "MRSandbox" / "profiles")
         mine = sorted(path for folder in folders for path in folder.glob("*.json"))
-        return {**{name: SCANNERS.get(name, name) for name in PRESETS},
-                **{str(path): "My scanner · " + path.stem.replace("_private", "").replace("_", " ") for path in mine}}
+        return {**{name: label for name, label in SCANNERS.items() if name in PRESETS},
+                **{str(path): path.stem.replace("_private", "").replace("_", " ") + ", calibrated here" for path in mine}}
 
     def profile(self):
         """The scanner on the floor with its records: a preset, or a saved profile."""
-        return ScannerProfile.load(self.scanner) if self.scanner.endswith(".json") else ScannerProfile.preset(self.scanner)
+        if self.scanner.endswith(".json"):
+            return ScannerProfile.load(self.scanner)
+        return ScannerProfile.preset(self.calibration if self.calibration in CALIBRATIONS.get(self.scanner, {}).values() else self.scanner)
 
     #**************#
     #   sequence   #
@@ -461,7 +495,7 @@ class Session:
             events = [event for kind, settings in self.design for event in BLOCKS[kind][1](settings)]
             return Sequence(*events, tr_s=card.tr_ms / 1000.0)
         design = SEQUENCES[card.sequence](card.te_ms / 1000.0, card.tr_ms / 1000.0,
-                                          42.5774785 * self.profile().scanner.b0_t, float(self.size_mm))
+                                          42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm))
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
@@ -472,9 +506,9 @@ class Session:
         if card.water_suppression != "off":
             found[card.water_suppression] = SUPPRESSION[card.water_suppression]()
         if card.ovs:
-            reach = 0.5 * (float(self.size_mm) + OVS_MM) + 2.0
-            found["OVS"] = OuterVolumeSuppression([(axis, side * reach, OVS_MM) for axis in "xyz" for side in (-1.0, 1.0)],
-                                                  42.5774785 * self.profile().scanner.b0_t, extent_mm=float(self.size_mm))
+            found["OVS"] = OuterVolumeSuppression([(axis, side * (0.5 * (edge + OVS_MM) + 2.0), OVS_MM)
+                                                   for axis, edge in zip("xyz", self.size_mm) for side in (-1.0, 1.0)],
+                                                  42.5774785 * self.profile().scanner.b0_t, extent_mm=float(max(self.size_mm)))
         return found
 
     def displacement(self, ppm, sequence=None):
@@ -493,7 +527,7 @@ class Session:
     def editing(self, card):
         """The sub-experiments of an edited card, {name: design}, for this room's field and voxel."""
         card = dataclasses.replace(card, sequence=REAL[card.sequence]) if card.real and card.sequence in REAL else card
-        return EDITING[card.sequence][0](card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, float(self.size_mm))
+        return EDITING[card.sequence][0](card.tr_ms / 1000.0, 42.5774785 * self.profile().scanner.b0_t, tuple(self.size_mm))
 
     def diagram(self, sequence=None, readout_ms=12.0):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
@@ -540,11 +574,11 @@ class Session:
     #************#
     #   leaves   #
     #************#
-    def params(self):
+    def params(self, overrides=None):
         """The operator's own settings as a Params tree over the defaults: {path: value or
-        (low, high)} of `overrides`, nested."""
+        (low, high)} of `overrides` (the session's as they stand, unless given), nested."""
         tree = {}
-        for path, value in self.overrides.items():
+        for path, value in (self.overrides if overrides is None else overrides).items():
             node = tree
             *branch, leaf = path.split(".")
             for key in branch:
@@ -594,7 +628,7 @@ class Session:
         nx, ny, nz = tissue.shape
         i, j, k = (np.asarray(self.position_mm) - origin) / step          # the voxel's centre, the outline's
         a, b, c = (int(min(max(round(v), 0), n - 1)) for v, n in zip((np.asarray(self.view_mm) - origin) / step, (nx, ny, nz)))
-        half = 0.5 * self.size_mm / step
+        half = 0.5 * np.asarray(self.size_mm) / step
         if self.protocol.sequence == MRSI:          # the slice's whole grid in the plane, one cell thick
             half = half * np.array([self.protocol.matrix, self.protocol.matrix, 1.0])
         side = max(nx, ny, nz)
@@ -616,7 +650,7 @@ class Session:
                     world = [cutting(np.broadcast_to((origin[n] + step[n] * np.arange(tissue.shape[n])).reshape(
                         [-1 if m == n else 1 for m in range(3)]), tissue.shape)) for n in range(3)]
                     values = values - self.fields()["field"].shim_field(
-                        np.stack([w.ravel() for w in world], axis=1), tuple(self.position_mm), self.size_mm).reshape(values.shape)
+                        np.stack([w.ravel() for w in world], axis=1), tuple(self.position_mm), tuple(self.size_mm)).reshape(values.shape)
                 level = np.nan_to_num(np.clip((values - low) / max(high - low, 1e-9), 0.0, 1.0), nan=0.5 if diverging else 0.0)
                 strength = (0.75 * np.abs(2.0 * level - 1.0) if diverging else 0.7 * level)[..., None]
                 colour = np.where((level > 0.5)[..., None], (225, 80, 60), (70, 130, 225)) if diverging else np.array((226, 165, 95))
@@ -679,7 +713,7 @@ class Session:
             self._bodies[("cloud", self.subject)] = (index * np.diag(body.affine)[:3] + body.affine[:3, 3]).astype(np.float32)
         coils = self.array()
         loops = [] if coils is None else [(tuple(loop.center_mm), tuple(loop.normal), float(loop.radius_mm)) for loop in coils.loops]
-        return {"cloud": self._bodies[("cloud", self.subject)], "loops": loops, "voxel": (tuple(self.position_mm), float(self.size_mm))}
+        return {"cloud": self._bodies[("cloud", self.subject)], "loops": loops, "voxel": (tuple(self.position_mm), tuple(self.size_mm))}
 
     #*************#
     #   outlook   #
@@ -692,7 +726,7 @@ class Session:
         sequence = self.sequence()
         profile = self.profile()
         scan = profile.scan(self.body(), sequence, params=self.params(), **self.fields())
-        fractions = scan.voxel(tuple(self.position_mm), self.size_mm).fractions
+        fractions = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).fractions
         limits = profile.scanner
         return {"linewidth_hz": self.linewidth(),
                 "displaced": {name: self.displacement(ppm, sequence) for name, ppm in SHIFTED.items()},
@@ -713,7 +747,8 @@ class Session:
         timed = card.sequence in SEQUENCES or card.sequence == MRSI   # an edited or an own design has its own timings
         number = len(self.queue) + 1 if instead_of is None else self.queue.index(instead_of) + 1
         name = f"{number} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
-        exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=float(self.size_mm),
+        exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=tuple(self.size_mm),
+                    overrides=dict(self.overrides), run=dict(synthesis=dict(self.run_settings), motion_mm=self.motion_mm),
                     records=self.outlook()["records"], sequence=self.sequence(card))
         if card.sequence in EDITING:
             _, exam.combinations, exam.shown = EDITING[card.sequence]
@@ -724,19 +759,26 @@ class Session:
             self.queue[number - 1] = exam
         elif queued:
             self.queue.append(exam)
+            if card.water_reference and card.sequence != MRSI:     # the same card without water suppression, a few transients
+                self.queue.append(dataclasses.replace(
+                    exam, name=f"{number + 1} {card.sequence} water reference", frames=[], spectra={}, tracks={}, truth={},
+                    card=dataclasses.replace(card, averages=int(card.water_reference), water_suppression="off", water_reference=0),
+                    overrides={**exam.overrides, "water.residual_fraction": 1.0, "downfield.presaturated": False}))
         return exam
 
     def run(self, exam, seed=None):
         """Acquire an exam: every transient apart, with the instabilities of a real run
-        (scan.Multiplex.transients: drift, breathing, motion), and the display as it
-        builds up over the transients."""
+        (scan.Multiplex.transients: drift, breathing, motion, as the exam's `run` sets them),
+        and the display as it builds up over the transients. The seed is the subject on the
+        table unless given; every exam takes noise of its own (its place in the queue)."""
+        seed = self.seed if seed is None else seed
         exam.status = "running"
         card, sequence = exam.card, exam.sequence
         profile = self.profile()
         coils = self.array()
         if card.sequence == MRSI:
-            grid = profile.scan(self.body(), sequence, params=self.params(), **self.fields()).mrsi(
-                center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm)
+            grid = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields()).mrsi(
+                center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix)), voxel_mm=exam.size_mm[0], thickness_mm=exam.size_mm[2])
             exam.data = grid.acquire(seed=seed, npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
             fids = np.asarray(exam.data[:])[:, :, 0]
             window = np.exp(-np.pi * 3.0 * np.arange(card.npoints) / card.bandwidth_hz)
@@ -756,12 +798,13 @@ class Session:
                           if isinstance(value, (int, float))}
             exam.status = "done"
             return exam
-        room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(),
+        room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params(exam.overrides),
                          **self.fields(),
                          coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)
         schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
         exam.data = room.transients(exam.position_mm, exam.size_mm, schedule, tr_s=card.tr_ms / 1000.0, seed=seed,
+                                    step=self.queue.index(exam) + 1 if exam in self.queue else 0, **exam.run,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
         fids = np.asarray(exam.data[:])[0, 0, 0]
         fids = fids if fids.ndim == 2 else fids.sum(axis=1)             # channels summed for the display alone
@@ -769,7 +812,8 @@ class Session:
         window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
         f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
         ppm = np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
-        upfield = (ppm > 0.2) & (ppm < 4.2)
+        # a water reference shows its water line, every other exam the metabolites upfield of it
+        upfield = (ppm > 3.4) & (ppm < 5.9) if exam.overrides.get("water.residual_fraction") == 1.0 else (ppm > 0.2) & (ppm < 4.2)
         played = np.asarray(schedule)
 
         def combined(weights, count):
@@ -814,7 +858,7 @@ class Session:
         the advanced settings, as one JSON file of the protocol library; returns the path."""
         self.LIBRARY.mkdir(parents=True, exist_ok=True)
         path = self.LIBRARY / f"{name}.json"
-        path.write_text(json.dumps({"card": dataclasses.asdict(self.protocol), "size_mm": self.size_mm,
+        path.write_text(json.dumps({"card": dataclasses.asdict(self.protocol), "size_mm": list(self.size_mm),
                                     "design": self.design, "overrides": self.overrides}, indent=2))
         return path
 
@@ -823,7 +867,7 @@ class Session:
         stored = json.loads((self.LIBRARY / f"{name}.json").read_text())
         for attribute, value in stored["card"].items():       # in place: the console's fields hold this card
             setattr(self.protocol, attribute, value)
-        self.size_mm = float(stored["size_mm"])
+        self.size_mm = [float(v) for v in (stored["size_mm"] if isinstance(stored["size_mm"], list) else [stored["size_mm"]] * 3)]
         self.design = [(kind, dict(settings)) for kind, settings in stored["design"]]
         self.overrides = {path: tuple(value) if isinstance(value, list) else value for path, value in stored["overrides"].items()}
 

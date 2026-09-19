@@ -192,7 +192,7 @@ class Multiplex:
     #****************#
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
                    npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None,
-                   motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0)):
+                   motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0), step=0):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
@@ -237,6 +237,9 @@ class Multiplex:
                 None for a head that does not turn. The voxel's box stays aligned with
                 the head's axes (small angles; stated).
             pivot_mm: The point the head turns about.
+            step: Which noise stream of the seed this run takes (scan.voxel draw): one
+                seed is one subject, and every further run of that subject takes another
+                step for fresh noise and a fresh course of the scanner's instabilities.
         """
         try:
             import augmentrum
@@ -251,7 +254,7 @@ class Multiplex:
         if isinstance(schedule, int):
             schedule = [self.conditions[0]] * schedule
         schedule = list(schedule)
-        seed, truth, rng = draw(self.params, seed)
+        seed, truth, rng = draw(self.params, seed, step)
 
         n = len(schedule)
         synthesis = dict(synthesis or {})

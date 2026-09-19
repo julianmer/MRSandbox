@@ -53,6 +53,12 @@ class TestApp:
                 await user.should_see("7 blocks")
                 user.find("maps").click()
                 await user.should_see("B0 field")
+                user.find("the run").click()
+                await user.should_see("a motion event moves the head by")
+                user.find("Done").click()
+                user.find(marker="calibration").click()
+                await user.should_see("the records this scanner's noise")
+                user.find("Done").click()
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
                 user.find("PRESS").click()                              # real pulses are the default: the displaced voxels in words

@@ -31,7 +31,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image, ImageFilter
 
-from mrsandbox.console.session import BLOCKS, EDITING, FIELDS, GEARS, IDEALS, MRSI, OVERLAYS, REAL, SEQUENCES, SUPPRESSION, TEMPLATES, Session
+from mrsandbox.console.session import BLOCKS, CALIBRATIONS, EDITING, FIELDS, GEARS, IDEALS, MRSI, OVERLAYS, REAL, RUN, SEQUENCES, SUPPRESSION, TEMPLATES, Session
 from mrsandbox.phantom import FieldMap
 
 #*************#
@@ -53,7 +53,9 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
          gap: 8px; align-items: center; width: 100%; }}
 .exam:hover {{ background: #26211d; }}
 .exam.chosen {{ border-left-color: {SAND}; background: #2b241e; color: #fff; }}
-.tool {{ border: 1px solid {LINE}; border-radius: 2px; color: {DIM} !important; min-height: 30px; padding: 0 8px; font-size: 11px; }}
+.tool {{ border: 1px solid {LINE}; border-radius: 2px; color: {DIM} !important; width: 96px; height: 46px; padding: 0; font-size: 10.5px;
+         line-height: 1.1; }}
+.tool .q-icon {{ font-size: 19px; }}
 .tool.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .info {{ display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 5px; align-content: start; white-space: nowrap; }}
 .q-tab {{ min-height: 28px; padding: 0 12px; }} .q-tab__label {{ font-size: 11px; letter-spacing: .08em; }}
@@ -128,7 +130,7 @@ if LOGO is not None:
 #*************#
 #   diagram   #
 #*************#
-def lanes(drawn, width=580.0, lane=62.0, mark=None):
+def lanes(drawn, width=470.0, lane=54.0, mark=None):
     """A pulse sequence diagram (Session.diagram) drawn the way the literature draws one
     (Landheer et al. 2020, Figure 1), as SVG: the RF with its lobes and flips, the three
     gradients with slice selection open and crushers filled, the signal, the intervals
@@ -245,7 +247,7 @@ def console():
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
-    views, texts, tools, pickers, places, chosen = {}, {}, {}, {}, [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None}
+    views, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None}
 
     def room():
         """Rebuild the 3D view: the subject's surface, the receive loops, the voxel's box."""
@@ -262,7 +264,7 @@ def console():
                 ui.scene.ring(0.92 * radius * MM, radius * MM, 40).material(COPPER, 0.85).move(
                     *(np.asarray(centre) * MM)).rotate_R(np.stack([a, np.cross(n, a), n], axis=1).tolist())
             centre, size = drawn["voxel"]
-            chosen["box"] = ui.scene.box(size * MM, size * MM, size * MM, wireframe=True).material(GLOW).move(
+            chosen["box"] = ui.scene.box(*(edge * MM for edge in size), wireframe=True).material(GLOW).move(
                 *(np.asarray(centre) * MM))
 
     def paint():
@@ -316,9 +318,9 @@ def console():
         discard.set_visibility(chosen["editing"] is not None)
         texts["time"].text = texts["time2"].text = f"{minutes:02d}:{seconds:02d}"
         texts["timing"].text = f"{card.tr_ms:g} / {card.te_ms:g} ms"
-        texts["volume"].text = f"{session.size_mm ** 3 / 1000.0:.1f} mL"
+        texts["volume"].text = f"{np.prod(session.size_mm) / 1000.0:.1f} mL"
         # against the card as it was taken from the browser: the voxel's volume and the root of the averages alone
-        signal = session.size_mm ** 3 * np.sqrt(1 if card.sequence == MRSI else card.averages)
+        signal = np.prod(session.size_mm) * np.sqrt(1 if card.sequence == MRSI else card.averages)
         chosen["snr"] = signal if chosen["snr"] is None else chosen["snr"]
         texts["snr"].text = f"{100.0 * signal / chosen['snr']:.0f} %  (volume, averages)"
         texts["displaced"].text = "\n".join(
@@ -343,6 +345,7 @@ def console():
                 name, card.water_suppression != "off")
             tool.classes(add="on" if on else "", remove="" if on else "on")
         tools["water"].text = "water " + card.water_suppression
+        tools["water"].props(f"icon={'format_color_reset' if card.water_suppression == 'off' else 'water_drop'}")
 
     def listing():
         """Redraw the exam cards."""
@@ -369,6 +372,7 @@ def console():
     def frame(exam, index):
         count, real = exam.frames[index]
         spectrum.options["series"][0]["data"] = [[float(p), float(s)] for p, s in zip(exam.ppm, real)]
+        spectrum.options["xAxis"]["min"], spectrum.options["xAxis"]["max"] = round(float(exam.ppm.min()), 1), round(float(exam.ppm.max()), 1)
         spectrum.options["title"]["text"] = f"{exam.name}   ·   transient {count} of {exam.card.averages}"
         spectrum.update()
         progress.value = count / max(exam.card.averages, 1)
@@ -380,7 +384,9 @@ def console():
         chosen["exam"], chosen["editing"] = exam, exam if exam.status == "planned" else None
         for field in dataclasses.fields(exam.card):                       # in place: the tabs' fields hold this card
             setattr(session.protocol, field.name, getattr(exam.card, field.name))
-        session.position_mm, session.view_mm, session.size_mm = list(exam.position_mm), list(exam.position_mm), exam.size_mm
+        session.position_mm, session.view_mm, session.size_mm = list(exam.position_mm), list(exam.position_mm), list(exam.size_mm)
+        for axis, field in enumerate(edges):
+            field.value = exam.size_mm[axis]
         if exam.frames:
             frame(exam, -1)
         listing()
@@ -634,7 +640,7 @@ def console():
             outcome.options["series"][0]["data"] = [[float(a), float(b)] for a, b in zip(exam.ppm, exam.frames[-1][1])]
             outcome.update()
 
-        with ui.dialog().props("maximized") as dialog, ui.card().classes("pane"):
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1300px; max-width: 1500px"):
             with ui.row().classes("w-full items-center"):
                 ui.label("Sequence designer").style(f"color: {SAND}; font-size: 15px")
                 ui.select(list(TEMPLATES), label="start from", on_change=lambda e: e.value and (
@@ -764,7 +770,7 @@ def console():
                 session.view_mm = list(session.position_mm)
                 if session.field in FieldMap.PRESETS or session.field == "uniform":       # the operator's own map stays
                     session.field = FIELDS.get(session.subject, "uniform")
-            if attribute in ("subject", "coil", "size_mm"):
+            if attribute in ("subject", "coil"):
                 room()
             draw()
         return handle
@@ -809,6 +815,8 @@ def console():
                 chosen_field = ui.select(list(dict.fromkeys(["uniform", *FieldMap.PRESETS, session.field])), value=session.field,
                                          on_change=lambda e: setattr(session, "field", e.value)).props("dense outlined dark").style("flex: 1")
                 ui.upload(label="your own", auto_upload=True, on_upload=field).props("flat dense dark accept=.nii,.gz").style("width: 220px")
+            ui.switch("this map was measured after my own shim: apply none", value=session.shim == "none", on_change=lambda e: setattr(
+                session, "shim", "none" if e.value else "linear")).props("dense color=accent")
             ui.label("B1+, relative to nominal").classes("label")
             with ui.row().classes("w-full items-center no-wrap"):
                 shown = ui.label("nominal everywhere" if session.transmit is None else pathlib.Path(session.transmit).name).classes(
@@ -859,6 +867,71 @@ def console():
                     ui.label("off sets " + ", ".join(leaves) + " to 0").classes("label").style("text-transform: none; letter-spacing: 0")
             ui.label("Drift, breathing and motion over the transients are part of every run (Review shows them). "
                      "Every single value stays open in the settings.").classes("label").style("text-transform: none; letter-spacing: 0")
+        dialog.open()
+
+    def run_settings():
+        """What happens over the transients of every run: each instability drawn from the 3 T
+        envelope (scan.Multiplex.transients), off, or set by the operator; and how far a motion
+        event moves the head."""
+        ways = ["drawn, as at 3 T", "off", "set to"]
+
+        def put(argument, off, way, number):
+            session.run_settings.pop(argument, None)
+            if way.value == ways[1]:
+                session.run_settings[argument] = off
+            elif way.value == ways[2] and number.value is not None:
+                session.run_settings[argument] = float(number.value)
+
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 680px"):
+            with ui.row().classes("w-full items-center"):
+                ui.label("The run · what the scanner and the subject do over the transients").classes("label")
+                ui.space()
+                ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+            for caption, (argument, off) in RUN.items():
+                now = session.run_settings.get(argument)
+                with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
+                    ui.label(caption).style("width: 250px")
+                    way = ui.select(ways, value=ways[0] if now is None else ways[1] if now == off else ways[2]).props(
+                        "dense outlined dark options-dense").style("width: 170px")
+                    number = ui.number(value=now if now not in (None, off) else None, format="%.4g").props("dense outlined dark").style(
+                        "width: 110px").bind_visibility_from(way, "value", value=ways[2])
+                    way.on_value_change(lambda _, a=argument, o=off, w=way, n=number: put(a, o, w, n))
+                    number.on_value_change(lambda _, a=argument, o=off, w=way, n=number: put(a, o, w, n))
+            with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
+                ui.label("a motion event moves the head by (mm)").style("width: 250px")
+                low = ui.number("from", value=None if session.motion_mm is None else session.motion_mm[0], min=0.0).props(
+                    "dense outlined dark clearable").style("width: 110px")
+                high = ui.number("to", value=None if session.motion_mm is None else session.motion_mm[1], min=0.0).props(
+                    "dense outlined dark clearable").style("width: 110px")
+                for field in (low, high):
+                    field.on_value_change(lambda: setattr(session, "motion_mm", None if low.value is None or high.value is None
+                                                          else (float(min(low.value, high.value)), float(max(low.value, high.value)))))
+            ui.label("Empty: the head stays, the events kick the frequency, the phase and the amplitude alone. A moved head is scanned "
+                     "where it then lies, under the shim of the planned place. Review shows the tracks of every exam. Phase cycling is "
+                     "not played: the engine keeps the wanted coherence pathway by crushers and filters.").classes("label").style(
+                "text-transform: none; letter-spacing: 0")
+        dialog.open()
+
+    def calibration():
+        """What the scanner is calibrated by: the records in force with their sources, and, where
+        the package has records of the same hardware read under another coil, the choice of them."""
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px"):
+            with ui.row().classes("w-full items-center"):
+                ui.label("Calibration · the records this scanner's noise, line shape and levels come from").classes("label")
+                ui.space()
+                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
+            others = CALIBRATIONS.get(session.scanner, {})
+            if others:
+                ui.select({None: "the scanner's own records", **{preset: what for what, preset in others.items()}}, value=session.calibration,
+                          label="records", on_change=lambda e: setattr(session, "calibration", e.value)).props("dense outlined dark").classes("w-full")
+            for leaf, record in session.outlook()["records"].items():
+                with ui.row().classes("w-full no-wrap").style("gap: 10px"):
+                    ui.label(f"{leaf}  {record['value']:g}").classes("value").style("width: 200px")
+                    ui.label(record["source"] + (f" · departs in {', '.join(record['extrapolated'])}" if record["extrapolated"] else "")).classes(
+                        "label").style("text-transform: none; letter-spacing: 0")
+            ui.label("A scanner of your own is a profile read from one raw scan of yours (ScannerProfile.read in Python, saved as JSON to "
+                     "~/MRSandbox/profiles): it then stands in the scanner list, on this machine only. Reading one here from an uploaded "
+                     "scan is not in the console yet.").classes("label").style("text-transform: none; letter-spacing: 0")
         dialog.open()
 
     def coil_gear():
@@ -935,9 +1008,16 @@ def console():
                                                    ("subject", "on the table", list(session.subjects), 240)):
             pickers[attribute] = ui.select(options, value=getattr(session, attribute), label=caption, on_change=changed(attribute)).props(
                 "dense outlined dark").style(f"min-width: {width}px")
+            if attribute == "scanner":
+                ui.button(icon="verified", on_click=calibration).mark("calibration").props("flat dense round size=sm").style(
+                    f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
             if attribute in GEARS or attribute == "coil":
                 ui.button(icon="settings", on_click=(lambda _, panel=attribute: gear(panel)) if attribute in GEARS else coil_gear).props("flat dense round size=sm").style(
                     f"color: {GLOW}; margin-left: -10px").tooltip(f"the {attribute}'s parameters and ranges")
+        ui.button(icon="person_add_alt", on_click=lambda: (setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
+                                                           ui.notify("A new subject of the population lies on the table"))).props(
+            "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
+            "every exam scans the same subject, one draw of the population; this puts a new one on the table")
         ui.button("maps", icon="layers", on_click=maps).props("flat dense no-caps").style(f"color: {GLOW}; margin-left: -8px").tooltip(
             "your own anatomy, B0 and B1+ maps, or the measured ones")
         ui.space()
@@ -966,25 +1046,15 @@ def console():
         with ui.column().style("flex: 1; min-width: 0; gap: 6px"):
             with ui.row().classes("w-full items-center pane no-wrap").style("padding: 4px 8px"):
                 ui.button("to the voxel", icon="center_focus_strong", on_click=lambda: (
-                    setattr(session, "view_mm", list(session.position_mm)), paint())).props("flat dense no-caps").classes("tool").tooltip(
+                    setattr(session, "view_mm", list(session.position_mm)), paint())).props("flat dense no-caps stack").classes("tool").tooltip(
                     "bring the three planes back to the voxel")
-                tools["water"] = ui.button("water off", icon="water_drop", on_click=lambda: toggle("water")).props(
-                    "flat dense no-caps").classes("tool").tooltip("water suppression before the localization: off, VAPOR, WET, CHESS")
-                tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
-                    "flat dense no-caps").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
-                ui.button("realism", icon="auto_fix_high", on_click=realism).props("flat dense no-caps").classes("tool").tooltip(
+                ui.button("realism", icon="auto_fix_high", on_click=realism).props("flat dense no-caps stack").classes("tool").tooltip(
                     "everything real about the scan as switches: pulses, the B0 field, noise, macromolecules, lipids, eddy currents, ...")
-                tools["real"] = ui.button("real pulses", icon="waves", on_click=lambda: toggle("real")).props(
-                    "flat dense no-caps").classes("tool").tooltip(
-                    "off: ideal pulses that act at once and select the voxel exactly (fast). on: shaped pulses under gradients, played in "
-                    "time, so the voxel has a profile, shifts displace, and the scan takes longer to simulate")
                 tools["shifts"] = ui.button("shifts", icon="flip_to_back", on_click=lambda: (
-                    chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps").classes("tool on").tooltip(
+                    chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
                     "the displaced voxels of water (blue) and lipid (pink) under a played localization")
-                ui.button("design", icon="architecture", on_click=lambda: (
-                    setattr(session.protocol, "sequence", "Custom"), designer())).props("flat dense no-caps").classes("tool").tooltip(
-                    "the sequence designer")
-                ui.button("sequence", icon="settings", on_click=lambda: gear("scanner")).props("flat dense no-caps").classes("tool")
+                ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
+                    "what happens over the transients: drift, breathing, jitter, motion")
                 ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: (setattr(session, "overlay", e.value), paint())).props(
                     "dense outlined dark options-dense").style("width: 150px").tooltip(
                     "wash a map over the anatomy: the B0 field and B1+ (on in maps), or a tissue")
@@ -1017,19 +1087,25 @@ def console():
                                         e.value is not None and abs(e.value - session.position_mm[axis]) > 0.05 and (
                                             session.position_mm.__setitem__(axis, float(e.value)), draw()))).props(
                                         "dense outlined dark").classes("w-full"))
-                                ui.number("voxel size (mm)", value=session.size_mm, step=5.0, min=5.0, on_change=changed("size_mm")).props(
-                                    "dense outlined dark").classes("w-full")
+                                ui.label("voxel size (mm)").classes("label")
+                                with ui.row().classes("w-full no-wrap").style("gap: 4px"):
+                                    for axis, caption in enumerate(("x", "y", "z")):
+                                        edges.append(ui.number(caption, value=session.size_mm[axis], step=5.0, min=3.0, on_change=lambda e, axis=axis: (
+                                            e.value is not None and e.value != session.size_mm[axis] and (
+                                                session.size_mm.__setitem__(axis, float(e.value)), room(), draw()))).props(
+                                            "dense outlined dark").style("flex: 1; min-width: 0"))
                                 ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
                                     "dense outlined dark").classes("w-full")
-                                ui.number("shim box (mm), empty: the voxel", value=session.shim_mm, step=5.0, min=5.0,
+                                ui.number("shim box (mm)", value=session.shim_mm, step=5.0, min=5.0,
                                           on_change=lambda e: (setattr(session, "shim_mm", e.value), draw())).props(
                                     "dense outlined dark clearable").classes("w-full").tooltip(
-                                    "the yellow box about the voxel the shim is fitted over; it acts where a B0 map is on (maps)")
+                                    "the yellow box about the voxel the shim is fitted over; empty, the shim is fitted over the voxel itself")
                                 ui.number("matrix (MRSI)", value=card.matrix, step=2, on_change=changed("matrix", "card")).bind_value(
                                     card, "matrix").props("dense outlined dark").classes("w-full")
                             for tab, fields in (("Contrast", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
                                                 ("Acquisition", (("averages", "averages", 1), ("npoints", "points", 512),
-                                                                 ("bandwidth_hz", "bandwidth (Hz)", 500.0)))):
+                                                                 ("bandwidth_hz", "bandwidth (Hz)", 500.0),
+                                                                 ("water_reference", "water reference transients, 0: none", 2)))):
                                 with ui.tab_panel(tab):
                                     if tab == "Contrast":
                                         ui.button(on_click=browse).bind_text_from(card, "sequence").props(
@@ -1050,7 +1126,20 @@ def console():
                         ui.tab("Live")
                     with ui.tab_panels(shows, value="Sequence").props("keep-alive").classes("w-full").style("flex: 1"):
                         with ui.tab_panel("Sequence"):
-                            diagram = ui.html("", sanitize=False).classes("w-full")
+                            with ui.row().classes("w-full no-wrap").style("gap: 8px"):
+                                with ui.column().style("gap: 4px; flex: none"):
+                                    tools["real"] = ui.button("real pulses", icon="waves", on_click=lambda: toggle("real")).props(
+                                        "flat dense no-caps stack").classes("tool").tooltip(
+                                        "off: ideal pulses that act at once and select the voxel exactly (fast). on: shaped pulses under gradients, played in "
+                                        "time, so the voxel has a profile, shifts displace, and the scan takes longer to simulate")
+                                    tools["water"] = ui.button("water off", icon="water_drop", on_click=lambda: toggle("water")).props(
+                                        "flat dense no-caps stack").classes("tool").tooltip("water suppression before the localization: off, VAPOR, WET, CHESS")
+                                    tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
+                                        "flat dense no-caps stack").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
+                                    ui.button("design", icon="architecture", on_click=lambda: (
+                                        setattr(session.protocol, "sequence", "Custom"), designer())).props("flat dense no-caps stack").classes("tool").tooltip(
+                                        "the sequence designer")
+                                diagram = ui.html("", sanitize=False).style("flex: 1; min-width: 0")
                         with ui.tab_panel("Live"):
                             spectrum = ui.echart(copy.deepcopy(SPECTRUM)).style("height: 250px").classes("w-full")
             # the card in one line, and its way into the queue
