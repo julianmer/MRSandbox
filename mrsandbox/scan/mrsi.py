@@ -410,7 +410,14 @@ class MRSI:
         # a trajectory samples every kx line once per spectral dwell, so the sources
         # render on the fine ADC grid and the sampler picks each line's visit times;
         # a finite dead time appends n_dead unread fine samples to every period
-        n_dead = self._dead_points(dwell_s) if self.trajectory is not None else 0
+        # (the dead time quantized to fine-grid samples: the nx visits occupy dwell - dead, so the
+        # fine step is dwell / (nx + n_dead) and the realized dead time is n_dead of those steps)
+        n_dead = 0
+        if self.trajectory is not None:
+            if not self.dead_time_s < dwell_s:
+                raise ValueError(f"dead_time_s must stay below the spectral dwell: got "
+                                 f"{self.dead_time_s} at dwell {dwell_s}")
+            n_dead = int(round(self.dead_time_s * self.samples_per_period / (dwell_s - self.dead_time_s)))
         period = self.samples_per_period + n_dead
         fine = npoints if self.trajectory is None else npoints * period
         step = dwell_s if self.trajectory is None else dwell_s / period
@@ -723,15 +730,6 @@ class MRSI:
 
         return kind
 
-    def _dead_points(self, dwell_s):
-        """The dead time quantized to fine-grid samples: the nx visits occupy
-        dwell - dead, so the fine step is dwell / (nx + n_dead) and the realized dead
-        time is n_dead of those steps (recorded in the header)."""
-        if not self.dead_time_s < dwell_s:
-            raise ValueError(f"dead_time_s must stay below the spectral dwell: got "
-                             f"{self.dead_time_s} at dwell {dwell_s}")
-        samples = self.samples_per_period
-        return int(round(self.dead_time_s * samples / (dwell_s - self.dead_time_s)))
 
     def _visit_order(self, parity):
         """Sample slot of every centred kx index inside one spectral period: the sweep

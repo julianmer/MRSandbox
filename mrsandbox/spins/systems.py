@@ -246,7 +246,13 @@ class Operators:
     def build(cls, system):
         """Build (and cache) the operator stack of a hashable SpinSystem; relaxed
         variants of one structural system hit the same entry."""
-        single = cls._single(system.spin)
+        # the x, y, z operators of one spin I on its 2 I + 1 levels, m descending: Iz = diag(m) and
+        # the ladder I+ with <m + 1|I+|m> = sqrt(I (I + 1) - m (m + 1))
+        m = system.spin - np.arange(int(round(2 * system.spin + 1)))
+        plus = np.diag(np.sqrt(system.spin * (system.spin + 1.0) - m[1:] * (m[1:] + 1.0)), k=1)
+        single = {"x": ((plus + plus.T) / 2.0).astype(np.complex64),
+                  "y": ((plus - plus.T) / 2.0j).astype(np.complex64),
+                  "z": np.diag(m).astype(np.complex64)}
         ix, iy, iz = (
             np.stack([cls._embed(single[axis], i, system.n) for i in range(system.n)])
             for axis in "xyz"
@@ -266,20 +272,6 @@ class Operators:
         return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy, coherence_order=order,
                    mz=mz, hadamard=hadamard)
 
-    #*******************#
-    #   single spin     #
-    #*******************#
-    @staticmethod
-    def _single(spin):
-        """The x, y, z operators of one spin I on its 2 I + 1 levels, m descending:
-        Iz = diag(m) and the ladder I+ with <m + 1|I+|m> = sqrt(I (I + 1) - m (m + 1))."""
-        m = spin - np.arange(int(round(2 * spin + 1)))
-        plus = np.diag(np.sqrt(spin * (spin + 1.0) - m[1:] * (m[1:] + 1.0)), k=1)
-        return {
-            "x": ((plus + plus.T) / 2.0).astype(np.complex64),
-            "y": ((plus - plus.T) / 2.0j).astype(np.complex64),
-            "z": np.diag(m).astype(np.complex64),
-        }
 
     #***************#
     #   embedding   #
