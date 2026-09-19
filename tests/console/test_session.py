@@ -110,6 +110,23 @@ class TestSession:
         session.queue.append(again)
         assert not np.allclose(session.run(again).frames[-1][1], scan.frames[-1][1])   # its own noise at another place in the queue
 
+    def test_the_scanner_drifts_through_the_session_and_a_prescan_centres_it(self):
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 30, 256
+        session.run_settings = {"ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "events_per_min": 0.0}     # the drift alone
+        session.prescan = False
+        first, second = (session.run(session.plan()).tracks["frequency_hz"] for _ in range(2))
+        rate = session.drift_hz_per_min
+        assert 0.05 <= abs(rate) <= 1.5 and session.clock_s == 120.0
+        assert first[0] == 0.0 and second[0] == pytest.approx(rate * 1.0)             # a minute later, a minute of drift on
+        assert second[-1] - second[0] == pytest.approx(first[-1] - first[0])          # the same rate all session
+        session.prescan = True
+        assert session.run(session.plan()).tracks["frequency_hz"][0] == 0.0
+        session.protocol.axes = "zxy"                                                 # and the real PRESS orders its axes
+        session.protocol.real = True
+        assert np.argmin(np.abs(session.displacement(4.65))) == 2                     # the 90, the broad one, selects along z now
+
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
 

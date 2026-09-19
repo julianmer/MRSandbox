@@ -476,6 +476,27 @@ class TestLocalizedPress:
         with pytest.raises(ValueError):
             LocalizedPress(0.004, 0.010, 3.0 * 42.5774785)
 
+    def test_the_axes_order_which_pulse_selects_along_which_axis(self):
+        from mrsandbox import LocalizedPress, ShapedPulse
+
+        f0_mhz = 3.0 * 42.5774785
+        turned = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(30.0, 20.0, 10.0), axes="zxy")
+        slabs = [(e.gradient_axis, float(e.flip_deg), float(e.gradient_hz_per_mm)) for e in turned.events
+                 if isinstance(e, ShapedPulse)]
+        assert [(axis, flip) for axis, flip, _ in slabs] == [("z", 90.0), ("x", 180.0), ("y", 180.0)]
+        # every slab is as thick as the voxel's edge along its own axis: bandwidth over gradient
+        plain = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(30.0, 20.0, 10.0))
+        edge = {e.gradient_axis: (float(e.flip_deg), float(e.gradient_hz_per_mm)) for e in plain.events if isinstance(e, ShapedPulse)}
+        assert slabs[0][2] * 10.0 == pytest.approx(edge["x"][1] * 30.0)          # the 90's bandwidth, on z now
+        assert slabs[1][2] * 30.0 == pytest.approx(edge["y"][1] * 20.0)          # a 180's bandwidth, on x now
+        # an isotropic voxel of an uncoupled line does not care which pulse takes which axis
+        engine, naa = Engine(3.0, isochromats=16), SpinSystem.from_database("NAA")[0]
+        heights = [np.abs(np.asarray(ops.convert_to_numpy(engine.lines(LocalizedPress(0.015, 0.015, f0_mhz, axes=axes), naa)[1]))).sum()
+                   for axes in ("xyz", "zxy")]
+        assert heights[0] == pytest.approx(heights[1], rel=1e-3)
+        with pytest.raises(ValueError):
+            LocalizedPress(0.015, 0.015, f0_mhz, axes="xxy")
+
 
 #**************************************************************************************************#
 #                                     Class TestLocalizedSteam                                     #

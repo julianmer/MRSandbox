@@ -192,7 +192,8 @@ class Multiplex:
     #****************#
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
                    npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None,
-                   motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0), step=0):
+                   motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0), step=0,
+                   frequency_start_hz=0.0):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
@@ -237,6 +238,9 @@ class Multiplex:
                 None for a head that does not turn. The voxel's box stays aligned with
                 the head's axes (small angles; stated).
             pivot_mm: The point the head turns about.
+            frequency_start_hz: Where the scanner's frequency stands when the run starts, added to
+                the whole frequency track: a scanner that drifted through earlier runs and was
+                not centred again. Zero is a run that starts on resonance.
             step: Which noise stream of the seed this run takes (scan.voxel draw): one
                 seed is one subject, and every further run of that subject takes another
                 step for fresh noise and a fresh course of the scanner's instabilities.
@@ -263,6 +267,7 @@ class Multiplex:
                                      **synthesis)
         # the realized tracks, which Augmentrum applies through the same factor
         freq_hz, phase_rad, amplitude, broaden_hz = synth.tracks(synth.rng.numpy_rng())
+        freq_hz = freq_hz + float(frequency_start_hz)
 
         moved = (np.zeros((n, 3)) if displacement_mm is None
                  else np.asarray(displacement_mm, dtype=np.float64).reshape(n, 3).copy())

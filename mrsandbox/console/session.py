@@ -223,6 +223,7 @@ class Protocol:
     real: bool = True
     water_reference: int = 1
     water_reference_first: bool = True
+    axes: str = "xyz"
     edit_on_ppm: float = 1.88
     edit_off_ppm: float = 7.5
     # a spectroscopic image's encoding (scan.mrsi): how finely the subject is rendered under each cell (1: ideal boxes,
@@ -326,6 +327,11 @@ class Session:
             (CALIBRATIONS).
         seed: The subject on the table: every exam scans this one draw of the population, each
             with noise of its own; a new subject is a new seed.
+        prescan, clock_s: The scanner's session. Its frequency drifts at one rate through all exams
+            (`drift_hz_per_min`, drawn once unless the operator set it in the run's settings), and
+            the clock runs on by every exam's duration. With `prescan` the frequency is centred
+            before every exam, as scanners do by default; without it an exam starts where the
+            drift has taken the scanner by then.
         align: Whether the display aligns every transient in frequency and phase to the run's mean
             before it averages, as a scanner's or a toolbox's preprocessing does; the export stays raw.
         run, motion_mm: A run's instabilities the operator set, {synthesizer argument: value}
@@ -373,6 +379,7 @@ class Session:
         self.seed = int(np.random.default_rng().integers(2 ** 31))
         self.run_settings, self.motion_mm = {}, None
         self.align = True
+        self.prescan, self.clock_s, self._drift = True, 0.0, None
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
@@ -572,11 +579,11 @@ class Session:
             # a vendor fits its pulses to its transmitter: where the refocusing pulses ask for more B1 than the scanner
             # has, they are played longer at the same time-bandwidth product, so narrower, and displace more
             peaks = [float(e.peak_hz) for e in design.events if isinstance(e, ShapedPulse) and e.peak_hz is not None]
-            over = max(peaks) / (42.5774785 * scanner.peak_b1_ut)
-            if over > 1.0:
+            over = max(max(peaks) / (42.5774785 * scanner.peak_b1_ut), 1.0)
+            if over > 1.0 or card.axes != "xyz":    # and the operator's order of the axes: which the 90 selects, which the 180s
                 te1 = min(0.014 * over, card.te_ms / 2000.0)
                 design = LocalizedPress(te1, card.te_ms / 1000.0 - te1, 42.5774785 * scanner.b0_t, size_mm=tuple(self.size_mm),
-                                        refocusing_s=0.0065 * 1.02 * over, tr_s=card.tr_ms / 1000.0)
+                                        refocusing_s=0.0065 * (1.02 * over if over > 1.0 else 1.0), tr_s=card.tr_ms / 1000.0, axes=card.axes)
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
@@ -924,6 +931,19 @@ class Session:
                     self.queue[-2].name, exam.name = f"{number} {card.sequence} water reference", exam.name.replace(f"{number} ", f"{number + 1} ", 1)
         return exam
 
+    @property
+    def drift_hz_per_min(self):
+        """The rate the scanner's frequency drifts at in this session: the operator's, or one draw of
+        Augmentrum's 3 T envelope, read off a still synthesizer's two transients a minute apart."""
+        if "drift_hz_per_min" in self.run_settings:
+            return float(self.run_settings["drift_hz_per_min"])
+        if self._drift is None:
+            from augmentrum.augmentation import TransientSynthesizer
+
+            still = TransientSynthesizer(n_transients=2, tr_s=60.0, seed=self.seed, ar_sigma_hz=0.0, resp_amp_hz=0.0, events_per_min=0.0)
+            self._drift = float(np.diff(still.tracks(still.rng.numpy_rng())[0])[0])
+        return self._drift
+
     def showcase(self):
         """What the own design does to a spectrum, to show the sequence and not a result: two
         transients of a fixed subject (seed 0) in the average brain's parietal white and grey
@@ -981,8 +1001,12 @@ class Session:
                          coils=None if coils is None else coils.loaded().calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)
         schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
+        run = {**exam.run, "synthesis": {"drift_hz_per_min": self.drift_hz_per_min, **exam.run.get("synthesis", {})}}
+        started = 0.0 if self.prescan else self.drift_hz_per_min * self.clock_s / 60.0
+        if exam in self.queue:                                  # a preview leaves the scanner's clock alone
+            self.clock_s += card.scan_time_s
         exam.data = room.transients(exam.position_mm, exam.size_mm, schedule, tr_s=card.tr_ms / 1000.0, seed=seed,
-                                    step=self.queue.index(exam) + 1 if exam in self.queue else 0, **exam.run,
+                                    step=self.queue.index(exam) + 1 if exam in self.queue else 0, frequency_start_hz=started, **run,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
         fids = np.asarray(exam.data[:])[0, 0, 0]
         fids = fids[:, None] if fids.ndim == 1 else fids if fids.ndim == 2 else fids.sum(axis=1)   # one transient; channels summed for the display alone

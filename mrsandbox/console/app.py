@@ -1040,6 +1040,13 @@ def console():
                 ui.label("The run · what the scanner and the subject do over the transients").classes("label")
                 ui.space()
                 ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+            ui.switch("centre the frequency before every exam (prescan)", value=session.prescan, on_change=lambda e: setattr(
+                session, "prescan", e.value)).props("dense color=accent").tooltip(
+                "the scanner drifts at one rate through the whole session and its clock runs on with every exam. On, as scanners do by "
+                "default: every exam starts on resonance. Off: an exam starts where the drift has taken the scanner by then, so the "
+                "order of the exams matters (a water reference before or after its scan)")
+            ui.label(f"This session the scanner drifts at {session.drift_hz_per_min:+.2f} Hz per minute; {session.clock_s / 60.0:.1f} minutes "
+                     "have been scanned.").classes("label").style("text-transform: none; letter-spacing: 0")
             for caption, (argument, off) in RUN.items():
                 now = session.run_settings.get(argument)
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
@@ -1270,6 +1277,10 @@ def console():
                                             e.value is not None and e.value != session.size_mm[axis] and (
                                                 session.size_mm.__setitem__(axis, float(e.value)), room(), draw()))).props(
                                             "dense outlined dark").style("flex: 1; min-width: 0"))
+                                ui.select({axes: f"90 along {axes[0]}, 180s along {axes[1]} and {axes[2]}" for axes in (
+                                    "xyz", "xzy", "yxz", "yzx", "zxy", "zyx")}, label="slice order (real PRESS)", on_change=changed("axes", "card")
+                                          ).bind_value(card, "axes").props("dense outlined dark options-dense").classes("w-full").tooltip(
+                                    "the narrow 180s displace a shift the most: the order decides along which two axes of the subject")
                                 ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
                                     "dense outlined dark").classes("w-full")
                                 ui.number("shim box (mm)", value=session.shim_mm, step=5.0, min=5.0,

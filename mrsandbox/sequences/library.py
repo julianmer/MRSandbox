@@ -252,6 +252,9 @@ class LocalizedPress(Sequence):
             bandwidths are the time-bandwidth products over them.
         span: The ensemble's extent per axis in voxel edges.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+        axes: Which axis the 90 selects and which the two 180s, in that order ("xyz" by
+            default): the narrow 180s displace a shift the most, so the order decides
+            along which two axes of the subject that happens.
     """
 
     #**********#
@@ -260,21 +263,24 @@ class LocalizedPress(Sequence):
     EXCITATION_TBW, REFOCUSING_TBW, REPHASE = 6.0, 6.24, 0.52
 
     def __init__(self, te1_s, te2_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, excitation_s=0.0026,
-                 refocusing_s=0.0065, span=2.5, tr_s=None):
+                 refocusing_s=0.0065, span=2.5, tr_s=None, axes="xyz"):
+        if sorted(axes) != ["x", "y", "z"]:
+            raise ValueError(f"axes must order x, y, and z, got {axes!r}")
         self.te1_s = te1_s
         self.te2_s = te2_s
-        edges = voxel_edges(size_mm)
+        self.axes = axes
+        edges = [voxel_edges(size_mm)["xyz".index(axis)] for axis in axes]
         delays = (te1_s / 2.0 - excitation_s / 2.0 - refocusing_s / 2.0,
                   (te1_s + te2_s) / 2.0 - refocusing_s, te2_s / 2.0 - refocusing_s / 2.0)
         if min(delays) <= 0.0:
             raise ValueError(f"te1_s {te1_s} and te2_s {te2_s} are too short for the pulses")
 
         frame = (span, reference_ppm, f0_mhz)
-        excitation, slope = slab_pulse(90, excitation_s, self.EXCITATION_TBW, "x", edges[0], *frame)
-        refocus_y, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, "y", edges[1], *frame, 90.0)
-        refocus_z, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, "z", edges[2], *frame, 90.0)
+        excitation, slope = slab_pulse(90, excitation_s, self.EXCITATION_TBW, axes[0], edges[0], *frame)
+        refocus_y, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, axes[1], edges[1], *frame, 90.0)
+        refocus_z, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, axes[2], edges[2], *frame, 90.0)
         super().__init__(
-            excitation, Gradient(-self.REPHASE * slope * excitation_s, span * edges[0], axis="x"),
+            excitation, Gradient(-self.REPHASE * slope * excitation_s, span * edges[0], axis=axes[0]),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
             CoherenceFilter(-1), refocus_y, CoherenceFilter(+1), Projection(span), Delay(delays[1]),
             CoherenceFilter(+1), refocus_z, CoherenceFilter(-1), Projection(span), Delay(delays[2]),
