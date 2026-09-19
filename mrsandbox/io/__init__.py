@@ -14,5 +14,6 @@
 #*************#
 #   imports   #
 #*************#
+from mrsandbox.io.philips import DataList, LabRaw, SdatSpar
 from mrsandbox.io.pulseq import PulseqSequence, read_seq, read_seq_all, write_seq
 from mrsandbox.io.varian import VarianFid
