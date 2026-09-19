@@ -53,15 +53,6 @@ def _echo_time_s(sequence):
     return float(sum(float(event.t_s) for event in sequence.events if isinstance(event, Delay)))
 
 
-#*******************#
-#   peak position   #
-#*******************#
-def _peak_ppm(label):
-    """Position of a consensus peak from its frequency label (M3.4-3.6 to the midpoint)."""
-    parts = label.lstrip("M").split("-")
-    return sum(float(part) for part in parts) / len(parts)
-
-
 #**************************************************************************************************#
 #                                          Class MMSource                                          #
 #**************************************************************************************************#
@@ -235,7 +226,8 @@ class MeasuredMM(MMSource):
         if abs(delta) >= 1e-9:
             if self._t2_map is None:
                 table = macromolecules.CONSENSUS_T2["t2_ms"]
-                rows = sorted((_peak_ppm(peak), value[0] / 1000.0)
+                # a peak's position from its frequency label, M3.4-3.6 to the midpoint
+                rows = sorted((np.mean([float(part) for part in peak.lstrip("M").split("-")]), value[0] / 1000.0)
                               for peak, entries in table.items()
                               if (value := entries.get("landheer_2020")) is not None)
                 self._t2_map = (np.asarray([ppm for ppm, _ in rows]),

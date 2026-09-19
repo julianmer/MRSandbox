@@ -59,13 +59,6 @@ _TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
                "GPC": "tCho", "PCho": "tCho"}
 
 
-def _gm_wm_ratio(name):
-    """The challenge GM to WM concentration ratio of a metabolite; 1.0 where the
-    table has no entry or a zero tissue value (stated fallback)."""
-    gm, wm = concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0))
-    return gm / wm if gm > 0.0 and wm > 0.0 else 1.0
-
-
 #**********************#
 #   default catalogue  #
 #**********************#
@@ -147,7 +140,9 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         mm=dict(level_mm=(1.5, 4.0), kappa=(7.6, 13.1),
                 t1={**dict(mm091=0.290, mm121=0.309, mm143=0.400, mm167=0.225,
                            mm226=0.263, mm321=0.400, mm377=0.400),
-                    **_mm_t1(tesla)},
+                    **{component: CONSENSUS_T1["t1_ms"][peak][MM_T1_STUDIES[tesla]][0] / 1000.0
+                       for component, peak in MM_T1_PEAKS.items()
+                       if MM_T1_STUDIES.get(tesla) in CONSENSUS_T1["t1_ms"][peak]}},
                 t2=dict(mm091=Clipped(Normal(0.027, 0.002), low=0.005),
                         mm121=Clipped(Normal(0.039, 0.013), low=0.005),
                         mm143=Clipped(Normal(0.018, 0.004), low=0.005),
@@ -288,7 +283,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     # row stay at 1.0, both stated). The render splits the drawn concentration as
     # gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn value
     # and pure tissues realize the published contrast.
-    contrast = Params(contrast={name: _gm_wm_ratio(name) for name in names})
+    # the challenge GM to WM concentration ratio of a metabolite; 1.0 where the table has no
+    # entry or a zero tissue value (stated fallback)
+    rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0)) for name in names}
+    contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
     return Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections
 
@@ -306,17 +304,3 @@ def _water_relaxation(tesla):
     t1 = {tissue: (Clipped(Normal(*value), low=0.2) if isinstance(value, tuple) else value)
           for tissue, value in t1.items()}
     return PerTissue(**t1), PerTissue(**{**WATER["t2_s"], **field.get("t2_s", {})})
-
-
-#*************************#
-#   macromolecule t1      #
-#*************************#
-def _mm_t1(tesla):
-    """The consensus MM T1 (seconds) of the components with a human row at the field,
-    empty at 3 T and where the table has none."""
-    study = MM_T1_STUDIES.get(tesla)
-    if study is None:
-        return {}
-    return {component: CONSENSUS_T1["t1_ms"][peak][study][0] / 1000.0
-            for component, peak in MM_T1_PEAKS.items()
-            if study in CONSENSUS_T1["t1_ms"][peak]}

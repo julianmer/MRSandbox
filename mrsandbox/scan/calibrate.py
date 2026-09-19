@@ -114,34 +114,6 @@ def _shape(ppm, real, f0_mhz):
     return float((high - low) * f0_mhz), float(creatine)
 
 
-def _snr(fids, dwell_s, f0_mhz):
-    """The consensus SNR of (npoints, transients) FIDs, plain and apodized, and the ppm
-    the NAA singlet was found at: the real peak height over the standard deviation of a
-    signal-free stretch after a linear detrend (Near et al. 2021), phased on the
-    transients' mean, the median over transients. The floor is measured once, plain,
-    where it is flat; under the apodization it is that floor times the root of the
-    window's mean square, as for white noise and as the simulation has it: measured
-    there, the broadened lines' feet and the edge of a cropped band would count as
-    noise (up to a factor of two on oversampled data cropped to the band)."""
-    n = fids.shape[0]
-    window = np.exp(-np.pi * APODIZATION_HZ * np.arange(n) * dwell_s)
-    hz = np.fft.fftshift(np.fft.fftfreq(n, dwell_s))
-    mean = np.fft.fftshift(np.fft.fft(fids.mean(axis=1)))
-    # the sign of the frequency axis differs between conventions: the one with NAA wins
-    ppm = max((WATER_PPM + sign * hz / f0_mhz for sign in (1.0, -1.0)),
-              key=lambda axis: np.abs(mean[np.abs(axis - NAA_PPM) < 0.15]).max())
-    peak = np.argmax(np.abs(mean) * (np.abs(ppm - NAA_PPM) < 0.15))
-    phase = np.exp(-1j * np.angle(mean[peak]))
-    quiet, near = (ppm > -4.0) & (ppm < -1.0), np.abs(ppm - ppm[peak]) < 0.05
-    plain = (np.fft.fftshift(np.fft.fft(fids, axis=0), axes=0) * phase).real
-    broad = (np.fft.fftshift(np.fft.fft(fids * window[:, None], axis=0), axes=0) * phase).real
-    floors = np.array([(real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std()
-                       for real in plain.T])
-    return (float(np.median(plain[near].max(axis=0) / floors)),
-            float(np.median(broad[near].max(axis=0) / (floors * np.sqrt((window ** 2).mean())))),
-            float(ppm[peak]))
-
-
 #**************************************************************************************************#
 #                                        Class NoiseReading                                        #
 #**************************************************************************************************#
@@ -192,8 +164,30 @@ class NoiseReading:
         oversampled receiver band is left as it is)."""
         x = np.asarray(data)
         n, coils, transients = x.shape
-        plain, apodized, at = _snr(_combined(x), dwell_s, f0_mhz)
-        return cls(snr=plain, snr_apodized=apodized, naa_ppm=at, transients=transients, coils=coils,
+        # the consensus SNR: the real peak height over the standard deviation of a signal-free
+        # stretch after a linear detrend (Near et al. 2021), phased on the transients' mean, the
+        # median over transients. The floor is measured once, plain, where it is flat; under
+        # the apodization it is that floor times the root of the window's mean square, as for
+        # white noise and as the simulation has it: measured there, the broadened lines' feet
+        # and the edge of a cropped band would count as noise (up to a factor of two on
+        # oversampled data cropped to the band).
+        fids = _combined(x)
+        window = np.exp(-np.pi * APODIZATION_HZ * np.arange(n) * dwell_s)
+        hz = np.fft.fftshift(np.fft.fftfreq(n, dwell_s))
+        mean = np.fft.fftshift(np.fft.fft(fids.mean(axis=1)))
+        # the sign of the frequency axis differs between conventions: the one with NAA wins
+        ppm = max((WATER_PPM + sign * hz / f0_mhz for sign in (1.0, -1.0)),
+                  key=lambda axis: np.abs(mean[np.abs(axis - NAA_PPM) < 0.15]).max())
+        peak = np.argmax(np.abs(mean) * (np.abs(ppm - NAA_PPM) < 0.15))
+        phase = np.exp(-1j * np.angle(mean[peak]))
+        quiet, near = (ppm > -4.0) & (ppm < -1.0), np.abs(ppm - ppm[peak]) < 0.05
+        spectra = (np.fft.fftshift(np.fft.fft(fids, axis=0), axes=0) * phase).real
+        broad = (np.fft.fftshift(np.fft.fft(fids * window[:, None], axis=0), axes=0) * phase).real
+        floors = np.array([(real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std()
+                           for real in spectra.T])
+        plain = float(np.median(spectra[near].max(axis=0) / floors))
+        apodized = float(np.median(broad[near].max(axis=0) / (floors * np.sqrt((window ** 2).mean()))))
+        return cls(snr=plain, snr_apodized=apodized, naa_ppm=float(ppm[peak]), transients=transients, coils=coils,
                    npoints=n, bandwidth_hz=1.0 / dwell_s, f0_mhz=float(f0_mhz),
                    excitations=int(excitations), header=dict(header or {}))
 
