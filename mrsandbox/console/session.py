@@ -613,9 +613,18 @@ class Session:
             scan = self.profile().scan(self.body(), self.sequence(), params=self.params(), **self.fields())
             voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm))
             drawn, fields = voxel.sample(self.seed), self.fields()
+            gm, wm = float(voxel.fractions.gm), float(voxel.fractions.wm)
+
+            def seen(name):
+                """The concentration the voxel shows: the draw's (that of an equal mix of grey and white matter) split by the
+                drawn grey to white contrast r over the tissue that is there, CSF carrying none (Voxel.metabolite_weights)."""
+                r = float(voxel.resolve(drawn["contrast"][name]))
+                return float(voxel.resolve(drawn["conc"][name])) * (2.0 * r * gm + 2.0 * wm) / (1.0 + r)
+
+            shown = [name for name in ("NAA", "Cr", "PCh", "Glu", "Gln", "mI", "GABA", "GSH", "Lac") if name in drawn["conc"]]
             found = {"tissue": {name: float(getattr(voxel.fractions, name)) for name in ("gm", "wm", "csf")},
-                     "concentrations (mM)": {name: float(voxel.resolve(drawn["conc"][name])) for name in (
-                         "NAA", "Cr", "PCh", "Glu", "Gln", "mI", "GABA", "GSH", "Lac") if name in drawn["conc"]},
+                     "concentrations here (mM)": {name: seen(name) for name in shown},
+                     "T1 (ms)": {name: 1000.0 * float(voxel.resolve(drawn["t1"][name])) for name in ("NAA", "Cr", "PCh") if name in drawn["t1"]},
                      "T2 (ms)": {name: 1000.0 * float(voxel.resolve(drawn["t2"][name])) for name in ("NAA", "Cr", "PCh") if name in drawn["t2"]}}
             if fields["field"] is not None:
                 offsets = fields["field"].offsets(tuple(self.position_mm), tuple(self.size_mm), shim="none")
@@ -627,8 +636,13 @@ class Session:
             lipid = self.lipid_mm()
             if lipid is not None:
                 found["lipid layer (mm away)"] = lipid[0]
-            found["line broadening (Hz)"] = float(drawn["lineshape"]["gauss_hz"])
-            found["noise level"] = float(drawn["noise"]["sigma"])
+            # the width a singlet will have: its natural Lorentzian 1 / (pi T2), and as Gaussian parts the microscopic
+            # broadening drawn for this scanner and the field's spread over the voxel after the shim (Olivero's Voigt width)
+            natural = 1.0 / (np.pi * float(voxel.resolve(drawn["t2"]["NAA"])))
+            spread = np.hypot(float(drawn["lineshape"]["gauss_hz"]), max((found.get("line width from B0 (Hz)") or 1.0) - 1.0, 0.0))
+            found["NAA's line width expected (Hz)"] = float(0.5346 * natural + np.sqrt(0.2166 * natural ** 2 + spread ** 2))
+            found["of it, microscopic broadening (Hz)"] = float(drawn["lineshape"]["gauss_hz"])
+            found["noise level (the scanner's calibration)"] = float(drawn["noise"]["sigma"])
             return found
         finally:
             self.position_mm = kept

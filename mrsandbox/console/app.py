@@ -396,7 +396,7 @@ async def console(client: Client):
         records.clear()
         with records:       # the draw of the population that lies on the table, at the planned voxel: what the exams will scan
             where = session.view_mm if chosen["looking"] else session.position_mm
-            panel.text = "The subject · " + ("where you look (shift)" if chosen["looking"] else "at this voxel")
+            panel.text = "Where you look (shift)" if chosen["looking"] else "This voxel"
             for group, values in session.place_of(where).items():
                 if isinstance(values, dict):
                     ui.label(group).style(f"margin-top: 4px; color: {DIM}; font-size: 11px")
@@ -1641,7 +1641,7 @@ async def console(client: Client):
                 view = ui.scene(width=226, height=226, grid=False, background_color="#000000")
                 view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
                 ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
-            panel = ui.label("The subject · at this voxel").classes("label").tooltip(
+            panel = ui.label("This voxel").classes("label").tooltip(
                 "one draw of the population, scanned by every exam until a new subject is put on the table (the person icon); "
                 "the truth a real scanner never shows").classes("label").style("margin-top: 6px")
             with ui.scroll_area().style("flex: 1; width: 100%"):
