@@ -1027,7 +1027,7 @@ async def console(client: Client):
         await event.file.save(folder / event.file.name)
         return folder / event.file.name
 
-    def maps():
+    def maps(said=""):
         """The anatomy and its maps, line by line: the anatomy (a T1-weighted image), its three tissues, and its B0, B1+ and
         lipid maps. Every line says what is loaded now and offers what the package has stored, with "your own file ..." on
         top (the system's file dialog; NIfTI, or DICOM of any vendor). What is chosen waits; "Apply" at the end puts it all
@@ -1107,6 +1107,8 @@ async def console(client: Client):
             dialog.close()
             room()
             draw()
+            maps(f"In force: {session.subject}, B0 {pathlib.Path(session.field).name}, B1+ "       # the pop-up stays, showing what is
+                 f"{'nominal' if session.transmit is None else pathlib.Path(session.transmit).name}")  # loaded now, for the next change
 
         fat = getattr(session.body(), "fat", None)
         lines = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject),
@@ -1122,7 +1124,7 @@ async def console(client: Client):
                 ui.space()
                 working = ui.spinner(size="26px", color=SAND)
                 working.set_visibility(False)
-            told = ui.label("").classes("value").style("white-space: normal")
+            told = ui.label(said).classes("value").style(f"white-space: normal; color: {GOOD if said else INK}")
             for what, caption, stored, now in lines:
                 shown_now[what] = now
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
@@ -1148,7 +1150,7 @@ async def console(client: Client):
                 "text-transform: none; letter-spacing: 0; white-space: normal")
             with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                 name = ui.input("name of a new anatomy (the file's, if empty)").props("dense outlined dark").style("flex: 1")
-                ui.button("Cancel", on_click=dialog.close).props("flat dense no-caps")
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
                 ui.button("Apply", icon="check", on_click=apply).mark("apply the maps").props("unelevated dense no-caps").style("width: 120px")
         dialog.open()
 
@@ -1461,7 +1463,7 @@ async def console(client: Client):
                     "what happens over the transients: drift, breathing, jitter, motion")
                 ui.button("coils", icon="settings_input_antenna", on_click=coil_gear).props("flat dense no-caps stack").classes("tool").tooltip(
                     "the receive array: its loops, your own sensitivity maps, the noise its channels share")
-                ui.button("maps", icon="layers", on_click=maps).props("flat dense no-caps stack").classes("tool").tooltip(
+                ui.button("maps", icon="layers", on_click=lambda: maps()).props("flat dense no-caps stack").classes("tool").tooltip(
                     "load your own: the anatomy from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
                 overlays = ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: e.value and (
                     setattr(session, "overlay", e.value), paint())).props(

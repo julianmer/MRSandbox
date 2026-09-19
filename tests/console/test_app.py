@@ -79,6 +79,7 @@ class TestApp:
                 next(e for e in user.find(kind=ui.input).elements if "new anatomy" in str(e.props.get("label", ""))).value = "my own"
                 user.find(marker="apply the maps").click()              # by its marker: the settings have an Apply of their own
                 await user.should_see("uniform field, none", retries=100)
+                await user.should_see("In force: my own, B0 uniform, B1+ nominal")     # the pop-up stays and says what holds now
                 assert any(getattr(e, "value", None) == "my own" for e in user.find(kind=ui.select).elements)
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
