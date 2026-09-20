@@ -43,16 +43,25 @@ SUBJECTS = {
     "Brain, ICBM152 average, 2 mm": lambda: Brain.load("icbm152"),
     "Brain, BigBrain-MR, 0.8 mm": lambda: Brain.load("bigbrain_mr"),
     "Head, QSM challenge, 0.64 mm": lambda: Brain.load("qsm_rc2"),
-    "Phantom, SPECTRE sphere": lambda: Phantom.spectre(temperature_c=21.0),
-    "Phantom, Braino sphere": lambda: Phantom.braino(temperature_c=21.0),
+    "Phantom, SPECTRE sphere": lambda: Phantom.spectre(temperature_c=21.0, cell_mm=1.0),      # a round sphere on the planes, not 4 mm blocks
+    "Phantom, Braino sphere": lambda: Phantom.braino(temperature_c=21.0, cell_mm=1.0),
 }
-# what the planes show of a subject that has a relaxation map on its grid: R1 reads like a T1-weighted
-# image; the others show their tissue maps
+# what the planes show of a subject that has relaxation maps on its grid: a T1-weighted image made of them, so every
+# anatomy reads alike, white matter a light grey, grey matter darker, CSF dark; the others show their tissue maps mixed
+# to the same contrast (Session.picture). BigBrain-MR: 1 - exp(-TR / T1) at TR 250 ms, its T1 held to 0.9 to 5 s (the map
+# has outliers down to 0.06 s that would take the window). The QSM head: the T1-weighted image its maps give, a spoiled gradient echo of
+# TR 200 ms and TE 3 ms, M0 (1 - exp(-TR R1)) exp(-TE R2*), so bone is dark and the scalp's fat bright and smooth (R1
+# alone is noise wherever M0 is small: bone, air, the sinuses)
 PICTURES = {
-    "Brain, BigBrain-MR, 0.8 mm": lambda: (lambda t1: np.where(t1 > 0.0, 1.0 / np.maximum(t1, 0.5), 0.0))(
+    "Brain, BigBrain-MR, 0.8 mm": lambda: (lambda t1: np.where(t1 > 0.0, 1.0 - np.exp(-0.25 / np.clip(t1, 0.9, 5.0)), 0.0))(
         Volume.load("bigbrain_mr/t1map_800um").data),
-    "Head, QSM challenge, 0.64 mm": lambda: Volume.load("qsm_rc2/r1").data,          # skull and scalp with it
+    "Head, QSM challenge, 0.64 mm": lambda: Volume.load("qsm_rc2/m0").data * (1.0 - np.exp(-0.2 * np.maximum(
+        Volume.load("qsm_rc2/r1").data, 0.0))) * np.exp(-0.003 * np.maximum(Volume.load("qsm_rc2/r2star").data, 0.0)),
 }
+# where the voxel starts: medial parietal cortex, well inside the brain and clear of the scalp, in the atlas's
+# coordinates and in the QSM head's own (grey 0.71, white 0.26, CSF 0.02, the lipid layer 25 mm away)
+PLACES = {"Head, QSM challenge, 0.64 mm": (0.0, -35.0, 20.0)}
+PLACE = (0.0, -45.0, 35.0)
 
 #***************#
 #   sequences   #
@@ -108,7 +117,7 @@ LENT = "the QSM head's, carried over"      # a lipid layer for the brains that h
 SHIFTED = {"water": 4.65, "lipid": 1.3}
 
 # what a timed card can play before its localization: the water suppression trains, and outer-volume
-# suppression as six slabs of OVS_MM about the voxel's faces. The slabs play between the train and the
+# suppression as six slabs of the card's ovs_mm about the voxel's faces (Session.slabs). The slabs play between the train and the
 # excitation, where they saturate what the excitation would see; the train's last delay grows by them.
 SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}
 # how the water comes about. The water is a spin system of its own, run through the card's sequence at its full amplitude
@@ -118,7 +127,8 @@ SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}
 ASSUMED = "assumed residual"
 # the branches of the parameter tree that are the scanner's state of one exam, drawn anew for every exam (Session.run)
 STATE = ("acquisition", "spurious", "b1_scale")
-OVS_MM = 30.0
+# how far the display processes an exam's transients (Session.display)
+COMBINE, ALIGN, PROCESS = "as acquired", "aligned", "processed"
 
 
 #*************#
@@ -154,8 +164,9 @@ GEARS = {
     "subject": ("conc", "t1", "t2", "contrast", "diffusion", "mm", "downfield", "lipids", "water"),
     "scanner": ("noise", "lineshape", "b1_scale", "gradients", "acquisition", "spurious"),
     # and the card's tabs: what of the simulation belongs to each
-    "Geometry": ("lineshape", "b1_scale"),
-    "Contrast": ("t1", "t2", "mm", "lipids", "water", "downfield"),
+    "Geometry": ("contrast", "lipids"),
+    "Timing": ("t1", "t2", "mm", "lipids", "water", "downfield"),
+    "Adjustments": ("lineshape", "b1_scale", "acquisition"),
     "Acquisition": ("noise", "acquisition", "spurious", "gradients"),
     "Imaging": ("lipids", "lineshape"),
 }
@@ -171,6 +182,7 @@ MAPS = {"NAA": (1.9, 2.1), "Cr": (2.95, 3.1), "Cho": (3.13, 3.28), "lipid": (0.9
 #************#
 #   blocks   #
 #************#
+FIXED = "fixed pulse"       # a real pulse of the card, in the designer as it is
 # the building blocks of a custom design: what the designer offers, the settings each takes with
 # their defaults, and how a block becomes events
 BLOCKS = {
@@ -189,7 +201,7 @@ BLOCKS = {
                         lambda b: (ShapedPulse.hyperbolic_secant(b["duration_ms"] / 1000.0, b["bandwidth_hz"], b["peak_hz"],
                                                                  offset_ppm=b["offset_ppm"]),)),
     # an event of the card's own sequence the designer took over as it is (Session.adopt): moved, copied, removed, not reshaped
-    "as the card plays it": (dict(what="", event=None), lambda b: (b["event"],)),
+    FIXED: (dict(what="", event=None), lambda b: (b["event"],)),
     "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15), lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
     "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
@@ -238,6 +250,7 @@ class Protocol:
     slices: int = 1
     water_suppression: str = "VAPOR"
     ovs: bool = False
+    ovs_mm: float = 30.0
     real: bool = True
     water_reference: int = 1
     water_reference_first: bool = True
@@ -282,10 +295,12 @@ class Exam:
         position_mm, size_mm: The voxel as it was planned.
         status: "planned", "running", "done", or "failed" (with `problem`, the reason).
         data: NIfTI-MRS with the transients apart (DIM_DYN), once it ran.
-        ppm: The display's axis, 0.2 to 4.2 ppm.
+        ppm: The display's axis, the whole acquired band.
         frames: The display as the scan comes in, [(transients so far, the real spectrum of their
-            average, the last transient's own)], on `ppm` (-0.5 to 6.5); `window` is what the display
+            average, the last transient's own)], on `ppm`; `window` is what the display
             opens on. `builds` holds the same build-up for every condition and combination.
+        schedule, transients, rejected: The sub-experiment every transient played; the kept transients' own spectra
+            {view of one sub-experiment: [real spectrum]}, 32 at most; how many the processing left out as unlike the rest.
         snr: The signal to noise ratio of what is shown, (of the average, of one transient alone), the
             tallest real point upfield over the noise of a signal-free stretch, no apodization.
         records: What the header says of the calibration records in force.
@@ -325,6 +340,9 @@ class Exam:
     window: tuple = (0.2, 4.2)
     snr: tuple = ()
     builds: dict = dataclasses.field(default_factory=dict)
+    schedule: list = dataclasses.field(default_factory=list)
+    transients: dict = dataclasses.field(default_factory=dict)
+    rejected: int = 0
     overrides: dict = dataclasses.field(default_factory=dict)
     run: dict = dataclasses.field(default_factory=dict)
 
@@ -353,8 +371,8 @@ class Session:
             the clock runs on by every exam's duration. With `prescan` the frequency is centred
             before every exam, as scanners do by default; without it an exam starts where the
             drift has taken the scanner by then.
-        align: Whether the display aligns every transient in frequency and phase to the run's mean
-            before it averages, as a scanner's or a toolbox's preprocessing does; the export stays raw.
+        processing: How far the display processes the transients before it shows them (`display`): COMBINE,
+            ALIGN, or PROCESS; the export stays raw.
         run, motion_mm: A run's instabilities the operator set, {synthesizer argument: value}
             (RUN), and the step in mm a motion event moves the head by, (low, high) or None.
         view_mm: The point the three planes cut through, which the operator scrolls
@@ -398,13 +416,13 @@ class Session:
         self.scanner = "siemens_prisma_3t"
         self.coil = "one ideal channel"
         self.subject = subject
-        self.position_mm = [0.0, -45.0, 35.0]
-        self.view_mm = [0.0, -45.0, 35.0]
+        self.position_mm = list(PLACES.get(subject, PLACE))
+        self.view_mm = list(self.position_mm)
         self.size_mm = [20.0, 20.0, 20.0]
         self.calibration = None
         self.seed = int(np.random.default_rng().integers(2 ** 31))
         self.run_settings, self.motion_mm = {}, None
-        self.align = True
+        self.processing = ALIGN
         self.prescan, self.clock_s, self._drift = True, 0.0, None
         self.unfitted = ""
         self.protocol = Protocol()
@@ -424,6 +442,7 @@ class Session:
             self.body()
         except Exception:       # the head's files are placed by hand (resources.qsm): without them, the average brain
             self.subject = "Brain, ICBM152 average, 2 mm"
+            self.position_mm, self.view_mm = list(PLACE), list(PLACE)
         self.field = FIELDS.get(self.subject, "uniform")
 
     #**********#
@@ -440,11 +459,10 @@ class Session:
         key = ("picture", self.subject)
         if key not in self._bodies:
             body = self.body()
-            shown = self.pictures[self.subject]() if self.subject in self.pictures else 0.85 * body.gm + 1.0 * body.wm + 0.35 * body.csf
-            # a relaxation map is windowed on its own middle (its edges hold outliers); an anatomical image of the operator's as
-            # a scanner shows it, from nothing to its brightest tissue, fat, so that white matter stays a mid grey
-            low, high = ((0.0, float(np.percentile(shown[shown > 0], 99.8))) if self.subject not in PICTURES and self.subject in self.pictures
-                         else np.percentile(shown[shown > 0], (2.0, 95.0)) if self.subject in self.pictures else (0.0, float(shown.max())))
+            shown = self.pictures[self.subject]() if self.subject in self.pictures else 1.0 * body.wm + 0.62 * body.gm + 0.12 * body.csf
+            # an anatomical image as a scanner shows it, from nothing to its brightest tissue (fat, where there is a scalp), so
+            # that white matter stays a light grey; tissue maps mixed to the same contrast, a little head room above white matter
+            low, high = (0.0, float(np.percentile(shown[shown > 0], 99.8))) if self.subject in self.pictures else (0.0, 1.15 * float(shown.max()))
             self._bodies[key] = np.uint8(255 * np.clip((shown - low) / max(float(high - low), 1e-6), 0.0, 1.0) * (shown > 0))
         return self._bodies[key]
 
@@ -644,29 +662,34 @@ class Session:
                 r = float(voxel.resolve(drawn["contrast"][name]))
                 return float(voxel.resolve(drawn["conc"][name])) * (2.0 * r * gm + 2.0 * wm) / (1.0 + r)
 
-            shown = [name for name in ("NAA", "Cr", "PCh", "Glu", "Gln", "mI", "GABA", "GSH", "Lac") if name in drawn["conc"]]
+            # under the names a spectroscopist reads them by: choline is the two choline compounds together
+            shown = {"NAA": ("NAA",), "Cr": ("Cr",), "PCr": ("PCr",), "Cho": ("PCho", "GPC"), "Ins": ("Ins",), "Glu": ("Glu",), "Gln": ("Gln",),
+                     "GABA": ("GABA",), "GSH": ("GSH",), "Lac": ("Lac",)}
             found = {"tissue": {name: float(getattr(voxel.fractions, name)) for name in ("gm", "wm", "csf")},
-                     "concentrations here (mM)": {name: seen(name) for name in shown},
-                     "T1 (ms)": {name: 1000.0 * float(voxel.resolve(drawn["t1"][name])) for name in ("NAA", "Cr", "PCh") if name in drawn["t1"]},
-                     "T2 (ms)": {name: 1000.0 * float(voxel.resolve(drawn["t2"][name])) for name in ("NAA", "Cr", "PCh") if name in drawn["t2"]}}
+                     "concentrations (mM)": {label: sum(seen(name) for name in names) for label, names in shown.items()
+                                             if all(name in drawn["conc"] for name in names)},
+                     "T1 (ms)": {label: 1000.0 * float(voxel.resolve(drawn["t1"][name])) for label, name in (("NAA", "NAA"), ("Cr", "Cr"), ("Cho", "PCho"))
+                                 if name in drawn["t1"]},
+                     "T2 (ms)": {label: 1000.0 * float(voxel.resolve(drawn["t2"][name])) for label, name in (("NAA", "NAA"), ("Cr", "Cr"), ("Cho", "PCho"))
+                                 if name in drawn["t2"]}}
+            field = {}
             if fields["field"] is not None:
                 offsets = fields["field"].offsets(tuple(self.position_mm), tuple(self.size_mm), shim="none")
-                found["B0 before the shim (Hz)"] = float(np.mean(offsets)) if len(offsets) else 0.0
-                found["line width from B0 (Hz)"] = self.linewidth()
+                field["B0 offset, unshimmed (Hz)"] = float(np.mean(offsets)) if len(offsets) else 0.0
+                field["line width from B0 (Hz)"] = self.linewidth()
             if fields["transmit"] is not None:
                 values, weights = fields["transmit"].box(tuple(self.position_mm), tuple(self.size_mm))
-                found["B1+ (of nominal)"] = float((values * weights).sum() / max(weights.sum(), 1e-9))
+                field["B1+ (of nominal)"] = float((values * weights).sum() / max(weights.sum(), 1e-9))
             lipid = self.lipid_mm()
             if lipid is not None:
-                found["lipid layer (mm away)"] = lipid[0]
+                field["lipid layer (mm away)"] = lipid[0]
             # the width a singlet will have: its natural Lorentzian 1 / (pi T2), and as Gaussian parts the microscopic
             # broadening drawn for this scanner and the field's spread over the voxel after the shim (Olivero's Voigt width)
             natural = 1.0 / (np.pi * float(voxel.resolve(drawn["t2"]["NAA"])))
-            spread = np.hypot(float(drawn["lineshape"]["gauss_hz"]), max((found.get("line width from B0 (Hz)") or 1.0) - 1.0, 0.0))
-            found["NAA's line width expected (Hz)"] = float(0.5346 * natural + np.sqrt(0.2166 * natural ** 2 + spread ** 2))
-            found["of it, microscopic broadening (Hz)"] = float(drawn["lineshape"]["gauss_hz"])
-            found["noise level (the scanner's calibration)"] = float(drawn["noise"]["sigma"])
-            return found
+            spread = np.hypot(float(drawn["lineshape"]["gauss_hz"]), max((field.get("line width from B0 (Hz)") or 1.0) - 1.0, 0.0))
+            field["line width of NAA (Hz)"] = float(0.5346 * natural + np.sqrt(0.2166 * natural ** 2 + spread ** 2))
+            return {**found, "field and lines": field,
+                    "scanner": {"broadening below the map's cells (Hz)": float(drawn["lineshape"]["gauss_hz"]), "noise level": float(drawn["noise"]["sigma"])}}
         finally:
             self.position_mm = kept
 
@@ -1019,12 +1042,15 @@ class Session:
         """Make the own design the sequence the card plays now, block by block, so the designer opens
         on what the diagram shows: ideal pulses, delays, filters, and crushers over the 20 mm
         ensemble become blocks one can set; every other event (a slice-selective or adiabatic pulse
-        of a real design, a projection) comes over as the card plays it. Preludes stay the card's."""
+        of a real design, a projection) comes over as the card plays it. What the card plays before its
+        localization comes too: the water suppression as its block, the OVS slabs' pulses as fixed ones; the card's own
+        switches for them then go off, the design carries them (the designer's "Use this design")."""
         card = self.protocol
-        skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in (
-            *SEQUENCES, *EDITING, "Custom") else 0
-        design = []
-        for event in self.sequence().events[skip:]:
+        preludes = self.preludes(card) if REAL.get(card.sequence, card.sequence) in (*SEQUENCES, *EDITING, "Custom") else {}
+        skip = sum(len(prelude.events) for name, prelude in preludes.items() if name != "OVS")
+        design = [("water suppression", dict(scheme=name)) for name in preludes if name != "OVS"]
+        ovs = len(preludes["OVS"].events) if "OVS" in preludes else 0
+        for place, event in enumerate(self.sequence().events[skip:]):
             if type(event) is Pulse:
                 design.append(("hard pulse", dict(flip_deg=float(event.flip_deg), phase_deg=float(event.phase_deg))))
             elif isinstance(event, Delay):
@@ -1034,11 +1060,18 @@ class Session:
             elif isinstance(event, Gradient) and float(event.extent_mm) == 20.0:
                 design.append(("crusher", dict(axis=event.axis, cycles_per_mm=float(event.moment_per_mm))))
             else:
-                what = type(event).__name__ + (f", {float(event.flip_deg):.0f}°" if getattr(event, "flip_deg", None) is not None else "") + (
+                what = ("adiabatic" if isinstance(event, ShapedPulse) and event.flip_deg is None else f"{float(event.flip_deg):.0f}°"
+                        if getattr(event, "flip_deg", None) is not None else type(event).__name__) + (
                     f", {1000.0 * float(event.duration_s):.1f} ms" if hasattr(event, "duration_s") else "") + (
-                    f", selects along {event.gradient_axis}" if getattr(event, "gradient_hz_per_mm", 0.0) else "")
-                design.append(("as the card plays it", dict(what=what, event=event)))
+                    f", slice along {event.gradient_axis}" if getattr(event, "gradient_hz_per_mm", 0.0) else "")
+                design.append((FIXED, dict(what=("OVS " if place < ovs else "") + what, event=event)))
         self.design = design
+
+    def slabs(self, card=None):
+        """The six outer-volume suppression slabs of a card, [(axis, centre, thickness)] in mm from the voxel's centre:
+        a pair along every axis, each `ovs_mm` thick and 2 mm clear of the voxel's face."""
+        card = self.protocol if card is None else card
+        return [(axis, side * (0.5 * (edge + card.ovs_mm) + 2.0), float(card.ovs_mm)) for axis, edge in zip("xyz", self.size_mm) for side in (-1.0, 1.0)]
 
     def preludes(self, card):
         """What a timed card plays before its localization, in order, {name: design}."""
@@ -1046,9 +1079,7 @@ class Session:
         if card.water_suppression in SUPPRESSION:
             found[card.water_suppression] = SUPPRESSION[card.water_suppression]()
         if card.ovs:
-            found["OVS"] = OuterVolumeSuppression([(axis, side * (0.5 * (edge + OVS_MM) + 2.0), OVS_MM)
-                                                   for axis, edge in zip("xyz", self.size_mm) for side in (-1.0, 1.0)],
-                                                  42.5774785 * self.profile().scanner.b0_t, extent_mm=float(max(self.size_mm)))
+            found["OVS"] = OuterVolumeSuppression(self.slabs(card), 42.5774785 * self.profile().scanner.b0_t, extent_mm=float(max(self.size_mm)))
         return found
 
     def displacement(self, ppm):
@@ -1187,7 +1218,8 @@ class Session:
         outline (left, top, width, height) in the image's pixels, whether this slice cuts
         the voxel, where the other two planes cross it (column, row), and the other
         outlines {name: (left, top, width, height)}: the displaced voxels of SHIFTED (none
-        for an ideal design) and the "shim" box where the operator set one; and last the
+        for an ideal design), the "shim" box where the operator set one, and the "ovs ..." saturation slabs of a
+        card that plays them; and last the
         world corners of the square picture, [[top left, top right], [bottom left, bottom
         right]] in mm, for a view that hangs the three planes in space."""
         body, tissue, wash = self.body(), self.picture(), self.wash()
@@ -1236,8 +1268,16 @@ class Session:
                     point[across] = float(origin[across] + step[across] * (column - columns))
                     point[up] = float(origin[up] + step[up] * (tissue.shape[up] - 1 - (row - rows)))
                     corners[-1].append(point)
+            # the saturation slabs that stand on this plane: a band across the whole picture, along the plane's two axes
+            bands = {}
+            for axis, centre, thick in (self.slabs() if self.protocol.ovs else ()):
+                n = "xyz".index(axis)
+                if n == across:
+                    bands[f"ovs {axis}{centre:+.0f}"] = (left + columns + 0.5 * width + (centre - 0.5 * thick) / step[n], 0.0, thick / step[n], float(side))
+                elif n == up:
+                    bands[f"ovs {axis}{centre:+.0f}"] = (0.0, top + rows + 0.5 * height - (centre + 0.5 * thick) / step[n], float(side), thick / step[n])
             return (square, (left + columns, top + rows, width, height), bool(cut), (cross[0] + columns, cross[1] + rows),
-                    {**{name: (left + columns + by[across], top + rows - by[up], width, height) for name, by in moved.items()},
+                    {**bands, **{name: (left + columns + by[across], top + rows - by[up], width, height) for name, by in moved.items()},
                      **({} if self.shim_mm is None else {"shim": (
                          left + columns + 0.5 * width - 0.5 * self.shim_mm / step[across],
                          top + rows + 0.5 * height - 0.5 * self.shim_mm / step[up],
@@ -1317,9 +1357,9 @@ class Session:
         fractions = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).fractions
         limits = profile.scanner
         drawn = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).sample(self.seed)
-        return {"subject": {"concentrations (mM)": {name: float(drawn["conc"][name]) for name in ("NAA", "Cr", "PCh", "Glu", "Gln", "mI", "GABA", "GSH", "Lac")
+        return {"subject": {"concentrations (mM)": {name: float(drawn["conc"][name]) for name in ("NAA", "Cr", "PCr", "PCho", "GPC", "Ins", "Glu", "Gln", "GABA", "GSH", "Lac")
                                                     if name in drawn["conc"] and isinstance(drawn["conc"][name], (int, float))},
-                            "T2 (ms)": {name: 1000.0 * float(drawn["t2"][name]) for name in ("NAA", "Cr", "PCh") if name in drawn["t2"]
+                            "T2 (ms)": {name: 1000.0 * float(drawn["t2"][name]) for name in ("NAA", "Cr", "PCho") if name in drawn["t2"]
                                         and isinstance(drawn["t2"][name], (int, float))},
                             "line broadening (Hz)": float(drawn["lineshape"]["gauss_hz"]), "noise level": float(drawn["noise"]["sigma"])},
                 "linewidth_hz": self.linewidth(), "lipid_mm": self.lipid_mm(),
@@ -1463,66 +1503,107 @@ class Session:
                          coils=None if coils is None else (coils.loaded(**({} if self.own_noise is None else {"own_noise": self.own_noise}))
                                                            if coils.loops else coils).calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)
-        schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
+        exam.schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
         run = {**exam.run, "synthesis": {"drift_hz_per_min": self.drift_hz_per_min, **exam.run.get("synthesis", {})}}
         started = 0.0 if self.prescan else self.drift_hz_per_min * self.clock_s / 60.0
         if exam in self.queue:                                  # a preview leaves the scanner's clock alone
             self.clock_s += card.scan_time_s
-        exam.data = room.transients(exam.position_mm, exam.size_mm, schedule, tr_s=card.tr_ms / 1000.0, seed=seed,
+        exam.data = room.transients(exam.position_mm, exam.size_mm, exam.schedule, tr_s=card.tr_ms / 1000.0, seed=seed,
                                     step=self.queue.index(exam) + 1 if exam in self.queue else 0, frequency_start_hz=started, **run,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
-        fids = np.asarray(exam.data[:])[0, 0, 0]
+        self.display(exam)
+        header = exam.data.hdr_ext.to_dict()
+        exam.tracks = {key: header["SimulationSchedule"][key] for key in ("frequency_hz", "phase_deg", "amplitude")
+                       if key in header.get("SimulationSchedule", {})}
+        exam.truth = {name: float(value) for name, value in header["SimulationGroundTruth"]["params"]["conc"].items()
+                      if isinstance(value, (int, float))}
+        exam.status = "done"
+        return exam
+
+    #*************#
+    #   display   #
+    #*************#
+    def display(self, exam):
+        """What the console shows of an exam that ran, made from its raw transients as `processing` stands, so a
+        finished exam follows the switch and the export stays raw. The coils are summed; then
+        COMBINE is the data as they came in: the transients averaged, no phase, no alignment, so the phase the
+        acquisition started with and what drift and motion do to the average show;
+        ALIGN is a rough cleaning: every transient aligned in frequency and phase to the others of ITS OWN
+        sub-acquisition (what tells the sub-acquisitions apart, an editing pulse or a phase, must stay), Augmentrum's
+        RawProcessor with FSL-MRS's registration, and one zero-order phase for the exam;
+        PROCESS is the processed product of a toolbox, all Augmentrum's: aligned, the transients unlike the rest left
+        out, the residual water taken out (HLSVD), and of a plain scan the spectrum shifted onto its reference
+        peak and phased on creatine.
+        Every level shows with 2 Hz of apodization, zero filled, over the whole acquired band. Fills
+        `builds`, `frames`, `transients`, `spectra`, `snr`, `ppm` and `window`."""
+        card, names = exam.card, list(exam.conditions)
+        fids = np.array(exam.data[:])[0, 0, 0]
         fids = fids[:, None] if fids.ndim == 1 else fids if fids.ndim == 2 else fids.sum(axis=1)   # one transient; channels summed for the display alone
-        # the display a console gives: light apodization, zero filled, phased on the tallest line upfield of water
-        window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
+        played = np.asarray(exam.schedule)
         f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
+        reference = exam.overrides.get("water.residual_fraction") == 1.0
+        kept = np.ones(fids.shape[1], dtype=bool)
+        processor = None
+        if self.processing != COMBINE and not reference:
+            from augmentrum.processing import RawProcessor
+
+            processor = RawProcessor(coil=False, remove_outliers=self.processing == PROCESS, average=False, ecc=False, shift_ref=False,
+                                     phase_correct=False)
+            for name in names:
+                mine = np.flatnonzero(played == name)
+                if mine.size > 2:
+                    moved, _ = processor.process_tensor(fids[:, mine].T[None, None, None, None], sw_hz=card.bandwidth_hz, sf_mhz=f0_mhz,
+                                                        dim_tags=["DIM_DYN", None, None])
+                    fids[:, mine] = np.asarray(moved).reshape(mine.size, -1).T
+                    if self.processing == PROCESS:
+                        kept[mine] = np.asarray(processor.last_keep_mask_).ravel()
+        window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
         ppm = 4.65 + np.fft.fftshift(np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz   # the file's frame: the centre at 4.65
         # a water reference shows its water line, every other exam the metabolites upfield of it
-        upfield = (ppm > 3.4) & (ppm < 5.9) if exam.overrides.get("water.residual_fraction") == 1.0 else (ppm > 0.2) & (ppm < 4.2)
-        played = np.asarray(schedule)
-        if self.align and fids.shape[1] > 1:
-            # frequency and phase of every transient against the mean of ITS OWN sub-acquisition (what tells the
-            # sub-acquisitions apart, an editing pulse or a phase, must stay): the shift that best overlays the apodized
-            # spectra within 20 Hz (to an eighth of a bin by zero filling), then the phase of what is left
-            clock = np.arange(card.npoints) / card.bandwidth_hz
-            fill = 8 * card.npoints
-            reach = int(np.ceil(20.0 * fill / card.bandwidth_hz))
-            means = {name: fids[:, played == name].mean(axis=1) for name in names}
-            for k in range(fids.shape[1]):
-                mean = means[played[k]]
-                target = np.fft.fft(mean * window * np.exp(-np.pi * 4.0 * clock), fill)
-                own = np.fft.fft(fids[:, k] * window * np.exp(-np.pi * 4.0 * clock), fill)
-                overlay = [np.abs(np.vdot(np.roll(own, shift), target)) for shift in range(-reach, reach + 1)]
-                moved = fids[:, k] * np.exp(2j * np.pi * (int(np.argmax(overlay)) - reach) * card.bandwidth_hz / fill * clock)
-                fids[:, k] = moved * np.exp(1j * np.angle(np.vdot(moved, mean)))
+        upfield = (ppm > 3.4) & (ppm < 5.9) if reference else (ppm > 0.2) & (ppm < 4.2)
 
         def combined(weights, count):
-            """The spectrum of a combination over the first `count` transients: every condition's
-            mean so far, weighted; None while a condition has not played yet."""
+            """The FID of a combination over the first `count` transients: every condition's mean of what was
+            kept so far, weighted; None while a condition has not played yet."""
             total = 0.0
             for condition, weight in weights.items():
-                mine = np.flatnonzero(played[:count] == condition)
+                mine = np.flatnonzero((played[:count] == condition) & kept[:count])
                 if mine.size == 0:
                     return None
                 total = total + weight * fids[:, mine].mean(axis=1)
-            return np.fft.fftshift(np.fft.fft(total * window, 2 * card.npoints))
+            return total
 
-        # one zero-order phase for the whole exam, read at the tallest line of the average of everything; no transient is
-        # aligned in frequency or phase before it is averaged, so what drift and motion do to the average shows
+        def spectrum(fid):
+            return np.fft.fftshift(np.fft.fft(fid * window, 2 * card.npoints))
+
+        # one zero-order phase for the whole exam, read at the tallest line of the average of everything
         # (of an own multiplexed design the plain sum may be what the scheme cancels, a phase cycle's unwanted signal: there
         # the shown combination gives the phase; an edited scan's sum is its unedited spectrum)
         own = card.sequence == "Custom" and len(names) > 1
-        everything = combined(exam.combinations[exam.shown] if own else {name: 1.0 for name in names}, card.averages)
-        phase = np.exp(-1j * np.angle(everything[np.flatnonzero(upfield)[np.abs(everything[upfield]).argmax()]]))
-        wide = (ppm > -0.5) & (ppm < 6.5)
+        everything = spectrum(combined(exam.combinations[exam.shown] if own else {name: 1.0 for name in names}, fids.shape[1]))
+        phase = 1.0 if self.processing == COMBINE and not reference else np.exp(
+            -1j * np.angle(everything[np.flatnonzero(upfield)[np.abs(everything[upfield]).argmax()]]))
+        wide = np.ones(ppm.size, dtype=bool)              # the whole band: the display opens on `window` and zooms out to it
         exam.ppm, exam.window = ppm[wide], (float(ppm[upfield].min()), float(ppm[upfield].max()))
-        counts = sorted({int(round(c)) for c in np.linspace(1, card.averages, min(card.averages, 64))})
+        counts = sorted({int(round(c)) for c in np.linspace(1, fids.shape[1], min(fids.shape[1], 64))})
         views = {**{n: {n: 1.0} for n in names if len(names) > 1}, **exam.combinations}
-        exam.builds = {name: [(count, (partial * phase).real[wide]) for count in counts
+        exam.builds = {name: [(count, (spectrum(partial) * phase).real[wide]) for count in counts
                               if (partial := combined(weights, count)) is not None] for name, weights in views.items()}
+        if self.processing == PROCESS and not reference:     # the residual water out of what stands at the end
+            for name, weights in views.items():
+                clean = processor.water_removal(combined(weights, fids.shape[1])[None, :], card.bandwidth_hz, f0_mhz)
+                if len(names) == 1:         # a plain scan: onto its reference peak, phased on creatine (the conditions of an edited one share the exam's phase)
+                    clean = processor.phase_correction(processor.shift_to_reference(clean, card.bandwidth_hz, f0_mhz), None, card.bandwidth_hz, f0_mhz)[0]
+                    exam.builds[name][-1] = (exam.builds[name][-1][0], spectrum(np.asarray(clean)[0]).real[wide])
+                else:
+                    exam.builds[name][-1] = (exam.builds[name][-1][0], (spectrum(np.asarray(clean)[0]) * phase).real[wide])
+        # every transient that was kept, coils combined, under the view it belongs to (a combination of several has none);
+        # 32 at most, evenly through the run
+        exam.transients = {name: [(spectrum(fids[:, k]) * phase).real[wide] for k in mine[:: max(1, -(-mine.size // 32))]]
+                           for name, weights in views.items() if len(weights) == 1
+                           for mine in (np.flatnonzero((played == next(iter(weights))) & kept),)}
         # the display as it builds up: the transients so far, their average in the shown combination, and the last one alone
-        exam.frames = [(count, average, (np.fft.fftshift(np.fft.fft(fids[:, count - 1] * window, 2 * card.npoints)) * phase).real[wide])
-                       for count, average in exam.builds[exam.shown]]
+        exam.frames = [(count, average, (spectrum(fids[:, count - 1]) * phase).real[wide]) for count, average in exam.builds[exam.shown]]
         exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
         # the consensus SNR of what is shown (Near et al. 2021): the tallest real point within 0.2 to 4.2 ppm (NAA in a brain)
         # over the standard deviation of a signal-free stretch, -4 to -1 ppm, after a linear detrend; of the average and of
@@ -1534,15 +1615,8 @@ class Session:
             return float(real[upfield].max() / (real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std())
 
         weights = exam.combinations[exam.shown]
-        exam.snr = (snr(sum(w * fids[:, played == c].mean(axis=1) for c, w in weights.items())),
-                    snr(fids[:, np.flatnonzero(played == next(iter(weights)))[0]]))
-        header = exam.data.hdr_ext.to_dict()
-        exam.tracks = {key: header["SimulationSchedule"][key] for key in ("frequency_hz", "phase_deg", "amplitude")
-                       if key in header.get("SimulationSchedule", {})}
-        exam.truth = {name: float(value) for name, value in header["SimulationGroundTruth"]["params"]["conc"].items()
-                      if isinstance(value, (int, float))}
-        exam.status = "done"
-        return exam
+        exam.snr = (snr(combined(weights, fids.shape[1])), snr(fids[:, np.flatnonzero(played == next(iter(weights)))[0]]))
+        exam.rejected = int((~kept).sum())
 
     #*************#
     #   library   #
@@ -1558,7 +1632,7 @@ class Session:
         the advanced settings, as one JSON file of the protocol library; returns the path."""
         if any(isinstance(w, complex) for mix in self.weights.values() for w in mix.values()):
             raise ValueError("a phase-cycled design is not saved yet: its receiver phases are complex numbers")
-        if any(kind == "as the card plays it" for blocks in self.designs.values() for kind, _ in blocks):
+        if any(kind == FIXED for blocks in self.designs.values() for kind, _ in blocks):
             raise ValueError("a design that holds events taken over from a card is not saved yet: they are objects, not settings")
         self.LIBRARY.mkdir(parents=True, exist_ok=True)
         path = self.LIBRARY / f"{name}.json"

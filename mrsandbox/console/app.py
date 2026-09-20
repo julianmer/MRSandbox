@@ -32,7 +32,8 @@ import numpy as np
 from nicegui import Client, run, ui
 from PIL import Image
 
-from mrsandbox.console.session import ASSUMED, BLOCKS, EDITING, FIELDS, GEARS, IDEALS, LENT, MRSI, OVERLAYS, REAL, RUN, TARGETS, SEQUENCES, SUPPRESSION, TEMPLATES, Session
+from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, TARGETS,
+                                       SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 
@@ -65,6 +66,8 @@ body {{ background: {GROUND}; color: {INK}; font-family: "IBM Plex Mono", ui-mon
 .tool.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .info {{ display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 5px; align-content: start; white-space: nowrap; }}
 .q-tab {{ min-height: 28px; padding: 0 12px; }} .q-tab__label {{ font-size: 11px; letter-spacing: .08em; }}
+.q-splitter__separator {{ background: transparent !important; width: 6px !important; }} .q-splitter__separator:hover {{ background: {LINE} !important; }}
+.q-splitter__panel {{ overflow: hidden; }}
 .q-tab-panel {{ padding: 8px 2px 2px 2px; }} .q-tab-panels {{ background: transparent; }}
 .q-field__native, .q-field__label, .q-select__dropdown-icon, .q-field__input {{ color: {INK} !important; }}
 .q-field--outlined .q-field__control:before {{ border-color: {LINE} !important; }}
@@ -78,10 +81,10 @@ LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "l
 CHOICES = {"shape": ["sinc", "gaussian", "hermite"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
            "scheme": list(SUPPRESSION)}
 # the designer's blocks in plain words: an icon, what the block is, and its settings with their units
-BLOCK_ICONS = {"as the card plays it": "lock", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive", "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
+BLOCK_ICONS = {FIXED: "lock", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive", "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
                "crusher": "signal_cellular_alt", "coherence filter": "filter_alt", "water suppression": "water_drop"}
 BLOCK_NOTES = {
-    "as the card plays it": "An event of the card's own sequence, taken over as it is: move, copy or remove it. Its shape is the card's.",
+    FIXED: "A real pulse of the card's sequence, kept as it is: move, copy or remove it. Its shape and its slice are the card's.",
     "hard pulse": "An ideal pulse of no duration. It turns every spin alike, whatever its frequency.",
     "own pulse": "A pulse of your own shape. Type its envelope or load it from a file; the flip angle scales it.",
     "shaped pulse": "A sinc, Gaussian or Hermite pulse, played in time. With a slice gradient it selects a slab along an axis.",
@@ -112,6 +115,9 @@ OWN = "your own file ..."      # on top of every drop-down of stored maps
 STORED = {"qsm_rc2": "QSM head", "bigbrain_mr": "BigBrain-MR", LENT: "QSM head"}
 # the displaced voxels' colours on the planes (session.SHIFTED)
 SHIFT_COLOURS = {"water": "#7FB2D9", "lipid": "#D98BB0", "shim": "#E6D84A"}
+SLAB = "#6FC3B2"                # the outer-volume suppression slabs
+# the planning view's keys (a field being typed in keeps its keys)
+KEYS = "+ − 0: zoom the plane under the mouse · v: to the voxel · s: shifts · f: flip · o: overlay"
 # the planes' edges as a console letters them (top, bottom, left, right), and the axis each plane leafs along
 EDGES = {"tra": ("A", "P", "L", "R", 2, "z"), "sag": ("H", "F", "P", "A", 0, "x"), "cor": ("H", "F", "L", "R", 1, "y")}
 
@@ -143,7 +149,8 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
     ideal crusher (a coherence filter) dashed on all three, the signal, the intervals between
     the localization's pulses on top. A prelude that outlasts the localization (a
     suppression train) is drawn on a time axis of its own, compressed into a framed stretch.
-    `mark` (start, end) in ms lights a span up, the designer's chosen block."""
+    `mark` (start, end, shift) lights a span in ms up, the designer's chosen block, moved right by `shift`
+    drawing units (a coherence filter is drawn after its instant, not on it)."""
     names = ("RF", "Gx", "Gy", "Gz", "Signal")
     left, right, top, fold, tall = 50.0, 12.0, 30.0, 0.24 * width, 2.0 * lane
     start, stop = drawn["adc"]
@@ -173,7 +180,7 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
     reach = 0.62 * tall / max([abs(v) for _, v in drawn["rf"]] + [h for _, h, _ in drawn["bars"]] + [1e-9])
     out = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" style="display: block" font-family="inherit" font-size="10">']
     if mark is not None:
-        out.append(f'<rect x="{x(mark[0]) - 5:.1f}" y="{top - 4}" width="{x(mark[1]) - x(mark[0]) + 10:.1f}" height="{tall + 4 * lane + 8}" rx="3" '
+        out.append(f'<rect x="{x(mark[0]) - 5 + mark[2]:.1f}" y="{top - 4}" width="{x(mark[1]) - x(mark[0]) + 10:.1f}" height="{tall + 4 * lane + 8}" rx="3" '
                    f'fill="{GLOW}" fill-opacity="0.1" stroke="{GLOW}" stroke-opacity="0.5" />')
     for (a, b, name) in drawn["groups"]:
         out.append(f'<rect x="{x(a) + 1:.1f}" y="{top - 2}" width="{fold - 2:.1f}" height="{tall + 3 * lane + 4}" rx="2" fill="{GLOW}" '
@@ -249,17 +256,23 @@ def choose_file(prompt):
 SPECTRUM = {
     "backgroundColor": "transparent", "animation": False,
     "title": {"text": "no scan yet", "textStyle": {"color": DIM, "fontSize": 11, "fontWeight": "normal"}},
-    "grid": {"left": 12, "right": 12, "top": 28, "bottom": 44},
+    "grid": {"left": 12, "right": 26, "top": 28, "bottom": 44},
     "xAxis": {"type": "value", "inverse": True, "min": -0.5, "max": 6.5, "name": "ppm",
               "axisLine": {"lineStyle": {"color": LINE}}, "axisLabel": {"color": DIM}, "splitLine": {"show": False}},
-    "yAxis": {"type": "value", "show": False, "scale": True},
-    # the wheel zooms and a drag pans along ppm; the slider below shows where one is in -0.5 to 6.5
-    "dataZoom": [{"type": "inside", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "filterMode": "filter"},
-                 {"type": "slider", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "height": 14, "bottom": 2, "filterMode": "filter",
-                  "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)", "textStyle": {"color": DIM}}],
-    "series": [{"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": SAND, "width": 1.3},
+    "yAxis": {"type": "value", "show": False},
+    # the wheel zooms and a drag pans along ppm, the slider below shows where one is in the acquired band; the height has
+    # the slider on the right and stays while one moves along ppm (the page opens it on what the exam's window shows).
+    # The points outside the window stay (filterMode none), so nothing rescales by itself
+    "dataZoom": [{"type": "inside", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "filterMode": "none"},
+                 {"type": "slider", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "height": 14, "bottom": 2, "filterMode": "none",
+                  "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)", "textStyle": {"color": DIM}},
+                 {"type": "slider", "yAxisIndex": 0, "width": 12, "right": 2, "filterMode": "none", "showDetail": False,
+                  "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)"}],
+    # the average, and behind it in grey a transient (the page adds one such series per transient it shows)
+    "series": [{"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": SAND, "width": 1.3}, "z": 3,
                 "areaStyle": {"color": COPPER, "opacity": 0.12}},
-               {"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": DIM, "width": 0.7}, "silent": True}],
+               {"type": "line", "showSymbol": False, "data": [], "lineStyle": {"color": DIM, "width": 0.5, "opacity": 0.55}, "silent": True,
+                "sampling": "lttb"}],
 }
 
 
@@ -282,7 +295,7 @@ async def console(client: Client):
         ui.spinner("bars", size="34px", color=SAND)
     await client.connected()
     session = await run.io_bound(Session)
-    views, shown, hung, letters, crosses, texts, tools, pickers, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False, "dragging": False, "looking": False}
+    views, shown, hung, letters, crosses, texts, tools, pickers, origins, levels, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False, "dragging": False, "looking": False, "every": True, "cell": None, "grid": None, "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra"}
 
     def room():
         """Rebuild the 3D view: the three planes hung where they cut the subject (paint fills them,
@@ -330,22 +343,40 @@ async def console(client: Client):
                 f'<line y1="{top + height * n / down:.1f}" y2="{top + height * n / down:.1f}" x1="{left:.1f}" x2="{left + width:.1f}" />'
                 for n in range(1, down))
             pen = side / 115.0                                      # strokes as wide on a fine grid as on the 2 mm one
-            views[name].content = (
+            # a spectroscopic image that ran lays the chosen line's map over its cells in the transverse plane, the slice
+            # on view; the pressed cell is outlined, and Live shows its spectrum
+            painted, exam = "", chosen["exam"]
+            if name == "tra":
+                chosen["grid"] = None
+                if exam is not None and exam.maps and cut:
+                    heights = exam.maps.get(looks.value, next(iter(exam.maps.values())))
+                    nz = heights.shape[2]
+                    layer = int(np.clip(round((session.view_mm[2] - exam.position_mm[2]) / exam.size_mm[2] + (nz - 1) / 2.0), 0, nz - 1))
+                    chosen["grid"] = (left, top, width, height, layer)
+                    painted = "".join(
+                        f'<rect x="{left + width * i / across:.1f}" y="{top + height * (down - 1 - j) / down:.1f}" width="{width / across:.1f}" '
+                        f'height="{height / down:.1f}" fill="{GLOW}" fill-opacity="{0.75 * heights[i, j, layer] / max(float(heights[..., layer].max()), 1e-12):.2f}" '
+                        + (f'stroke="#fff" stroke-width="{0.6 * pen:.2f}" />' if chosen["cell"] == (i, j, layer) else 'stroke="none" />')
+                        for i in range(across) for j in range(down))
+            views[name].content = (painted + 
                 f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45"><line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
                 f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">{grid}</g>'
+                + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{SLAB}" fill-opacity="0.22" stroke="{SLAB}" '
+                          f'stroke-width="{0.3 * pen:.2f}" />' for which, (x, y, w, h) in shifted.items() if which.startswith("ovs"))
                 + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="none" '
                           f'stroke="{SHIFT_COLOURS[which]}" stroke-width="{0.5 * pen:.2f}" opacity="{0.9 if cut else 0.4}" />'
-                          for which, (x, y, w, h) in shifted.items() if chosen["shifts"] or which == "shim")
+                          for which, (x, y, w, h) in shifted.items() if not which.startswith("ovs") and (chosen["shifts"] or which == "shim"))
                 + f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" fill="none" stroke="{GLOW}" '
                 + (f'stroke-width="{0.8 * pen:.2f}" />' if cut else
                    f'stroke-width="{0.5 * pen:.2f}" stroke-dasharray="{2 * pen:.1f} {1.5 * pen:.1f}" opacity="0.55" />'))
             axis, letter = EDGES[name][4:]
-            texts[name].text = f"{name.upper()}  {letter} {session.view_mm[axis]:+.0f} mm"
+            texts[name].text = f"{name.upper()}  {letter} {session.view_mm[axis]:+.0f} mm" + (f"  ×{chosen['zoom'][name]:.2g}" if chosen["zoom"][name] != 1.0 else "")
+            origins[name] = f"{100.0 * column / side:.1f}% {100.0 * row / side:.1f}%"      # a zoom holds the point the planes cross at
         chosen["box"].move(*(np.asarray(session.position_mm) * MM))
         for name, labels in letters.items():       # a flipped view mirrors the pictures left to right, and the letters with them
             mirrored = chosen["flipped"] and name in ("tra", "cor")
-            views[name].style("transform: scaleX(-1)" if mirrored else "transform: none")
+            views[name].style(f"transform-origin: {origins[name]}; transform: scale({-chosen['zoom'][name] if mirrored else chosen['zoom'][name]:g}, {chosen['zoom'][name]:g})")
             top, bottom, left, right = EDGES[name][:4]
             labels[2].text, labels[3].text = (right, left) if mirrored else (left, right)
             crosses[name].content = (
@@ -410,17 +441,15 @@ async def console(client: Client):
         with records:       # the draw of the population that is scanned, at the planned voxel: what the exams will scan
             where = session.view_mm if chosen["looking"] else session.position_mm
             panel.text = "Where you look (shift)" if chosen["looking"] else "This voxel"
-            for group, values in session.place_of(where).items():
-                if isinstance(values, dict):
-                    ui.label(group).style(f"margin-top: 4px; color: {DIM}; font-size: 11px")
-                    with ui.element("div").classes("info").style("grid-template-columns: auto auto auto auto; column-gap: 8px"):
-                        for name, value in values.items():
-                            ui.label(name).style(f"color: {DIM}")
-                            ui.label(f"{value:.1f}" if value < 100.0 else f"{value:.0f}").classes("value")
-                else:
-                    with ui.row().classes("w-full").style("justify-content: space-between; margin-top: 4px"):
-                        ui.label(group).style(f"color: {DIM}; font-size: 11px")
-                        ui.label(f"{values:.1f}").classes("value")
+            for group, values in session.place_of(where).items():        # a group under its heading: short names two to a row
+                ui.label(group).classes("label").style(f"width: 100%; margin-top: 8px; padding-top: 5px; border-top: 1px solid {LINE}; color: {SAND}")
+                short = all(len(name) <= 5 for name in values)
+                with ui.element("div").classes("info w-full").style(f"grid-template-columns: {'auto 1fr auto 1fr' if short else '1fr auto'}; column-gap: 8px; "
+                                                                    "white-space: normal"):
+                    for name, value in values.items():
+                        ui.label(name).style(f"color: {DIM}")
+                        ui.label(f"{value:.2f}" if abs(value) < 10.0 else f"{value:.1f}" if abs(value) < 100.0 else f"{value:.0f}").classes("value").style(
+                            "text-align: right")
         for name, tool in tools.items():
             on = {"ovs": card.ovs, "shifts": chosen["shifts"], "flip": chosen["flipped"], "real": card.real or card.sequence == "HERCULES"}.get(
                 name, card.water_suppression in SUPPRESSION)
@@ -451,27 +480,54 @@ async def console(client: Client):
                             chosen.__setitem__("exam", None if chosen["exam"] is exam else chosen["exam"]), listing(), draw()))
 
     def frame(exam, index):
-        """The Live display at one step of the build-up: the average so far in the combination or condition
-        chosen, and, grey behind it, the transient that just came in."""
+        """The Live display at one step of the build-up: the average so far in the combination or condition chosen and,
+        grey behind it, the transient that just came in; at the end every transient that was kept, coils combined
+        (the "every transient" switch), or the chosen cell of a spectroscopic image."""
         name = looks.value if looks.value in exam.builds else exam.shown
+        last = index in (-1, len(exam.frames) - 1)
         count, real = exam.builds[name][min(index, len(exam.builds[name]) - 1)] if exam.builds else exam.frames[index][:2]
-        single = exam.frames[index][2] if name == exam.shown and len(exam.frames) > 1 else []
-        spectrum.options["series"][0]["data"] = [[float(p), float(s)] for p, s in zip(exam.ppm, real)]
-        spectrum.options["series"][1]["data"] = [[float(p), float(s)] for p, s in zip(exam.ppm, single)]
-        if index in (0, -1) or index == len(exam.frames) - 1:        # the window the exam opens on; the operator's zoom stays in between
-            for zoom in spectrum.options["dataZoom"]:
+        behind = (exam.transients.get(name, []) if last and chosen["every"]
+                  else [exam.frames[index][2]] if name == exam.shown and len(exam.frames) > 1 else [])
+        if exam.cells is not None and chosen["cell"] is not None:
+            real = exam.cells[chosen["cell"]]
+        spectrum.options["series"] = [{**SPECTRUM["series"][0], "data": [[float(p), float(s)] for p, s in zip(exam.ppm, real)]}] + [
+            {**SPECTRUM["series"][1], "data": [[float(p), float(s)] for p, s in zip(exam.ppm, single) if -0.5 < p < 6.5]} for single in behind]
+        if index == 0 or last:        # what the exam opens on: its window along ppm, and the height of what that window shows
+            zooms = spectrum.options["dataZoom"]
+            for zoom in zooms[:2]:
                 zoom["startValue"], zoom["endValue"] = exam.window
-        spectrum.options["title"]["text"] = f"{exam.name}   ·   transient {count} of {exam.card.averages}" + (
-            f"   ·   SNR {exam.snr[0]:.0f}, of one transient {exam.snr[1]:.0f}" if exam.snr and index in (-1, len(exam.frames) - 1) else "")
+            spectrum.options["xAxis"].update(min=float(exam.ppm.min()), max=float(exam.ppm.max()))
+            everything = [v for series in spectrum.options["series"] for _, v in series["data"]]
+            inside = [v for series in spectrum.options["series"] for p, v in series["data"] if exam.window[0] <= p <= exam.window[1]]
+            spectrum.options["yAxis"].update(min=min(everything), max=max(everything))          # the slider's whole reach: the water line too
+            room = 0.06 * max(max(inside) - min(inside), 1e-12)
+            zooms[2]["startValue"], zooms[2]["endValue"] = min(inside) - room, max(inside) + room
+        spectrum.options["title"]["text"] = (
+            f"{exam.name}   ·   cell {chosen['cell'][0] + 1}, {chosen['cell'][1] + 1}" + (f", slice {chosen['cell'][2] + 1}" if exam.cells.shape[2] > 1 else "")
+            if exam.cells is not None and chosen["cell"] is not None else
+            f"{exam.name}   ·   press a cell on the transverse plane" if exam.cells is not None else
+            f"{exam.name}   ·   transient {count} of {exam.card.averages}" + (
+                f"   ·   SNR {exam.snr[0]:.0f}, of one transient {exam.snr[1]:.0f}" + (
+                    f"   ·   {exam.rejected} left out as unlike the rest" if exam.rejected else "") if exam.snr and last else ""))
         spectrum.update()
         progress.value = count / max(exam.card.averages, 1)
         texts["count"].text = f"{count} / {exam.card.averages}"
 
+    async def reprocess(level):
+        """The display's processing (Session.display): kept for the next exams, and the chosen exam shown anew."""
+        session.processing = level
+        for name, button in levels.items():
+            button.classes(add="on" if name == level else "", remove="" if name == level else "on")
+        exam = chosen["exam"]
+        if exam is not None and exam.schedule:
+            await run.io_bound(session.display, exam)
+            frame(exam, -1)
+
     def choose(exam):
         """Select an exam: its voxel returns to the planes, its card to the tabs, its spectrum to the
         display. A planned exam is then being edited: Accept puts the card back in its place."""
-        chosen["exam"], chosen["editing"] = exam, exam if exam.status == "planned" else None
-        looks.set_options(list(exam.builds), value=exam.shown if exam.builds else None)
+        chosen["exam"], chosen["editing"], chosen["cell"] = exam, exam if exam.status == "planned" else None, None
+        looks.set_options(list(exam.builds or exam.maps), value=exam.shown if exam.builds else next(iter(exam.maps), None))
         for field in dataclasses.fields(exam.card):                       # in place: the tabs' fields hold this card
             setattr(session.protocol, field.name, getattr(exam.card, field.name))
         session.position_mm, session.view_mm, session.size_mm = list(exam.position_mm), list(exam.position_mm), list(exam.size_mm)
@@ -512,11 +568,12 @@ async def console(client: Client):
                 continue
             texts["took"].text = f"{exam.name}: simulated in {time.perf_counter() - began:.1f} s, a scanner takes {exam.card.scan_time_s:.0f} s"
             progress.props(remove="indeterminate")
-            looks.set_options(list(exam.builds), value=exam.shown if exam.builds else None)
+            looks.set_options(list(exam.builds or exam.maps), value=exam.shown if exam.builds else next(iter(exam.maps), None))
             for index in range(len(exam.frames)):
                 frame(exam, index)
                 await asyncio.sleep(0.03)
             listing()
+            paint()                     # a spectroscopic image lays its map over the planned grid
         status.text = "idle"
         start.enable()
 
@@ -677,7 +734,7 @@ async def console(client: Client):
             with strip:
                 for index, (kind, settings) in enumerate(session.design):
                     brief = next((f"{value:g}" + unit for key, unit in (("flip_deg", "°"), ("ms", " ms"), ("cycles_per_mm", " /mm"), ("order", ""))
-                                  if (value := settings.get(key)) is not None), settings.get("scheme", ""))
+                                  if (value := settings.get(key)) is not None), settings.get("scheme", settings.get("what", "")))
                     chip = ui.button(f"{index + 1} · {kind} {brief}", icon=BLOCK_ICONS[kind], on_click=lambda _, i=index: (
                         state.__setitem__("at", i), refresh())).props("flat dense no-caps stack draggable").classes(
                         "chip" + (" on" if index == state["at"] else ""))
@@ -733,7 +790,8 @@ async def console(client: Client):
                 drawn = session.diagram(session.own())             # the design itself, whatever the card plays
                 counts = np.cumsum([0] + [len(BLOCKS[kind][1](settings)) for kind, settings in session.design])
                 spans = drawn["spans"][counts[state["at"]]:counts[state["at"] + 1]] if session.design else []
-                preview.content = lanes(drawn, width=820.0, lane=44.0, mark=(spans[0][0], spans[-1][1]) if spans else None)
+                preview.content = lanes(drawn, width=820.0, lane=44.0, mark=(
+                    spans[0][0], spans[-1][1], 9.5 if session.design[state["at"]][0] == "coherence filter" else 0.0) if spans else None)
                 problem.text = f"{len(session.design)} blocks · the readout opens at {drawn['adc'][0]:.1f} ms"
                 problem.style(f"color: {DIM}")
             except Exception as error:  # a half-typed block is not a design yet: say why and keep the last diagram
@@ -775,9 +833,7 @@ async def console(client: Client):
                         for steps in (2, 4):
                             ui.button(f"phase cycle the chosen pulse, {steps} steps", icon="cached", on_click=lambda _, steps=steps: (
                                 session.phase_cycle(state["at"], steps), parts(), refresh())).props("flat dense no-caps").tooltip(
-                                "the chosen pulse steps its phase through the circle over the transients and the receiver follows (an excitation "
-                                "takes it along, a refocusing pulse is EXORCYCLE), so the wanted pathway adds and the rest cancels. Coherence "
-                                "filters do this ideally: take them out of the design to see the cycle work")
+                                "the pulse's phase steps over the transients and the receiver follows, so the wanted pathway adds and the rest cancels")
                     if len(session.designs) > 1:
                         ui.button("remove this one", icon="remove", on_click=without).props("flat dense no-caps")
                         ui.space()
@@ -856,6 +912,17 @@ async def console(client: Client):
             outcome.options["series"][0]["data"] = [[float(a), float(b)] for a, b in zip(ppm, real)]
             outcome.update()
 
+        def use():
+            """The card plays the design. What the design carries itself, the card's own switch no longer adds."""
+            card = session.protocol
+            if any(kind == "water suppression" for blocks in session.designs.values() for kind, _ in blocks):
+                card.water_suppression = "off"
+            if any(str(settings.get("what", "")).startswith("OVS") for blocks in session.designs.values() for _, settings in blocks):
+                card.ovs = False
+            keys.active, planning.active, card.sequence = False, True, "Custom"
+            dialog.close()
+            draw()
+
         def key(event):
             """Delete removes the chosen block; ctrl or cmd with C copies it, with V pastes after it."""
             if not event.action.keydown or not session.design:
@@ -870,9 +937,11 @@ async def console(client: Client):
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1300px; max-width: 1500px"):
             with ui.row().classes("w-full items-center"):
                 ui.label("Sequence designer").style(f"color: {SAND}; font-size: 15px")
-                ui.select(list(TEMPLATES), label="start from", on_change=lambda e: e.value and (
+                ui.select(list(TEMPLATES), label="start from", on_change=lambda e: e.value and (       # its pulses as the card has them, real or ideal
                     setattr(session, "design", [(kind, {**BLOCKS[kind][0], **settings}) for kind, settings in TEMPLATES[e.value]]),
-                    state.__setitem__("at", 0), refresh())).props("dense outlined dark").style("width: 300px")
+                    [reshape(i, True) for i in range(len(session.design)) if session.protocol.real],
+                    state.__setitem__("at", 0), refresh())).props("dense outlined dark").style("width: 300px").tooltip(
+                    "a template's pulses are shaped where the card plays real pulses, ideal where it plays ideal ones")
                 problem = ui.label("").classes("value")
                 ui.space()
                 ui.button("all pulses ideal", icon="bolt", on_click=lambda: ([reshape(i, False) for i in range(len(session.design))], refresh())
@@ -880,11 +949,10 @@ async def console(client: Client):
                 ui.button("all pulses shaped", icon="waves", on_click=lambda: ([reshape(i, True) for i in range(len(session.design))], refresh())
                           ).props("outline dense no-caps")
                 ui.button("Spectrum of this design", icon="insights", on_click=look).props("outline dense no-caps")
-                ui.button("Close", on_click=lambda: (setattr(keys, "active", False), dialog.close())).props("flat dense no-caps").tooltip(
-                    "the design is kept; the card plays what it played")
-                ui.button("Use this design", icon="check", on_click=lambda: (
-                    setattr(keys, "active", False), setattr(session.protocol, "sequence", "Custom"), dialog.close(), draw())).props(
-                    "unelevated dense no-caps").tooltip("the card plays this design (Custom); water suppression and OVS stay the card's switches")
+                ui.button("Close", on_click=lambda: (setattr(keys, "active", False), setattr(planning, "active", True), dialog.close())).props(
+                    "flat dense no-caps").tooltip("the design is kept; the card plays what it played")
+                ui.button("Use this design", icon="check", on_click=use).props("unelevated dense no-caps").tooltip(
+                    "the card plays this design; a water suppression or OVS in it takes the place of the card's switch")
                 keys = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
@@ -899,7 +967,7 @@ async def console(client: Client):
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch; flex: 1"):
                 with ui.column().classes("pane").style("width: 430px"):
                     ui.label("Add after the chosen block").classes("label")
-                    for kind in (k for k in BLOCKS if k != "as the card plays it"):
+                    for kind in (k for k in BLOCKS if k != FIXED):
                         with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                             ui.button(kind, icon=BLOCK_ICONS[kind], on_click=lambda _, kind=kind: place(kind, dict(BLOCKS[kind][0]))).props(
                                 "outline dense no-caps align=left").style("width: 190px; height: 34px; flex: none")
@@ -907,6 +975,7 @@ async def console(client: Client):
                 inspector = ui.column().classes("pane").style("flex: 1; min-width: 0")
             parts()
             refresh()
+        planning.active = False         # the planning view's keys rest while blocks are typed and moved
         dialog.open()
 
     def review():
@@ -1012,7 +1081,7 @@ async def console(client: Client):
                     session.subject = before
                     event.sender.value = before
                     return
-                session.position_mm = [0.0, 0.0, 0.0] if hasattr(session.body(), "contents") else [0.0, -45.0, 35.0]
+                session.position_mm = [0.0, 0.0, 0.0] if hasattr(session.body(), "contents") else list(PLACES.get(session.subject, PLACE))
                 session.view_mm = list(session.position_mm)
                 session.home()
                 if session.field in FieldMap.PRESETS or session.field == "uniform":       # the operator's own map stays
@@ -1148,13 +1217,10 @@ async def console(client: Client):
                     if what != "anatomy":
                         ui.button("Register", icon="my_location", on_click=lambda _, what=what: register(what)).props("outline dense no-caps").style(
                             "width: 130px").tooltip(
-                            "a file of yours from ANOTHER session: FSL flirt, rigid, onto the anatomy (one of the same session lies where the "
-                            "anatomy lies already; a field map in Hz shows no anatomy: register its magnitude image instead). A stored B0 or "
-                            "lipid map of the QSM head or BigBrain-MR: that head is registered onto your own anatomy and its map carried over")
+                            "register a file of another session onto the anatomy (FSL flirt), or carry a stored head's map over onto your own anatomy")
                     else:       # the same as Apply does for a new anatomy without tissue maps, at once
                         ui.button("Segment", icon="psychology", on_click=apply).props("outline dense no-caps").style("width: 130px").tooltip(
-                            "your own image into grey matter, white matter and CSF (FSL, about two minutes), with everything else "
-                            "that waits on the lines")
+                            "segment your image into tissues (FSL, about two minutes) and apply the lines")
             ui.switch("the B0 map was measured after my own shim: apply none", value=session.shim == "none", on_change=lambda e: (
                 setattr(session, "shim", "none" if e.value else "linear"))).props("dense color=accent")
             ui.label("A new anatomy with your own three tissue maps is used as it is. Without them it is segmented on Apply (FSL: the neck "
@@ -1220,11 +1286,6 @@ async def console(client: Client):
                 ui.label("The run · what happens over the transients").classes("label")
                 ui.space()
                 ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
-            ui.switch("centre the frequency before every exam (prescan)", value=session.prescan, on_change=lambda e: setattr(
-                session, "prescan", e.value)).props("dense color=accent").tooltip(
-                "the scanner drifts at one rate through the whole session and its clock runs on with every exam. On, as scanners do by "
-                "default: every exam starts on resonance. Off: an exam starts where the drift has taken the scanner by then, so the "
-                "order of the exams matters (a water reference before or after its scan)")
             ui.label(f"This session the scanner drifts at {session.drift_hz_per_min:+.2f} Hz per minute; {session.clock_s / 60.0:.1f} minutes "
                      "have been scanned.").classes("label").style("text-transform: none; letter-spacing: 0")
             for caption, (argument, off) in RUN.items():
@@ -1323,6 +1384,14 @@ async def console(client: Client):
             ui.button("Back to the defaults", icon="restart_alt", on_click=lambda: (
                 settings.clear(), settings.update(session.COIL_SETTINGS.get(session.coil, {})), dialog.close(), room(), draw(), coil_gear())).props(
                 "flat dense no-caps")
+            ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+        dialog.open()
+
+    def coils():
+        """The operator's own receive array: measured sensitivity maps, and the channels' own share of the noise read from a
+        raw scan. (Loop geometries from a file are to come.)"""
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 480px"):
+            ui.label("Your own receive array").style(f"color: {SAND}; font-size: 15px")
             async def own(kind):
                 """The operator's own: measured sensitivity maps (the array is then theirs), or a raw scan with the coils apart,
                 from which the channels' own share of the noise is read."""
@@ -1344,26 +1413,27 @@ async def console(client: Client):
                 except Exception as error:
                     said.text = f"Not taken: {error}"[:260]
 
-            ui.label("Your own").classes("label").style("margin-top: 6px")
             with ui.row().classes("w-full").style("gap: 6px"):
                 ui.button("Sensitivity maps", icon="folder_open", on_click=lambda: own("maps")).props("outline dense no-caps").style("width: 200px").tooltip(
                     "one NIfTI of (nx, ny, nz, channels), complex or real, in the scanner's coordinates: the array is then yours")
                 ui.button("A scan with the coils apart", icon="folder_open", on_click=lambda: own("noise")).props("outline dense no-caps").style(
-                    "width: 240px").tooltip("raw NIfTI-MRS: the share of a channel's noise that is its own is read from the FIDs' tails, against "
-                                            "the array of loops chosen here")
+                    "width: 240px").tooltip("raw NIfTI-MRS: the channels' own share of the noise is read from the FIDs' tails")
             said = ui.label("" if session.own_noise is None else f"own noise share {session.own_noise:.2f}, read from your scan").classes("value").style(
                 "white-space: normal")
-            ui.label("The loops show in the 3D view. Their sensitivities and noise follow from their geometry and the load in them.").classes(
-                "label").style("text-transform: none; letter-spacing: 0")
-            ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+            ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
         dialog.open()
 
     def browse():
         """The protocol browser: what can go on the card, by family, and the operator's saved protocols."""
         def pick(name):
-            session.protocol.sequence = name
+            was, session.protocol.sequence = session.protocol.sequence, name
+            # a protocol's own number of transients: an edited scan subtracts, and needs some 320 (Big GABA: 320 at TR 2 s, eleven
+            # minutes); a spectroscopic image takes one per point of k-space
+            session.protocol.averages = 320 if name in EDITING else 1 if name == MRSI else 64
             if name == MRSI:            # a spectroscopic image is read shorter and narrower than a single voxel, and has no reference exam
                 session.protocol.npoints, session.protocol.bandwidth_hz, session.protocol.water_reference = 1024, 2000.0, 0
+            elif was == MRSI:           # and a single voxel after it has its readout and its reference back
+                session.protocol.npoints, session.protocol.bandwidth_hz, session.protocol.water_reference = 2048, 4000.0, 1
             chosen["snr"] = None
             dialog.close()
             draw()
@@ -1392,6 +1462,16 @@ async def console(client: Client):
         """A plane's mouse: a press or a drag moves the voxel, the release settles the card."""
         def handle(event):
             kind, pressed = event.args.get("mouse_event_type"), event.args.get("buttons") == 1
+            grid, exam = chosen["grid"], chosen["exam"]
+            if kind == "mousedown" and plane == "tra" and grid is not None and not event.args.get("shiftKey"):
+                i = int((event.args.get("image_x", 0.0) - grid[0]) // (grid[2] / exam.cells.shape[0]))
+                j = exam.cells.shape[1] - 1 - int((event.args.get("image_y", 0.0) - grid[1]) // (grid[3] / exam.cells.shape[1]))
+                if 0 <= i < exam.cells.shape[0] and 0 <= j < exam.cells.shape[1]:       # inside the grid: the cell, and the voxel stays
+                    chosen["cell"] = (i, j, grid[4])
+                    shows.value = "Live"
+                    frame(exam, -1)
+                    paint()
+                    return
             if kind == "mousedown" or (kind == "mousemove" and pressed):
                 # with shift the press looks around (the other planes come to this point), without it it places the voxel
                 chosen["looking"] = bool(event.args.get("shiftKey"))      # the side panel then tells of the place looked at
@@ -1402,6 +1482,28 @@ async def console(client: Client):
                 chosen["dragging"] = False
                 draw()
         return handle
+
+    def zoom(plane, factor):
+        """Zoom one plane about the point the planes cross at, from half the picture's size (room about the head) to eight
+        times; None is back to the whole picture."""
+        chosen["zoom"][plane] = 1.0 if factor is None else float(np.clip(chosen["zoom"][plane] * factor, 0.5, 8.0))
+        paint()
+
+    def key(event):
+        """The planning view's keys (KEYS)."""
+        if not event.action.keydown or event.modifiers.ctrl or event.modifiers.meta:
+            return
+        if event.key in ("+", "=", "-", "0"):         # the plane the mouse is over
+            zoom(chosen["over"], {"+": 1.5, "=": 1.5, "-": 1.0 / 1.5, "0": None}[event.key.name])
+        elif event.key == "v":
+            session.view_mm = list(session.position_mm)
+            paint()
+        elif event.key in ("s", "f"):
+            which = "shifts" if event.key == "s" else "flipped"
+            chosen[which] = not chosen[which]
+            draw()
+        elif event.key == "o":
+            overlays.value = overlays.options[(overlays.options.index(overlays.value) + 1) % len(overlays.options)]
 
     def toggle(name):
         """The toolbar's switches: the water suppression steps through its schemes, OVS is on or off."""
@@ -1430,228 +1532,254 @@ async def console(client: Client):
                     f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
             if attribute in GEARS or attribute == "coil":
                 ui.button(icon="settings", on_click=(lambda _, panel=attribute: gear(panel)) if attribute in GEARS else coil_gear).props("flat dense round size=sm").style(
-                    f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of the anatomy or phantom"}.get(attribute, f"the {attribute}'s parameters and ranges"))
+                    f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of the anatomy or phantom",
+                                                                   "coil": "the receive array: its loops, your own sensitivity maps, the noise its channels share"}.get(
+                    attribute, f"the {attribute}'s parameters and ranges"))
         ui.button(icon="person_add_alt", on_click=lambda: (setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
                                                            ui.notify("A new draw of the population is scanned from here on"))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
             "every exam scans the same draw of the population; this takes a new one")
         ui.space()
-        ui.button("all settings", icon="tune", on_click=lambda: gear()).props("flat dense no-caps").style(f"color: {GLOW}")
         status = ui.label("idle").classes("label")
 
-    with ui.row().classes("w-full no-wrap").style("gap: 6px; align-items: stretch; flex: 1; min-height: 0"):
-        # the exam cards
-        with ui.column().classes("pane").style("width: 244px"):
-            ui.label("Exam cards").classes("label")
-            with ui.scroll_area().style("flex: 1; width: 100%"):
-                rows = ui.column().classes("w-full").style("gap: 0")
-            ui.button("New scan", icon="add", on_click=browse).props("outline no-caps").classes("w-full")
-            ui.label("Protocol library").classes("label").style("margin-top: 4px")
-            saved = ui.select(session.protocols(), label="name", with_input=True, new_value_mode="add-unique").props(
-                "dense outlined dark").classes("w-full")
-            with ui.row().classes("w-full no-wrap").style("gap: 6px"):
-                ui.button("Save", icon="save", on_click=lambda: saved.value and (
-                    session.save_protocol(saved.value), saved.set_options(session.protocols(), value=saved.value),
-                    ui.notify(f"Saved {saved.value}"))).props("outline dense no-caps").style("flex: 1")
-                ui.button("Load", icon="folder_open", on_click=lambda: saved.value in session.protocols() and (
-                    session.load_protocol(saved.value), draw(), ui.notify(f"Loaded {saved.value}"))).props(
-                    "outline dense no-caps").style("flex: 1")
+    # three panes whose widths the operator drags: the exam cards, the planning, scan control
+    with ui.splitter(value=244, limits=(160, 520)).props("unit=px").classes("w-full").style("flex: 1; min-height: 0") as left:
+        with left.before:
+            # the exam cards
+            with ui.column().classes("pane").style("width: 100%; height: 100%"):
+                ui.label("Exam cards").classes("label")
+                with ui.scroll_area().style("flex: 1; width: 100%"):
+                    rows = ui.column().classes("w-full").style("gap: 0")
+                ui.button("New scan", icon="add", on_click=browse).props("outline no-caps").classes("w-full")
+                ui.label("Protocol library").classes("label").style("margin-top: 4px")
+                saved = ui.select(session.protocols(), label="name", with_input=True, new_value_mode="add-unique").props(
+                    "dense outlined dark").classes("w-full")
+                with ui.row().classes("w-full no-wrap").style("gap: 6px"):
+                    ui.button("Save", icon="save", on_click=lambda: saved.value and (
+                        session.save_protocol(saved.value), saved.set_options(session.protocols(), value=saved.value),
+                        ui.notify(f"Saved {saved.value}"))).props("outline dense no-caps").style("flex: 1")
+                    ui.button("Load", icon="folder_open", on_click=lambda: saved.value in session.protocols() and (
+                        session.load_protocol(saved.value), draw(), ui.notify(f"Loaded {saved.value}"))).props(
+                        "outline dense no-caps").style("flex: 1")
 
-        # planning: the tools, three planes one leafs through and the room in 3D, the card below
-        with ui.column().style("flex: 1; min-width: 0; gap: 6px"):
-            with ui.row().classes("w-full items-center pane no-wrap").style("padding: 4px 8px"):
-                ui.button("to the voxel", icon="center_focus_strong", on_click=lambda: (
-                    setattr(session, "view_mm", list(session.position_mm)), paint())).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "bring the three planes back to the voxel")
-                ui.button("realism", icon="auto_fix_high", on_click=realism).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "everything real about the scan as switches: pulses, the B0 field, noise, macromolecules, lipids, eddy currents, ...")
-                tools["shifts"] = ui.button("shifts", icon="flip_to_back", on_click=lambda: (
-                    chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
-                    "display only: draws where water (blue) and lipid (pink) are really selected. With real pulses the displacement is "
-                    "always in the signal; this button does not switch it off (ideal pulses do)")
-                tools["flip"] = ui.button("L on the right", icon="flip", on_click=lambda: (
-                    chosen.__setitem__("flipped", not chosen["flipped"]), draw())).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "off: left is on the picture's left (neurological). on: mirrored, left on the right, as a radiologist "
-                    "reads it. The letters and the axes' crosses follow")
-                ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "what happens over the transients: drift, breathing, jitter, motion")
-                ui.button("coils", icon="settings_input_antenna", on_click=coil_gear).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "the receive array: its loops, your own sensitivity maps, the noise its channels share")
-                ui.button("maps", icon="layers", on_click=lambda: maps()).props("flat dense no-caps stack").classes("tool").tooltip(
-                    "load your own: the anatomy from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
-                overlays = ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: e.value and (
-                    setattr(session, "overlay", e.value), paint())).props(
-                    "dense outlined dark options-dense").style("width: 150px").tooltip(
-                    "wash a map over the anatomy: the B0 field and B1+ (on in maps), or a tissue")
-                texts["window"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
-                ui.space()
-                ui.label("scroll: leaf through · press or drag: place the voxel · with shift: look around").classes("label")
-            with ui.element("div").classes("w-full").style("display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px"):
-                for name in ("tra", "sag", "cor"):
-                    with ui.element("div").classes("port"):
-                        views[name] = ui.interactive_image(events=["mousedown", "mousemove", "mouseup"], cross=False).classes("w-full")
-                        # throttled: an unthrottled stream of moves queues more repaints than the window can show, and
-                        # the console then seems deaf to the next clicks
-                        views[name].on("mouse", drag(name), throttle=0.06)
-                        views[name].on("wheel.prevent", lambda e, plane=name: (
-                            session.scroll(plane, 1 if e.args["deltaY"] < 0 else -1), paint()), args=["deltaY"], throttle=0.04)
-                        texts[name] = ui.label("").classes("tag").style("top: 4px; left: 6px")
-                        letters[name] = [ui.label(letter).classes("tag").style(place) for letter, place in zip(
-                            EDGES[name][:4], ("top: 4px; left: 50%", "bottom: 4px; left: 50%", "top: 48%; left: 6px", "top: 48%; right: 6px"))]
-                        # the axes' cross, lower right: where the picture's right and its top point in the subject
-                        crosses[name] = ui.html("", sanitize=False).classes("tag").style("right: 6px; bottom: 6px")
-            with ui.row().classes("w-full no-wrap").style("gap: 6px; flex: 1; min-height: 0; align-items: stretch"):
-                # the card's parameters by tab, what follows from them beside
-                with ui.column().classes("pane").style("width: 590px; flex: none; min-height: 0; overflow: hidden"):
-                    card = session.protocol
-                    with ui.row().classes("w-full items-center no-wrap"):
-                        with ui.tabs().props("dense align=left").style(f"color: {DIM}; flex: 1") as tabs:
-                            for name in ("Geometry", "Contrast", "Acquisition"):
-                                ui.tab(name)
-                            ui.tab("Imaging").bind_visibility_from(card, "sequence", backward=lambda name: name == MRSI)
-                        ui.button(icon="settings", on_click=lambda: gear(tabs.value)).props("flat dense round size=sm").style(
-                            f"color: {GLOW}").tooltip("the advanced settings behind this tab")
-                    with ui.row().classes("w-full no-wrap").style("gap: 12px; flex: 1; min-height: 0"):
-                        with ui.tab_panels(tabs, value="Geometry").props("keep-alive").style("width: 215px; flex: none; overflow-y: auto; max-height: calc(100vh - 650px)"):
-                            with ui.tab_panel("Geometry"):
-                                for axis, caption in enumerate(("x, to the right (mm)", "y, to the front (mm)", "z, to the head (mm)")):
-                                    places.append(ui.number(caption, value=session.position_mm[axis], step=1.0, on_change=lambda e, axis=axis: (
-                                        e.value is not None and abs(e.value - session.position_mm[axis]) > 0.05 and (
-                                            session.position_mm.__setitem__(axis, float(e.value)), draw()))).props(
-                                        "dense outlined dark").classes("w-full"))
-                                with ui.row().classes("w-full no-wrap").style("gap: 4px"):
-                                    for axis, caption in enumerate(("size x", "size y", "size z")):
-                                        edges.append(ui.number(caption, value=session.size_mm[axis], step=5.0, min=3.0, on_change=lambda e, axis=axis: (
-                                            e.value is not None and e.value != session.size_mm[axis] and (
-                                                session.size_mm.__setitem__(axis, float(e.value)), room(), draw()))).props(
-                                            "dense outlined dark").style("flex: 1; min-width: 0"))
-                                ui.select({axes: ", ".join(axes) for axes in ("xyz", "xzy", "yxz", "yzx", "zxy", "zyx")}, label="slice order (real pulses)",
-                                          on_change=changed("axes", "card")).bind_value(card, "axes").props(
-                                    "dense outlined dark options-dense").classes("w-full").tooltip(
-                                    "along which axis the first, the second and the third slice pulse selects, for every sequence: a PRESS's 90 "
-                                    "and its two 180s, a STEAM's three 90s, an sLASER's 90 and its two pairs. The narrowest pulses displace a "
-                                    "shift the most, so the order decides along which axes that happens")
-                                ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
-                                    "dense outlined dark").classes("w-full")
-                                ui.number("shim box (mm)", value=session.shim_mm, step=5.0, min=5.0,
-                                          on_change=lambda e: (setattr(session, "shim_mm", e.value), draw())).props(
-                                    "dense outlined dark clearable").classes("w-full").tooltip(
-                                    "the yellow box about the voxel the shim is fitted over; empty, the shim is fitted over the voxel itself")
-                            with ui.tab_panel("Imaging"):
-                                with ui.row().classes("w-full no-wrap").style("gap: 4px"):
-                                    for attribute, caption, low in (("matrix", "cells x", 2), ("matrix_y", "cells y", 2), ("slices", "slices z", 1)):
-                                        ui.number(caption, step=1, min=low, on_change=changed(attribute, "card")).bind_value(card, attribute).props(
-                                            "dense outlined dark").style("flex: 1; min-width: 0")
-                                for attribute, caption, options, tip in (
-                                        ("mrsi_oversampling", "rendering under a cell", [1, 2, 3], "1: ideal boxes. More: every cell sees its neighbours "
-                                         "through the point spread function, as a real image does"),
-                                        ("mrsi_weighting", "k-space weighting", ["none", "hamming"], "hamming: less bleed, wider cells"),
-                                        ("mrsi_sampling", "k-space coverage", ["full", "elliptical"], "elliptical: the corners left out, a shorter scan"),
-                                        ("mrsi_profile", "slab profile", ["box", "gaussian"], "how the slab is excited through its thickness"),
-                                        ("mrsi_readout", "readout", ["phase encoded", "epsi", "epsi-bidirectional"], "EPSI reads a line of "
-                                         "k-space per repetition: a matrix times shorter scan, its own artefacts")):
-                                    ui.select(options, label=caption, on_change=changed(attribute, "card")).bind_value(card, attribute).props(
-                                        "dense outlined dark options-dense").classes("w-full").tooltip(tip)
-                            for tab, fields in (("Contrast", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
-                                                ("Acquisition", (("averages", "averages", 1), ("npoints", "points", 512),
-                                                                 ("bandwidth_hz", "bandwidth (Hz)", 500.0),
-                                                                 ("water_reference", "water reference transients", 1)))):
-                                with ui.tab_panel(tab):
-                                    if tab == "Contrast":
-                                        ui.button(on_click=browse).bind_text_from(card, "sequence").props(
-                                            "outline no-caps icon-right=expand_more").classes("w-full")
-                                    if tab == "Acquisition":
-                                        ui.switch("reference before the scan", on_change=changed("water_reference_first", "card")).bind_value(
-                                            card, "water_reference_first").props("dense color=accent").tooltip(
-                                            "the water reference is an exam of its own: before its card, or after it (off)")
-                                    if tab == "Contrast":
-                                        with ui.column().classes("w-full").style("gap: 4px").bind_visibility_from(
-                                                card, "sequence", backward=lambda name: name == "MEGA-PRESS"):
-                                            ui.select(list(TARGETS), label="editing target", on_change=lambda e: e.value and (
-                                                setattr(card, "edit_on_ppm", TARGETS[e.value][0]), setattr(card, "edit_off_ppm", TARGETS[e.value][1]),
-                                                draw())).props("dense outlined dark").classes("w-full").tooltip(
-                                                "fills the two frequencies below; any pair can be typed")
-                                            for attribute, caption in (("edit_on_ppm", "editing pulse ON (ppm)"), ("edit_off_ppm", "editing pulse OFF (ppm)")):
-                                                ui.number(caption, step=0.01, format="%.2f", on_change=changed(attribute, "card")).bind_value(
-                                                    card, attribute).props("dense outlined dark").classes("w-full")
-                                    for attribute, caption, step in fields:
-                                        ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
-                                                  ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
-                        with ui.element("div").classes("info").style(
-                                f"flex: 1; min-height: 0; max-height: calc(100vh - 650px); overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
-                            ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
-                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
-                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("encoding", "image encoding"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
-                                                 ("limits", "hardware")):
-                                ui.label(caption).classes("label")
-                                texts[key] = ui.label("").classes("value").style("white-space: pre-line")
-                # what the card plays and what came of it
-                with ui.column().classes("pane").style("flex: 1; min-width: 0"):
-                    with ui.tabs().props("dense align=left").style(f"color: {DIM}") as shows:
-                        ui.tab("Sequence")
-                        ui.tab("Live")
-                    with ui.tab_panels(shows, value="Sequence").props("keep-alive").classes("w-full").style("flex: 1"):
-                        with ui.tab_panel("Sequence"):
-                            with ui.row().classes("w-full no-wrap").style("gap: 8px"):
-                                with ui.column().style("gap: 4px; flex: none"):
-                                    tools["real"] = ui.button("real pulses", icon="waves", on_click=lambda: toggle("real")).props(
-                                        "flat dense no-caps stack").classes("tool").tooltip(
-                                        "off: ideal pulses that act at once and select the voxel exactly (fast). on: shaped pulses under gradients, played in "
-                                        "time, so the voxel has a profile, shifts displace, and the scan takes longer to simulate")
-                                    tools["water"] = ui.button("water off", icon="water_drop", on_click=lambda: toggle("water")).props(
-                                        "flat dense no-caps stack").classes("tool").tooltip(
-                                        "the water is a spin system of its own, played through the sequence at its full amplitude. VAPOR, WET, CHESS: "
-                                        "the train is played and suppresses it as far as its physics does on this scanner. off: the whole water "
-                                        "line. assumed residual: no train, the water scaled to a drawn residual (the package's shortcut, fast)")
-                                    tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
-                                        "flat dense no-caps stack").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
-                                    ui.button("design", icon="architecture", on_click=lambda: (session.protocol.sequence != "Custom" and session.adopt(), designer())).props("flat dense no-caps stack").classes("tool").tooltip(
-                                        "the sequence designer: your own design in blocks. The card keeps playing what it plays until you use the design")
-                                diagram = ui.html("", sanitize=False).style("flex: 1; min-width: 0")
-                        with ui.tab_panel("Live"):
-                            with ui.row().classes("w-full items-center no-wrap"):
-                                looks = ui.select([], label="show", on_change=lambda: chosen["exam"] is not None and chosen["exam"].frames
-                                                  and frame(chosen["exam"], -1)).props("dense outlined dark options-dense").style("width: 200px")
-                                ui.switch("align transients", value=session.align, on_change=lambda e: setattr(session, "align", e.value)).props(
-                                    "dense color=accent").tooltip(
-                                    "before the display averages, every transient is aligned in frequency and phase to the run's mean, as a "
-                                    "scanner's or a toolbox's preprocessing does; off shows what drift and motion do. Applies to the next "
-                                    "exams; the export is always raw. Display: 2 Hz apodization, zero filled, one zero-order phase per exam. "
-                                    "Wheel zooms, drag pans, grey is the transient that just came in")
-                            spectrum = ui.echart(copy.deepcopy(SPECTRUM)).style("height: 300px").classes("w-full")
-            # the card in one line, and its way into the queue
-            with ui.row().classes("w-full items-center pane no-wrap").style("gap: 18px; padding: 4px 10px"):
-                texts["name"] = ui.label("").style(f"color: {SAND}")
-                ui.label("duration").classes("label")
-                texts["time2"] = ui.label("").classes("value")
-                texts["verdict"] = ui.label("").classes("value").style("flex: 1")
-                discard = ui.button("Discard", on_click=lambda: (chosen.__setitem__("editing", None), listing(), draw())).props(
-                    "flat dense no-caps")
-                accept = ui.button("Accept", icon="playlist_add", on_click=plan).props("unelevated dense no-caps")
+        with left.after:
+            with ui.splitter(value=244, limits=(200, 520)).props("reverse unit=px").classes("w-full").style("height: 100%") as right:
+                with right.before:
+                    # planning: the tools, three planes one leafs through and the room in 3D, the card below
+                    with ui.column().style("width: 100%; height: 100%; min-width: 0; gap: 6px; padding: 0 6px"):
+                        with ui.row().classes("w-full items-center pane no-wrap").style("padding: 4px 8px"):
+                            # what changes the view alone ...
+                            ui.label("view").classes("label").style("writing-mode: vertical-rl; transform: rotate(180deg)")
+                            ui.button("to the voxel", icon="center_focus_strong", on_click=lambda: (
+                                setattr(session, "view_mm", list(session.position_mm)), paint())).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "bring the three planes back to the voxel (v)")
+                            tools["shifts"] = ui.button("shifts", icon="flip_to_back", on_click=lambda: (
+                                chosen.__setitem__("shifts", not chosen["shifts"]), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
+                                "where water (blue) and lipid (pink) are really selected (s); display only")
+                            tools["flip"] = ui.button("L on the right", icon="flip", on_click=lambda: (
+                                chosen.__setitem__("flipped", not chosen["flipped"]), draw())).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "mirror the pictures: left on the right, as a radiologist reads them (f)")
+                            overlays = ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: e.value and (
+                                setattr(session, "overlay", e.value), paint())).props(
+                                "dense outlined dark options-dense").style("width: 150px").tooltip(
+                                "wash a map over the anatomy: the B0 field and B1+ (on in maps), or a tissue (o: the next one)")
+                            texts["window"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
+                            ui.space()
+                            # ... and what changes the simulated room and its scans
+                            ui.label("sim").classes("label").style("writing-mode: vertical-rl; transform: rotate(180deg)")
+                            ui.button("realism", icon="auto_fix_high", on_click=realism).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "what is real about the scan, as switches")
+                            ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "what happens over the transients: drift, breathing, jitter, motion")
+                            ui.button("maps", icon="layers", on_click=lambda: maps()).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "load your own: the anatomy from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
+                            ui.button("coils", icon="settings_input_antenna", on_click=coils).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "your own receive array: sensitivity maps, the channels' noise")
+                            ui.button("all settings", icon="tune", on_click=lambda: gear()).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "every parameter the simulation draws, with its source")
+                            ui.icon("keyboard", size="20px").style(f"color: {DIM}").tooltip(
+                                "scroll: leaf through · press or drag: place the voxel · with shift: look around · " + KEYS)
+                        with ui.element("div").classes("w-full").style("display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px"):
+                            for name in ("tra", "sag", "cor"):
+                                with ui.element("div").classes("port"):
+                                    views[name] = ui.interactive_image(events=["mousedown", "mousemove", "mouseup"], cross=False).classes("w-full")
+                                    # throttled: an unthrottled stream of moves queues more repaints than the window can show, and
+                                    # the console then seems deaf to the next clicks
+                                    views[name].on("mouse", drag(name), throttle=0.06)
+                                    views[name].on("wheel.prevent", lambda e, plane=name: (
+                                        session.scroll(plane, 1 if e.args["deltaY"] < 0 else -1), paint()), args=["deltaY"], throttle=0.04)
+                                    views[name].on("mouseenter", lambda _, plane=name: chosen.__setitem__("over", plane))
+                                    with ui.row().style("position: absolute; top: 2px; right: 4px; z-index: 3; gap: 0"):      # this plane's own zoom
+                                        for icon, factor in (("remove", 1.0 / 1.5), ("crop_free", None), ("add", 1.5)):
+                                            ui.button(icon=icon, on_click=lambda _, plane=name, factor=factor: zoom(plane, factor)).props(
+                                                "flat dense round size=xs").style(f"color: {SAND}")
+                                    texts[name] = ui.label("").classes("tag").style("top: 4px; left: 6px")
+                                    letters[name] = [ui.label(letter).classes("tag").style(place) for letter, place in zip(
+                                        EDGES[name][:4], ("top: 4px; left: 50%", "bottom: 4px; left: 50%", "top: 48%; left: 6px", "top: 48%; right: 6px"))]
+                                    # the axes' cross, lower right: where the picture's right and its top point in the subject
+                                    crosses[name] = ui.html("", sanitize=False).classes("tag").style("right: 6px; bottom: 6px")
+                        with ui.splitter(value=590, limits=(320, 1100)).props("unit=px").classes("w-full").style("flex: 1; min-height: 0") as below:
+                            with below.before:
+                                # the card's parameters by tab, what follows from them beside
+                                with ui.column().classes("pane").style("width: 100%; height: 100%; min-height: 0; overflow: hidden"):
+                                    card = session.protocol
+                                    with ui.row().classes("w-full items-center no-wrap"):
+                                        with ui.tabs().props("dense align=left").style(f"color: {DIM}; flex: 1") as tabs:
+                                            for name in ("Geometry", "Timing", "Acquisition", "Adjustments"):
+                                                ui.tab(name)
+                                            ui.tab("Imaging").bind_visibility_from(card, "sequence", backward=lambda name: name == MRSI)
+                                        ui.button(icon="settings", on_click=lambda: gear(tabs.value)).props("flat dense round size=sm").style(
+                                            f"color: {GLOW}").tooltip("the advanced settings behind this tab")
+                                    with ui.row().classes("w-full no-wrap").style("gap: 12px; flex: 1; min-height: 0"):
+                                        with ui.tab_panels(tabs, value="Geometry").props("keep-alive").style("width: 215px; flex: none; overflow-y: auto; max-height: calc(100vh - 650px)"):
+                                            with ui.tab_panel("Geometry"):
+                                                for axis, caption in enumerate(("x, to the right (mm)", "y, to the front (mm)", "z, to the head (mm)")):
+                                                    places.append(ui.number(caption, value=session.position_mm[axis], step=1.0, on_change=lambda e, axis=axis: (
+                                                        e.value is not None and abs(e.value - session.position_mm[axis]) > 0.05 and (
+                                                            session.position_mm.__setitem__(axis, float(e.value)), draw()))).props(
+                                                        "dense outlined dark").classes("w-full"))
+                                                with ui.row().classes("w-full no-wrap").style("gap: 4px"):
+                                                    for axis, caption in enumerate(("size x", "size y", "size z")):
+                                                        edges.append(ui.number(caption, value=session.size_mm[axis], step=5.0, min=3.0, on_change=lambda e, axis=axis: (
+                                                            e.value is not None and e.value != session.size_mm[axis] and (
+                                                                session.size_mm.__setitem__(axis, float(e.value)), room(), draw()))).props(
+                                                            "dense outlined dark").style("flex: 1; min-width: 0"))
+                                                ui.select({axes: ", ".join(axes) for axes in ("xyz", "xzy", "yxz", "yzx", "zxy", "zyx")}, label="slice order (real pulses)",
+                                                          on_change=changed("axes", "card")).bind_value(card, "axes").props(
+                                                    "dense outlined dark options-dense").classes("w-full").tooltip(
+                                                    "the axes the first, second and third slice pulse select along; the narrowest pulse displaces a shift the most")
+                                                ui.number("OVS slab thickness (mm)", step=5.0, min=5.0, on_change=changed("ovs_mm", "card")).bind_value(card, "ovs_mm").props(
+                                                    "dense outlined dark").classes("w-full").bind_visibility_from(card, "ovs").tooltip(
+                                                    "six saturation slabs, a pair along every axis, 2 mm clear of the voxel")
+                                            with ui.tab_panel("Adjustments"):       # what a scanner adjusts before it scans
+                                                ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
+                                                    "dense outlined dark").classes("w-full")
+                                                ui.number("shim box (mm)", value=session.shim_mm, step=5.0, min=5.0,
+                                                          on_change=lambda e: (setattr(session, "shim_mm", e.value), draw())).props(
+                                                    "dense outlined dark clearable").classes("w-full").tooltip(
+                                                    "the yellow box about the voxel the shim is fitted over; empty, the shim is fitted over the voxel itself")
+                                                ui.switch("centre the frequency before every exam", value=session.prescan, on_change=changed("prescan")).props(
+                                                    "dense color=accent").tooltip(
+                                                    "on, as scanners do: every exam starts on resonance. off: it starts where the session's drift has taken the scanner")
+                                            with ui.tab_panel("Imaging"):
+                                                with ui.row().classes("w-full no-wrap").style("gap: 4px"):
+                                                    for attribute, caption, low in (("matrix", "cells x", 2), ("matrix_y", "cells y", 2), ("slices", "slices z", 1)):
+                                                        ui.number(caption, step=1, min=low, on_change=changed(attribute, "card")).bind_value(card, attribute).props(
+                                                            "dense outlined dark").style("flex: 1; min-width: 0")
+                                                for attribute, caption, options, tip in (
+                                                        ("mrsi_oversampling", "rendering under a cell", [1, 2, 3], "1: ideal boxes. More: every cell sees its neighbours "
+                                                         "through the point spread function, as a real image does"),
+                                                        ("mrsi_weighting", "k-space weighting", ["none", "hamming"], "hamming: less bleed, wider cells"),
+                                                        ("mrsi_sampling", "k-space coverage", ["full", "elliptical"], "elliptical: the corners left out, a shorter scan"),
+                                                        ("mrsi_profile", "slab profile", ["box", "gaussian"], "how the slab is excited through its thickness"),
+                                                        ("mrsi_readout", "readout", ["phase encoded", "epsi", "epsi-bidirectional"], "EPSI reads a line of "
+                                                         "k-space per repetition: a matrix times shorter scan, its own artefacts")):
+                                                    ui.select(options, label=caption, on_change=changed(attribute, "card")).bind_value(card, attribute).props(
+                                                        "dense outlined dark options-dense").classes("w-full").tooltip(tip)
+                                            for tab, fields in (("Timing", (("te_ms", "TE (ms)", 1.0), ("tr_ms", "TR (ms)", 100.0))),
+                                                                ("Acquisition", (("averages", "averages", 1), ("npoints", "points", 512),
+                                                                                 ("bandwidth_hz", "bandwidth (Hz)", 500.0),
+                                                                                 ("water_reference", "water reference transients", 1)))):
+                                                with ui.tab_panel(tab):
+                                                    if tab == "Timing":
+                                                        ui.button(on_click=browse).bind_text_from(card, "sequence").props(
+                                                            "outline no-caps icon-right=expand_more").classes("w-full")
+                                                    if tab == "Acquisition":
+                                                        ui.switch("reference before the scan", on_change=changed("water_reference_first", "card")).bind_value(
+                                                            card, "water_reference_first").props("dense color=accent").tooltip(
+                                                            "the water reference is an exam of its own: before its card, or after it (off)")
+                                                    if tab == "Timing":
+                                                        with ui.column().classes("w-full").style("gap: 4px").bind_visibility_from(
+                                                                card, "sequence", backward=lambda name: name == "MEGA-PRESS"):
+                                                            ui.select(list(TARGETS), label="editing target", on_change=lambda e: e.value and (
+                                                                setattr(card, "edit_on_ppm", TARGETS[e.value][0]), setattr(card, "edit_off_ppm", TARGETS[e.value][1]),
+                                                                draw())).props("dense outlined dark").classes("w-full").tooltip(
+                                                                "fills the two frequencies below; any pair can be typed")
+                                                            for attribute, caption in (("edit_on_ppm", "editing pulse ON (ppm)"), ("edit_off_ppm", "editing pulse OFF (ppm)")):
+                                                                ui.number(caption, step=0.01, format="%.2f", on_change=changed(attribute, "card")).bind_value(
+                                                                    card, attribute).props("dense outlined dark").classes("w-full")
+                                                    for attribute, caption, step in fields:
+                                                        ui.number(caption, value=getattr(card, attribute), step=step, on_change=changed(attribute, "card")
+                                                                  ).bind_value(card, attribute).props("dense outlined dark").classes("w-full")
+                                        with ui.element("div").classes("info").style(
+                                                f"flex: 1; min-height: 0; max-height: calc(100vh - 650px); overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
+                                            ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
+                                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
+                                                                 ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("encoding", "image encoding"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
+                                                                 ("limits", "hardware")):
+                                                ui.label(caption).classes("label")
+                                                texts[key] = ui.label("").classes("value").style("white-space: pre-line")
+                            with below.after:
+                                # what the card plays and what came of it
+                                with ui.column().classes("pane").style("width: 100%; height: 100%; min-width: 0"):
+                                    with ui.row().classes("w-full items-center no-wrap"):
+                                        with ui.tabs().props("dense align=left").style(f"color: {DIM}; flex: 1") as shows:
+                                            ui.tab("Sequence")
+                                            ui.tab("Live")
+                                        ui.button("Open in the designer", icon="architecture", on_click=lambda: (
+                                            session.protocol.sequence != "Custom" and session.adopt(), designer())).mark("design").props("outline dense no-caps").tooltip(
+                                            "this sequence block by block, with its water suppression and OVS")
+                                    with ui.tab_panels(shows, value="Sequence").props("keep-alive").classes("w-full").style("flex: 1"):
+                                        with ui.tab_panel("Sequence"):
+                                            with ui.row().classes("w-full no-wrap").style("gap: 8px"):
+                                                with ui.column().style("gap: 4px; flex: none"):
+                                                    tools["real"] = ui.button("real pulses", icon="waves", on_click=lambda: toggle("real")).props(
+                                                        "flat dense no-caps stack").classes("tool").tooltip(
+                                                        "on: shaped pulses under gradients, played in time (slower). off: ideal pulses that select the voxel exactly")
+                                                    tools["water"] = ui.button("water off", icon="water_drop", on_click=lambda: toggle("water")).props(
+                                                        "flat dense no-caps stack").classes("tool").tooltip(
+                                                        "VAPOR, WET, CHESS: the train is played on the full water. off: the whole water line. assumed residual: a drawn residual, fast")
+                                                    tools["ovs"] = ui.button("OVS", icon="border_outer", on_click=lambda: toggle("ovs")).props(
+                                                        "flat dense no-caps stack").classes("tool").tooltip("outer-volume suppression: six saturation slabs about the voxel")
+                                                diagram = ui.html("", sanitize=False).style("flex: 1; min-width: 0")
+                                        with ui.tab_panel("Live"):
+                                            with ui.row().classes("w-full items-center no-wrap"):
+                                                looks = ui.select([], label="show", on_change=lambda: chosen["exam"] is not None and chosen["exam"].frames
+                                                                  and (frame(chosen["exam"], -1), paint())).props("dense outlined dark options-dense").style("width: 200px")
+                                                for level, said in ((COMBINE, "as the transients came in: averaged, no phase, no alignment"),
+                                                                    (ALIGN, "a rough cleaning: every transient aligned in frequency and phase, one phase"),
+                                                                    (PROCESS, "fully processed: aligned, outliers out, water removed, referenced, phased")):
+                                                    levels[level] = ui.button(level, on_click=lambda _, level=level: reprocess(level)).mark(f"level {level}").props("flat dense no-caps").classes(
+                                                        "tool" + (" on" if level == session.processing else "")).style("width: 92px; height: 30px").tooltip(said)
+                                                ui.switch("every transient", value=True, on_change=lambda e: (
+                                                    chosen.__setitem__("every", e.value), chosen["exam"] is not None and chosen["exam"].frames and frame(
+                                                        chosen["exam"], -1))).props("dense color=accent").tooltip(
+                                                    "grey behind the average: every transient that was kept, coils summed (32 at most)")
+                                            spectrum = ui.echart(copy.deepcopy(SPECTRUM)).style("height: 300px").classes("w-full")
+                        # the card in one line, and its way into the queue
+                        with ui.row().classes("w-full items-center pane no-wrap").style("gap: 18px; padding: 4px 10px"):
+                            texts["name"] = ui.label("").style(f"color: {SAND}")
+                            ui.label("duration").classes("label")
+                            texts["time2"] = ui.label("").classes("value")
+                            texts["verdict"] = ui.label("").classes("value").style("flex: 1")
+                            discard = ui.button("Discard", on_click=lambda: (chosen.__setitem__("editing", None), listing(), draw())).props(
+                                "flat dense no-caps")
+                            accept = ui.button("Accept", icon="playlist_add", on_click=plan).props("unelevated dense no-caps")
 
-        # scan control, and what the scan runs under
-        with ui.column().classes("pane").style("width: 244px"):
-            ui.label("Scan control").classes("label")
-            progress = ui.linear_progress(value=0.0, show_value=False, size="8px", color=SAND)
-            with ui.row().classes("w-full items-center"):
-                texts["count"] = ui.label("0 / 0").classes("value")
-                ui.space()
-                ui.button(icon="stop", on_click=lambda: chosen.__setitem__("stop", True)).props("outline dense round").tooltip(
-                    "hold the queue after the exam that is running")
-                start = ui.button("Start", icon="play_arrow", on_click=scan_queue).props("unelevated dense no-caps")
-            texts["took"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
-            ui.button("Review", icon="insights", on_click=review).props("outline dense no-caps align=left").classes("w-full")
-            ui.button("Export raw transients", icon="save_alt", on_click=export).props("outline dense no-caps align=left").classes("w-full")
-            ui.button("Export Pulseq .seq", icon="code", on_click=export_seq).props("outline dense no-caps align=left").classes("w-full")
-            with ui.element("div").classes("port w-full"):
-                view = ui.scene(width=226, height=226, grid=False, background_color="#000000")
-                view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
-                ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
-            panel = ui.label("This voxel").classes("label").tooltip(
-                "one draw of the population, scanned by every exam until a new one is taken (the person icon); "
-                "the truth a real scanner never shows").classes("label").style("margin-top: 6px")
-            with ui.scroll_area().style("flex: 1; width: 100%"):
-                records = ui.column().classes("w-full").style("gap: 1px")
+                with right.after:
+                    # scan control, and what the scan runs under
+                    with ui.column().classes("pane").style("width: 100%; height: 100%"):
+                        ui.label("Scan control").classes("label")
+                        progress = ui.linear_progress(value=0.0, show_value=False, size="8px", color=SAND)
+                        with ui.row().classes("w-full items-center"):
+                            texts["count"] = ui.label("0 / 0").classes("value")
+                            ui.space()
+                            ui.button(icon="stop", on_click=lambda: chosen.__setitem__("stop", True)).props("outline dense round").tooltip(
+                                "hold the queue after the exam that is running")
+                            start = ui.button("Start", icon="play_arrow", on_click=scan_queue).props("unelevated dense no-caps")
+                        texts["took"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
+                        ui.button("Review", icon="insights", on_click=review).props("outline dense no-caps align=left").classes("w-full")
+                        ui.button("Export raw transients", icon="save_alt", on_click=export).props("outline dense no-caps align=left").classes("w-full")
+                        ui.button("Export Pulseq .seq", icon="code", on_click=export_seq).props("outline dense no-caps align=left").classes("w-full")
+                        with ui.element("div").classes("port w-full"):
+                            view = ui.scene(width=226, height=226, grid=False, background_color="#000000")
+                            view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
+                            ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
+                        panel = ui.label("This voxel").classes("label").tooltip(
+                            "the truth of the person scanned; a new person: the person icon").classes("label").style("margin-top: 6px")
+                        with ui.scroll_area().style("flex: 1; width: 100%"):
+                            records = ui.column().classes("w-full").style("gap: 1px")
+    planning = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
     chosen["ready"] = True
     room()
     draw()
@@ -1664,6 +1792,16 @@ async def console(client: Client):
 def main():
     """Start the console in a window of its own; with MRSANDBOX_CONSOLE_PORT set it serves a
     browser at that port instead (MRSANDBOX_CONSOLE_HEADLESS: without opening one)."""
+    import keras
+
+    if keras.backend.backend() == "jax":
+        # the engine's kernels are compiled once per machine, not once per launch: measured on a default exam, the first
+        # scan of a launch 29 s without the cache and 14 s with it, every later one 16 s and 12 s
+        import jax
+
+        jax.config.update("jax_compilation_cache_dir", str(pathlib.Path.home() / ".cache" / "mrsandbox" / "jax"))
+        jax.config.update("jax_persistent_cache_min_compile_time_secs", 0.0)
+        jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
     if "MRSANDBOX_CONSOLE_PORT" in os.environ:
         ui.run(title="MRSandbox Console", favicon=LOGO, dark=True, reload=False,
                show="MRSANDBOX_CONSOLE_HEADLESS" not in os.environ, port=int(os.environ["MRSANDBOX_CONSOLE_PORT"]))

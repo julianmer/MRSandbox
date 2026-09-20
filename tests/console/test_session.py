@@ -195,7 +195,7 @@ class TestSession:
         assert float(pairs[0].duration_s) == pytest.approx(0.0045 * (15.0 / (0.99 * 13.5)) ** 2)   # peak squared times duration held
 
     def test_a_phase_cycle_cancels_what_an_imperfect_refocusing_pulse_leaves(self):
-        from mrsandbox.console.session import BLOCKS
+        from mrsandbox.console.session import ALIGN, BLOCKS
 
         session = Session(ICBM)
         session.protocol.water_reference = 0
@@ -215,7 +215,7 @@ class TestSession:
         assert [complex(w) for w in session.weights["cycled"].values()] == [1, -1, 1, -1]        # EXORCYCLE for a refocusing pulse
         exam = session.run(session.plan(), seed=2)
         naa = (exam.ppm > 1.9) & (exam.ppm < 2.1)
-        session.align = False
+        session.processing = ALIGN
         cycled, alone = (session.run(session.plan(), seed=2).spectra[name] for name in ("cycled", "first step alone"))
         # what the cycle keeps is the echo alone: a clean NAA line, where one step carries the unrefocused signal's phase on it
         assert np.abs(cycled[naa]).max() > 0.0 and not np.allclose(cycled / np.abs(cycled).max(), alone / np.abs(alone).max(), atol=0.05)

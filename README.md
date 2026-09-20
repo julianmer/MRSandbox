@@ -56,10 +56,7 @@ sphere = VirtualScan(Phantom.spectre(temperature_c=21.0), Scanner.preset("generi
 batches = scan.generator((0, -45, 35), 20.0, batch_size=16, seed=0)
 ```
 
-The data are NIfTI-MRS as a scanner stores it, with the receiver's centre at 4.65 ppm, so FSL-MRS
-and Osprey read a line where it is. The header of every acquisition carries its ground truth: the drawn
-parameters, the tissue in the voxel, the calibration records in force and where the scan departs
-from the conditions they were measured under.
+The data are NIfTI-MRS with the receiver's centre at 4.65 ppm. The header of every acquisition carries its ground truth: the drawn parameters, the tissue in the voxel, the calibration records in force and where the scan departs from the conditions they were measured under.
 
 ## The console
 
@@ -67,15 +64,7 @@ from the conditions they were measured under.
 uvx --from "mrsandbox[console]" mrsandbox-console
 ```
 
-A virtual scanner console in a window of its own. Choose the scanner (a preset, or your own saved
-profile), the receive array, and who lies on the table, or bring your own anatomy, B0, and B1+
-maps. Leaf through three planes, place the voxel or the MRSI grid, switch water suppression and
-OVS, fill the exam cards, and run them: the spectrum builds up over the transients, which come
-with the drift and motion of a real run. Design your own sequence from blocks, your own pulse
-shapes among them, and see its pulse sequence diagram and its spectrum. Open any parameter of the
-simulation through the gears, as a number, a range, or a map. Review the spectra beside the
-truth, and export what a scanner exports: the raw transients as NIfTI-MRS and the sequence as
-Pulseq.
+A virtual scanner consol . Choose the scanner (a preset, or your own saved profile), the receive array, and who lies on the table, or bring your own anatomy, B0, and B1+ maps. Leaf through three planes, place the voxel or the MRSI grid, switch water suppression and OVS, fill the exam cards, and run them: the spectrum builds up over the transients, which come with the drift and motion of a real run. Design your own sequence from blocks, your own pulse shapes among them, and see its pulse sequence diagram and its spectrum. Open any parameter of the simulation through the gears, as a number, a range, or a map. Review the spectra beside the truth, and export what a scanner exports: the raw transients as NIfTI-MRS and the sequence as Pulseq.
 
 ## Overview
 

@@ -51,11 +51,11 @@ class TestApp:
                 next(e for e in user.find(kind=ui.select).elements if e.value == "as its source gives it").value = "vary between"
                 await user.should_see("and")
                 user.find("Done").click()
-                user.find("design").click()
+                user.find(marker="design").click()
                 await user.should_see("the readout opens at")
                 user.find("crusher").click()                            # a block from the palette, after the chosen one
-                await user.should_see("16 blocks")                      # the card's real PRESS came over, 15 blocks, and one more
-                await user.should_see("1 · as the card plays it")       # its slice-selective 90 as the card plays it
+                await user.should_see("17 blocks")                      # the card's real PRESS came over with its VAPOR, 16 blocks, and one more
+                await user.should_see("3 · fixed pulse 90°")                # its slice-selective 90, kept as the card plays it
                 user.find("all pulses ideal").click()
                 user.find("another, a copy of this one").click()        # a second sub-acquisition, and how the two combine
                 await user.should_see("remove this one")
@@ -98,6 +98,13 @@ class TestApp:
                 user.find("Start").click()
                 await user.should_see("simulated in", retries=400)
                 await user.should_see("4 / 4", retries=300)                # after the reference, which runs first
+                # the display's processing acts on the exam that ran: shown anew, every kept transient grey behind the average
+                user.find(marker="level as acquired").click()
+                await asyncio.sleep(1.0)
+                live = next(e for e in user.find(kind=ui.echart).elements if "transient 4 of 4" in e.options["title"]["text"])
+                assert len(live.options["series"]) == 1 + 4 and live.options["yAxis"]["max"] > live.options["yAxis"]["min"]
+                user.find("Adjustments").click()                        # the shim and the prescan have a tab of their own
+                await user.should_see("centre the frequency before every exam")
                 user.find("Export raw transients").click()              # the exam that just ran, into a folder of the test's own
                 await user.should_see("Export · 2 STEAM TE 30")
                 next(e for e in user.find(kind=ui.input).elements if e.props.get("label") == "folder").value = str(tmp_path)
@@ -105,6 +112,13 @@ class TestApp:
                 await user.should_see("Written:")
                 assert list(tmp_path.glob("*.nii.gz"))
                 user.find("Close").click()
+                # a spectroscopic image comes with one transient per point of k-space, and its cells are there to be pressed
+                user.find("New scan").click()
+                user.find(marker="protocol MRSI PRESS").click()
+                await user.should_see("phase encoding takes")                # (the card's one transient shows in a bound field, stale here)
+                user.find("New scan").click()
+                user.find(marker="protocol MEGA-PRESS").click()          # an edited scan with the transients its difference needs
+                await user.should_see("10:40")
                 user.find("New scan").click()
                 user.find(marker="protocol sLASER").click()
                 user.find("Accept").click()

@@ -300,7 +300,8 @@ class TestAcquisitionImperfections:
                                                                      size_mm=20)
             truth = voxel.sample(seed=7)
             fids = voxel._component_fids(truth, npoints, 1.0 / 4000.0)
-            return fids["spurious"] / np.abs(sum(fids.values()) - fids["spurious"]).max()
+            # the echo is drawn against the voxel's signal without its water
+            return fids["spurious"] / np.abs(sum(fid for name, fid in fids.items() if name not in ("spurious", "water"))).max()
 
         np.testing.assert_allclose(echo(8 / 4000.0, 512), echo(0.0, 520)[8:], atol=1e-4)
 
@@ -351,7 +352,10 @@ class TestAcquisitionImperfections:
         _, fid1 = warp.fid(seed=7, npoints=1024)
         t = np.arange(1024) / 4000.0
         f0_mhz = 42.5774785 * 3.0
-        echo = 0.1 * np.abs(fid0).max() * np.exp(-2000.0 * (t - 0.1) ** 2) * np.exp(
+        # a tenth of the voxel's signal without its water: what comes from outside does not follow the water inside
+        parts = base._component_fids(base.sample(seed=7), 1024, 1.0 / 4000.0)
+        waterless = np.abs(sum(fid for name, fid in parts.items() if name != "water")).max()
+        echo = 0.1 * waterless * np.exp(-2000.0 * (t - 0.1) ** 2) * np.exp(
             1j * 2.0 * np.pi * 2.5 * f0_mhz * t)
         assert np.abs((fid1 - fid0) - echo).max() < 1e-4 * np.abs(fid0).max()
 

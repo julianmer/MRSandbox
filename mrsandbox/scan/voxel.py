@@ -516,7 +516,7 @@ class Voxel:
         metabolites, water, lipids, mm, downfield, spurious (silent ones left out):
         each source's lines rendered on their own, with the B0 dephasing, the drawn
         eddy-current phase, frequency shift, and zero-order phase applied to every
-        one alike, and the spurious echo (drawn relative to the summed FID's maximum)
+        one alike, and the spurious echo (drawn relative to the maximum of the summed FID without the water)
         as its own entry, so the components sum to the clean FID exactly.
 
         With `basis` (the per-truth metabolite unit FIDs of `metabolite_basis`) the
@@ -598,7 +598,9 @@ class Voxel:
                 T2=1.0 / np.sqrt(2.0 * spur.width_s2), freq_hz=spur.ppm * self._f0_mhz(),
                 phase_deg=spur.phase_deg + 360.0 * spur.ppm * self._f0_mhz() * start_s,
                 gaussian_env=True)])
-            total = sum(fids.values(), np.zeros(npoints, dtype=np.complex64))
+            # relative to the voxel's signal WITHOUT its water: signal from outside the voxel does not grow with the water
+            # a suppression train leaves inside it (the source's own FIDs carry next to none)
+            total = sum((fid for name, fid in fids.items() if name != "water"), np.zeros(npoints, dtype=np.complex64))
             fids["spurious"] = np.asarray(echo.process_tensor(total[None, :], sw_hz=sw_hz)[0][0]) - total
         modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
                                   + np.radians(acquisition.phase_deg)))
