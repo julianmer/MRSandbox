@@ -251,6 +251,7 @@ class Protocol:
     water_suppression: str = "VAPOR"
     ovs: bool = False
     ovs_mm: float = 30.0
+    ovs_gap_mm: float = 10.0
     real: bool = True
     water_reference: int = 1
     water_reference_first: bool = True
@@ -299,6 +300,8 @@ class Exam:
         frames: The display as the scan comes in, [(transients so far, the real spectrum of their
             average, the last transient's own)], on `ppm`; `window` is what the display
             opens on. `builds` holds the same build-up for every condition and combination.
+        room: The room as it stood when the exam was planned (Session.ROOM: scanner, calibration, coil, anatomy, person,
+            field, shim); the exam runs in it whatever stands in the room by then.
         schedule, transients, rejected: The sub-experiment every transient played; the kept transients' own spectra
             {view of one sub-experiment: [real spectrum]}, 32 at most; how many the processing left out as unlike the rest.
         snr: The signal to noise ratio of what is shown, (of the average, of one transient alone), the
@@ -340,6 +343,7 @@ class Exam:
     window: tuple = (0.2, 4.2)
     snr: tuple = ()
     builds: dict = dataclasses.field(default_factory=dict)
+    room: dict = dataclasses.field(default_factory=dict)
     schedule: list = dataclasses.field(default_factory=list)
     transients: dict = dataclasses.field(default_factory=dict)
     rejected: int = 0
@@ -408,6 +412,9 @@ class Session:
     COIL_SETTINGS = {"one ideal channel": {}, "head array": dict(loops_at_0_deg=1, loops_at_35_deg=6, loops_at_65_deg=10, loops_at_95_deg=15, loop_radius_mm=38.0),
                      "ring of loops": dict(channels=8, ring_radius_mm=110.0, loop_radius_mm=40.0, z_mm=0.0),
                      "surface loop": dict(x_mm=0.0, y_mm=-105.0, z_mm=35.0, loop_radius_mm=50.0)}
+
+    # what of the session is the room an exam is planned in and runs in
+    ROOM = ("scanner", "calibration", "coil", "subject", "seed", "field", "transmit", "shim", "shim_mm")
 
     #**********#
     #   init   #
@@ -623,6 +630,13 @@ class Session:
             field.shim_box = None if self.shim_mm is None else (tuple(self.position_mm), float(self.shim_mm))
         card = self.protocol if card is None else card
         return {**self._bodies[key], **({} if card.water_suppression == ASSUMED else {"water": Unsuppressed()})}
+
+    def reset(self):
+        """Everything the operator set about the simulation back to how the console starts: the parameters' own
+        sources, the run drawn, the linear shim over the voxel, the prescan, the measured field, real pulses."""
+        self.overrides, self.run_settings, self.motion_mm = {}, {}, None
+        self.shim, self.shim_mm, self.prescan, self.processing = "linear", None, True, ALIGN
+        self.field, self.protocol.real = FIELDS.get(self.subject, "uniform"), True
 
     def idealize(self, name, ideal):
         """Switch one imperfection of IDEALS off (its leaves set to nothing) or back on (the leaves
@@ -1042,15 +1056,13 @@ class Session:
         """Make the own design the sequence the card plays now, block by block, so the designer opens
         on what the diagram shows: ideal pulses, delays, filters, and crushers over the 20 mm
         ensemble become blocks one can set; every other event (a slice-selective or adiabatic pulse
-        of a real design, a projection) comes over as the card plays it. What the card plays before its
-        localization comes too: the water suppression as its block, the OVS slabs' pulses as fixed ones; the card's own
-        switches for them then go off, the design carries them (the designer's "Use this design")."""
+        of a real design, a projection) comes over as the card plays it. Water suppression and OVS stay the
+        card's own switches, outside the designer."""
         card = self.protocol
-        preludes = self.preludes(card) if REAL.get(card.sequence, card.sequence) in (*SEQUENCES, *EDITING, "Custom") else {}
-        skip = sum(len(prelude.events) for name, prelude in preludes.items() if name != "OVS")
-        design = [("water suppression", dict(scheme=name)) for name in preludes if name != "OVS"]
-        ovs = len(preludes["OVS"].events) if "OVS" in preludes else 0
-        for place, event in enumerate(self.sequence().events[skip:]):
+        skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in (
+            *SEQUENCES, *EDITING, "Custom") else 0
+        design = []
+        for event in self.sequence().events[skip:]:
             if type(event) is Pulse:
                 design.append(("hard pulse", dict(flip_deg=float(event.flip_deg), phase_deg=float(event.phase_deg))))
             elif isinstance(event, Delay):
@@ -1064,14 +1076,18 @@ class Session:
                         if getattr(event, "flip_deg", None) is not None else type(event).__name__) + (
                     f", {1000.0 * float(event.duration_s):.1f} ms" if hasattr(event, "duration_s") else "") + (
                     f", slice along {event.gradient_axis}" if getattr(event, "gradient_hz_per_mm", 0.0) else "")
-                design.append((FIXED, dict(what=("OVS " if place < ovs else "") + what, event=event)))
+                design.append((FIXED, dict(what=what, event=event)))
         self.design = design
 
     def slabs(self, card=None):
         """The six outer-volume suppression slabs of a card, [(axis, centre, thickness)] in mm from the voxel's centre:
-        a pair along every axis, each `ovs_mm` thick and 2 mm clear of the voxel's face."""
+        a pair along every axis, each `ovs_mm` thick and `ovs_gap_mm` clear of the voxel's face. The gap matters: the
+        slabs are placed for water, and under their 3 ms sinc (about 60 Hz per mm on a 30 mm slab) NAA's slab lies
+        5 mm nearer on one side, with a transition band of several mm more. At a gap of 2 mm the six slabs took 69
+        percent of NAA out of a 20 mm voxel (measured, item 213)."""
         card = self.protocol if card is None else card
-        return [(axis, side * (0.5 * (edge + card.ovs_mm) + 2.0), float(card.ovs_mm)) for axis, edge in zip("xyz", self.size_mm) for side in (-1.0, 1.0)]
+        return [(axis, side * (0.5 * (edge + card.ovs_mm) + card.ovs_gap_mm), float(card.ovs_mm)) for axis, edge in zip("xyz", self.size_mm)
+                for side in (-1.0, 1.0)]
 
     def preludes(self, card):
         """What a timed card plays before its localization, in order, {name: design}."""
@@ -1366,6 +1382,8 @@ class Session:
                 "displaced": {name: self.displacement(ppm) for name, ppm in SHIFTED.items()},
                 "gm": float(fractions.gm), "wm": float(fractions.wm), "csf": float(fractions.csf),
                 "scan_time_s": card.scan_time_s,
+                # what one repetition holds: the preludes, the localization, the readout; the repetition time must
+                "needs_s": float(event_spans(sequence)[-1][1]) + card.npoints / card.bandwidth_hz,
                 "limits": (limits.peak_b1_ut, limits.max_grad_mt_m, limits.max_slew_t_m_s),
                 "encoding": self.encoding(),
                 # (a suppression train's selective pulses are ideal and take no time in the engine: the package's check then says
@@ -1373,6 +1391,9 @@ class Session:
                 "violations": tuple(problem + (" (the suppression train's selective pulses take no time in the simulation; on this scanner "
                                                "they would need that much more)" if problem.startswith("the delays are") and self.preludes(card) else "")
                                     for problem in dict.fromkeys(sequence.violations(limits))) + ((self.unfitted,) if self.unfitted else ()) + (
+                    (f"TR {card.tr_ms:g} ms is shorter than one repetition, {1000.0 * (float(event_spans(sequence)[-1][1]) + card.npoints / card.bandwidth_hz):.0f} ms"
+                     " with its water suppression, OVS and readout",) if card.tr_ms / 1000.0 < float(event_spans(sequence)[-1][1]) + card.npoints / card.bandwidth_hz
+                    else ()) + (
                     self.encoding()["problems"] if self.encoding() else ()),
                 "records": {leaf: record.record(scan) for leaf, record in profile.calibrations().items()}}
 
@@ -1389,6 +1410,7 @@ class Session:
         name = f"{number} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=tuple(self.size_mm),
                     overrides=dict(self.overrides), run=dict(synthesis=dict(self.run_settings), motion_mm=self.motion_mm),
+                    room={name: getattr(self, name) for name in self.ROOM},
                     records=self.outlook()["records"], sequence=self.sequence(card))
         if card.sequence in EDITING:
             _, exam.combinations, exam.shown = EDITING[card.sequence]
@@ -1453,6 +1475,17 @@ class Session:
         (scan.Multiplex.transients: drift, breathing, motion, as the exam's `run` sets them),
         and the display as it builds up over the transients. The seed is the subject on the
         table unless given; every exam takes noise of its own (its place in the queue)."""
+        now = {name: getattr(self, name) for name in self.ROOM}
+        for name, value in exam.room.items():           # in the room the exam was planned in; what stands there now comes back after
+            setattr(self, name, value)
+        try:
+            return self.acquire(exam, seed)
+        finally:
+            for name, value in now.items():
+                setattr(self, name, value)
+
+    def acquire(self, exam, seed=None):
+        """`run` in the room as it stands."""
         seed = self.seed if seed is None else seed
         exam.status = "running"
         card, sequence = exam.card, exam.sequence

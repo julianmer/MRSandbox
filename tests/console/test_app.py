@@ -54,8 +54,8 @@ class TestApp:
                 user.find(marker="design").click()
                 await user.should_see("the readout opens at")
                 user.find("crusher").click()                            # a block from the palette, after the chosen one
-                await user.should_see("17 blocks")                      # the card's real PRESS came over with its VAPOR, 16 blocks, and one more
-                await user.should_see("3 · fixed pulse 90°")                # its slice-selective 90, kept as the card plays it
+                await user.should_see("16 blocks")                      # the card's real PRESS came over, 15 blocks, and one more
+                await user.should_see("1 · fixed pulse 90°")                # its slice-selective 90, kept as the card plays it
                 user.find("all pulses ideal").click()
                 user.find("another, a copy of this one").click()        # a second sub-acquisition, and how the two combine
                 await user.should_see("remove this one")

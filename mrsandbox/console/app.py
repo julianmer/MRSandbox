@@ -260,12 +260,13 @@ SPECTRUM = {
     "xAxis": {"type": "value", "inverse": True, "min": -0.5, "max": 6.5, "name": "ppm",
               "axisLine": {"lineStyle": {"color": LINE}}, "axisLabel": {"color": DIM}, "splitLine": {"show": False}},
     "yAxis": {"type": "value", "show": False},
-    # the wheel zooms and a drag pans along ppm, the slider below shows where one is in the acquired band; the height has
-    # the slider on the right and stays while one moves along ppm (the page opens it on what the exam's window shows).
+    # the wheel zooms along ppm and a drag moves the spectrum both ways, the slider below shows where one is in the acquired
+    # band; the height has the slider on the right and stays while one zooms along ppm (the page opens it on what the exam's window shows).
     # The points outside the window stay (filterMode none), so nothing rescales by itself
     "dataZoom": [{"type": "inside", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "filterMode": "none"},
                  {"type": "slider", "xAxisIndex": 0, "startValue": 0.2, "endValue": 4.2, "height": 14, "bottom": 2, "filterMode": "none",
                   "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)", "textStyle": {"color": DIM}},
+                 {"type": "inside", "yAxisIndex": 0, "filterMode": "none", "zoomOnMouseWheel": False, "moveOnMouseMove": True},
                  {"type": "slider", "yAxisIndex": 0, "width": 12, "right": 2, "filterMode": "none", "showDetail": False,
                   "borderColor": LINE, "fillerColor": "rgba(226,165,95,0.15)"}],
     # the average, and behind it in grey a transient (the page adds one such series per transient it shows)
@@ -295,7 +296,7 @@ async def console(client: Client):
         ui.spinner("bars", size="34px", color=SAND)
     await client.connected()
     session = await run.io_bound(Session)
-    views, shown, hung, letters, crosses, texts, tools, pickers, origins, levels, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False, "dragging": False, "looking": False, "every": True, "cell": None, "grid": None, "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra"}
+    views, shown, hung, letters, crosses, texts, tools, pickers, origins, levels, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False, "dragging": False, "looking": False, "every": True, "cell": None, "grid": None, "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra", "slabs": True}
 
     def room():
         """Rebuild the 3D view: the three planes hung where they cut the subject (paint fills them,
@@ -314,6 +315,10 @@ async def console(client: Client):
                 ui.scene.ring(0.92 * radius * MM, radius * MM, 40).material(COPPER, 0.85).move(
                     *(np.asarray(centre) * MM)).rotate_R(np.stack([a, np.cross(n, a), n], axis=1).tolist())
             centre, size = drawn["voxel"]
+            for axis, offset, thick in (session.slabs() if session.protocol.ovs and chosen["slabs"] else ()):        # the saturation slabs, 160 mm wide
+                edges_mm = [thick if name == axis else 160.0 for name in "xyz"]
+                ui.scene.box(*(edge * MM for edge in edges_mm)).material(SLAB, 0.18).move(
+                    *((np.asarray(centre) + offset * np.asarray([name == axis for name in "xyz"], dtype=float)) * MM))
             chosen["box"] = ui.scene.box(*(edge * MM for edge in size), wireframe=True).material(GLOW).move(
                 *(np.asarray(centre) * MM))
 
@@ -363,7 +368,7 @@ async def console(client: Client):
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
                 f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">{grid}</g>'
                 + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{SLAB}" fill-opacity="0.22" stroke="{SLAB}" '
-                          f'stroke-width="{0.3 * pen:.2f}" />' for which, (x, y, w, h) in shifted.items() if which.startswith("ovs"))
+                          f'stroke-width="{0.3 * pen:.2f}" />' for which, (x, y, w, h) in shifted.items() if which.startswith("ovs") and chosen["slabs"])
                 + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="none" '
                           f'stroke="{SHIFT_COLOURS[which]}" stroke-width="{0.5 * pen:.2f}" opacity="{0.9 if cut else 0.4}" />'
                           for which, (x, y, w, h) in shifted.items() if not which.startswith("ovs") and (chosen["shifts"] or which == "shim"))
@@ -387,9 +392,14 @@ async def console(client: Client):
         # the overlays there are for this room: a B0 or B1+ map only where one is on (maps), a lipid layer where the subject has one
         there = [name for name in OVERLAYS if {"B0 field": session.field != "uniform", "B1+": session.transmit is not None,
                                                "lipid layer": getattr(session.body(), "fat", None) is not None}.get(name, True)]
-        if list(overlays.options) != there:
+        if chosen.get("overlays") != there:
+            chosen["overlays"] = there
             session.overlay = session.overlay if session.overlay in there else "anatomy"
-            overlays.set_options(there, value=session.overlay)
+            overlays.clear()
+            with overlays:
+                for name in there:
+                    ui.menu_item(name, lambda name=name: (setattr(session, "overlay", name), draw()))
+        tools["overlay"].text = session.overlay
         wash = session.wash()
         texts["window"].text = ("" if wash is None or not wash[3] else f"blue {wash[1]:+.3g} · red {wash[2]:+.3g}"
                                 + (" Hz" if session.overlay == "B0 field" else "")) if session.overlay != "anatomy" else ""
@@ -417,6 +427,8 @@ async def console(client: Client):
         discard.set_visibility(chosen["editing"] is not None)
         texts["time"].text = texts["time2"].text = f"{minutes:02d}:{seconds:02d}"
         texts["timing"].text = f"{card.tr_ms:g} / {card.te_ms:g} ms"
+        texts["needs"].text = f"{1000.0 * look['needs_s']:.0f} ms of the TR (suppression, OVS, sequence, readout)"
+        texts["needs"].style(f"color: {BAD if 1000.0 * look['needs_s'] > card.tr_ms else INK}")
         texts["volume"].text = f"{np.prod(session.size_mm) / 1000.0:.1f} mL"
         # against the card as it was taken from the browser: the voxel's volume and the root of the averages alone
         signal = np.prod(session.size_mm) * np.sqrt(1 if card.sequence == MRSI else card.averages)
@@ -451,7 +463,7 @@ async def console(client: Client):
                         ui.label(f"{value:.2f}" if abs(value) < 10.0 else f"{value:.1f}" if abs(value) < 100.0 else f"{value:.0f}").classes("value").style(
                             "text-align: right")
         for name, tool in tools.items():
-            on = {"ovs": card.ovs, "shifts": chosen["shifts"], "flip": chosen["flipped"], "real": card.real or card.sequence == "HERCULES"}.get(
+            on = {"ovs": card.ovs, "shifts": chosen["shifts"], "slabs": chosen["slabs"], "flip": chosen["flipped"], "overlay": session.overlay != "anatomy", "real": card.real or card.sequence == "HERCULES"}.get(
                 name, card.water_suppression in SUPPRESSION)
             tool.classes(add="on" if on else "", remove="" if on else "on")
         tools["water"].text = "water " + card.water_suppression
@@ -470,7 +482,10 @@ async def console(client: Client):
                         f"color: {dict(planned=DIM, running=SAND, done=GOOD, failed=BAD)[exam.status]}")
                     if exam.problem:
                         state.tooltip(exam.problem[:200])
-                    ui.label(exam.name).style("flex: 1")
+                    with ui.column().style("flex: 1; gap: 0; min-width: 0"):
+                        ui.label(exam.name)
+                        ui.label(f"{session.scanners().get(exam.room.get('scanner'), '')} · {str(exam.room.get('subject', '')).split(',')[0]}").style(
+                            f"color: {DIM}; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis")
                     ui.label(f"{minutes:02d}:{seconds:02d}").classes("value").style(f"color: {DIM}")
                     ui.icon("content_copy", size="14px").style(f"color: {DIM}").tooltip("duplicate as a new planned card").on(
                         "click.stop", lambda _, exam=exam: (choose(exam), chosen.__setitem__("editing", None), plan()))
@@ -491,7 +506,7 @@ async def console(client: Client):
         if exam.cells is not None and chosen["cell"] is not None:
             real = exam.cells[chosen["cell"]]
         spectrum.options["series"] = [{**SPECTRUM["series"][0], "data": [[float(p), float(s)] for p, s in zip(exam.ppm, real)]}] + [
-            {**SPECTRUM["series"][1], "data": [[float(p), float(s)] for p, s in zip(exam.ppm, single) if -0.5 < p < 6.5]} for single in behind]
+            {**SPECTRUM["series"][1], "data": [[float(p), float(s)] for p, s in zip(exam.ppm, single)]} for single in behind]
         if index == 0 or last:        # what the exam opens on: its window along ppm, and the height of what that window shows
             zooms = spectrum.options["dataZoom"]
             for zoom in zooms[:2]:
@@ -501,7 +516,8 @@ async def console(client: Client):
             inside = [v for series in spectrum.options["series"] for p, v in series["data"] if exam.window[0] <= p <= exam.window[1]]
             spectrum.options["yAxis"].update(min=min(everything), max=max(everything))          # the slider's whole reach: the water line too
             room = 0.06 * max(max(inside) - min(inside), 1e-12)
-            zooms[2]["startValue"], zooms[2]["endValue"] = min(inside) - room, max(inside) + room
+            for zoom in zooms[2:]:
+                zoom["startValue"], zoom["endValue"] = min(inside) - room, max(inside) + room
         spectrum.options["title"]["text"] = (
             f"{exam.name}   ·   cell {chosen['cell'][0] + 1}, {chosen['cell'][1] + 1}" + (f", slice {chosen['cell'][2] + 1}" if exam.cells.shape[2] > 1 else "")
             if exam.cells is not None and chosen["cell"] is not None else
@@ -523,6 +539,14 @@ async def console(client: Client):
             await run.io_bound(session.display, exam)
             frame(exam, -1)
 
+    def blank(said):
+        """The Live display without a spectrum: a card that has not run yet."""
+        spectrum.options["series"] = [{**SPECTRUM["series"][0], "data": []}]
+        spectrum.options["title"]["text"] = said
+        spectrum.update()
+        progress.value = 0.0
+        texts["count"].text = f"0 / {session.protocol.averages}"
+
     def choose(exam):
         """Select an exam: its voxel returns to the planes, its card to the tabs, its spectrum to the
         display. A planned exam is then being edited: Accept puts the card back in its place."""
@@ -533,8 +557,11 @@ async def console(client: Client):
         session.position_mm, session.view_mm, session.size_mm = list(exam.position_mm), list(exam.position_mm), list(exam.size_mm)
         for axis, field in enumerate(edges):
             field.value = exam.size_mm[axis]
-        if exam.frames:
-            frame(exam, -1)
+        for name, value in exam.room.items():           # the room it was planned in comes back with it
+            setattr(session, name, value)
+        for name in ("scanner", "coil", "subject"):
+            pickers[name].set_value(getattr(session, name))
+        frame(exam, -1) if exam.frames else blank(f"{exam.name}   ·   {exam.status}")
         listing()
         room()
         draw()
@@ -542,6 +569,7 @@ async def console(client: Client):
     def plan():
         chosen["exam"] = session.plan(instead_of=chosen["editing"])
         chosen["editing"] = None
+        blank(f"{chosen['exam'].name}   ·   planned")
         listing()
         draw()
 
@@ -913,13 +941,8 @@ async def console(client: Client):
             outcome.update()
 
         def use():
-            """The card plays the design. What the design carries itself, the card's own switch no longer adds."""
-            card = session.protocol
-            if any(kind == "water suppression" for blocks in session.designs.values() for kind, _ in blocks):
-                card.water_suppression = "off"
-            if any(str(settings.get("what", "")).startswith("OVS") for blocks in session.designs.values() for _, settings in blocks):
-                card.ovs = False
-            keys.active, planning.active, card.sequence = False, True, "Custom"
+            """The card plays the design; water suppression and OVS stay the card's own switches."""
+            keys.active, planning.active, session.protocol.sequence = False, True, "Custom"
             dialog.close()
             draw()
 
@@ -952,7 +975,7 @@ async def console(client: Client):
                 ui.button("Close", on_click=lambda: (setattr(keys, "active", False), setattr(planning, "active", True), dialog.close())).props(
                     "flat dense no-caps").tooltip("the design is kept; the card plays what it played")
                 ui.button("Use this design", icon="check", on_click=use).props("unelevated dense no-caps").tooltip(
-                    "the card plays this design; a water suppression or OVS in it takes the place of the card's switch")
+                    "the card plays this design; water suppression and OVS stay the card's switches")
                 keys = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
@@ -967,7 +990,7 @@ async def console(client: Client):
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch; flex: 1"):
                 with ui.column().classes("pane").style("width: 430px"):
                     ui.label("Add after the chosen block").classes("label")
-                    for kind in (k for k in BLOCKS if k != FIXED):
+                    for kind in (k for k in BLOCKS if k not in (FIXED, "water suppression")):     # water suppression is the card's switch
                         with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                             ui.button(kind, icon=BLOCK_ICONS[kind], on_click=lambda _, kind=kind: place(kind, dict(BLOCKS[kind][0]))).props(
                                 "outline dense no-caps align=left").style("width: 190px; height: 34px; flex: none")
@@ -1038,6 +1061,23 @@ async def console(client: Client):
                        "series": [{"type": "line", "name": name, "showSymbol": False, "lineStyle": {"width": 1.2},
                                    "data": [[float(p), float(v)] for p, v in zip(exam.ppm, real)]}
                                   for name, real in exam.spectra.items()]}).style("height: 300px").classes("w-full")
+            # one transient at a time under the mean, as the display's processing left them (32 at most, evenly through the run)
+            singles = next((t for t in exam.transients.values() if t), [])
+            if singles:
+                def one(k):
+                    return [[float(p), float(v)] for p, v in zip(exam.ppm, singles[int(k) - 1])]
+
+                mean = exam.spectra[next(name for name, t in exam.transients.items() if t)]
+                with ui.row().classes("w-full items-center no-wrap").style("gap: 12px"):
+                    ui.label("transient").classes("label")
+                    step = ui.slider(min=1, max=len(singles), value=1, step=1).props("label color=accent").style("flex: 1")
+                through = ui.echart({"backgroundColor": "transparent", "animation": False, "grid": {"left": 12, "right": 12, "top": 8, "bottom": 28},
+                                     "xAxis": {**axis, "inverse": True, "min": exam.window[0], "max": exam.window[1], "name": "ppm"},
+                                     "yAxis": {"type": "value", "show": False, "scale": True},
+                                     "series": [{"type": "line", "showSymbol": False, "lineStyle": {"color": DIM, "width": 0.8}, "data": one(1)},
+                                                {"type": "line", "showSymbol": False, "z": 3, "lineStyle": {"color": SAND, "width": 1.3},
+                                                 "data": [[float(p), float(v)] for p, v in zip(exam.ppm, mean)]}]}).style("height: 220px").classes("w-full")
+                step.on_value_change(lambda e: (through.options["series"][0].__setitem__("data", one(e.value)), through.update()))
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch"):
                 with ui.column().style("flex: 2; min-width: 0"):
                     ui.label("Over the transients · frequency, phase and amplitude as they ran").classes("label")
@@ -1503,13 +1543,15 @@ async def console(client: Client):
             chosen[which] = not chosen[which]
             draw()
         elif event.key == "o":
-            overlays.value = overlays.options[(overlays.options.index(overlays.value) + 1) % len(overlays.options)]
+            session.overlay = chosen["overlays"][(chosen["overlays"].index(session.overlay) + 1) % len(chosen["overlays"])]
+            draw()
 
     def toggle(name):
         """The toolbar's switches: the water suppression steps through its schemes, OVS is on or off."""
         card = session.protocol
         if name == "ovs":
             card.ovs = not card.ovs
+            room()
         elif name == "real":
             card.real = not card.real
         else:
@@ -1579,10 +1621,13 @@ async def console(client: Client):
                             tools["flip"] = ui.button("L on the right", icon="flip", on_click=lambda: (
                                 chosen.__setitem__("flipped", not chosen["flipped"]), draw())).props("flat dense no-caps stack").classes("tool").tooltip(
                                 "mirror the pictures: left on the right, as a radiologist reads them (f)")
-                            overlays = ui.select(list(OVERLAYS), value=session.overlay, on_change=lambda e: e.value and (
-                                setattr(session, "overlay", e.value), paint())).props(
-                                "dense outlined dark options-dense").style("width: 150px").tooltip(
-                                "wash a map over the anatomy: the B0 field and B1+ (on in maps), or a tissue (o: the next one)")
+                            tools["slabs"] = ui.button("OVS slabs", icon="border_outer", on_click=lambda: (
+                                chosen.__setitem__("slabs", not chosen["slabs"]), room(), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
+                                "draw the saturation slabs of a card that plays OVS, on the planes and in the room; display only")
+                            tools["overlay"] = ui.button(session.overlay, icon="opacity").props("flat dense no-caps stack").classes("tool").tooltip(
+                                "wash a map over the anatomy (o: the next one)")
+                            with tools["overlay"]:
+                                overlays = ui.menu().props("dark")
                             texts["window"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
                             ui.space()
                             # ... and what changes the simulated room and its scans
@@ -1595,6 +1640,9 @@ async def console(client: Client):
                                 "load your own: the anatomy from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
                             ui.button("coils", icon="settings_input_antenna", on_click=coils).props("flat dense no-caps stack").classes("tool").tooltip(
                                 "your own receive array: sensitivity maps, the channels' noise")
+                            ui.button("reset", icon="restart_alt", on_click=lambda: (session.reset(), room(), draw(), ui.notify(
+                                "Settings, the run, the shim and realism are back to how the console starts"))).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "what you set (parameters, the run, shim, field, pulses) back to how the console starts")
                             ui.button("all settings", icon="tune", on_click=lambda: gear()).props("flat dense no-caps stack").classes("tool").tooltip(
                                 "every parameter the simulation draws, with its source")
                             ui.icon("keyboard", size="20px").style(f"color: {DIM}").tooltip(
@@ -1648,9 +1696,12 @@ async def console(client: Client):
                                                           on_change=changed("axes", "card")).bind_value(card, "axes").props(
                                                     "dense outlined dark options-dense").classes("w-full").tooltip(
                                                     "the axes the first, second and third slice pulse select along; the narrowest pulse displaces a shift the most")
-                                                ui.number("OVS slab thickness (mm)", step=5.0, min=5.0, on_change=changed("ovs_mm", "card")).bind_value(card, "ovs_mm").props(
+                                                ui.number("OVS gap to the voxel (mm)", step=1.0, min=0.0, on_change=changed("ovs_gap_mm", "card")).bind_value(card, "ovs_gap_mm").props(
+                                                "dense outlined dark").classes("w-full").bind_visibility_from(card, "ovs").tooltip(
+                                                "the slabs are placed for water; a metabolite's slab lies some mm nearer, so a small gap costs signal")
+                                            ui.number("OVS slab thickness (mm)", step=5.0, min=5.0, on_change=changed("ovs_mm", "card")).bind_value(card, "ovs_mm").props(
                                                     "dense outlined dark").classes("w-full").bind_visibility_from(card, "ovs").tooltip(
-                                                    "six saturation slabs, a pair along every axis, 2 mm clear of the voxel")
+                                                    "six saturation slabs, a pair along every axis")
                                             with ui.tab_panel("Adjustments"):       # what a scanner adjusts before it scans
                                                 ui.select(list(FieldMap.SHIMS), value=session.shim, label="shim", on_change=changed("shim")).props(
                                                     "dense outlined dark").classes("w-full")
@@ -1704,7 +1755,7 @@ async def console(client: Client):
                                         with ui.element("div").classes("info").style(
                                                 f"flex: 1; min-height: 0; max-height: calc(100vh - 650px); overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
                                             ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
-                                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("volume", "voxel volume"), ("snr", "relative SNR"),
+                                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("needs", "one repetition"), ("volume", "voxel volume"), ("snr", "relative SNR"),
                                                                  ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("encoding", "image encoding"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                                  ("limits", "hardware")):
                                                 ui.label(caption).classes("label")
@@ -1718,7 +1769,7 @@ async def console(client: Client):
                                             ui.tab("Live")
                                         ui.button("Open in the designer", icon="architecture", on_click=lambda: (
                                             session.protocol.sequence != "Custom" and session.adopt(), designer())).mark("design").props("outline dense no-caps").tooltip(
-                                            "this sequence block by block, with its water suppression and OVS")
+                                            "this sequence block by block")
                                     with ui.tab_panels(shows, value="Sequence").props("keep-alive").classes("w-full").style("flex: 1"):
                                         with ui.tab_panel("Sequence"):
                                             with ui.row().classes("w-full no-wrap").style("gap: 8px"):
@@ -1773,7 +1824,7 @@ async def console(client: Client):
                         ui.button("Export Pulseq .seq", icon="code", on_click=export_seq).props("outline dense no-caps align=left").classes("w-full")
                         with ui.element("div").classes("port w-full"):
                             view = ui.scene(width=226, height=226, grid=False, background_color="#000000")
-                            view.move_camera(x=6.5, y=-6.5, z=4.5, look_at_x=0, look_at_y=0, look_at_z=0)
+                            view.move_camera(x=5.2, y=-5.2, z=3.6, look_at_x=0, look_at_y=0, look_at_z=0)
                             ui.label("the room · drag to turn").classes("tag").style("top: 4px; left: 6px")
                         panel = ui.label("This voxel").classes("label").tooltip(
                             "the truth of the person scanned; a new person: the person icon").classes("label").style("margin-top: 6px")
