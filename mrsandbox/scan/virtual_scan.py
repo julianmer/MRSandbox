@@ -135,7 +135,7 @@ class VirtualScan:
                        | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
-        self._lines = None
+        self._lines = {}
         self._basis = None
         self._eddy = None
         self._systems = {}

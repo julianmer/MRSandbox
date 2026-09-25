@@ -196,22 +196,67 @@ BLOCKS = {
                   lambda b: (ShapedPulse(b["flip_deg"], b["duration_ms"] / 1000.0,
                                          np.array([float(a) for a in b["envelope"].replace(";", ",").split(",") if a.strip()]),
                                          offset_ppm=b["offset_ppm"], phase_deg=b["phase_deg"]),)),
-    "shaped pulse": (dict(shape="sinc", flip_deg=90.0, duration_ms=2.6, offset_ppm=3.0, phase_deg=0.0,
-                          slice_axis="none", slice_hz_per_mm=0.0),
-                     lambda b: (getattr(ShapedPulse, b["shape"])(
-                         b["flip_deg"], b["duration_ms"] / 1000.0, offset_ppm=b["offset_ppm"], phase_deg=b["phase_deg"],
-                         **({} if b["slice_axis"] == "none" else dict(gradient_hz_per_mm=b["slice_hz_per_mm"],
-                                                                      gradient_axis=b["slice_axis"]))),)),
+    # the shapes are ShapedPulse's own (sequences.events): a sinc of `lobes` zero crossings a side, a Gaussian cut at
+    # `truncation` of its peak, the Hermite of 90 or 180 degrees, or an SLR of `time_bandwidth` (excitation at 90
+    # degrees, refocusing otherwise); a setting a shape does not take is left alone
+    "shaped pulse": (dict(shape="sinc", flip_deg=90.0, duration_ms=2.6, offset_ppm=3.0, phase_deg=0.0, lobes=2.0, truncation=0.1,
+                          time_bandwidth=4.0, slice_axis="none", slice_hz_per_mm=0.0),
+                     lambda b: (shaped(b),)),
     "adiabatic pulse": (dict(duration_ms=6.0, bandwidth_hz=1500.0, peak_hz=1000.0, offset_ppm=4.65),
                         lambda b: (ShapedPulse.hyperbolic_secant(b["duration_ms"] / 1000.0, b["bandwidth_hz"], b["peak_hz"],
                                                                  offset_ppm=b["offset_ppm"]),)),
-    # an event of the card's own sequence the designer took over as it is (Session.adopt): moved, copied, removed, not reshaped
-    FIXED: (dict(what="", event=None), lambda b: (b["event"],)),
+    # an event of the card's own sequence the designer took over (Session.adopt): its shape stays the card's, its flip,
+    # duration, carrier, phase, peak B1 and slice gradient are settings like any block's
+    FIXED: (dict(what="", event=None), lambda b: (adjusted(b),)),
     "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15), lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
     "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
-    "water suppression": (dict(scheme="VAPOR"), lambda b: SUPPRESSION[b["scheme"]]().events),
+    "water suppression": (dict(scheme="COWS(7;236)", pulses="played"),
+                          lambda b: SUPPRESSION[b["scheme"]](real=b.get("pulses", "ideal") == "played").events),
 }
+
+
+#**********************#
+#   a shaped pulse     #
+#**********************#
+def shaped(block):
+    """The ShapedPulse a "shaped pulse" block describes, by its shape's own settings."""
+    slice = {} if block["slice_axis"] == "none" else dict(gradient_hz_per_mm=block["slice_hz_per_mm"], gradient_axis=block["slice_axis"])
+    flip, duration = block["flip_deg"], block["duration_ms"] / 1000.0
+    if block["shape"] == "slr":
+        return ShapedPulse.slr(flip, duration, block.get("time_bandwidth", 4.0), "excitation" if flip == 90.0 else "refocusing",
+                               offset_ppm=block["offset_ppm"], phase_deg=block["phase_deg"], **slice)
+    own = {"sinc": dict(lobes=int(block.get("lobes", 2))), "gaussian": dict(truncation=block.get("truncation", 0.1))}.get(block["shape"], {})
+    return getattr(ShapedPulse, block["shape"])(flip, duration, offset_ppm=block["offset_ppm"], phase_deg=block["phase_deg"], **own, **slice)
+
+
+#**********************#
+#   an event in words   #
+#**********************#
+def named(event):
+    """What a fixed block says of its event: the flip or "adiabatic", the duration, the slice axis."""
+    return ("adiabatic" if isinstance(event, ShapedPulse) and event.flip_deg is None else f"{float(event.flip_deg):.0f}°"
+            if getattr(event, "flip_deg", None) is not None else type(event).__name__) + (
+        f", {1000.0 * float(event.duration_s):.1f} ms" if hasattr(event, "duration_s") else "") + (
+        f", slice along {event.gradient_axis}" if getattr(event, "gradient_hz_per_mm", 0.0) else "")
+
+
+#***********************#
+#   an adopted pulse    #
+#***********************#
+def adjusted(block):
+    """The event a fixed block took over from the card, with the scalar settings the designer put on it: its shape
+    (the envelope, the sweep) stays the card's."""
+    event = copy.copy(block["event"])
+    for key, name in (("flip_deg", "flip_deg"), ("phase_deg", "phase_deg"), ("offset_ppm", "offset_ppm"), ("peak_hz", "peak_hz"),
+                      ("slice_hz_per_mm", "gradient_hz_per_mm")):
+        if key in block:
+            setattr(event, name, float(block[key]))
+    if "flip_deg" in block and event.peak_hz is not None and float(block["flip_deg"]) != float(block["event"].flip_deg):
+        event.peak_hz = None            # a flip set by hand governs the amplitude; the fit's peak B1 stood for the old flip
+    if "duration_ms" in block:
+        event.duration_s = float(block["duration_ms"]) / 1000.0
+    return event
 # what a design can start from, in the designer's own blocks: a spin echo with played crushers (the design
 # the designer opens with), and the library's ideal PRESS and STEAM, their coherence pathways kept by filters
 STARTER = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)), ("crusher", dict(axis="x", cycles_per_mm=0.15)),
@@ -1096,8 +1141,9 @@ class Session:
         """Make the own design the sequence the card plays now, block by block, so the designer opens
         on what the diagram shows: ideal pulses, delays, filters, and crushers over the 20 mm
         ensemble become blocks one can set; every other event (a slice-selective or adiabatic pulse
-        of a real design, a projection) comes over as the card plays it. Water suppression and OVS stay the
-        card's own switches, outside the designer."""
+        of a real design, a projection) comes over as it is, a shaped pulse with its flip, duration, carrier,
+        phase, peak B1 and slice gradient as settings (its shape stays). The card's own water suppression and
+        OVS stay its switches; a design may hold a water suppression block of its own."""
         card = self.protocol
         skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in (
             *SEQUENCES, *EDITING, "Custom") else 0
@@ -1112,11 +1158,14 @@ class Session:
             elif isinstance(event, Gradient) and float(event.extent_mm) == 20.0:
                 design.append(("crusher", dict(axis=event.axis, cycles_per_mm=float(event.moment_per_mm))))
             else:
-                what = ("adiabatic" if isinstance(event, ShapedPulse) and event.flip_deg is None else f"{float(event.flip_deg):.0f}°"
-                        if getattr(event, "flip_deg", None) is not None else type(event).__name__) + (
-                    f", {1000.0 * float(event.duration_s):.1f} ms" if hasattr(event, "duration_s") else "") + (
-                    f", slice along {event.gradient_axis}" if getattr(event, "gradient_hz_per_mm", 0.0) else "")
-                design.append((FIXED, dict(what=what, event=event)))
+                knobs = {}
+                if isinstance(event, ShapedPulse):
+                    # one amplitude knob: the flip where the pulse is flip calibrated, the peak B1 where it is adiabatic
+                    knobs = {key: float(value) for key, value in (
+                        ("flip_deg", event.flip_deg), ("duration_ms", 1000.0 * float(event.duration_s)), ("offset_ppm", event.offset_ppm),
+                        ("phase_deg", event.phase_deg), ("peak_hz", event.peak_hz if event.flip_deg is None else None),
+                        ("slice_hz_per_mm", event.gradient_hz_per_mm if event.gradient_hz_per_mm else None)) if value is not None}
+                design.append((FIXED, dict(what=named(event), event=event, **knobs)))
         self.design = design
 
     def slabs(self, card=None):

@@ -80,14 +80,13 @@ class Generator(keras.utils.PyDataset):
     def __getitem__(self, index):
         x = np.empty((self.batch_size, 2, self.npoints), dtype=np.float32)
         y = np.empty((self.batch_size, len(self.metabolites)), dtype=np.float32)
-        truths = []
-        for i in range(self.batch_size):
-            rng = np.random.default_rng(np.random.SeedSequence([self.root, int(index), i]))
-            truth = self.voxel.scan.params.sample(rng)
+        rngs = [np.random.default_rng(np.random.SeedSequence([self.root, int(index), i])) for i in range(self.batch_size)]
+        truths = [self.voxel.scan.params.sample(rng) for rng in rngs]
+        self.voxel.prepare(truths, self.npoints, self.dwell_s)     # the batch's metabolite lines and FIDs in one replay and one render
+        for i, (rng, truth) in enumerate(zip(rngs, truths)):
             _, fid = self.voxel._render(truth, rng, self.npoints, self.dwell_s)
             x[i, 0], x[i, 1] = fid.real, fid.imag
             y[i] = [self.voxel.resolve(truth.conc[name]) for name in self.metabolites]
-            truths.append(truth)
         self.truths = tuple(truths)
         return x, y
 

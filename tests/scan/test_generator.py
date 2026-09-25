@@ -114,3 +114,17 @@ class TestGenerator:
             assert a.conc.to_dict() == b.conc.to_dict()
         for i in range(3):
             assert abs(np.std(loud[i] - quiet[i]) - 2.0 * np.sqrt(0.8)) < 0.2  # 4 kHz
+
+    def test_a_batch_equals_its_draws_rendered_one_by_one(self, scan):
+        # the batch's metabolite lines come from one replay mapped over the draws; every draw's FID is the one its
+        # own replay renders (the same truths, the same noise: the rng draws the truth, then the noise)
+        gen = scan.generator(batch_size=6, seed=11, npoints=512, **VOXEL)
+        x, _ = gen[3]
+        alone = scan.voxel(compiled=True, **VOXEL)
+        for i in range(6):
+            rng = np.random.default_rng(np.random.SeedSequence([gen.root, 3, i]))
+            truth = scan.params.sample(rng)
+            _, fid = alone._render(truth, rng, 512, gen.dwell_s)
+            assert np.abs(x[i, 0] + 1j * x[i, 1] - fid).max() < 1e-5 * np.abs(fid).max()
+        assert len(scan._lines) <= 256
+

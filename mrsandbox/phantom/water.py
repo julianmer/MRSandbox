@@ -76,12 +76,48 @@ class WaterSource(abc.ABC):
         """The water lines of this draw through the engine's compiled path: relaxation
         and b1 stay inputs, so the first call compiles and every voxel replays. The
         relaxation leaves resolve at the voxel (per-tissue values weighted by its
-        composition, maps read over its box); `t1_s` plays one tissue's own instead."""
+        composition, maps read over its box); `t1_s` plays one tissue's own instead. A
+        draw `prepare` replayed with its batch is read from the cache."""
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
         t2_s = voxel.resolve(truth.water.t2_s)
+        held = getattr(self, "_lines", {}).get(id(truth))
+        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[2], voxel.offset_hz(truth))
+        if held is not None and held[0] is truth and key in held[1]:
+            return held[1][key]
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in
                     (t1_s, t2_s, voxel.b1_input(truth), voxel.offset_hz(truth))))
+
+    #*************#
+    #   prepare   #
+    #*************#
+    def prepare(self, engine, sequence, voxel, truths, f0_mhz):
+        """The water lines of many draws in one replay mapped over the draws
+        (Engine.replay_draws), at each draw's mean relaxation, left for `_engine_lines`;
+        a draw with a transmit profile keeps its own replay, a tissue's own T1 too."""
+        held = self.__dict__.setdefault("_lines", {})
+        members = []
+        for truth in truths:
+            if voxel.b1_profile(truth) is not None:
+                continue
+            key = (engine, sequence, float(voxel.resolve(truth.water.t1_s)), float(voxel.resolve(truth.water.t2_s)),
+                   voxel.frame(truth)[2], voxel.offset_hz(truth))
+            entry = held.get(id(truth))
+            if entry is None or entry[0] is not truth:
+                if len(held) >= 256:
+                    held.pop(next(iter(held)))
+                entry = held[id(truth)] = (truth, {})
+            if key not in entry[1]:
+                members.append((truth, key, entry[1]))
+        if not members:
+            return
+        replay, _ = engine.replay_draws(sequence, ((self.system(f0_mhz / engine.b0_t),),), shift_mm=voxel.shift_mm)
+        t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+            [[key[2]] for _, key, _ in members], [[key[3]] for _, key, _ in members],
+            [key[4] for _, key, _ in members], [key[5] for _, key, _ in members]))
+        freqs, amps = replay(t1, t2, b1, offset)
+        for row, (_, key, cache) in enumerate(members):
+            cache[key] = (freqs[row], amps[row])
 
 
 #**************************************************************************************************#

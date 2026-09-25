@@ -32,7 +32,7 @@ import numpy as np
 from nicegui import Client, run, ui
 from PIL import Image
 
-from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, TARGETS,
+from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, TARGETS, adjusted, named,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
@@ -79,26 +79,27 @@ BLANK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAD
 # environment's share/mrsandbox (pyproject.toml, data-files)
 LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "logo" / "logo.png",
                                pathlib.Path(sys.prefix) / "share" / "mrsandbox" / "logo.png") if path.exists()), None)
-CHOICES = {"shape": ["sinc", "gaussian", "hermite"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
-           "scheme": list(SUPPRESSION)}
+CHOICES = {"shape": ["sinc", "gaussian", "hermite", "slr"], "slice_axis": ["none", "x", "y", "z"], "axis": ["x", "y", "z"],
+           "scheme": list(SUPPRESSION), "pulses": ["played", "ideal"]}
 # the designer's blocks in plain words: an icon, what the block is, and its settings with their units
 BLOCK_ICONS = {FIXED: "lock", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive", "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
                "crusher": "signal_cellular_alt", "coherence filter": "filter_alt", "water suppression": "water_drop"}
 BLOCK_NOTES = {
-    FIXED: "A real pulse of the card's sequence, kept as it is: move, copy or remove it. Its shape and its slice are the card's.",
+    FIXED: "A real pulse of the card's sequence. Its shape is the card's; its flip, duration, carrier, phase, peak B1 and slice gradient are yours to set.",
     "hard pulse": "An ideal pulse of no duration. It turns every spin alike, whatever its frequency.",
     "own pulse": "A pulse of your own shape. Type its envelope or load it from a file; the flip angle scales it.",
-    "shaped pulse": "A sinc, Gaussian or Hermite pulse, played in time. With a slice gradient it selects a slab along an axis.",
+    "shaped pulse": "A sinc, Gaussian, Hermite or SLR pulse, played in time, its shape's own settings beside it. With a slice gradient it selects a slab along an axis.",
     "adiabatic pulse": "A hyperbolic secant full passage. It inverts over its whole bandwidth whatever the B1, above a threshold; play them in pairs.",
     "delay": "Free evolution. The echo time is the sum of the delays and the pulses between excitation and readout.",
     "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the echo and spoils the rest.",
     "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes every other, without time.",
-    "water suppression": "A train of selective pulses on the water line before the excitation: VAPOR, WET, CHESS or COWS.",
+    "water suppression": "A train of selective pulses on the water line before the excitation: VAPOR, WET, CHESS or COWS, its pulses played in time or ideal.",
 }
 CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)", "duration_ms": "duration (ms)", "offset_ppm": "centre (ppm)",
             "shape": "shape", "slice_axis": "slice along", "slice_hz_per_mm": "slice gradient (Hz/mm)", "ms": "duration (ms)",
             "axis": "along", "cycles_per_mm": "dephasing (cycles/mm)", "order": "coherence order kept", "scheme": "scheme",
-            "envelope": "envelope, amplitudes apart by commas",
+            "envelope": "envelope, amplitudes apart by commas", "pulses": "pulses", "lobes": "sinc lobes a side",
+            "truncation": "Gaussian cut (fraction of the peak)", "time_bandwidth": "time-bandwidth product (SLR)",
             "bandwidth_hz": "bandwidth (Hz)", "peak_hz": "peak B1 (Hz)"}
 # the calibration records in plain words
 RECORDS = {"noise.sigma": "Noise level (the simulation's unit: one transient, 8 mL, 3 T)", "lineshape.gauss_hz": "Line broadening (Hz)",
@@ -485,7 +486,8 @@ async def console(client: Client):
                         state.tooltip(exam.problem[:200])
                     with ui.column().style("flex: 1; gap: 0; min-width: 0"):
                         ui.label(exam.name)
-                        ui.label(f"{session.scanners().get(exam.room.get('scanner'), '')} · {str(exam.room.get('subject', '')).split(',')[0]}").style(
+                        field = exam.room.get("field_t") or PRESETS[exam.room.get("scanner", session.scanner)].b0_t      # the field the exam ran at
+                        ui.label(f"{session.scanners().get(exam.room.get('scanner'), '')} at {field:g} T · {str(exam.room.get('subject', '')).split(',')[0]}").style(
                             f"color: {DIM}; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis")
                     ui.label(f"{minutes:02d}:{seconds:02d}").classes("value").style(f"color: {DIM}")
                     ui.icon("content_copy", size="14px").style(f"color: {DIM}").tooltip("duplicate as a new planned card").on(
@@ -801,6 +803,8 @@ async def console(client: Client):
                             def put(event, key=key, number=not isinstance(value, str)):
                                 if event.value is not None:
                                     settings[key] = float(event.value) if number else event.value
+                                    if kind == FIXED:                       # the block's words follow its settings
+                                        settings["what"] = named(adjusted(settings))
                                     redraw()
                             if key in ("what", "event"):       # an event taken over from the card: said, not set
                                 if key == "what":
@@ -992,7 +996,7 @@ async def console(client: Client):
             with ui.row().classes("w-full no-wrap").style("gap: 10px; align-items: stretch; flex: 1"):
                 with ui.column().classes("pane").style("width: 430px"):
                     ui.label("Add after the chosen block").classes("label")
-                    for kind in (k for k in BLOCKS if k not in (FIXED, "water suppression")):     # water suppression is the card's switch
+                    for kind in (k for k in BLOCKS if k != FIXED):        # a fixed pulse is only ever taken over from the card
                         with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                             ui.button(kind, icon=BLOCK_ICONS[kind], on_click=lambda _, kind=kind: place(kind, dict(BLOCKS[kind][0]))).props(
                                 "outline dense no-caps align=left").style("width: 190px; height: 34px; flex: none")
@@ -1590,7 +1594,7 @@ async def console(client: Client):
             if attribute == "scanner":
                 ui.button(icon="verified", on_click=calibration).mark("calibration").props("flat dense round size=sm").style(
                     f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
-                pickers["field_t"] = ui.number(label="field (T)", value=session.profile().scanner.b0_t, min=0.5, max=14.0, step=0.5, precision=2,
+                pickers["field_t"] = ui.number(label="field (T)", value=session.profile().scanner.b0_t, min=0.5, max=14.0, step=0.5, precision=3,
                                                on_change=field_changed).props("dense outlined dark").style("width: 92px").tooltip(
                     "the field this scanner runs at: its limits and records stay (a record names the departure), the priors take the nearest typed field, 1.5, 3 or 7 T")
             if attribute in GEARS or attribute == "coil":

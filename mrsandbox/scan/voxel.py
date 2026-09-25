@@ -556,7 +556,10 @@ class Voxel:
             fids = {}
             if basis is not None:
                 fids["metabolites"] = (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope
-            for name, parts in self._grouped(truth, metabolites=basis is None).items():
+            ready = None if self._field_offset_hz else self._lines_cache(truth).get(("metabolite fid", npoints, float(dwell_s), start_s))
+            if ready is not None:               # rendered with the batch (`prepare`)
+                fids["metabolites"] = ready
+            for name, parts in self._grouped(truth, metabolites=basis is None and ready is None).items():
                 lorentzian, voigt = self._flat_lines(parts)
                 fid = np.zeros(npoints, dtype=np.complex64)
                 if lorentzian is not None:
@@ -943,14 +946,12 @@ class Voxel:
         frame = self.frame(truth)
         t1, t2, _, offset_hz = frame
         b1_scale = self.b1_input(truth)
-        cached = self.scan._lines
-        if cached is None or cached[0] is not truth:
-            cached = self.scan._lines = (truth, {})
+        cached = self._lines_cache(truth)
         # the draw's tissue temperature: the metabolites' shifts and couplings follow it
         temperature_c = float(self.resolve(truth.water.temperature_c))
         key = (self.compiled, temperature_c) + frame + self._design_key(truth)
-        if key in cached[1]:
-            return cached[1][key]
+        if key in cached:
+            return cached[key]
         groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         sequence = self.design(truth)
         if self.compiled:
@@ -984,8 +985,88 @@ class Voxel:
             bounds = np.cumsum([0] + [sum(s.dim ** 2 for s in group) for group in groups])
         lines = {name: (freqs[bounds[i]:bounds[i + 1]], amps[bounds[i]:bounds[i + 1]])
                  for i, name in enumerate(names)}
-        cached[1][key] = lines
+        cached[key] = lines
         return lines
+
+    def _lines_cache(self, truth):
+        """This truth's metabolite lines on the scan, {frame key: lines}; the scan keeps
+        the last 256 truths (a generator's batch and its neighbours, one truth serving
+        many voxels)."""
+        held = self.scan._lines
+        entry = held.get(id(truth))
+        if entry is None or entry[0] is not truth:
+            if len(held) >= 256:
+                held.pop(next(iter(held)))
+            entry = held[id(truth)] = (truth, {})
+        return entry[1]
+
+    #*************#
+    #   prepare   #
+    #*************#
+    def prepare(self, truths, npoints=None, dwell_s=None):
+        """The metabolite lines of many draws in ONE replay of the design's graph mapped
+        over the draws (Engine.replay_draws), left in the lines cache for each draw's
+        own render: what a generator does with its batch before rendering it. Draws
+        sharing their systems (the temperature step) and their design replay together;
+        a draw with a transmit profile, or under a played design on an ensemble (a graph
+        per metabolite), renders on its own as before, as does a plain voxel. Given the
+        grid, the draws' metabolite FIDs are rendered in one call too (Engine.render_fids,
+        a width per line and row) and left for `_rendered_fids`, where the field plays
+        as one group."""
+        if not self.compiled:
+            return
+        engine = self.scan.engine
+        batches = {}
+        for truth in truths:
+            design = self.design(truth)
+            if self.b1_profile(truth) is not None or (engine.positions(design) and any(
+                    isinstance(event, ShapedPulse) for event in design.events)):
+                continue
+            temperature_c = float(self.resolve(truth.water.temperature_c))
+            key = (self.compiled, temperature_c) + self.frame(truth) + self._design_key(truth)
+            if key not in self._lines_cache(truth):
+                batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design)), []).append((truth, key, design))
+        for (temperature_c, _), members in batches.items():
+            names, design = tuple(members[0][0].conc), members[0][2]
+            replay, bounds = engine.replay_draws(design, tuple(self.scan.systems(name, temperature_c) for name in names),
+                                                 shift_mm=self.shift_mm)
+            t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+                [[self.resolve(truth.t1[name]) for name in names] for truth, _, _ in members],
+                [[self.resolve(truth.t2[name]) for name in names] for truth, _, _ in members],
+                [self.b1_scale(truth) for truth, _, _ in members], [self.offset_hz(truth) for truth, _, _ in members]))
+            freqs, amps = (np.asarray(ops.convert_to_numpy(value)) for value in replay(t1, t2, b1, offset))
+            for row, (truth, key, _) in enumerate(members):
+                self._lines_cache(truth)[key] = {name: (freqs[row, bounds[i]:bounds[i + 1]], amps[row, bounds[i]:bounds[i + 1]])
+                                                 for i, name in enumerate(names)}
+            self.scan.mm.prepare(engine, design, self, [truth for truth, _, _ in members], self._f0_mhz())
+            self.scan.water.prepare(engine, design, self, [truth for truth, _, _ in members], self._f0_mhz())
+            if npoints is None or self.scan.field_groups != 1:
+                continue
+            # the draws' metabolite FIDs as `_grouped` and `_render_lines` would make them one by one: each line's
+            # weight, the downfield cutoff, the draw's widths and receiver delay, the Gaussian envelope after
+            n, dwell = (npoints, dwell_s) if self.scan.receiver is None else self.scan.receiver.grid(npoints, dwell_s)
+            f, cutoff = freqs[0], self.scan.downfield.replaces_above_ppm
+            keep = f <= cutoff * self._f0_mhz() if cutoff is not None else np.ones(f.size, bool)
+            pad = -(-f.size // 512) * 512 - f.size
+            grid = np.arange(n) * dwell
+            for first in range(0, len(members), 32):
+                chunk = members[first:first + 32]
+                rows_amps = np.zeros((len(chunk), f.size + pad), np.complex64)
+                rows_lw = np.ones((len(chunk), f.size + pad), np.float32)
+                for row, (truth, _, _) in enumerate(chunk):
+                    weights, start_s = self.metabolite_weights(truth), float(truth.acquisition.delay_s)
+                    for i, name in enumerate(names):
+                        part, lw = slice(bounds[i], bounds[i + 1]), 1.0 / (np.pi * self.resolve(truth.t2[name]))
+                        rows_lw[row, part] = lw
+                        rows_amps[row, part] = amps[first + row, part] * weights[i] * self._advance(f[part], lw, start_s)
+                    rows_amps[row, :f.size] *= keep
+                _, fids = self.scan.engine.render_fids(ops.convert_to_tensor(np.pad(f, (0, pad))), ops.convert_to_tensor(rows_amps),
+                                                       npoints=n, dwell_s=dwell, lw_hz=rows_lw)
+                fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
+                for row, (truth, _, _) in enumerate(chunk):
+                    start_s, gauss = float(truth.acquisition.delay_s), self.resolve(truth.lineshape.gauss_hz)
+                    envelope = np.exp(-(np.pi * gauss) ** 2 / (4.0 * np.log(2.0)) * (start_s + grid) ** 2).astype(np.float32)
+                    self._lines_cache(truth)[("metabolite fid", n, float(dwell), start_s)] = fids[row] * envelope
 
     def _f0_mhz(self):
         return self.scan.database.gamma("1H") * self.scan.engine.b0_t

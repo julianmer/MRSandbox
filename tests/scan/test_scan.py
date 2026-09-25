@@ -732,7 +732,7 @@ class TestComponents:
         assert t1[list(truth.conc).index("NAA")] == pytest.approx(float(voxel.resolve(truth.t1.NAA)))
         assert b1 == voxel.b1_scale(truth) and offset == voxel.offset_hz(truth)
         voxel._metabolite_lines(truth)
-        assert (False, truth.water.temperature_c) + voxel.frame(truth) in scan._lines[1]   # and the draw's temperature
+        assert (False, truth.water.temperature_c) + voxel.frame(truth) in voxel._lines_cache(truth)   # and the draw's temperature
 
 
 #**************************************************************************************************#

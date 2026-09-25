@@ -430,3 +430,18 @@ class TestGraph:
                 s_full, s_kept = (np.asarray(ops.convert_to_numpy(v)) for v in (s_full, s_kept))
                 assert np.abs(s_full - s_kept).max() <= 1e-5 * np.abs(s_full).max()
 
+    def test_rows_render_with_their_own_widths(self):
+        # a batch of draws renders in one call, every row with its own Lorentzian widths, and equals the rows rendered
+        # one by one
+        engine = Engine(3.0)
+        rng = np.random.default_rng(3)
+        freqs = ops.convert_to_tensor(rng.uniform(-400.0, 400.0, 300).astype(np.float32))
+        amps = (rng.normal(size=(5, 300)) + 1j * rng.normal(size=(5, 300))).astype(np.complex64)
+        widths = rng.uniform(2.0, 12.0, (5, 300)).astype(np.float32)
+        _, together = engine.render_fids(freqs, ops.convert_to_tensor(amps), npoints=1024, lw_hz=widths)
+        together = np.asarray(ops.convert_to_numpy(together))
+        for k in range(5):
+            _, alone = engine.render_fid(freqs, ops.convert_to_tensor(amps[k]), npoints=1024, lw_hz=ops.convert_to_tensor(widths[k]))
+            alone = np.asarray(ops.convert_to_numpy(alone))
+            assert np.abs(together[k] - alone).max() < 1e-5 * np.abs(alone).max()
+

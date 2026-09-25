@@ -48,7 +48,8 @@ class TestApp:
                 for fold in user.find(kind=ui.expansion).elements:      # a group fills when it opens
                     fold.value = True
                 await user.should_see("as its source gives it")
-                next(e for e in user.find(kind=ui.select).elements if e.value == "as its source gives it").value = "vary between"
+                next(e for e in user.find(kind=ui.select).elements                  # a leaf that can vary (a tissue's or a model's cannot)
+                     if e.value == "as its source gives it" and "vary between" in e.options).value = "vary between"
                 await user.should_see("and")
                 user.find("Done").click()
                 user.find(marker="design").click()
@@ -84,7 +85,7 @@ class TestApp:
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
                 user.find(marker="protocol PRESS").click()                              # real pulses are the default: the displaced voxels in words
-                await user.should_see("water -1.8 -4.4 -4.4 mm")
+                await user.should_see("water -1.8 -4.2 -4.2 mm")             # at the Prisma's 2.895 T
                 user.find(kind=ui.button, content="real pulses").click()   # by kind: a click takes the first match, and a tooltip names it too
                 await user.should_see("none, the localization is ideal")
                 user.find("realism").click()

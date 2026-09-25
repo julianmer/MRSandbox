@@ -471,5 +471,5 @@ class TestSession:
         assert float(exam.data.hdr_ext["SpectrometerFrequency"][0]) == pytest.approx(42.5774785 * 1.5, rel=1e-3)
         assert exam.room["field_t"] == 1.5
         session.field_t = None
-        assert session.profile().scanner.b0_t == 3.0
+        assert session.profile().scanner.b0_t == 2.895                    # the Prisma's own field, as its headers state it
 

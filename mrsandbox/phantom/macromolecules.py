@@ -95,6 +95,13 @@ class MMSource(abc.ABC):
         carry echo time behaviour."""
         return None
 
+    #*************#
+    #   prepare   #
+    #*************#
+    def prepare(self, engine, sequence, voxel, truths, f0_mhz):
+        """Many draws' lines at once, ahead of their renders (a generator's batch); the
+        default does nothing, a source built from spin systems replays them together."""
+
 
 #**************************************************************************************************#
 #                                            Class NoMM                                            #
@@ -428,7 +435,7 @@ class CoupledMM(MMSource):
     #   init   #
     #**********#
     def __init__(self):
-        self._lines = None
+        self._lines = {}
 
     #***********#
     #   lines   #
@@ -480,14 +487,11 @@ class CoupledMM(MMSource):
         draw fixes relaxation, the voxel its b1 and offset, and the position otherwise
         only scales amplitudes, so one truth serving many voxels replays once per
         distinct frame. Compilation itself is cached on the engine."""
-        cached = self._lines
-        if cached is None or cached[0] is not truth:
-            cached = self._lines = (truth, {})
+        cached = self._cache(truth)
         b1_scale, offset_hz = voxel.b1_input(truth), voxel.offset_hz(truth)
-        shift = None if voxel.shift_mm is None else tuple(voxel.shift_mm.values())
-        key = (engine, sequence, voxel.frame(truth)[2], offset_hz, shift)
-        if key in cached[1]:
-            return cached[1][key]
+        key = self._key(engine, sequence, voxel, truth)
+        if key in cached:
+            return cached[key]
         names = tuple(name for name, _, _, _ in self.SYSTEMS)
         fn, bounds = engine.compiled_batch(sequence, tuple((system,) for system in self._systems(f0_mhz / engine.b0_t)),
                                            shift_mm=voxel.shift_mm, pruned=True)
@@ -496,8 +500,47 @@ class CoupledMM(MMSource):
                             ops.convert_to_tensor(np.float32(b1_scale)), ops.convert_to_tensor(np.float32(offset_hz)))
         line_f, line_a = np.asarray(ops.convert_to_numpy(line_f)), np.asarray(ops.convert_to_numpy(line_a))
         lines = {name: (line_f[bounds[i]:bounds[i + 1]], line_a[bounds[i]:bounds[i + 1]]) for i, name in enumerate(names)}
-        cached[1][key] = lines
+        cached[key] = lines
         return lines
+
+    def _cache(self, truth):
+        """This truth's lines, {frame key: lines}; the last 256 truths are kept."""
+        held = self._lines
+        entry = held.get(id(truth))
+        if entry is None or entry[0] is not truth:
+            if len(held) >= 256:
+                held.pop(next(iter(held)))
+            entry = held[id(truth)] = (truth, {})
+        return entry[1]
+
+    @staticmethod
+    def _key(engine, sequence, voxel, truth):
+        shift = None if voxel.shift_mm is None else tuple(voxel.shift_mm.values())
+        return (engine, sequence, voxel.frame(truth)[2], voxel.offset_hz(truth), shift)
+
+    #*************#
+    #   prepare   #
+    #*************#
+    def prepare(self, engine, sequence, voxel, truths, f0_mhz):
+        """The seven systems' lines of many draws in one replay mapped over the draws
+        (Engine.replay_draws), left in the cache for each draw's `lines`; a draw with a
+        transmit profile keeps its own replay."""
+        names = tuple(name for name, _, _, _ in self.SYSTEMS)
+        members = [(truth, self._key(engine, sequence, voxel, truth)) for truth in truths
+                   if voxel.b1_profile(truth) is None]
+        members = [(truth, key) for truth, key in members if key not in self._cache(truth)]
+        if not members:
+            return
+        replay, bounds = engine.replay_draws(sequence, tuple((system,) for system in self._systems(f0_mhz / engine.b0_t)),
+                                             shift_mm=voxel.shift_mm)
+        t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+            [[truth.mm.t1[name] for name in names] for truth, _ in members],
+            [[truth.mm.t2[name] for name in names] for truth, _ in members],
+            [voxel.b1_scale(truth) for truth, _ in members], [voxel.offset_hz(truth) for truth, _ in members]))
+        freqs, amps = (np.asarray(ops.convert_to_numpy(value)) for value in replay(t1, t2, b1, offset))
+        for row, (truth, key) in enumerate(members):
+            self._cache(truth)[key] = {name: (freqs[row, bounds[i]:bounds[i + 1]], amps[row, bounds[i]:bounds[i + 1]])
+                                       for i, name in enumerate(names)}
 
     #***************#
     #   systems     #

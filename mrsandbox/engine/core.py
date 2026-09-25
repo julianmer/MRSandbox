@@ -115,7 +115,7 @@ class Engine:
         self.receiver_phase_deg = receiver_phase_deg
         self.isochromats = isochromats
         self._compiled = {}
-        self._timings = {}
+        self._draws = {}
         self._renderers = {}
 
     #*************#
@@ -419,17 +419,28 @@ class Engine:
         graph with this sequence's own timings; see `graph` (`pruned` keeps the
         output to the elements that carry signal)."""
         fn, bounds = self.graph(sequence, groups, isochromats, pruned)
-        # a design's timings become tensors once: every draw replays the same design (a
-        # profile showed the conversion of twenty events' values per replay)
-        held = self._timings.get(id(sequence))
-        if held is None or held[0] is not sequence:
-            held = self._timings[id(sequence)] = (sequence, self.tensors(sequence.timings()))
-        timings = held[1]
+        timings = self.tensors(sequence.timings())      # read anew each call: an event set by hand replays its new physics
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings,
                                                            shift),
                 bounds)
+
+    #******************#
+    #   replay draws   #
+    #******************#
+    def replay_draws(self, sequence, groups, isochromats=None, shift_mm=None):
+        """`compiled_batch`, pruned, mapped over draws: (t1_s, t2_s, b1_scale, offset_hz)
+        with a leading draw axis on every input, t1_s and t2_s (draws, groups), the lines
+        back as (draws, kept); plus the groups' bounds in the kept lines. One graph runs
+        the whole batch (Backend.vmap); the mapped function is held per design, since
+        it closes over that design's timings."""
+        held = self._draws.get(id(sequence))
+        signature = (groups, isochromats, tuple(sorted((shift_mm or {}).items())))
+        if held is None or held[0] is not sequence or held[1] != signature:
+            fn, bounds = self.compiled_batch(sequence, groups, isochromats, shift_mm, pruned=True)
+            held = self._draws[id(sequence)] = (sequence, signature, Backend.vmap(fn, in_axes=(0, 0, 0, 0)), bounds)
+        return held[2], held[3]
 
     #**************#
     #   spectrum   #
@@ -515,12 +526,14 @@ class Engine:
         """Render K amplitude rows over one Lorentzian line list to K FIDs in one call:
         `amps` is (K, L), the result (K, npoints). The factorized graph of `render_fid`
         with a batched matmul; what a multi-voxel acquisition uses to render every
-        metabolite's unit FID once per truth."""
-        key = (npoints, float(dwell_s), "many")
+        metabolite's unit FID once per truth. `lw_hz` is a scalar, one width per line,
+        or (K, L), one per line and row: a batch of draws, each with its own widths."""
+        rows = np.ndim(lw_hz) == 2
+        key = (npoints, float(dwell_s), "rows" if rows else "many")
         if key not in self._renderers:
-            self._renderers[key] = self._fid_renderer(npoints, dwell_s, False, many=True)
+            self._renderers[key] = self._fid_renderer(npoints, dwell_s, False, many=True, rows=rows)
         dtype = ops.dtype(freqs)
-        lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * ops.ones_like(freqs)
+        lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * (ops.ones_like(amps, dtype=dtype) if rows else ops.ones_like(freqs))
         cycles = np.asarray(ops.convert_to_numpy(freqs), dtype=np.float64) * dwell_s
         within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(np.float32))
         across = ops.convert_to_tensor(np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
@@ -532,12 +545,13 @@ class Engine:
         below sqrt(N), so both power tables stay near sqrt(N) wide."""
         return 1 << int(math.log2(math.sqrt(npoints)))
 
-    def _fid_renderer(self, npoints, dwell_s, voigt, many=False):
+    def _fid_renderer(self, npoints, dwell_s, voigt, many=False, rows=False):
         """A jitted (amps, lw_hz, within, across) -> (t, fid) for the factorized
         Lorentzian graph (`within` and `across` the folded cycle counts f dwell mod 1
         and f P dwell mod 1 per line; with `many` the amplitudes are (K, L) rows and
-        the result (K, npoints)), or a jitted (freqs, amps, lw_hz, gauss_hz) ->
-        (t, fid) for the dense Voigt one, for one time grid."""
+        the result (K, npoints), with `rows` the widths are (K, L) too, each row's own),
+        or a jitted (freqs, amps, lw_hz, gauss_hz) -> (t, fid) for the dense Voigt one,
+        for one time grid."""
         from nifti_mrs_plus.backend import jit
 
         if not voigt:
@@ -549,6 +563,15 @@ class Engine:
                 q = ops.arange(0, block, dtype=ops.dtype(lw_hz))
                 p = ops.arange(0, blocks, dtype=ops.dtype(lw_hz))
                 decay = -math.pi * lw_hz * dwell_s
+                if rows:
+                    # every row its own decay: the tables are (K, L, count) and each row multiplies its own
+                    inside = ops.exp(nops.complex_from(
+                        ops.expand_dims(decay, 2) * q, 2.0 * math.pi * ops.expand_dims(ops.expand_dims(within, 0), 2) * q))
+                    stride = ops.exp(nops.complex_from(
+                        ops.expand_dims(decay * block, 2) * p,
+                        2.0 * math.pi * ops.expand_dims(ops.expand_dims(across, 0), 2) * p))
+                    table = ops.einsum("klm,kl,klp->kmp", stride, amps, inside)
+                    return t, ops.reshape(table, (amps.shape[0], -1))[:, :npoints]
                 # z^q inside a block and (z^P)^p block by block, each (L, count)
                 inside = ops.exp(nops.complex_from(
                     ops.expand_dims(decay, 1) * q, 2.0 * math.pi * ops.expand_dims(within, 1) * q))
