@@ -403,3 +403,30 @@ class TestGraph:
             assert tuple(fids.shape) == (4, 256)
         # one graph per design, the batched replay included
         assert len(engine._compiled) == 2
+
+    def test_a_pruned_graph_keeps_every_line_that_carries_signal(self):
+        # the coherence filters silence most of the d*d elements exactly; the pruned graph gathers the rest inside
+        # the jit, so a replay transfers a fraction of the elements and renders the same spectrum, for any draw
+        from mrsandbox import SpinSystem
+
+        engine = Engine(3.0)
+        groups = (tuple(SpinSystem.from_database("Lac")), tuple(SpinSystem.from_database("NAA")))
+        design = Press(te1_s=0.011, te2_s=0.024, tr_s=2.0)
+        full, bounds = engine.compiled_batch(design, groups)
+        pruned, kept = engine.compiled_batch(design, groups, pruned=True)
+        assert kept[-1] < bounds[-1] / 4 and len(kept) == len(bounds)
+        rng = np.random.default_rng(5)
+        for _ in range(6):
+            args = (ops.convert_to_tensor(rng.uniform(0.8, 2.0, 2).astype(np.float32)), ops.convert_to_tensor(rng.uniform(0.1, 0.4, 2).astype(np.float32)),
+                    ops.convert_to_tensor(np.float32(rng.uniform(0.7, 1.3))), ops.convert_to_tensor(np.float32(rng.uniform(-20.0, 20.0))))
+            f_full, a_full = (np.asarray(ops.convert_to_numpy(v)) for v in full(*args))
+            f_kept, a_kept = (np.asarray(ops.convert_to_numpy(v)) for v in pruned(*args))
+            for g in range(2):          # per group: what the pruning drops carries nothing, and the spectrum is the same
+                fa, aa = f_full[bounds[g]:bounds[g + 1]], a_full[bounds[g]:bounds[g + 1]]
+                fk, ak = f_kept[kept[g]:kept[g + 1]], a_kept[kept[g]:kept[g + 1]]
+                assert np.abs(aa).astype(np.float64).sum() - np.abs(ak).astype(np.float64).sum() <= 1e-7 * np.abs(aa).sum()
+                _, s_full = engine.render_fid(ops.convert_to_tensor(fa), ops.convert_to_tensor(aa), npoints=1024, lw_hz=4.0)
+                _, s_kept = engine.render_fid(ops.convert_to_tensor(fk), ops.convert_to_tensor(ak), npoints=1024, lw_hz=4.0)
+                s_full, s_kept = (np.asarray(ops.convert_to_numpy(v)) for v in (s_full, s_kept))
+                assert np.abs(s_full - s_kept).max() <= 1e-5 * np.abs(s_full).max()
+

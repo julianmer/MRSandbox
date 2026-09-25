@@ -445,8 +445,7 @@ class CoupledMM(MMSource):
             anchor = components[self.ANCHORS[name]]
             weighted = fractions.gm * anchor["gm"] + fractions.wm * anchor["wm"]
             weight = truth.mm.kappa * weighted * c_tcr / groups[0][1]
-            line_f, line_a = self._unit_lines(engine, sequence, voxel, truth, f0_mhz,
-                                              name, groups, couplings)
+            line_f, line_a = self._unit_lines(engine, sequence, voxel, truth, f0_mhz)[name]
             line_a = line_a * weight
             keep = np.abs(line_a) > 1e-9
             freqs.append(line_f[keep])
@@ -474,36 +473,50 @@ class CoupledMM(MMSource):
     #****************#
     #   unit lines   #
     #****************#
-    def _unit_lines(self, engine, sequence, voxel, truth, f0_mhz, name, groups, couplings):
-        """One system's unweighted numpy lines for one truth, cached per truth and per
-        transmit frame: the draw fixes relaxation, the voxel its b1 and offset, and the
-        position otherwise only scales amplitudes, so one truth serving many voxels
-        replays each system once per distinct frame. Compilation itself is cached on
-        the engine, keyed by the sequence and the structural system."""
+    def _unit_lines(self, engine, sequence, voxel, truth, f0_mhz):
+        """Every system's unweighted numpy lines for one truth, {name: (freqs, amps)},
+        replayed in ONE call of the engine's batched graph (Engine.compiled_batch, the
+        systems built once per field) and cached per truth and per transmit frame: the
+        draw fixes relaxation, the voxel its b1 and offset, and the position otherwise
+        only scales amplitudes, so one truth serving many voxels replays once per
+        distinct frame. Compilation itself is cached on the engine."""
         cached = self._lines
         if cached is None or cached[0] is not truth:
             cached = self._lines = (truth, {})
         b1_scale, offset_hz = voxel.b1_input(truth), voxel.offset_hz(truth)
         shift = None if voxel.shift_mm is None else tuple(voxel.shift_mm.values())
-        key = (engine, sequence, name, voxel.frame(truth)[2], offset_hz, shift)
+        key = (engine, sequence, voxel.frame(truth)[2], offset_hz, shift)
         if key in cached[1]:
             return cached[1][key]
-        shifts = tuple(ppm for ppm, protons in groups for _ in range(protons))
-        spins = len(shifts)
-        j = [[0.0] * spins for _ in range(spins)]
-        offsets = [sum(protons for _, protons in groups[:k]) for k in range(len(groups))]
-        for a, b in couplings:
-            j_hz = self._coupling_j_hz(groups[a][0], groups[b][0])
-            for i in range(offsets[a], offsets[a] + groups[a][1]):
-                for k in range(offsets[b], offsets[b] + groups[b][1]):
-                    j[i][k] = j[k][i] = j_hz
-        system = SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts,
-                            j_hz=tuple(map(tuple, j)), scale=1.0,
-                            gamma_mhz_t=f0_mhz / engine.b0_t)
-        fn = engine.compiled(sequence, system, shift_mm=voxel.shift_mm)
-        line_f, line_a = fn(*(ops.convert_to_tensor(np.float32(v)) for v in
-                              (truth.mm.t1[name], truth.mm.t2[name], b1_scale, offset_hz)))
-        lines = (np.asarray(ops.convert_to_numpy(line_f)),
-                 np.asarray(ops.convert_to_numpy(line_a)))
+        names = tuple(name for name, _, _, _ in self.SYSTEMS)
+        fn, bounds = engine.compiled_batch(sequence, tuple((system,) for system in self._systems(f0_mhz / engine.b0_t)),
+                                           shift_mm=voxel.shift_mm, pruned=True)
+        line_f, line_a = fn(ops.convert_to_tensor(np.asarray([truth.mm.t1[name] for name in names], dtype=np.float32)),
+                            ops.convert_to_tensor(np.asarray([truth.mm.t2[name] for name in names], dtype=np.float32)),
+                            ops.convert_to_tensor(np.float32(b1_scale)), ops.convert_to_tensor(np.float32(offset_hz)))
+        line_f, line_a = np.asarray(ops.convert_to_numpy(line_f)), np.asarray(ops.convert_to_numpy(line_a))
+        lines = {name: (line_f[bounds[i]:bounds[i + 1]], line_a[bounds[i]:bounds[i + 1]]) for i, name in enumerate(names)}
         cached[1][key] = lines
         return lines
+
+    #***************#
+    #   systems     #
+    #***************#
+    def _systems(self, gamma_mhz_t):
+        """The structural spin systems of SYSTEMS at one gyromagnetic ratio, built once."""
+        if getattr(self, "_built", None) is None or self._built[0] != gamma_mhz_t:
+            systems = []
+            for name, groups, couplings, _ in self.SYSTEMS:
+                shifts = tuple(ppm for ppm, protons in groups for _ in range(protons))
+                spins = len(shifts)
+                j = [[0.0] * spins for _ in range(spins)]
+                offsets = [sum(protons for _, protons in groups[:k]) for k in range(len(groups))]
+                for a, b in couplings:
+                    j_hz = self._coupling_j_hz(groups[a][0], groups[b][0])
+                    for i in range(offsets[a], offsets[a] + groups[a][1]):
+                        for k in range(offsets[b], offsets[b] + groups[b][1]):
+                            j[i][k] = j[k][i] = j_hz
+                systems.append(SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts, j_hz=tuple(map(tuple, j)),
+                                          scale=1.0, gamma_mhz_t=gamma_mhz_t))
+            self._built = (gamma_mhz_t, tuple(systems))
+        return self._built[1]

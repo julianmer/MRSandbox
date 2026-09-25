@@ -115,6 +115,7 @@ class Engine:
         self.receiver_phase_deg = receiver_phase_deg
         self.isochromats = isochromats
         self._compiled = {}
+        self._timings = {}
         self._renderers = {}
 
     #*************#
@@ -281,7 +282,7 @@ class Engine:
     #**********#
     #   graph  #
     #**********#
-    def graph(self, sequence, groups, isochromats=None):
+    def graph(self, sequence, groups, isochromats=None, pruned=False):
         """The jit-compiled graph of a sequence design on many systems:
         (t1_s, t2_s, b1_scale, offset_hz, timings) -> (freqs, amps), with t1_s and
         t2_s one value per group, `timings` laid out as Sequence.timings (backend
@@ -303,11 +304,27 @@ class Engine:
         centre in mm, for content that sits elsewhere (the fat layer beyond the
         brain, a cell of an MRSI lattice inside a selected box): one compilation
         serves every place.
+
+        `pruned` keeps the output to the elements that ever carry signal: the
+        coherence filters silence most of the d*d transition elements exactly,
+        whatever the draw, so a static index found on generic replays (`_signal_index`)
+        is gathered inside the graph and a replay transfers and renders the few
+        thousand lines that matter instead of every element. The bounds then count the
+        kept elements per group. The complete layout stays the default.
         """
         from nifti_mrs_plus.backend import jit
 
         isochromats = isochromats if isochromats is not None else self.isochromats
-        key = (sequence.structure(), groups, isochromats)
+        key = (sequence.structure(), groups, isochromats, pruned)
+        if key not in self._compiled and pruned:
+            full, bounds = self.graph(sequence, groups, isochromats)
+            index, kept = self._signal_index(full, sequence, bounds)
+
+            def gathered(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
+                freqs, amps = full(t1_s, t2_s, b1_scale, offset_hz, timings, shift)
+                return ops.take(freqs, index), ops.take(amps, index)
+
+            self._compiled[key] = (jit(gathered), kept)
         if key not in self._compiled:
             contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
                         for index, group in enumerate(groups) for system in group]
@@ -330,6 +347,30 @@ class Engine:
 
             self._compiled[key] = (jit(fn), bounds)
         return self._compiled[key]
+
+    #******************#
+    #   signal index   #
+    #******************#
+    def _signal_index(self, full, sequence, bounds):
+        """The elements of a graph's output that carry signal on generic replays
+        (relaxation 1.5 and 0.2 s, transmit scales 0.8 to 1.25, offsets 0 and 7 Hz,
+        the sequence's own timings), as an index tensor and the groups' bounds in it.
+        An element under 1e-9 of its group's maximum in every replay is a structural
+        zero (a coherence filter's), two orders below float32 itself: a null one
+        timing happens to sit on cannot reach it."""
+        timings, shift = self.tensors(sequence.timings()), ops.zeros((3,), dtype="float32")
+        n = len(bounds) - 1
+        keep = np.zeros(int(bounds[-1]), dtype=bool)
+        for b1 in (0.8, 1.0, 1.25):
+            for offset in (0.0, 7.0):
+                _, amps = full(ops.convert_to_tensor(np.full(n, 1.5, np.float32)), ops.convert_to_tensor(np.full(n, 0.2, np.float32)),
+                               ops.convert_to_tensor(np.float32(b1)), ops.convert_to_tensor(np.float32(offset)), timings, shift)
+                amps = np.abs(np.asarray(ops.convert_to_numpy(amps)))
+                for g in range(n):
+                    part = amps[bounds[g]:bounds[g + 1]]
+                    keep[bounds[g]:bounds[g + 1]] |= part > 1e-9 * part.max()
+        kept = np.concatenate([[0], np.cumsum([int(keep[bounds[g]:bounds[g + 1]].sum()) for g in range(n)])])
+        return ops.convert_to_tensor(np.flatnonzero(keep)), kept
 
     @staticmethod
     def tensors(timings):
@@ -372,12 +413,18 @@ class Engine:
     #********************#
     #   compiled batch   #
     #********************#
-    def compiled_batch(self, sequence, groups, isochromats=None, shift_mm=None):
+    def compiled_batch(self, sequence, groups, isochromats=None, shift_mm=None, pruned=False):
         """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for many systems (t1_s
         and t2_s one value per group) plus the group bounds, replaying the design's
-        graph with this sequence's own timings; see `graph`."""
-        fn, bounds = self.graph(sequence, groups, isochromats)
-        timings = self.tensors(sequence.timings())
+        graph with this sequence's own timings; see `graph` (`pruned` keeps the
+        output to the elements that carry signal)."""
+        fn, bounds = self.graph(sequence, groups, isochromats, pruned)
+        # a design's timings become tensors once: every draw replays the same design (a
+        # profile showed the conversion of twenty events' values per replay)
+        held = self._timings.get(id(sequence))
+        if held is None or held[0] is not sequence:
+            held = self._timings[id(sequence)] = (sequence, self.tensors(sequence.timings()))
+        timings = held[1]
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings,

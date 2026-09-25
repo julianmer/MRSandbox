@@ -962,18 +962,18 @@ class Voxel:
             heavy = engine.positions(sequence) and any(
                 isinstance(event, ShapedPulse) for event in sequence.events)
             batches = [[i] for i in range(len(groups))] if heavy else [range(len(groups))]
-            freqs, amps = [], []
+            freqs, amps, bounds = [], [], [0]
             for batch in batches:
-                fn, _ = engine.compiled_batch(sequence, tuple(groups[i] for i in batch),
-                                              shift_mm=self.shift_mm)
+                fn, kept = engine.compiled_batch(sequence, tuple(groups[i] for i in batch),
+                                                 shift_mm=self.shift_mm, pruned=True)
                 f, a = fn(ops.convert_to_tensor(np.asarray([t1[i] for i in batch], dtype=np.float32)),
                           ops.convert_to_tensor(np.asarray([t2[i] for i in batch], dtype=np.float32)),
                           ops.convert_to_tensor(np.asarray(b1_scale, dtype=np.float32)),
                           ops.convert_to_tensor(np.float32(offset_hz)))
                 freqs.append(np.asarray(ops.convert_to_numpy(f)))
                 amps.append(np.asarray(ops.convert_to_numpy(a)))
+                bounds.extend(bounds[-1] + kept[1:])       # the kept elements per group, the graph pruned to what carries signal
             freqs, amps = np.concatenate(freqs), np.concatenate(amps)
-            bounds = np.cumsum([0] + [sum(s.dim ** 2 for s in group) for group in groups])
         else:
             parts = [self.scan.engine.lines(
                 sequence, *(s.with_relaxation(t1_s=t1[i], t2_s=t2[i]) for s in group),
