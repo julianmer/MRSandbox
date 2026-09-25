@@ -600,22 +600,29 @@ RESIDUAL_WATER_BIG_GABA_GE_3T = Calibration(
 #   receiver delay, 3 tesla        #
 #**********************************#
 # The first-order phase of the product's spectra: the phase of creatine against NAA in the
-# suppressed run's mean FID (each complex peak at its maximum, NAA phased to zero), over their
-# 126 Hz, as a delay of the samples against the echo top (info/analysis/water_phase.py,
-# 24/09/26): negative, the first sample before the top. It phases every line by its distance
-# from the carrier, the residual water most (a third of a turn on the Trio), which is what
-# makes it look dispersive. Read on creatine alone: choline sits on creatine's shoulder and
-# the broad signal beneath. A vendor's number stays with its presets (no fallback): a scanner
-# without a record samples on the echo top. The package advances a line's amplitude by the
-# delay as if it decayed past the top; before the top the echo is still forming, a difference
-# of exp(pi lw |delay|), under one percent here, stated.
+# suppressed run's mean FID over their 130 Hz, as a delay of the samples against the echo top:
+# negative, the first sample before the top. It phases every line by its distance from the
+# carrier, the residual water most, which is what makes it look dispersive. Read on creatine
+# alone (choline sits on creatine's shoulder and the broad signal beneath), BEYOND the phase
+# the sequence itself puts on creatine's peak (the coupled neighbours under 3.03 ppm evolving
+# over the echo, ten degrees under PRESS TE 35) and the residual water's wing beneath it: the
+# twin says how much (scan.calibrate.WaterReading, info/analysis/receiver_delay_twin.py,
+# 25/09/26; the first typing of 24/09/26 took creatine's whole phase, item 219, and the console
+# replaying it overshot the raw by the sequence's share). Each peak is read as the mean over
+# the bins within 1.5 Hz of its maximum on a sixteenfold zero-filled spectrum, in the engine's
+# convention (a file stored as its conjugate is conjugated back). A vendor's number stays with
+# its presets (no fallback): a scanner without a record samples on the echo top. The package
+# advances a line's amplitude by the delay as if it decayed past the top; before the top the
+# echo is still forming, a difference of exp(pi lw |delay|), under one percent here, stated.
 RECEIVER_DELAY_BIG_GABA_SIEMENS_3T = Calibration(
     leaf="acquisition.delay_s",
-    value=-0.000465,
-    prior=(-0.000574, -0.000319),
-    measured={"statistic": "phase of creatine against NAA over their frequency difference, as seconds",
-              "median_us": -465.0, "percentiles_10_90_us": (-574.0, -319.0), "subjects": 12,
-              "creatine_phase_deg_median": -20.0, "choline_phase_deg_median": -34.0},
+    value=-0.0003152,
+    prior=(-0.0004845, -0.0002331),
+    measured={"statistic": "phase of creatine against NAA beyond the twin's own (the sequence's evolution under 3.03 "
+                           "ppm and the residual water's wing, scan.calibrate.WaterReading), over their frequency "
+                           "difference, as seconds",
+              "median_us": -315.0, "percentiles_10_90_us": (-485.0, -233.0), "subjects": 12,
+              "creatine_phase_deg_median": -30.7, "intrinsic_phase_deg_median": -16.5, "raw_delay_us_median": -677.0},
     source=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.source,
     scanner=NOISE_BIG_GABA_SIEMENS_3T.scanner,
     coil=NOISE_BIG_GABA_SIEMENS_3T.coil,
@@ -632,11 +639,11 @@ RECEIVER_DELAY_BIG_GABA_SIEMENS_3T = Calibration(
 
 RECEIVER_DELAY_BIG_GABA_GE_3T = Calibration(
     leaf="acquisition.delay_s",
-    value=-0.000241,
-    prior=(-0.000513, 0.0),
+    value=-0.0001156,
+    prior=(-0.0003956, 0.0001407),
     measured={"statistic": RECEIVER_DELAY_BIG_GABA_SIEMENS_3T.measured["statistic"],
-              "median_us": -241.0, "percentiles_10_90_us": (-513.0, 4.0), "subjects": 68,
-              "creatine_phase_deg_median": -11.0, "choline_phase_deg_median": -15.0},
+              "median_us": -116.0, "percentiles_10_90_us": (-396.0, 141.0), "subjects": 68,
+              "creatine_phase_deg_median": 11.7, "intrinsic_phase_deg_median": 17.1, "raw_delay_us_median": 252.0},
     source=RESIDUAL_WATER_BIG_GABA_GE_3T.source,
     scanner=NOISE_BIG_GABA_GE_3T.scanner,
     coil=NOISE_BIG_GABA_GE_3T.coil,
@@ -693,11 +700,11 @@ RESIDUAL_WATER_COWS_PRISMA_3T = Calibration(
 
 RECEIVER_DELAY_COWS_PRISMA_3T = Calibration(
     leaf="acquisition.delay_s",
-    value=-0.000595,
-    prior=(-0.000698, -0.000417),
+    value=-0.0004261,
+    prior=(-0.0005563, -0.0001537),
     measured={"statistic": RECEIVER_DELAY_BIG_GABA_SIEMENS_3T.measured["statistic"],
-              "median_us": -595.0, "percentiles_10_90_us": (-698.0, -417.0), "runs": 89, "subjects": 10,
-              "creatine_phase_deg_median": -27.0, "choline_phase_deg_median": -28.0},
+              "median_us": -426.0, "percentiles_10_90_us": (-556.0, -154.0), "runs": 89, "subjects": 10,
+              "creatine_phase_deg_median": -25.3, "intrinsic_phase_deg_median": -5.9, "raw_delay_us_median": -558.0},
     source=RESIDUAL_WATER_COWS_PRISMA_3T.source,
     scanner=NOISE_COWS_PRISMA_3T.scanner,
     coil=NOISE_COWS_PRISMA_3T.coil,

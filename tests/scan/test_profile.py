@@ -50,9 +50,9 @@ class TestScannerProfile:
         # the receiver delay (negative: the first sample before the echo top); a scanner without a record samples on
         # the top, since a vendor's record is no fallback and the delay is not pooled (a generic scanner is clean)
         trio = ScannerProfile(Scanner.preset("siemens_trio_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert (trio.params.acquisition.delay_s.low, trio.params.acquisition.delay_s.high) == (-0.000574, -0.000319)
+        assert (trio.params.acquisition.delay_s.low, trio.params.acquisition.delay_s.high) == (-0.0004845, -0.0002331)          # beyond the sequence's own creatine phase (item 230)
         prisma = ScannerProfile.preset("siemens_prisma_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert (prisma.params.acquisition.delay_s.low, prisma.params.acquisition.delay_s.high) == (-0.000698, -0.000417)
+        assert (prisma.params.acquisition.delay_s.low, prisma.params.acquisition.delay_s.high) == (-0.0005563, -0.0001537)
         assert (prisma.params.water.adjusted_residual.low, prisma.params.water.adjusted_residual.high) == (0.00029, 0.00153)
         pooled = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert pooled.params.acquisition.delay_s.value == 0.0
