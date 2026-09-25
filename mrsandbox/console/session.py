@@ -26,10 +26,13 @@ from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Fixed, Mapped, Normal, Params, Uniform
+from mrsandbox.params.values import Tissues
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
+from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
 from mrsandbox.phantom.water import Unsuppressed
+from mrsandbox.resources import Resources
 from mrsandbox.scan import Multiplex, ScannerProfile
-from mrsandbox.sequences import (Chess, CoherenceFilter, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
+from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
                                  OuterVolumeSuppression, Press, SelectivePulse, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.events import trapezoid
@@ -99,11 +102,11 @@ RUN = {"frequency drift (Hz per minute)": ("drift_hz_per_min", 0.0), "slow frequ
 # the measured B0 field a subject lies in unless the operator chooses another (phantom.FieldMap.PRESETS); a
 # sphere of solution has none
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr", "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
-          "Head, QSM challenge, 0.64 mm": "qsm_rc2"}
+          "Head, QSM challenge, 0.64 mm": "qsm_rc2_measured"}
 # what the realism pop-up can switch off, each the leaves it sets to nothing: the console starts real
 IDEALS = {
     "noise": {"noise.sigma": 0.0},
-    "macromolecules": {"mm.level_mm": 0.0},
+    "macromolecules": {"mm.level_mm": 0.0, "mm.kappa": 0.0},       # the measured shape's level, and the coupled systems'
     "lipids": {"lipids.amplitude_mm": 0.0},
     "residual water": {"water.residual_fraction": 0.0},
     "frequency and phase errors": {"acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0},
@@ -119,14 +122,15 @@ SHIFTED = {"water": 4.65, "lipid": 1.3}
 # what a timed card can play before its localization: the water suppression trains, and outer-volume
 # suppression as six slabs of the card's ovs_mm about the voxel's faces (Session.slabs). The slabs play between the train and the
 # excitation, where they saturate what the excitation would see; the train's last delay grows by them.
-SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess}
+SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess, "CHESS, Siemens svs_se": SiemensChess,
+               "COWS(7;236)": Cows, "COWS(12;626)": lambda: Cows("COWS(12;626)"), "VAPOR7, Igwe 2025": lambda: Cows("VAPOR7")}
 # how the water comes about. The water is a spin system of its own, run through the card's sequence at its full amplitude
 # (phantom.water Unsuppressed), so "off" is the whole water line and a train suppresses it as far as its physics does, by this
 # scanner's B1 and the water's T1. ASSUMED is the package's shortcut: no train is played and the water is scaled to a drawn
 # residual fraction (water.residual_fraction, 0.01 to 0.3 percent), fast, and the same whatever the card plays.
 ASSUMED = "assumed residual"
 # the branches of the parameter tree that are the scanner's state of one exam, drawn anew for every exam (Session.run)
-STATE = ("acquisition", "spurious", "b1_scale")
+STATE = ("acquisition", "spurious", "b1_scale", "water.adjusted_residual")
 # how far the display processes an exam's transients (Session.display)
 COMBINE, ALIGN, PROCESS = "as acquired", "aligned", "processed"
 
@@ -314,6 +318,9 @@ class Exam:
             combination the display shows; one condition "scan" for an unedited card.
         spectra: After the run, {name: real spectrum} of every condition and combination.
         tracks: What the scanner and the subject did over the transients, {name: values}.
+        echoes: The spurious echo's size in every transient, 0 where the transient came without it.
+        adjustment: The factor the prescan put on the water suppression train's flips for this subject and voxel
+            (Session.adjust), 1.0 where nothing was adjusted.
         truth: The drawn concentrations in mM, {metabolite: value}.
         overrides, run: The operator's settings and the run's instabilities as they stood when the
             exam was planned; a water reference plays its card without water suppression.
@@ -337,6 +344,8 @@ class Exam:
     shown: str = "scan"
     spectra: dict = dataclasses.field(default_factory=dict)
     tracks: dict = dataclasses.field(default_factory=dict)
+    echoes: list = dataclasses.field(default_factory=list)
+    adjustment: float = 1.0
     truth: dict = dataclasses.field(default_factory=dict)
     maps: dict = dataclasses.field(default_factory=dict)
     cells: object = None
@@ -616,20 +625,44 @@ class Session:
             self.view_mm = list(self.position_mm)
 
     def fields(self, card=None):
-        """The room's B0 and B1+ as VirtualScan takes them, made once per choice, and the water as the card has it: at
-        its full amplitude through the sequence, or the assumed residual (ASSUMED)."""
+        """The room's B0 and B1+ as VirtualScan takes them, made once per choice, the water as the card has it (at
+        its full amplitude through the sequence, or the assumed residual, ASSUMED), and the macromolecules: the
+        measured 3 T shape (MeasuredMM, its level read off raw data), which one raw Trio run beside the console put
+        right across the whole background where the coupled systems fell short by two to three (info/HANDOFF.md
+        item 216). An edited card and an own design play the coupled systems (CoupledMM), which run through the
+        sequence: the measured shape carries no editing response, and no phase cycle or sub-acquisition weight acts on
+        it."""
         key = (self.field, self.transmit)
         if key not in self._bodies:
-            field = None if self.field == "uniform" else (
-                FieldMap.load(self.field, b0_t=self.profile().scanner.b0_t) if self.field in FieldMap.PRESETS
-                else FieldMap.from_map(self.volume(self.field).data, self.volume(self.field).affine, name=pathlib.Path(self.field).name))
+            name = self.field
+            if name == "qsm_rc2_measured" and not Resources.cached("qsm_rc2/total_field"):    # placed by hand, like the head
+                name = "qsm_rc2"
+            field = None if name == "uniform" else (
+                FieldMap.load(name, b0_t=self.profile().scanner.b0_t) if name in FieldMap.PRESETS
+                else FieldMap.from_map(self.volume(name).data, self.volume(name).affine, name=pathlib.Path(name).name))
             self._bodies[key] = dict(field=field, transmit=None if self.transmit is None else self.volume(self.transmit))
         field = self._bodies[key]["field"]
         if field is not None:           # the adjustment as it stands now: the order, and the box about the planned voxel
             field.shim = self.shim
             field.shim_box = None if self.shim_mm is None else (tuple(self.position_mm), float(self.shim_mm))
+            field.weights = self.content()
         card = self.protocol if card is None else card
-        return {**self._bodies[key], **({} if card.water_suppression == ASSUMED else {"water": Unsuppressed()})}
+        mm = self._bodies.setdefault("mm", {"measured": MeasuredMM(), "coupled": CoupledMM()})
+        return {**self._bodies[key], "mm": mm["coupled" if card.sequence in EDITING or card.sequence == "Custom" else "measured"],
+                **({} if card.water_suppression == ASSUMED else {"water": Unsuppressed(), "water_groups": 8})}
+
+    def content(self):
+        """What holds signal in the subject, per cell: the tissues' water content weighted by their fractions
+        (a Volume on the subject's grid), for the field to weigh a voxel's cells by; None for a subject without
+        tissue maps."""
+        body = self.body()
+        maps = getattr(body, "maps", None)
+        if maps is None:
+            return None
+        if ("content", self.subject) not in self._bodies:
+            content = sum(body.water_content[name] * maps.data[..., k] for k, name in enumerate(("gm", "wm", "csf")))
+            self._bodies[("content", self.subject)] = Volume(content.astype(np.float32), maps.affine, name="content")
+        return self._bodies[("content", self.subject)]
 
     def reset(self):
         """Everything the operator set about the simulation back to how the console starts: the parameters' own
@@ -1522,13 +1555,18 @@ class Session:
         # person: the frequency offset and phase the acquisition starts with, its eddy currents, its spurious echoes, and
         # the transmit gain, by which a suppression train's residual differs from exam to exam. What the operator set stays.
         anew = int(np.random.SeedSequence([int(seed), self.queue.index(exam) + 1 if exam in self.queue else 0]).generate_state(1)[0])
-        drawn = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields(card)).params.sample(anew).to_dict()
+        scan = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields(card))
+        truth = scan.params.sample(anew)
+        drawn = truth.to_dict()
         state = {}
-        for group in STATE:             # a branch of leaves, or one leaf at the root (b1_scale)
-            for path, value in ([(f"{group}.{leaf}", v) for leaf, v in drawn[group].items()] if isinstance(drawn.get(group), dict)
-                                else [(group, drawn.get(group))]):
+        for group in STATE:             # a branch of leaves, one leaf at the root (b1_scale), or one leaf by its path
+            node = drawn
+            for key in group.split("."):
+                node = node.get(key) if isinstance(node, dict) else None
+            for path, value in ([(f"{group}.{leaf}", v) for leaf, v in node.items()] if isinstance(node, dict) else [(group, node)]):
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     state[path] = float(value)
+        exam.adjustment = self.adjust(exam, scan.voxel(exam.position_mm, exam.size_mm), truth, state)
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params({**state, **exam.overrides}),
                          **self.fields(card),
                          # the array's noise is tied to the scanner's record AT THIS VOXEL, so every place has the record's SNR: what
@@ -1548,10 +1586,70 @@ class Session:
         header = exam.data.hdr_ext.to_dict()
         exam.tracks = {key: header["SimulationSchedule"][key] for key in ("frequency_hz", "phase_deg", "amplitude")
                        if key in header.get("SimulationSchedule", {})}
+        exam.echoes = header["SimulationSchedule"].get("spurious", {}).get("amplitude", [])
         exam.truth = {name: float(value) for name, value in header["SimulationGroundTruth"]["params"]["conc"].items()
                       if isinstance(value, (int, float))}
         exam.status = "done"
         return exam
+
+    #****************#
+    #   adjustment   #
+    #****************#
+    def adjust(self, exam, voxel, truth, state):
+        """The scanner's water suppression adjustment for an exam, as a prescan finds it on the subject: the factor on
+        the train's flips that leaves of the water what the scanner's own adjustment leaves: the drawn
+        water.adjusted_residual (a record per scanner, read against the water references, signed by the residual's
+        phase against the metabolites) of the full water's steady state at the excitation. The water is summed over the voxel's field groups (in or out
+        of the pulses' band), its tissues (each with its own T1 and content) and the drawn transmit scale, in the
+        closed form of the train's ideal pulses: a spin in the band keeps cos(flip) of its Mz, the crusher keeps Mz
+        alone, the gaps and the rest of the TR recover with T1 (from the excitation to the next train), which is
+        what the engine then plays. The exam's designs get the adjusted train. 1.0
+        without a prescan, without a train, or with the shortcut water."""
+        card = exam.card
+        if not self.prescan or card.water_suppression not in SUPPRESSION:
+            return 1.0
+        train = SUPPRESSION[card.water_suppression]()
+        n = len(train.events)
+        if any(len(design.events) < n or not isinstance(design.events[0], SelectivePulse) for design in exam.conditions.values()):
+            return 1.0
+        field = self.fields(card)["field"]
+        groups = ([(mean, weight) for mean, weight, _ in field.groups(exam.position_mm, exam.size_mm, np.zeros(1), 8)]
+                  if field is not None else [(0.0, 1.0)])
+        shift, b1 = state.get("acquisition.shift_hz", 0.0), voxel.b1_scale(truth)
+        t1_s, content, fractions = truth.water.t1_s, self.body().water_content, voxel.fractions
+        tissues = [(getattr(fractions, name) * content[name], getattr(t1_s, name) if isinstance(t1_s, Tissues) else voxel.resolve(t1_s))
+                   for name in ("gm", "wm", "csf")]
+        rest = max(card.tr_ms / 1000.0 - sum(train.delays_s), 0.0)     # the water recovers from the excitation to the next train
+        factors = np.linspace(0.5, 1.5, 1001)
+        water, full = np.zeros_like(factors), 0.0
+        for share, t1 in tissues:
+            if share <= 0.0:
+                continue
+            full += share * (1.0 - np.exp(-(rest + sum(train.delays_s)) / t1))     # the reference: no train, the same TR
+            for mean, weight in groups:
+                inband = abs(mean - shift) <= train.bandwidth_hz / 2.0
+                mz = np.ones_like(factors)
+                for _ in range(8):                                    # to the steady state
+                    for flip, delay in zip(train.flips_deg, train.delays_s):
+                        if inband:
+                            mz = mz * np.cos(np.radians(flip * factors * b1))
+                        mz = 1.0 - (1.0 - mz) * np.exp(-delay / t1)
+                    before = mz
+                    mz = np.full_like(factors, 1.0 - np.exp(-rest / t1))  # the excitation takes it all, then the TR's rest
+                water = water + share * weight * before
+        # the scanner's adjustment leaves its record's residual, not zero: land there, on the record's side (inverted on
+        # the Trio, upright on GE)
+        target = float(state.get("water.adjusted_residual", 0.0)) * full
+        factor = float(factors[np.abs(water - target).argmin()])
+        tuned = train.scaled(factor)
+        def adjusted(design):           # the design with the tuned train in place of its own, its timings kept
+            design = copy.copy(design)
+            design.events = (*tuned.events, *design.events[n:])
+            return design
+
+        exam.conditions = {name: adjusted(design) for name, design in exam.conditions.items()}
+        exam.sequence = adjusted(exam.sequence)
+        return factor
 
     #*************#
     #   display   #
@@ -1639,16 +1737,22 @@ class Session:
         exam.frames = [(count, average, (spectrum(fids[:, count - 1]) * phase).real[wide]) for count, average in exam.builds[exam.shown]]
         exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
         # the consensus SNR of what is shown (Near et al. 2021): the tallest real point within 0.2 to 4.2 ppm (NAA in a brain)
-        # over the standard deviation of a signal-free stretch, -4 to -1 ppm, after a linear detrend; of the average and of
-        # one transient alone
-        quiet = (ppm > -4.0) & (ppm < -1.0)
+        # over the standard deviation of a signal-free stretch after a linear detrend; of the average and of one transient
+        # alone. The stretch lies inside the band and away from the wings of the broad lines: 9 to 12 ppm where the band
+        # reaches 12.3, else -4 to -1 ppm kept 0.3 ppm inside the band's low edge (at 2 kHz the band ends at -3.5,
+        # where a receiver's filter rolls off and the lipids' wings reach: read there, the SNR came out three times low)
+        low, high = float(ppm.min()) + 0.3, float(ppm.max()) - 0.3
+        quiet = (ppm > 9.0) & (ppm < 12.0) if high >= 12.0 else (ppm > max(-4.0, low)) & (ppm < -1.0)
+        if quiet.sum() < 32:                     # a band too narrow for either: what lies beyond the amides
+            quiet = (ppm > 6.5) & (ppm < high)
 
         def snr(fid):
             real = (np.fft.fftshift(np.fft.fft(fid, 2 * card.npoints)) * phase).real
             return float(real[upfield].max() / (real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std())
 
         weights = exam.combinations[exam.shown]
-        exam.snr = (snr(combined(weights, fids.shape[1])), snr(fids[:, np.flatnonzero(played == next(iter(weights)))[0]]))
+        exam.snr = (snr(combined(weights, fids.shape[1])),
+                    snr(fids[:, np.flatnonzero((played == next(iter(weights))) & kept)[0]]))     # one transient the processing kept
         exam.rejected = int((~kept).sum())
 
     #*************#

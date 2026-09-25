@@ -164,6 +164,15 @@ class SuppressionTrain(Sequence):
                 events.append(Delay(delay))
         super().__init__(*events)
 
+    #**************#
+    #   adjusted   #
+    #**************#
+    def scaled(self, factor):
+        """This train with every flip times `factor`: what the scanner's water suppression
+        adjustment does to the pulses' power."""
+        return SuppressionTrain(tuple(flip * factor for flip in self.flips_deg), offset_ppm=self.offset_ppm,
+                                bandwidth_hz=self.bandwidth_hz, delays_s=self.delays_s)
+
 
 #*****************#
 #   voxel edges   #
@@ -697,6 +706,38 @@ class Chess(SuppressionTrain):
 
 
 #**************************************************************************************************#
+#                                        Class SiemensChess                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# Siemens' product water saturation: three pulses of 50 Hz, the third overtipping, as svs_se plays it. #
+#                                                                                                  #
+#**************************************************************************************************#
+class SiemensChess(SuppressionTrain):
+    """Siemens' product water saturation: three pulses of 50 Hz, the third overtipping, as
+    svs_se plays it. The amplitudes stand in the ratio 1 : 0.935 : 1.803 and the band is
+    50 Hz wide (database.suppression SIEMENS_SVS_SE, read from Big GABA headers); like
+    WET's last pulse the third one turns the water past zero so that what recovers through
+    the last gap crosses zero at the excitation, whatever the T1. The scanner's adjustment
+    scales all three at once (`scaled`). The spacing is a stated 30 ms.
+
+    Args:
+        flip_deg: The first pulse's flip; the other two follow the ratios.
+        offset_ppm: Pulse centre in ppm (water sits at 4.65).
+        spacing_s: The gap after each pulse; None takes the table's stated value.
+    """
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, flip_deg=90.0, offset_ppm=4.65, spacing_s=None):
+        table = suppression.SIEMENS_SVS_SE
+        self.flip_deg = flip_deg
+        spacing = table["spacing_s"] if spacing_s is None else spacing_s
+        super().__init__(tuple(flip_deg * ratio for ratio in table["amplitude_ratios"]), offset_ppm=offset_ppm,
+                         bandwidth_hz=table["bandwidth_hz"], delays_s=(spacing,) * len(table["amplitude_ratios"]))
+
+
+#**************************************************************************************************#
 #                                            Class Wet                                             #
 #**************************************************************************************************#
 #                                                                                                  #
@@ -755,6 +796,36 @@ class Vapor(SuppressionTrain):
         flips = tuple(nominal_flip_deg * 10.0 ** (db / 20.0) for db in suppression.VAPOR["power_db"])
         super().__init__(flips, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz,
                          delays_s=suppression.VAPOR["delays_s"][field])
+
+
+#**************************************************************************************************#
+#                                            Class Cows                                            #
+#**************************************************************************************************#
+#                                                                                                  #
+# The water suppression schemes of Igwe et al. 2025: COWS(7;236), COWS(12;626) and their VAPOR7.   #
+#                                                                                                  #
+#**************************************************************************************************#
+class Cows(SuppressionTrain):
+    """The water suppression schemes of Igwe et al. 2025, typed from its Table 1
+    (database.suppression COWS): COWS(7;236) and COWS(12;626), flips and delays constrained
+    optimized to null the water over T1 0.5 to 5 s and a B1 factor of 0.75 to 1.25 in 236
+    and 626 ms, and VAPOR7, the seven pulse VAPOR the paper held them against. The delays
+    run from each pulse to the next and the last to the excitation; the pulses are 68 Hz
+    wide. The scanner's adjustment scales every flip at once (`scaled`).
+
+    Args:
+        scheme: "COWS(7;236)", "COWS(12;626)" or "VAPOR7".
+        offset_ppm: Pulse centre in ppm (water sits at 4.65).
+    """
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, scheme="COWS(7;236)", offset_ppm=4.65):
+        self.scheme = scheme
+        table = suppression.COWS[scheme]
+        super().__init__(table["flips_deg"], offset_ppm=offset_ppm,
+                         bandwidth_hz=suppression.COWS["pulse_bandwidth_hz"], delays_s=table["delays_s"])
 
 
 #**************************************************************************************************#

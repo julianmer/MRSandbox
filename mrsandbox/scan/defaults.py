@@ -112,8 +112,13 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     take their shifts and couplings at the same drawn temperature
         #     (VirtualScan.systems, a quarter of a degree a step). Fixed at the scan's
         #     temperature; a range is the user's belief about the subject.
+        #   adjusted_residual: what the scanner's water suppression adjustment leaves
+        #     of the full water when a train is played (a record per scanner, read
+        #     against the water references: scan.calibrations); the console's prescan
+        #     lands the train there instead of on zero.
         water=dict(residual_fraction=(1e-4, 3e-3), t1_s=water_t1, t2_s=water_t2,
-                   temperature_c=37.0),
+                   temperature_c=37.0,
+                   adjusted_residual=calibrations(scanner, records)["water.adjusted_residual"].prior),
         # lipids: subcutaneous fat at the skull boundary.
         #   amplitude_mm: adipose protons are water-like (about 60 to 70 M), which
         #     is why a voxel clipping the skull drowns in fat; the range is stated.
@@ -209,10 +214,13 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     defaults 0.6 rad and 25 Hz as the range ceilings, stated); the seed
         #     is drawn so the trajectory regenerates from the truth.
         #   delay_s: the receiver delay, every sample taken that long after the
-        #     readout's start (the first-order phase of the spectrum, exactly);
-        #     zero by default, a range is the user's to set.
+        #     readout's start (the first-order phase of the spectrum, exactly): a
+        #     record per scanner where one was read (scan.calibrations, negative on
+        #     the Trio and on GE: the first sample before the echo top), zero for a
+        #     scanner without one.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
-                         delay_s=0.0,
+                         delay_s=(calibrations(scanner, records)["acquisition.delay_s"].prior
+                                  if "acquisition.delay_s" in calibrations(scanner, records) else 0.0),
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
                          eddy_seed=(0.0, 2.0 ** 31 - 1.0)),
         # gradients: the eddy currents the design's own gradients induce (scan.eddy),
@@ -235,17 +243,38 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
                        linear_short=(0.0, 0.005), linear_long=(0.0, 0.002)),
         # spurious: the out-of-voxel echo that imperfect crushing or cycling fails
         #   to remove, rephasing mid-acquisition (the mechanism is demonstrated by
-        #   the crusher gates in tests/sequences). Form and every range are typed
-        #   from the AGNOSTIC OOV synthesis (Gudmundson et al. 2023, Imaging
-        #   Neuroscience, imag_a_00025): a Gaussian envelope echo
-        #   a exp(-W (t - tau)^2) exp(i (2 pi f t + phi)), tau 10-400 ms,
-        #   W 500-8000 1/s^2 (FWHM 18-74 ms), position 1-4 ppm, amplitude 0.1-20%
-        #   of the FID maximum, free phase. The source adds one echo to 85% of its
-        #   examples; here it is always on, and amplitude=0.0 switches it off. The
-        #   echo is rendered by Augmentrum's SpuriousEchoes (scan.Voxel).
-        spurious=dict(amplitude=(0.001, 0.2), tau_s=(0.010, 0.400),
-                      width_s2=(500.0, 8000.0), ppm=(1.0, 4.0),
-                      phase_deg=(0.0, 360.0)),
+        #   the crusher gates in tests/sequences). The form is the AGNOSTIC OOV
+        #   synthesis (Gudmundson et al. 2023, Imaging Neuroscience, imag_a_00025):
+        #   a Gaussian envelope echo a exp(-W (t - tau)^2) exp(i (2 pi f t + phi)),
+        #   rendered by Augmentrum's SpuriousEchoes (scan.Voxel), its amplitude
+        #   relative to the maximum of the voxel's FID without its water. The ranges
+        #   are COUNTED in raw data with the transients apart, 24/09/26
+        #   (info/analysis/echo_count.py: Big GABA PRESS, 31 GE and 36 Siemens runs,
+        #   and 89 COWS sLASER runs of 32 to 64 transients, 6912 transients; every
+        #   transient without its own water, aligned, held against the run's median;
+        #   an echo is a late bump of the residual that the average does not carry).
+        #   Per run the echo keeps its timing and place (within a run tau spreads
+        #   8 ms and the place 0.12 ppm, across runs 47 ms and 1.3 ppm), so tau,
+        #   width and ppm are drawn once per subject and exam, and the transients
+        #   carry it or not (scan.Multiplex.transients): rate is the share of
+        #   transients that carry it (no echo in 24 percent of runs, median 0.12,
+        #   upper quartile 0.34, above half in 12 percent), spread the half-width of
+        #   a carrying transient's size about the run's amplitude (a factor of
+        #   1 - spread to 1 + spread; measured 10th to 90th percentile 0.79 to 1.28
+        #   of the run's median), amplitude the run's typical size (per-run medians
+        #   1.4 to 6.2 percent of the dry maximum, GE the largest, Siemens the
+        #   smallest), tau 30 to 96 ms per run (the count sees nothing before 30 ms,
+        #   the largest 332 ms), the width 15 to 34 ms FWHM (W = 4 ln 2 / FWHM^2),
+        #   and the phase free (its resultant over a run 0.25). The place is the
+        #   lipid band in 73 percent of runs (0.9 to 1.7 ppm, typed); the rest lie
+        #   at 1.7 to 4.2 (17 percent) or above 4.2 ppm (9 percent) and are NOT
+        #   modelled (one uniform range; a mixture prior is open). amplitude=0.0
+        #   switches the echo off; a single acquisition carries it whole.
+        spurious=dict(amplitude=(0.01, 0.07), tau_s=(0.020, 0.150),
+                      width_s2=(2000.0, 12000.0), ppm=(0.9, 1.7),
+                      phase_deg=(0.0, 360.0),
+                      rate=Clipped(Normal(0.15, 0.3), low=0.0, high=1.0),
+                      spread=(0.2, 0.4)),
         # transients: the instabilities across repeated transients (drift, breathing,
         #   jitter, motion) come from Augmentrum's TransientSynthesizer, configured
         #   per acquisition in scan.Multiplex.transients, not from this tree.

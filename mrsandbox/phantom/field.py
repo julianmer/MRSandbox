@@ -52,7 +52,7 @@ class FieldMap:
             a scanner whose shim box is not the voxel. None fits over the voxel itself.
     """
 
-    PRESETS = ("bigbrain_mr", "qsm_rc2")
+    PRESETS = ("bigbrain_mr", "qsm_rc2", "qsm_rc2_measured")
     SHIMS = ("none", "mean", "linear", "quadratic")
 
     #**********#
@@ -67,6 +67,10 @@ class FieldMap:
         self.name = name
         self.shim = shim
         self.shim_box = None
+        # a Volume of what holds signal (a brain's water content per cell) weighs the cells of a
+        # box; None counts every cell alike, so a box reaching into bone or air dephases by cells
+        # that carry no signal
+        self.weights = None
 
     #*************#
     #   loading   #
@@ -88,6 +92,15 @@ class FieldMap:
         """
         if name not in cls.PRESETS:
             raise KeyError(f"unknown field map {name!r}; known: {', '.join(cls.PRESETS)}")
+        if name == "qsm_rc2_measured":
+            # the measured total field of the QSM challenge 2.0 head at 7 T on the model's
+            # grid at 0.64 mm, with the texture the susceptibility model lacks (its 2.5th to
+            # 97.5th percentile in a 30 mm parietal cube spans 10.5 Hz at 3 T against the
+            # model's 4.4) and that session's shim in it; ppm scales with the field. Placed
+            # by hand (resources.qsm)
+            ppm = Volume.load("qsm_rc2/total_field")
+            return cls(offsets_hz=ppm.data * np.float32(42.5774785 * float(b0_t)), affine=ppm.affine,
+                       name=name, shim=shim)
         if name == "qsm_rc2":
             # the whole-head susceptibility model of the QSM challenge 2.0 head (air,
             # bone, and tissue), halved to 1.28 mm cells; placed by hand (resources.qsm)
@@ -168,6 +181,10 @@ class FieldMap:
         keep = weights > 0.0
         xyz = self.volume.centres(position_mm, size_mm)[keep] if keep.any() else np.empty((0, 3))
         v, w = values[keep].astype(np.float64), weights[keep]
+        if self.weights is not None and xyz.size:
+            w = w * np.asarray(self.weights.at(xyz), dtype=np.float64)
+            keep = w > 0.0
+            v, w, xyz = v[keep], w[keep], xyz[keep]
         # the moved box's cells under the planned shim: where they sit in the scanner
         moved = 0.0 if shim_at_mm is None else np.asarray(shim_at_mm, float) - np.asarray(position_mm, float)
         return v - self.shim_field(xyz + moved, position_mm if shim_at_mm is None else shim_at_mm, size_mm, shim), w

@@ -48,6 +48,12 @@ QSM_RC2 = {
         ("r2star", "data/maps/R2star.nii.gz", "1/s"),
         ("m0", "data/maps/M0.nii.gz", "arbitrary"),
         ("chi", "data/chimodel/Chi.nii.gz", "ppm"),
+        # the MEASURED total field of the same head at 7 T (MP2RAGE-ME, the dataset's raw folder),
+        # resampled by the authors onto the R2* map's grid: its own header carries another origin
+        # and zooms 0.1 percent off, but its cells are the model's (checked 24/09/26: every
+        # nonzero cell lies inside the head labels; the field covers 83 percent of the head, the
+        # rest is zero), so it takes the model's origin like the others (info/HANDOFF.md item 218)
+        ("total_field", "data/raw/MP2RAGEME_total-field_ppm_head_r2s-header.nii.gz", "ppm"),
     )
 }
 

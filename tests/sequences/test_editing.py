@@ -396,6 +396,43 @@ class TestTransients:
         np.testing.assert_array_equal(b[:, ~kicked], a[:, ~kicked])
         assert np.abs(b[:, kicked] - a[:, kicked]).max() > 0.0
 
+    #*********************#
+    #   spurious echoes   #
+    #*********************#
+    def test_the_runs_echoes_come_and_go_per_transient(self):
+        # the exam's echo (timing, width, place and typical size drawn once) is carried by the
+        # transients the rate picks, each at its own phase; a transient without it is the clean
+        # one exactly, and the header says which carry it
+        ghost = dict(tau_s=0.1, width_s2=2000.0, ppm=2.5, phase_deg=0.0, spread=0.0)
+
+        def run(**spur):
+            multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"), MegaPress.pair(),
+                                  params=QUIET | Params(spurious=dict(**ghost, **spur)))
+            return multiplex.transients((10, -20, 5), 20.0, schedule=8, seed=3, npoints=512,
+                                        synthesis=self.still())
+
+        clean = np.asarray(run(amplitude=0.0, rate=0.0)[:])[0, 0, 0]
+        some = run(amplitude=0.1, rate=0.5)
+        record = some.hdr_ext["SimulationSchedule"]["spurious"]
+        carried = np.asarray(record["amplitude"]) > 0.0
+        assert carried.any() and not carried.all()
+        assert [p is None for p in record["phase_deg"]] == (~carried).tolist()
+        volume = np.asarray(some[:])[0, 0, 0]
+        np.testing.assert_array_equal(volume[:, ~carried], clean[:, ~carried])
+        assert np.abs(volume[:, carried] - clean[:, carried]).max() > 1e-3 * np.abs(clean).max()
+        # every transient carries it: the same echo (a Gaussian about 100 ms, the drawn size) turned to
+        # each transient's own phase
+        every = run(amplitude=0.1, rate=1.0)
+        echoes = np.asarray(every[:])[0, 0, 0] - clean
+        phases = np.radians(every.hdr_ext["SimulationSchedule"]["spurious"]["phase_deg"])
+        assert np.ptp(phases) > 0.5
+        t = np.arange(512) / 4000.0
+        for k in range(8):
+            expected = echoes[:, 0] * np.exp(1j * (phases[k] - phases[0]))
+            np.testing.assert_allclose(echoes[:, k], expected, atol=1e-4 * np.abs(echoes).max())
+        envelope = np.abs(echoes[:, 0]) / np.abs(echoes[:, 0]).max()
+        np.testing.assert_allclose(envelope, np.exp(-2000.0 * (t - 0.1) ** 2), atol=1e-3)
+
     #*************#
     #   drift     #
     #*************#

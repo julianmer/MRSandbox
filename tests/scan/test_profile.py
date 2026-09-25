@@ -45,13 +45,23 @@ class TestScannerProfile:
         assert eight.coil["channels"] == (8, 8) and many.coil["channels"] == (32,)
         assert eight.value == 7.0 and many.value == 7.9
 
+    def test_a_vendors_receiver_delay_stays_with_its_presets(self):
+        # the first-order phase read off Big GABA's Trio and GE runs reaches those presets' trees as a prior on
+        # the receiver delay (negative: the first sample before the echo top); a scanner without a record
+        # samples on the top, since the record is no fallback
+        trio = ScannerProfile(Scanner.preset("siemens_trio_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
+        assert (trio.params.acquisition.delay_s.low, trio.params.acquisition.delay_s.high) == (-0.000574, -0.000319)
+        plain = ScannerProfile(Scanner.preset("generic_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
+        assert plain.params.acquisition.delay_s.value == 0.0
+        assert "acquisition.delay_s" not in ScannerProfile(Scanner.preset("generic_3t")).calibrations()
+
     def test_own_records_outrank_the_catalogue_in_priors_and_headers(self):
         own = dataclasses.replace(NOISE_COWS_PRISMA_3T, value=8.0, prior=(7.0, 9.0), presets=(),
                                   source={"dataset": "my scanner", "citation": None, "url": None})
         profile = ScannerProfile(Scanner.preset("siemens_prisma_3t"), records=(own,))
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == (7.0, 9.0)
-        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr"}
+        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr", "water.adjusted_residual"}
         data = scan.voxel(PLACE, SIZE).acquire(seed=0, npoints=256)
         named = data.hdr_ext["SimulationPhantom"]["calibrations"]["noise.sigma"]
         assert named["source"] == "my scanner" and named["value"] == 8.0

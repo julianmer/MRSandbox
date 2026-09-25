@@ -92,7 +92,7 @@ BLOCK_NOTES = {
     "delay": "Free evolution. The echo time is the sum of the delays and the pulses between excitation and readout.",
     "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the echo and spoils the rest.",
     "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes every other, without time.",
-    "water suppression": "A train of selective pulses on the water line before the excitation: VAPOR, WET or CHESS.",
+    "water suppression": "A train of selective pulses on the water line before the excitation: VAPOR, WET, CHESS or COWS.",
 }
 CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)", "duration_ms": "duration (ms)", "offset_ppm": "centre (ppm)",
             "shape": "shape", "slice_axis": "slice along", "slice_hz_per_mm": "slice gradient (Hz/mm)", "ms": "duration (ms)",
@@ -363,7 +363,7 @@ async def console(client: Client):
                         f'height="{height / down:.1f}" fill="{GLOW}" fill-opacity="{0.75 * heights[i, j, layer] / max(float(heights[..., layer].max()), 1e-12):.2f}" '
                         + (f'stroke="#fff" stroke-width="{0.6 * pen:.2f}" />' if chosen["cell"] == (i, j, layer) else 'stroke="none" />')
                         for i in range(across) for j in range(down))
-            views[name].content = (painted + 
+            views[name].content = (painted +
                 f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45"><line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
                 f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">{grid}</g>'
@@ -1086,7 +1086,11 @@ async def console(client: Client):
                                "xAxis": {**axis, "name": "transient"}, "yAxis": {**axis, "scale": True},
                                "series": [{"type": "line", "name": name, "showSymbol": False,
                                            "data": [[k + 1, float(v)] for k, v in enumerate(values)]}
-                                          for name, values in exam.tracks.items()]}).style("height: 230px").classes("w-full")
+                                          for name, values in exam.tracks.items()]
+                               # the transients that carry the spurious echo, marked on the frequency track
+                               + [{"type": "scatter", "name": "spurious echo", "symbolSize": 8, "itemStyle": {"color": BAD},
+                                   "data": [[k + 1, float(f)] for k, (f, size) in enumerate(zip(exam.tracks.get("frequency_hz", []), exam.echoes))
+                                            if size > 0.0]}]}).style("height: 230px").classes("w-full")
                 with ui.column().style("flex: 1; min-width: 0"):
                     ui.label("Ground truth · mM").classes("label")
                     with ui.scroll_area().style("height: 230px"):
@@ -1303,7 +1307,9 @@ async def console(client: Client):
                     ui.switch(name, value=not all(session.overrides.get(path) == value for path, value in leaves.items()),
                               on_change=lambda e, name=name: (session.idealize(name, not e.value), draw())).props(
                         "dense color=accent").style("width: 230px")
-                    ui.label("off sets " + ", ".join(leaves) + " to 0").classes("label").style("text-transform: none; letter-spacing: 0")
+                    ui.label("off sets " + ", ".join(leaves) + " to 0" + (
+                        "; on, the measured 3 T shape, coupled systems on edited cards" if name == "macromolecules" else "")).classes(
+                        "label").style("text-transform: none; letter-spacing: 0")
             ui.label("Drift, breathing and motion over the transients are part of every run (Review shows them). "
                      "Every single value stays open in the settings.").classes("label").style("text-transform: none; letter-spacing: 0")
         dialog.open()

@@ -23,6 +23,7 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.database import tissue
+from mrsandbox.params.values import Tissues
 from mrsandbox.spins import SpinSystem
 
 
@@ -71,12 +72,13 @@ class WaterSource(abc.ABC):
     #******************#
     #   engine lines   #
     #******************#
-    def _engine_lines(self, engine, sequence, voxel, truth, f0_mhz):
+    def _engine_lines(self, engine, sequence, voxel, truth, f0_mhz, t1_s=None):
         """The water lines of this draw through the engine's compiled path: relaxation
         and b1 stay inputs, so the first call compiles and every voxel replays. The
         relaxation leaves resolve at the voxel (per-tissue values weighted by its
-        composition, maps read over its box)."""
-        t1_s, t2_s = voxel.resolve(truth.water.t1_s), voxel.resolve(truth.water.t2_s)
+        composition, maps read over its box); `t1_s` plays one tissue's own instead."""
+        t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
+        t2_s = voxel.resolve(truth.water.t2_s)
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in
                     (t1_s, t2_s, voxel.b1_input(truth), voxel.offset_hz(truth))))
@@ -107,14 +109,33 @@ class NoWater(WaterSource):
 #                                                                                                  #
 #**************************************************************************************************#
 class Unsuppressed(WaterSource):
-    """The full water signal, as in a water reference acquisition."""
+    """The full water signal, as in a water reference acquisition, and what a suppression
+    train in the sequence leaves of it.
+
+    Each tissue's water runs the sequence with its own T1 where the leaf is per tissue
+    (a map or a number runs once): what recovers through a train's gaps and over the TR
+    is the tissue's, so CSF's slow water and the tissues' fast water are never nulled
+    by one adjustment at once. The T2 stays the voxel's mean (one line width, stated).
+    """
 
     #***********#
     #   lines   #
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
-        freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
-        return freqs, amps * complex(self.full_amplitude_mm(voxel))
+        t1_s = truth.water.t1_s
+        if not isinstance(t1_s, Tissues):
+            freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
+            return freqs, amps * complex(self.full_amplitude_mm(voxel))
+        fractions, content = voxel.fractions, voxel.scan.brain.water_content
+        total = None
+        for name in ("gm", "wm", "csf"):
+            share = getattr(fractions, name) * content[name]
+            if share <= 0.0:
+                continue
+            freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz, t1_s=getattr(t1_s, name))
+            part = amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share)
+            total = part if total is None else total + part
+        return None if total is None else (freqs, total)
 
 
 #**************************************************************************************************#

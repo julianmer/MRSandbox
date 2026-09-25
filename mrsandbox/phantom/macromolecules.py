@@ -40,17 +40,25 @@ def _nearest(positions, ppm):
 def _echo_time_s(sequence):
     """Transverse (echo) time of a sequence, for the measured-shape TE decay: the te_s
     attribute where the design carries one (STEAM's mixing time is longitudinal and
-    excluded), te1_s plus te2_s for PRESS designs, the tau sum for MEGA designs, and
-    the sum of Delay events as the fallback (exact for gradient-crushed echoes)."""
+    excluded; a train before a design leaves the design's, Sequence.__add__), te1_s
+    plus te2_s for PRESS designs, the tau sum for MEGA designs, and as the fallback the
+    sum of the Delay events after the excitation: the first pulse after the last crusher
+    that keeps Mz alone (a suppression or saturation train's, whose gaps are
+    longitudinal), exact for gradient-crushed echoes."""
     if hasattr(sequence, "te_s"):
         return float(sequence.te_s)
     if hasattr(sequence, "te1_s"):
         return float(sequence.te1_s) + float(sequence.te2_s)
     if hasattr(sequence, "taus_s"):
         return float(sum(sequence.taus_s))
-    from mrsandbox.sequences.events import Delay
+    from mrsandbox.sequences.events import CoherenceFilter, Delay, Pulse, SelectivePulse, ShapedPulse
 
-    return float(sum(float(event.t_s) for event in sequence.events if isinstance(event, Delay)))
+    events = list(sequence.events)
+    crushed = [k for k, event in enumerate(events) if isinstance(event, CoherenceFilter) and event.orders == (0,)]
+    after = events[crushed[-1] + 1:] if crushed else events
+    excited = [k for k, event in enumerate(after) if isinstance(event, (Pulse, SelectivePulse, ShapedPulse))]
+    transverse = after[excited[0] + 1:] if excited else after
+    return float(sum(float(event.t_s) for event in transverse if isinstance(event, Delay)))
 
 
 #**************************************************************************************************#
@@ -444,9 +452,10 @@ class CoupledMM(MMSource):
             freqs.append(line_f[keep])
             amps.append(line_a[keep])
             gauss.append(np.full(int(keep.sum()), width_ppm * f0_mhz, dtype=np.float32))
-        return (np.concatenate(freqs).astype(np.float32),
-                np.concatenate(amps).astype(np.complex64),
-                np.concatenate(gauss))
+        freqs = np.concatenate(freqs).astype(np.float32)
+        if freqs.size == 0:             # a kappa of zero leaves nothing: silent, like the other sources
+            return None
+        return freqs, np.concatenate(amps).astype(np.complex64), np.concatenate(gauss)
 
     #****************#
     #   coupling j   #

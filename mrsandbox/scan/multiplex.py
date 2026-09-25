@@ -204,6 +204,15 @@ class Multiplex:
         drawn per transient. The realized tracks are recorded in the header, so
         alignment algorithms can be scored against the truth.
 
+        The spurious echo comes and goes over the run: the exam's echo (its timing,
+        width, place and typical size are the geometry's, drawn once in the truth) is
+        carried by the transients that spurious.rate picks and by every transient of a
+        motion event (a head that moved spoils the crushing), each at its own size about
+        the typical one (spurious.spread) and its own phase; the others are clean. The
+        header records the size and phase per transient, so a processing step that
+        rejects transients can be scored. A single acquisition (`acquire`) carries the
+        exam's echo whole.
+
         Args:
             position_mm, size_mm: The voxel placement.
             schedule: Condition names per transient, or a transient count.
@@ -292,19 +301,33 @@ class Multiplex:
                 turn[i, i], turn[i, j], turn[j, i], turn[j, j] = c, -s, s, c
                 rotation = turn @ rotation
             places.append(tuple(np.round(rotation.T @ (planned - pivot - shift) + pivot, 9)))
-        clean = {}
+        clean, echo = {}, {}
         for name, place in set(zip(schedule, places)):
             still = np.allclose(place, planned)
             voxel = self.scans[name].voxel(place, size_mm, compiled=self.compiled,
                                            shim_at_mm=None if still else tuple(planned))
-            _, clean[name, place] = voxel._clean_fid(truth, npoints, dwell_s)
+            parts = voxel._component_fids(truth, npoints, dwell_s)
+            echo[name, place] = parts.pop("spurious", None)
+            clean[name, place] = sum(parts.values())
+        # which transients carry the exam's echo, at what size and phase (scan.defaults spurious)
+        spur = truth.spurious
+        ghosts = np.random.default_rng([synth_seed, 2])
+        carries = ghosts.random(n) < spur.rate
+        for event in getattr(synth, "last_events_", ()):
+            carries[event["start"]:event["stop"]] = True
+        size = np.where(carries, spur.amplitude * ghosts.uniform(1.0 - spur.spread, 1.0 + spur.spread, n), 0.0)
+        turn = ghosts.uniform(0.0, 360.0, n)
 
         grid = np.arange(npoints) * dwell_s
         data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
         for k, name in enumerate(schedule):
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
-            fid = clean[name, places[k]] * modulation
+            fid = clean[name, places[k]]
+            if size[k] > 0.0:      # the rendered echo, scaled to this transient's size and turned to its phase
+                fid = fid + echo[name, places[k]] * (size[k] / spur.amplitude) * np.exp(
+                    1j * np.radians(turn[k] - spur.phase_deg))
+            fid = fid * modulation
             sigma = voxel.noise_sigma(truth, dwell_s)
             if sigma > 0.0:
                 fid = fid + receiver_noise(rng, sigma, npoints, voxel.scan.receiver)
@@ -334,9 +357,11 @@ class Multiplex:
                                  else moved.tolist()),
              "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm],
              "rotation_deg": None if rotation_deg is None else turned.tolist(),
-             "pivot_mm": [float(x) for x in pivot]},
-            "MRSandbox: per transient condition and the realized Augmentrum instability "
-            "tracks.",
+             "pivot_mm": [float(x) for x in pivot],
+             "spurious": {"amplitude": [float(x) for x in size],
+                          "phase_deg": [float(t) if c else None for t, c in zip(turn, carries)]}},
+            "MRSandbox: per transient condition, the realized Augmentrum instability "
+            "tracks, and the spurious echo's size and phase (0 and None where it is absent).",
         )
         hdr.set_user_def(
             "SimulationPhantom",

@@ -156,6 +156,14 @@ class Volume:
     #*************#
     #   nearest   #
     #*************#
+    def at(self, points_mm):
+        """The values of the cells nearest to world points (n, 3); zero outside the grid."""
+        index = np.rint((np.c_[points_mm, np.ones(len(points_mm))] @ self._inverse.T)[:, :3]).astype(int)
+        inside = np.all((index >= 0) & (index < np.asarray(self.shape)), axis=1)
+        values = np.zeros((len(points_mm),) + self.data.shape[3:], dtype=self.data.dtype)
+        values[inside] = self.data[tuple(index[inside].T)]
+        return values
+
     def nearest(self, position_mm):
         """The value of the cell nearest to a position; None outside the grid."""
         index = np.rint((self._inverse @ np.array([*position_mm, 1.0]))[:3]).astype(int)

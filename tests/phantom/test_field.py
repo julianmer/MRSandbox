@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, FieldMap, Press, Scanner, VirtualScan
+from mrsandbox.phantom import Volume
 from mrsandbox.resources import Resources
 
 T = np.arange(1024) / 4000.0
@@ -210,6 +211,21 @@ class TestQsmField:
         np.testing.assert_allclose(np.std(seven.offsets((0.0, 45.0, -5.0), 20.0, shim="linear")),
                                    spread((0.0, 45.0, -5.0)) * 7.0 / 3.0, rtol=1e-4)
 
+    @pytest.mark.skipif(not Resources.cached("qsm_rc2/total_field"),
+                        reason="the head's measured total field is not redistributed; place it by hand")
+    def test_the_measured_field_is_the_same_head_with_its_texture(self):
+        # the measured total field lies on the model's grid (its zero cells outside the head's labels) and
+        # carries texture the susceptibility model lacks: wider tails in a deep parietal cube (6.5 against
+        # 4.7 Hz between the 2.5th and 97.5th percentile at 3 T), a few hertz in the core all the same
+        measured, model = FieldMap.load("qsm_rc2_measured", b0_t=3.0), FieldMap.load("qsm_rc2", b0_t=3.0)
+        assert measured.volume.shape == Volume.load("qsm_rc2/labels").shape
+        outside = np.asarray(measured.volume.data == 0.0) & (Volume.load("qsm_rc2/labels").data > 0)
+        assert (np.asarray(measured.volume.data != 0.0) & (Volume.load("qsm_rc2/labels").data == 0)).sum() == 0
+        assert outside.mean() < 0.2
+        tails = lambda field: np.subtract(*np.percentile(field.offsets((0.0, -35.0, 20.0), 30.0, shim="linear"), [97.5, 2.5]))
+        core = lambda field: np.subtract(*np.percentile(field.offsets((0.0, -35.0, 20.0), 30.0, shim="linear"), [84.0, 16.0]))
+        assert tails(measured) > 1.2 * tails(model) and core(measured) < 8.0
+
 
 #**************************************************************************************************#
 #                                       Class TestFieldGroups                                      #
@@ -229,6 +245,18 @@ class TestFieldGroups:
         x = (np.arange(40) - 19.5)[:, None, None] * np.ones(shape)
         return shape, affine, FieldMap.from_map((x * half_hz / 10.0).astype(np.float32), affine,
                                                 shim="mean")
+
+    def test_cells_without_signal_do_not_dephase(self):
+        # a box reaching into bone or air: with `weights` (what holds signal per cell) the cells with none
+        # neither broaden the distribution nor pull the shim; here the half of the ramp above zero is silenced
+        shape, affine, field = self.ramp(40.0)
+        x = (np.arange(40) - 19.5)[:, None, None] * np.ones(shape)
+        t = np.arange(512) / 4000.0
+        whole = field.kernel((0.0, 0.0, 0.0), 20.0, t)
+        field.weights = Volume((x < 0.0).astype(np.float32), affine)
+        assert field.offsets((0.0, 0.0, 0.0), 20.0).max() <= 0.0 + 1e-6
+        half = field.kernel((0.0, 0.0, 0.0), 20.0, t)
+        assert np.abs(half[100]) > np.abs(whole[100]) and abs(np.abs(half[0]) - 1.0) < 1e-6
 
     def test_groups_split_the_distribution_and_sum_to_its_kernel(self):
         _, _, field = self.ramp(40.0)
@@ -255,6 +283,31 @@ class TestFieldGroups:
         bowl = FieldMap.from_map((0.5 * x * x).astype(np.float32), field.affine, shim="linear")
         fresh, spoiled = bowl.offsets(there, 10.0), bowl.offsets(there, 10.0, shim_at_mm=here)
         assert np.std(spoiled) > 2.0 * np.std(fresh)  # a gradient of 3 Hz per mm is back
+
+    @pytest.mark.render
+    def test_the_water_alone_per_group_is_the_whole_sequence_per_group(self):
+        # under a CHESS train the water of the part of the voxel the field moves out of the 60 Hz band
+        # survives: VirtualScan(water_groups=8) plays the water alone per field group and gives the water
+        # component the field_groups=8 render gives, at the cost of the water alone; at the mean offset
+        # (one group) the train takes it all
+        from mrsandbox import Chess, NoDownfield, NoLipids, NoMM, Params, Unsuppressed
+
+        shape, affine, field = self.ramp(60.0)
+        ones = np.ones(shape, dtype=np.float32)
+        brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+
+        def water(**groups):
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Chess(3) + Press(te1_s=0.011, te2_s=0.019),
+                               params=quiet, field=field, water=Unsuppressed(), lipids=NoLipids(), mm=NoMM(),
+                               downfield=NoDownfield(), **groups)
+            voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
+            return voxel._component_fids(voxel.sample(seed=3), 512, 1.0 / 4000.0)["water"]
+
+        whole, alone, mean = water(field_groups=8), water(water_groups=8), water()
+        np.testing.assert_allclose(alone, whole, atol=1e-4 * np.abs(whole).max())
+        assert np.abs(mean).max() < 1e-3 * np.abs(alone).max()
 
     @pytest.mark.render
     def test_an_editing_pulse_misses_the_part_of_the_voxel_the_field_moves_away(self):

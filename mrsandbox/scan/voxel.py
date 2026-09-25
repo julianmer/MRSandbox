@@ -299,6 +299,19 @@ class Voxel:
         """
         return [part for parts in self._grouped(truth, metabolites).values() for part in parts]
 
+    def _water_parts(self, truth, engine, sequence, f0_mhz, faded):
+        """The water's line parts at the offset the voxel is being played at, or None."""
+        water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
+        if water is None:
+            return None
+        w_freqs, w_amps = water
+        # the water line moves with the temperature, fourteen times more than the metabolites
+        # (which take their systems at the same temperature, `_metabolite_lines`)
+        warm = self.resolve(truth.water.temperature_c) - 37.0
+        w_freqs = w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz)
+        return [(w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
+                 1.0 / (np.pi * self.resolve(truth.water.t2_s)), 0.0)]
+
     def _grouped(self, truth, metabolites=True):
         """The parts of `components` grouped by source, {name: [parts]} in the order
         metabolites, water, lipids, mm, downfield; silent sources are left out."""
@@ -321,16 +334,9 @@ class Voxel:
                 parts.append((freqs, amps * weight, 1.0 / (np.pi * self.resolve(truth.t2[name])),
                               0.0))
             groups["metabolites"] = parts
-        water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
+        water = self._water_parts(truth, engine, sequence, f0_mhz, faded)
         if water is not None:
-            water_t2 = self.resolve(truth.water.t2_s)
-            w_freqs, w_amps = water
-            # the water line moves with the temperature, fourteen times more than the metabolites
-            # (which take their systems at the same temperature, `_metabolite_lines`)
-            warm = self.resolve(truth.water.temperature_c) - 37.0
-            w_freqs = w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz)
-            groups["water"] = [(w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
-                                1.0 / (np.pi * water_t2), 0.0)]
+            groups["water"] = water
         lipid = self.scan.lipids.lines(engine, sequence, self, truth, f0_mhz)
         if lipid is not None:
             l_freqs, l_amps = lipid
@@ -570,6 +576,21 @@ class Voxel:
         elif self.scan.field_groups == 1:
             kernel = self._field_kernel(npoints, dwell_s, start_s)
             fids = {name: fid * kernel for name, fid in sources(basis).items()}
+            if "water" in fids and self.scan.water_groups > 1:
+                # the water alone at every field group's own offset under its own dephasing
+                # (VirtualScan water_groups): a suppression pulse misses the water where the
+                # field is off its band, which the voxel's mean cannot show
+                engine, sequence, faded = self.scan.engine, self.design(truth), self._diffusion_factor(truth)
+                water = np.zeros(npoints, dtype=np.complex64)
+                for mean_hz, weight, part_kernel in self.scan.field.groups(
+                        self.position_mm, self.size_mm, grid, self.scan.water_groups, shim_at_mm=self.shim_at_mm):
+                    self._field_offset_hz = mean_hz
+                    try:
+                        lorentzian, _ = self._flat_lines(self._water_parts(truth, engine, sequence, self._f0_mhz(), faded))
+                    finally:
+                        self._field_offset_hz = 0.0
+                    water = water + np.float32(weight) * self._render_lines(lorentzian, npoints, dwell_s, start_s) * envelope * part_kernel
+                fids["water"] = water
         else:
             # the field inside the pulses: every group of the voxel's field distribution
             # plays the sequence at its own mean offset and dephases by its own kernel

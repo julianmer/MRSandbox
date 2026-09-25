@@ -64,6 +64,12 @@ class VirtualScan:
             the FID alone; more put it into the pulses too, so an editing or a
             suppression pulse sits off its band in the part of the voxel where the
             field is off, at that many times the simulation per voxel.
+        water_groups: How many groups of the voxel's field distribution the WATER alone plays
+            the sequence at, each at its own offset with its own dephasing (the other sources
+            keep `field_groups`): a suppression pulse misses the water where the field is off
+            its band, which the voxel's mean offset cannot show. One (the default) plays the
+            water at the mean like everything else; the water is one spin, so more costs
+            little.
         transmit: A phantom.Volume of the relative transmit field B1+ (1.0 nominal);
             every voxel runs its pulses at the drawn b1_scale times its local value.
             None gives the nominal field everywhere.
@@ -98,7 +104,7 @@ class VirtualScan:
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
-                 ph=None, field_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0),
+                 ph=None, field_groups=1, water_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0),
                  records=()):
         self.brain = brain
         self.scanner = scanner
@@ -114,6 +120,7 @@ class VirtualScan:
         self.coils = coils
         self.field = field
         self.field_groups = int(field_groups)
+        self.water_groups = int(water_groups)
         self.noise_map = noise_map
         self.noise_reference_mm = tuple(float(x) for x in noise_reference_mm)
         self.transmit = transmit

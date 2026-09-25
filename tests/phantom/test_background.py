@@ -74,6 +74,26 @@ class TestWater:
         ratio = height_at(suppressed, INTERIOR, 4.65) / height_at(unsuppressed, INTERIOR, 4.65)
         assert abs(ratio - truth.water.residual_fraction) < 0.3 * truth.water.residual_fraction
 
+    #*********************#
+    #   per-tissue T1     #
+    #*********************#
+    def test_each_tissue_recovers_with_its_own_t1(self, brain):
+        # equal per-tissue values render as the one value does; a slow CSF beside fast tissues leaves MORE water
+        # at a short TR than the mean T1 says (recovery is convex in T1), which one adjustment cannot null with the rest
+        from mrsandbox.params import PerTissue
+
+        def water(t1):
+            quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0), water=dict(t1_s=t1))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019, tr_s=1.0),
+                               params=quiet, water=Unsuppressed())
+            return height_at(scan, INTERIOR, 4.65)
+
+        assert water(PerTissue(gm=1.2, wm=1.2, csf=1.2)) == pytest.approx(water(1.2), rel=1e-5)
+        fractions = make_scan(brain).voxel(position_mm=INTERIOR, size_mm=20.0).fractions
+        mean = (fractions.gm * 1.0 + fractions.wm * 1.0 + fractions.csf * 4.0) / (fractions.gm + fractions.wm + fractions.csf)
+        if fractions.csf > 0.02:
+            assert water(PerTissue(gm=1.0, wm=1.0, csf=4.0)) > 1.01 * water(mean)
+
     #*************#
     #   silence   #
     #*************#

@@ -241,6 +241,20 @@ class TestMeasured:
         _, s0 = without.voxel(**kw).spectrum(seed=seed, npoints=npoints)
         return np.asarray(ppm), np.real(np.asarray(s1) - np.asarray(s0))
 
+    def test_the_echo_time_is_read_after_a_train(self):
+        # a suppression train before the design leaves the design's echo time readable: composition carries the
+        # timings, and an own design counts only the delays after the last crusher that keeps Mz alone (the train's
+        # gaps are longitudinal). Read as the whole sequence's delays, VAPOR's 0.76 s took the measured shape out.
+        from mrsandbox import CoherenceFilter, Delay, Pulse, SelectivePulse, Sequence, Vapor
+        from mrsandbox.phantom.macromolecules import _echo_time_s
+
+        press = Press(te1_s=0.011, te2_s=0.024)
+        assert _echo_time_s(Vapor() + press) == pytest.approx(0.035)
+        assert _echo_time_s(Vapor("4t", 80.0) + press) == pytest.approx(0.035)
+        own = Sequence(SelectivePulse(90.0, 4.65, 60.0), CoherenceFilter(0), Delay(0.1), Pulse(90.0), Delay(0.015),
+                       Pulse(180.0), Delay(0.015))
+        assert _echo_time_s(own) == pytest.approx(0.03)
+
     def test_te_decay_follows_the_typed_t2(self):
         from mrsandbox.database.macromolecules import CONSENSUS_T2
 
@@ -359,6 +373,18 @@ class TestCoupled:
     #***********************#
     #   creatine anchoring  #
     #***********************#
+    def test_a_kappa_of_zero_is_silence(self):
+        # the console's "macromolecules off" sets kappa to 0: the source falls silent like the others (None, not
+        # empty line lists), and the render is the one without macromolecules exactly
+        brain = Brain.load("icbm152")
+        tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), mm=dict(kappa=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        _, s1 = VirtualScan(brain, *pieces, params=tree).voxel(**kw).spectrum(seed=7, npoints=1024)
+        _, s0 = VirtualScan(brain, *pieces, params=tree, mm=NoMM()).voxel(**kw).spectrum(seed=7, npoints=1024)
+        np.testing.assert_array_equal(np.asarray(s1), np.asarray(s0))
+
     def test_background_scales_with_the_drawn_creatine(self):
         ppm, low = self.background(Press(te1_s=0.015, te2_s=0.015), conc=dict(Cr=4.0, PCr=2.0))
         _, high = self.background(Press(te1_s=0.015, te2_s=0.015), conc=dict(Cr=8.0, PCr=4.0))

@@ -59,6 +59,60 @@ class TestSession:
         session.place("tra", 60.0, 60.0)                                   # a click is on the slice on view
         assert session.position_mm[2] == session.view_mm[2] and session.planes()["tra"][2]
 
+    def test_the_background_is_the_measured_shape_and_coupled_systems_on_edited_cards(self):
+        from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
+
+        session = Session(ICBM)
+        assert isinstance(session.fields()["mm"], MeasuredMM)
+        for own in ("MEGA-PRESS", "Custom"):                      # co-editing; a design's own cycle and weights
+            session.protocol.sequence = own
+            assert isinstance(session.fields()["mm"], CoupledMM)
+        session.idealize("macromolecules", True)                     # off silences both sources
+        assert session.overrides["mm.level_mm"] == 0.0 and session.overrides["mm.kappa"] == 0.0
+
+    def test_the_snr_reads_its_noise_inside_the_band_and_from_a_kept_transient(self):
+        # at 2 kHz the band ends at -3.5 ppm: the noise comes from 9 to 12 ppm, beyond the amides and away from the
+        # lipids' wings (read at the edge it came out three times low against the raw runs, item 215); and the single
+        # transient's SNR at the processed level is one the processing kept, not a rejected, zeroed one
+        from mrsandbox.console.session import COMBINE, PROCESS
+
+        session = Session(ICBM)
+        session.protocol.water_reference, session.protocol.water_suppression = 0, "assumed residual"
+        session.protocol.averages, session.protocol.npoints, session.protocol.bandwidth_hz, session.protocol.real = 8, 1024, 2000.0, False
+        exam = session.run(session.plan(), seed=5)
+        session.processing = COMBINE                 # as acquired: no phase, no alignment, so the reading is reproducible
+        session.display(exam)
+        ppm = exam.ppm
+        real = np.fft.fftshift(np.fft.fft(np.asarray(exam.data[:])[0, 0, 0].mean(axis=1), 2 * 1024)).real   # no apodization
+        quiet, upfield = (ppm > 9.0) & (ppm < 12.0), (ppm > 0.2) & (ppm < 4.2)
+        floor = real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])
+        assert exam.snr[0] == pytest.approx(real[upfield].max() / floor.std(), rel=1e-6)
+        session.processing = PROCESS
+        session.display(exam)
+        assert np.isfinite(exam.snr[1]) and exam.snr[1] > 0.0
+
+    def test_the_prescan_adjusts_the_water_suppression_to_the_subject(self):
+        # the scanner's water suppression adjustment: the train's flips scaled to leave the least water at the
+        # excitation over the voxel's tissues, field groups and transmit scale; the room plays the adjusted train
+        session = Session(ICBM)
+        session.protocol.water_reference, session.protocol.water_suppression = 0, "CHESS, Siemens svs_se"
+        session.protocol.averages, session.protocol.npoints, session.protocol.real = 4, 1024, False
+        session.scanner = "siemens_trio_3t"
+        exam = session.run(session.plan(), seed=3)
+        assert 0.7 < exam.adjustment < 1.3 and exam.adjustment != 1.0
+        assert exam.sequence.events[0].flip_deg == pytest.approx(90.0 * exam.adjustment)
+        # and it leaves what the Trio's record says it leaves, read the record's own way (HLSVD water of the mean FID
+        # at t = 0 over the dry maximum): 0.7 to 1.1 on Big GABA's Trio runs (scan.calibrations, item 217)
+        from fsl_mrs.utils.preproc.remove import hlsvd
+
+        mean = np.asarray(exam.data[:])[0, 0, 0].mean(axis=1).astype(np.complex128)
+        dry = hlsvd(mean, 1.0 / session.protocol.bandwidth_hz, float(exam.data.hdr_ext["SpectrometerFrequency"][0]) * 1e6,
+                    (-0.25, 0.25), limitUnits="ppm")
+        assert 0.3 < abs(mean[0] - dry[0]) / np.abs(dry).max() < 3.0
+        assert abs(np.angle((mean[0] - dry[0]) / dry[0])) > np.pi / 2       # inverted, as the record's sign says of the Trio
+        session.prescan = False
+        assert session.run(session.plan(), seed=3).adjustment == 1.0
+
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
@@ -378,7 +432,7 @@ class TestSession:
         assert set(exam.spectra) == {"on", "off", "difference", "sum"} and exam.data.shape[-1] == 8
         difference, near = exam.spectra["difference"], lambda lo, hi: (exam.ppm > lo) & (exam.ppm < hi)
         assert difference[near(1.9, 2.1)].min() < 0.0 < difference[near(2.9, 3.1)].max()   # NAA goes with the ON pulse, GABA stays
-        assert len(exam.tracks["frequency_hz"]) == 8 and 0.5 < exam.truth["GABA"] < 3.0
+        assert len(exam.tracks["frequency_hz"]) == len(exam.echoes) == 8 and 0.5 < exam.truth["GABA"] < 3.0
         # the library keeps a card with its design and settings; Pulseq takes a design it can play
         monkeypatch.setattr(Session, "LIBRARY", tmp_path / "protocols")
         session.protocol.sequence, session.overrides["conc.NAA"] = "Custom", 15.0

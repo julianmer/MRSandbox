@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Chess, Engine, Press, PulseAcquire, SpinSystem, Vapor, Wet
+from mrsandbox import Chess, Cows, Engine, Press, PulseAcquire, SiemensChess, SpinSystem, Vapor, Wet
 from mrsandbox.database import suppression
 from mrsandbox.phantom.water import WaterSource
 
@@ -120,6 +120,23 @@ class TestNamedSchemes:
             residual = total_amplitude(engine, Wet() + PulseAcquire(), water)
             assert residual < 0.005 * full
 
+    #*********************#
+    #   siemens product   #
+    #*********************#
+    def test_siemens_train_nulls_water_across_t1_until_its_adjustment_is_off(self, engine):
+        # the header's ratios and band; the overtipping third pulse crosses zero at the excitation whatever
+        # the T1, and a scale the adjustment did not take out (10 percent low) leaves water
+        train = SiemensChess()
+        assert train.flips_deg == tuple(90.0 * r for r in suppression.SIEMENS_SVS_SE["amplitude_ratios"])
+        assert train.bandwidth_hz == 50.0 and train.delays_s == (0.030,) * 3
+        assert train.scaled(0.9).flips_deg == pytest.approx(tuple(0.9 * f for f in train.flips_deg))
+        assert train.scaled(0.9).delays_s == train.delays_s
+        for t1 in (0.9, 1.3, 4.0):
+            water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
+            full = total_amplitude(engine, PulseAcquire(), water)
+            assert total_amplitude(engine, train + PulseAcquire(), water) < 0.005 * full
+            assert total_amplitude(engine, train.scaled(0.9) + PulseAcquire(), water) > 0.01 * full
+
     #***************************#
     #   vapor b1 insensitive    #
     #***************************#
@@ -142,3 +159,37 @@ class TestNamedSchemes:
             plain = total_amplitude(engine, PulseAcquire(), system)
             suppressed = total_amplitude(engine, Vapor() + PulseAcquire(), system)
             assert abs(suppressed - plain) < 1e-3 * plain
+
+    #*********************************#
+    #   cows tables and the headers   #
+    #*********************************#
+    def test_cows_series_match_the_tables_and_the_dataset_headers(self):
+        # Table 1 of Igwe et al. 2025: each scheme's delays sum to the duration in its name, and the flips are what
+        # the dataset's headers played (OpenNeuro ds006812, sub-01, the amplitudes of ss_rf_ws1 to ss_rf_ws12 in
+        # volts, 11.7936 V the 90 degree pulse; the study calibrated no flip per voxel)
+        volts = {"VAPOR7": (11.7936, 11.7936, 20.9926, 11.7936, 20.9926, 11.7936, 20.9926),
+                 "COWS(7;236)": (9.8712, 11.2865, 11.3219, 9.4939, 10.7912, 15.2845, 21.0516),
+                 "COWS(12;626)": (9.9279, 0.4411, 14.4873, 18.4853, 23.5872, 2.6288, 11.7464, 9.9951, 15.3506,
+                                  10.4326, 16.7375, 21.9656)}
+        for scheme, duration_s in (("COWS(7;236)", 0.236), ("COWS(12;626)", 0.626), ("VAPOR7", 0.626)):
+            train = Cows(scheme)
+            assert train.flips_deg == suppression.COWS[scheme]["flips_deg"]
+            assert sum(train.delays_s) == pytest.approx(duration_s, abs=0.0005)
+            assert train.bandwidth_hz == 68.0
+            assert train.flips_deg == pytest.approx(tuple(90.0 * v / 11.7936 for v in volts[scheme]), abs=0.1)
+
+    #**********************************#
+    #   cows nulls across t1 and b1    #
+    #**********************************#
+    def test_cows_nulls_water_across_t1_and_b1_in_the_steady_state(self, engine):
+        # the paper's design range, T1 0.5 to 5 s and a B1 factor 0.75 to 1.25, in the spoiled steady state of its
+        # TR 2 s (COWS assumes no equilibrium): both COWS schemes leave under 0.3 percent of the unsuppressed water at
+        # the excitation everywhere in it (ideal 68 Hz boxes on resonance), VAPOR7 under 0.7 within 10 percent of B1
+        for t1 in (0.5, 1.3, 4.5):
+            water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
+            full = total_amplitude(engine, PulseAcquire(tr_s=2.0), water)
+            for scheme, b1s, bound in (("COWS(7;236)", (0.75, 1.0, 1.25), 0.003), ("COWS(12;626)", (0.75, 1.0, 1.25), 0.003),
+                                       ("VAPOR7", (0.9, 1.0, 1.1), 0.007)):
+                for b1 in b1s:
+                    assert total_amplitude(engine, Cows(scheme).scaled(b1) + PulseAcquire(tr_s=2.0), water) < bound * full
+

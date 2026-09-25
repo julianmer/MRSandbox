@@ -55,6 +55,8 @@ class Calibration:
             "subject" for one of the tissue, which no scanner or sequence changes.
         presets: The hardware.Scanner presets the record serves; none makes it the
             fallback of its leaf or a check.
+        fallback: Whether the record may serve scanners it does not name (the first
+            such record of a leaf does); False keeps a vendor's own number to its presets.
         note: What the record is good for and what it is not.
     """
 
@@ -72,6 +74,7 @@ class Calibration:
     date: str
     carried_by: str = "scanner"
     presets: tuple = ()
+    fallback: bool = True
     note: str = ""
 
     #****************#
@@ -524,9 +527,135 @@ MM_MEASURED_LEVEL_3T = Calibration(
 # the calibrations in use. A record serves the scanner presets it names; the first record
 # of a leaf is the fallback for every other scanner, and a scan's header
 # says where it departs from the record it got (`Calibration.departures`)
+#**********************************#
+#   residual water, 3 tesla        #
+#**********************************#
+# What the product's water suppression and its adjustment leave of the water, read against
+# the same voxel's water reference (info/analysis/residual_water.py, 24/09/26): the HLSVD
+# water model of the suppressed run's mean FID at t = 0 (hlsvdpropy on the first 1024 points,
+# components within 0.4 ppm of the carrier) over |mean FID| at t = 0 of the reference, both
+# coil-combined by the noise-whitened SVD of their own file (the same voxel and coils, so the
+# weights differ by a few percent, stated). The console's prescan lands the water on this
+# residual instead of on zero (console.session Session.adjust): a fraction of the full
+# water's steady state at the excitation, its sign free. Scanners without a record fall back
+# to the Siemens one (the smaller residual).
+# The sign is the residual's phase against the metabolites once the receiver delay below is
+# taken out (info/analysis/water_phase.py): on the Trio 161 degrees at the median, inverted in
+# 12 of 12 runs (the third pulse overtips past the null); on GE 51 degrees, upright in 66 of 68.
+RESIDUAL_WATER_BIG_GABA_SIEMENS_3T = Calibration(
+    leaf="water.adjusted_residual",
+    value=-0.0088,
+    prior=(-0.0111, -0.0069),
+    measured={"statistic": "residual water at t = 0 over the water reference's, median over subjects, "
+                           "signed by its phase against the metabolites",
+              "median": 0.0088, "percentiles_10_90": (0.0069, 0.0111), "subjects": 12,
+              "phase_deg_10_50_90": (-116, 161, 178), "inverted": "12 of 12",
+              "over_dry_maximum": "about 1 (the residual stands at NAA height at TE 35)"},
+    source={"dataset": "Big GABA, PRESS arm, site S1 (the site with H2O references)",
+            "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+            "url": "https://www.nitrc.org/projects/biggaba/"},
+    scanner=NOISE_BIG_GABA_SIEMENS_3T.scanner,
+    coil=NOISE_BIG_GABA_SIEMENS_3T.coil,
+    sequence={"name": "PRESS", "product": "svs_se", "te_s": 0.035, "tr_s": 2.0,
+              "water_suppression": "three pulses of 50 Hz, amplitudes 1 : 0.935 : 1.803, adjusted "
+                                   "(database.suppression SIEMENS_SVS_SE)",
+              "simulated_as": "SiemensChess() + Press(te1_s=0.011, te2_s=0.024, tr_s=2.0)"},
+    acquisition={"npoints": 2048, "bandwidth_hz": 2000.0, "transients": 64, "measured_on": 64,
+                 "water_suppressed": True},
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="TWIX through mapVBVD, the oversampling removed, noise-whitened SVD coil combination "
+               "per file, HLSVD water of the mean suppressed FID over the mean reference FID at t = 0",
+    date="24/09/26",
+    presets=("siemens_trio_3t",),
+    note="the prior is the subjects' 10th to 90th percentile",
+)
+
+RESIDUAL_WATER_BIG_GABA_GE_3T = Calibration(
+    leaf="water.adjusted_residual",
+    value=0.029,
+    prior=(0.0185, 0.0416),
+    measured={"statistic": RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.measured["statistic"],
+              "median": 0.0289, "percentiles_10_90": (0.0185, 0.0416), "subjects": 68,
+              "phase_deg_10_50_90": (29, 51, 73), "inverted": "2 of 68",
+              "over_dry_maximum": "2 to 5 (GE suppresses least of the three vendors)"},
+    source={"dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8",
+            "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+            "url": "https://www.nitrc.org/projects/biggaba/"},
+    scanner=NOISE_BIG_GABA_GE_3T.scanner,
+    coil=NOISE_BIG_GABA_GE_3T.coil,
+    sequence={"name": "PRESS", "product": "jpress", "te_s": 0.035, "tr_s": 2.0,
+              "water_suppression": "the product's CHESS, not read from the files",
+              "simulated_as": "Chess(3) + Press(te1_s=0.011, te2_s=0.024, tr_s=2.0)"},
+    acquisition={"npoints": 4096, "bandwidth_hz": 5000.0, "transients": "32, or 8 blocks of averages at "
+                 "sites G4 and G5", "measured_on": "all", "water_suppressed": True},
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="P-files through spec2nii, noise-whitened SVD coil combination per file, HLSVD water of "
+               "the mean suppressed FID over the mean reference FID at t = 0",
+    date="24/09/26",
+    presets=("ge_mr750_3t", "ge_mr750_32ch_3t"),
+    note="the prior is the subjects' 10th to 90th percentile",
+)
+
+#**********************************#
+#   receiver delay, 3 tesla        #
+#**********************************#
+# The first-order phase of the product's spectra: the phase of creatine against NAA in the
+# suppressed run's mean FID (each complex peak at its maximum, NAA phased to zero), over their
+# 126 Hz, as a delay of the samples against the echo top (info/analysis/water_phase.py,
+# 24/09/26): negative, the first sample before the top. It phases every line by its distance
+# from the carrier, the residual water most (a third of a turn on the Trio), which is what
+# makes it look dispersive. Read on creatine alone: choline sits on creatine's shoulder and
+# the broad signal beneath. A vendor's number stays with its presets (no fallback): a scanner
+# without a record samples on the echo top. The package advances a line's amplitude by the
+# delay as if it decayed past the top; before the top the echo is still forming, a difference
+# of exp(pi lw |delay|), under one percent here, stated.
+RECEIVER_DELAY_BIG_GABA_SIEMENS_3T = Calibration(
+    leaf="acquisition.delay_s",
+    value=-0.000465,
+    prior=(-0.000574, -0.000319),
+    measured={"statistic": "phase of creatine against NAA over their frequency difference, as seconds",
+              "median_us": -465.0, "percentiles_10_90_us": (-574.0, -319.0), "subjects": 12,
+              "creatine_phase_deg_median": -20.0, "choline_phase_deg_median": -34.0},
+    source=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.source,
+    scanner=NOISE_BIG_GABA_SIEMENS_3T.scanner,
+    coil=NOISE_BIG_GABA_SIEMENS_3T.coil,
+    sequence=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.sequence,
+    acquisition=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.acquisition,
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="TWIX through mapVBVD, the oversampling removed, noise-whitened SVD coil combination, "
+               "the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+    date="24/09/26",
+    presets=("siemens_trio_3t",),
+    fallback=False,
+    note="the prior is the subjects' 10th to 90th percentile",
+)
+
+RECEIVER_DELAY_BIG_GABA_GE_3T = Calibration(
+    leaf="acquisition.delay_s",
+    value=-0.000241,
+    prior=(-0.000513, 0.0),
+    measured={"statistic": RECEIVER_DELAY_BIG_GABA_SIEMENS_3T.measured["statistic"],
+              "median_us": -241.0, "percentiles_10_90_us": (-513.0, 4.0), "subjects": 68,
+              "creatine_phase_deg_median": -11.0, "choline_phase_deg_median": -15.0},
+    source=RESIDUAL_WATER_BIG_GABA_GE_3T.source,
+    scanner=NOISE_BIG_GABA_GE_3T.scanner,
+    coil=NOISE_BIG_GABA_GE_3T.coil,
+    sequence=RESIDUAL_WATER_BIG_GABA_GE_3T.sequence,
+    acquisition=RESIDUAL_WATER_BIG_GABA_GE_3T.acquisition,
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="P-files through spec2nii, noise-whitened SVD coil combination, the mean FID's spectrum "
+               "fourfold zero filled, phases at the peaks' maxima",
+    date="24/09/26",
+    presets=("ge_mr750_3t", "ge_mr750_32ch_3t"),
+    fallback=False,
+    note="the prior is the subjects' 10th to 90th percentile; the top end is no delay",
+)
+
 CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
                 NOISE_BIG_GABA_GE_3T, NOISE_DS006444_GE_32CH_3T, NOISE_NEUROMET_7T,
-                CREATINE_THREE_DATASETS_3T)
+                CREATINE_THREE_DATASETS_3T, RESIDUAL_WATER_BIG_GABA_SIEMENS_3T,
+                RESIDUAL_WATER_BIG_GABA_GE_3T, RECEIVER_DELAY_BIG_GABA_SIEMENS_3T,
+                RECEIVER_DELAY_BIG_GABA_GE_3T)
 
 
 def calibrations(scanner=None, records=()):
@@ -536,7 +665,8 @@ def calibrations(scanner=None, records=()):
     name = getattr(scanner, "name", scanner)
     chosen = {}
     for record in CALIBRATIONS:
-        chosen.setdefault(record.leaf, record)
+        if record.fallback:
+            chosen.setdefault(record.leaf, record)
     for record in CALIBRATIONS:
         if name in record.presets:
             chosen[record.leaf] = record

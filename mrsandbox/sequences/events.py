@@ -1043,9 +1043,17 @@ class Sequence:
     #*******************#
     #   composition     #
     #*******************#
+    TIMINGS = ("te_s", "te1_s", "te2_s", "taus_s", "tm_s")
+
     def __add__(self, other):
         """Concatenate two sequences, e.g. Chess(3) + Press(te1, te2); the right
-        operand's TR (the localization's) carries, else the left one's."""
+        operand's TR and echo timings (the localization's) carry, else the left one's,
+        so a train before a design leaves the design's echo time readable."""
         tr_s = other.tr_s if other.tr_s is not None else self.tr_s
         cycles = other.cycles if other.tr_s is not None else self.cycles
-        return Sequence(*self.events, *other.events, tr_s=tr_s, cycles=cycles)
+        joined = Sequence(*self.events, *other.events, tr_s=tr_s, cycles=cycles)
+        timed = other if any(hasattr(other, name) for name in self.TIMINGS) else self
+        for name in self.TIMINGS:
+            if hasattr(timed, name):
+                setattr(joined, name, getattr(timed, name))
+        return joined
