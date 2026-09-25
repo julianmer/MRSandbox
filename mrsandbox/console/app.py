@@ -1379,13 +1379,19 @@ async def console(client: Client):
     def calibration():
         """What the scanner is calibrated by: the records in force with their sources, and, where
         the package has records of the same hardware read under another coil, the choice of them."""
+        held = {}
+
+        async def reference(event):
+            held["reference"] = await keep(event)
+            said.text = f"water reference kept: {pathlib.Path(held['reference']).name}; now your scan"
+
         async def read(event):
             if not named.value:
                 said.text = "Give the calibration a name first"
                 return
             busy.set_visibility(True)
             try:
-                path = await run.io_bound(session.calibrate, await keep(event), named.value)
+                path = await run.io_bound(session.calibrate, await keep(event), named.value, None, held.get("reference"))
             except Exception as error:
                 said.text = f"Not read: {error}"[:260]
                 return
@@ -1422,10 +1428,13 @@ async def console(client: Client):
             ui.label("Calibrate this scanner from a scan of your own").classes("label").style("margin-top: 8px")
             ui.label("First set the card, the voxel and the room as your scan was acquired: they are its virtual twin. Then give raw "
                      "NIfTI-MRS with the transients apart (spec2nii writes it). The noise level and the line broadening are read from "
-                     "it and kept as this scanner's calibration, on this machine only.").classes("label").style(
+                     "it and kept as this scanner's calibration, on this machine only. With the same voxel's water reference given "
+                     "first, the residual water the suppression leaves and the receiver's delay are read too.").classes("label").style(
                 "text-transform: none; letter-spacing: 0; white-space: normal")
             with ui.row().classes("w-full items-center no-wrap"):
                 named = ui.input("name of the calibration").props("dense outlined dark").style("width: 240px")
+                ui.upload(label="its water reference, .nii.gz (first, optional)", auto_upload=True, on_upload=lambda e: reference(e)).props(
+                    "flat dense dark accept=.nii,.gz").style("width: 260px")
                 ui.upload(label="your scan, .nii.gz", auto_upload=True, on_upload=lambda e: read(e)).props(
                     "flat dense dark accept=.nii,.gz").style("width: 260px")
                 busy = ui.spinner(size="28px", color=SAND)

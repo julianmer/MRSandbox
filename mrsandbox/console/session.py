@@ -985,14 +985,15 @@ class Session:
             return profile
         return dataclasses.replace(profile, scanner=dataclasses.replace(profile.scanner, b0_t=float(self.field_t)))
 
-    def calibrate(self, source, name, folder=None):
+    def calibrate(self, source, name, folder=None, reference=None):
         """Calibrate the scanner on the floor from one raw acquisition of the operator's own
         (scan.profile ScannerProfile.read): `source` is NIfTI-MRS with the transients apart (with
         the coils apart too and an array chosen in the room, the array's own noise share is read as
         well), and the card, the voxel, and the room as they stand
         are its virtual twin, so set them as the scan was acquired first. The noise and the line
         broadening become records of a profile saved under `name` in ~/MRSandbox/profiles, which
-        stays on this machine and is then this scanner's calibration; returns its path."""
+        stays on this machine and is then this scanner's calibration; returns its path. With `reference`, the
+        same voxel's water reference file, the residual water and the receiver delay are read as well."""
         twin = self.profile().scan(self.body(), self.sequence(), params=self.params(), **self.fields()).voxel(
             tuple(self.position_mm), tuple(self.size_mm), compiled=True)
         folder = pathlib.Path(folder) if folder is not None else pathlib.Path.home() / "MRSandbox" / "profiles"
@@ -1003,7 +1004,8 @@ class Session:
         # channels' noise that is their own is read too, and the profile carries the array so loaded
         tags = json.loads(nib.load(str(source)).header.extensions[0].get_content())
         array = self.array() if "DIM_COIL" in (tags.get("dim_5"), tags.get("dim_6"), tags.get("dim_7")) else None
-        ScannerProfile.read(str(source), twin, dataset=name, array=array).save(folder / f"{name}.json")
+        ScannerProfile.read(str(source), twin, dataset=name, array=array,
+                            reference=None if reference is None else str(reference)).save(folder / f"{name}.json")
         self.calibration = str(folder / f"{name}.json")
         return folder / f"{name}.json"
 

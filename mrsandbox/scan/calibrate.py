@@ -38,7 +38,7 @@ LINES = {"NAA": (NAA_PPM, 0.05), "water": (WATER_PPM, 0.4)}
 #**************#
 #   combine    #
 #**************#
-def _combined(data, noise=None):
+def _combined(data, noise=None, like=None):
     """(npoints, coils, transients) raw FIDs to (npoints, transients): the channels
     whitened by the noise of the FIDs' last eighth, or of `noise`, (samples, coils)
     measured with the RF off, where the FIDs still ring at their end (a phantom's
@@ -46,16 +46,65 @@ def _combined(data, noise=None):
     transient's start. The combined noise has unit variance per complex point. A receiver
     phase cycle left in the stored transients (GE P-files alternate by a half turn) is
     undone first, in quarter turns against the first transient, or the mean would cancel;
-    phase jitter stays as it is."""
+    phase jitter stays as it is. `like`, another file of the same voxel and coils, lends
+    its whitening and weights: a water reference of a few transients cannot carry its own."""
     x = np.asarray(data)
     n, coils, _ = x.shape
-    quiet = x[-n // 8:].reshape(-1, coils) if noise is None else np.asarray(noise)
+    source = x if like is None else np.asarray(like)
+    quiet = source[-n // 8:].reshape(-1, coils) if noise is None else np.asarray(noise)
     covariance = np.atleast_2d(np.cov(quiet.T))
-    white = np.einsum("ck,nks->ncs", np.linalg.inv(np.linalg.cholesky(covariance)), x)
-    turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(white[:64, :, 0]), white[:64])) / (np.pi / 2))
-    white = white * np.exp(-0.5j * np.pi * turns)
-    weights = np.conj(np.linalg.svd(white.mean(axis=2)[:64], full_matrices=False)[2][0])
+    whitening = np.linalg.inv(np.linalg.cholesky(covariance))
+
+    def whitened(raw):
+        w = np.einsum("ck,nks->ncs", whitening, raw)
+        turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(w[:64, :, 0]), w[:64])) / (np.pi / 2))
+        return w * np.exp(-0.5j * np.pi * turns)
+
+    white = whitened(x)
+    lender = white if like is None else whitened(source)
+    weights = np.conj(np.linalg.svd(lender.mean(axis=2)[:64], full_matrices=False)[2][0])
     return np.einsum("c,ncs->ns", weights, white)
+
+
+def _lines(fid, dwell_s, f0_mhz, carrier_ppm):
+    """The complex values of the NAA, creatine and water peaks of a FID whose carrier sits
+    at `carrier_ppm`, each the mean over the bins within 1.5 Hz of its maximum on a
+    sixteenfold zero-filled spectrum (one bin's value swings by degrees with where the
+    bins fall on the line, which is a hundred microseconds of delay), and their
+    places in hertz the ppm way round: {name: (value, hertz)}. The axis is the one of
+    the two that holds NAA; a FID whose axis runs the other way (a file stored as the
+    conjugate of the engine's convention) has its values conjugated, so every phase
+    reads in the engine's convention, a twin's included."""
+    n = fid.shape[0]
+    spectrum = np.fft.fftshift(np.fft.fft(np.asarray(fid), 16 * n))
+    hz = np.fft.fftshift(np.fft.fftfreq(16 * n, dwell_s))
+    sign = max((1.0, -1.0), key=lambda s: np.abs(spectrum[np.abs(carrier_ppm + s * hz / f0_mhz - NAA_PPM) < 0.15]).max())
+    ppm = carrier_ppm + sign * hz / f0_mhz
+    found = {}
+    for name, at in (("NAA", NAA_PPM), ("Cr", 3.03), ("water", WATER_PPM)):
+        inside = np.flatnonzero(np.abs(ppm - at) < 0.08)
+        k = inside[np.abs(spectrum[inside]).argmax()]
+        near = np.abs(ppm - ppm[k]) * f0_mhz < 1.5
+        value = complex(spectrum[near].mean())
+        found[name] = (value if sign > 0 else np.conj(value), float(ppm[k] * f0_mhz))
+    return found
+
+
+def _exponentials(fid, dwell_s, order=20):
+    """The complex exponentials in a FID's start, the state space way of HLSVD (Kung's
+    Hankel SVD): (frequencies in Hz, dampings in 1/s, complex amplitudes at t = 0) of
+    `order` components fitted to the first half of `fid` in a Hankel matrix; what the
+    residual water records were read with (info/HANDOFF.md item 217), in the package."""
+    x = np.asarray(fid, dtype=np.complex128)
+    n = x.size
+    m = n // 2
+    hankel = np.lib.stride_tricks.sliding_window_view(x, n - m + 1)[:m]
+    u = np.linalg.svd(hankel, full_matrices=False)[0][:, :order]
+    poles = np.linalg.eigvals(np.linalg.pinv(u[:-1]) @ u[1:])
+    poles = poles[np.abs(poles) > 0.0]
+    basis = np.exp(np.outer(np.arange(n), np.log(poles)))
+    amplitudes = np.linalg.lstsq(basis, x, rcond=None)[0]
+    return (np.angle(poles) / (2.0 * np.pi * dwell_s), np.log(np.abs(poles)) / dwell_s, amplitudes)
 
 
 def _raw(source):
@@ -658,3 +707,181 @@ class CovarianceReading:
             date=datetime.date.today().strftime("%d/%m/%y"),
             note="the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
         )
+
+
+#**************************************************************************************************#
+#                                        Class WaterReading                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# The residual water and the receiver delay of one suppressed acquisition against its reference.   #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class WaterReading:
+    """What one suppressed acquisition and its water reference say of the scanner's
+    water suppression and receiver, read the way the package's records were
+    (info/HANDOFF.md items 217 and 219): the residual water as the exponentials within
+    0.4 ppm of the carrier in the mean suppressed FID at t = 0 (`_exponentials`) over the
+    reference's mean FID at t = 0, both combined with the suppressed file's own weights;
+    the receiver delay as the phase of creatine against NAA over their distance, a
+    first-order phase, read on creatine alone, BEYOND the phase the sequence itself
+    gives creatine's peak (the coupled neighbours under 3.03 ppm evolve over the echo:
+    a PRESS at TE 35 ms bends the peak by ten degrees with no delay at all; the twin
+    says how much, `intrinsic_phase_deg`); and the residual's phase beyond the line
+    through NAA and creatine, whose side (past a quarter turn: inverted) signs it.
+
+    Attributes:
+        residual_over_full: The residual water at t = 0 over the reference's, positive.
+        residual_over_dry_max: The same over the maximum of the FID without its water.
+        water_phase_deg: The residual's phase against the metabolites, the line taken out.
+        creatine_phase_deg: Creatine's phase against NAA as measured.
+        creatine_offset_hz: Creatine's distance from NAA, the ppm way round, in hertz.
+        dry_amplitude: The FID without its water at t = 0, in the data's units, the twin's scale.
+        reference_fid: The reference's mean combined FID, the residual's own line shape.
+    """
+
+    residual_over_full: float
+    residual_over_dry_max: float
+    water_phase_deg: float
+    creatine_phase_deg: float
+    creatine_offset_hz: float
+    dry_amplitude: float
+    reference_fid: np.ndarray
+    transients: int
+    reference_transients: int
+    npoints: int
+    coils: int
+    dwell_s: float
+    f0_mhz: float
+    header: dict
+
+    #*******************#
+    #   from arrays     #
+    #*******************#
+    @classmethod
+    def from_arrays(cls, data, reference, dwell_s, f0_mhz, header=None):
+        """`data` and `reference` (npoints, coils, transients) of the same voxel, the
+        suppressed run and its unsuppressed reference, in the standard's frame (the
+        carrier at 4.65 ppm)."""
+        suppressed = _combined(data).mean(axis=1)
+        full = float(np.abs(_combined(reference, like=data).mean(axis=1)[0]))
+        # the residual water: the decaying exponentials within 0.4 ppm of the carrier, at t = 0
+        m = min(1024, suppressed.size)
+        freqs, damping, amplitudes = _exponentials(suppressed[:m], dwell_s)
+        water = (np.abs(freqs) < 0.4 * f0_mhz) & (damping < 0.0)          # within 0.4 ppm of the carrier, as the records
+        residual = complex(amplitudes[water].sum())
+        t = np.arange(suppressed.size) * dwell_s
+        dry = suppressed - sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t)
+                               for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
+        # the first-order phase: the complex peaks of the mean spectrum, NAA phased to zero
+        lines = _lines(suppressed, dwell_s, f0_mhz, WATER_PPM)
+        (naa, f_naa), (creatine, f_cr), (residual_line, f_water) = lines["NAA"], lines["Cr"], lines["water"]
+        phase_cr = float(np.angle(creatine / naa))
+        slope = phase_cr / (f_cr - f_naa)                       # radians per hertz on creatine alone
+        beyond = float(np.degrees(np.angle(np.exp(1j * (np.angle(residual_line / naa) - slope * (f_water - f_naa))))))
+        return cls(residual_over_full=abs(residual) / full, residual_over_dry_max=abs(residual) / float(np.abs(dry).max()),
+                   water_phase_deg=beyond, creatine_phase_deg=float(np.degrees(phase_cr)), creatine_offset_hz=float(f_cr - f_naa),
+                   dry_amplitude=float(np.abs(dry[0])), reference_fid=_combined(reference, like=data).mean(axis=1),
+                   transients=int(np.asarray(data).shape[2]), reference_transients=int(np.asarray(reference).shape[2]),
+                   npoints=int(suppressed.size), coils=int(np.asarray(data).shape[1]), dwell_s=float(dwell_s), f0_mhz=float(f0_mhz),
+                   header=dict(header or {}))
+
+    @classmethod
+    def from_nifti(cls, source, reference):
+        """From two NIfTI-MRS files with the transients apart: the suppressed run and its reference."""
+        data, dwell_s, f0_mhz, header = _raw(source)
+        water, dwell_ref, _, _ = _raw(reference)
+        if abs(dwell_ref - dwell_s) > 1e-9:
+            raise ValueError("the reference is sampled at another dwell than the scan")
+        return cls.from_arrays(data, water, dwell_s, f0_mhz, header)
+
+    #****************#
+    #   conditions   #
+    #****************#
+    def _conditions(self, voxel, dataset, citation, url):
+        sequence = voxel.scan.sequence
+        return dict(
+            source={"dataset": dataset, "citation": citation, "url": url},
+            scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                     "model": self.header.get("ManufacturersModelName"), "software": self.header.get("SoftwareVersions"),
+                     "field_t": round(self.f0_mhz / 42.5774785, 2)},
+            coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+            sequence={"name": self.header.get("SequenceName") or type(sequence).__name__, "family": type(sequence).__name__,
+                      "te_s": self.header.get("EchoTime"), "tr_s": self.header.get("RepetitionTime"),
+                      "simulated_as": type(sequence).__name__},
+            acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s, "transients": self.transients,
+                         "reference_transients": self.reference_transients, "water_suppressed": True},
+            voxel={**({"load": voxel.scan.brain.name} if isinstance(voxel.scan.brain, Phantom) else {}),
+                   "size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                   "simulated_position_mm": tuple(voxel.position_mm)},
+            date=datetime.date.today().strftime("%d/%m/%y"), note="one acquisition; made by scan.calibrate")
+
+    #***************#
+    #   the delay   #
+    #***************#
+    def intrinsic_phase_deg(self, voxel, gauss_hz=None, seeds=3):
+        """The phase creatine's peak carries against NAA's with no delay: the twin's
+        sources but its water, rendered at a zero delay (as broad as `gauss_hz` says,
+        the acquisition's own width), plus the residual water as the data show it (the
+        reference's own line shape at the read residual, on its side, phased to the
+        frame's zero as the engine renders an upright residual, scaled by the FIDs
+        without their water at t = 0), the median over `seeds` draws. What the
+        sequence's own evolution and the residual's wing put under 3.03 ppm, which a
+        delay reading must take out."""
+        t = np.arange(self.npoints) * self.dwell_s
+        turn = np.exp(-2j * np.pi * WATER_PPM * voxel._f0_mhz() * t)     # the twin into the standard's frame
+        residual = self.residual_over_full * (-1.0 if abs(self.water_phase_deg) > 90.0 else 1.0)
+        water = self.reference_fid[:self.npoints] * np.exp(-1j * np.angle(self.reference_fid[0]))
+        phases = []
+        for seed in range(seeds):
+            truth = voxel.sample(seed)
+            dict.__setitem__(truth.acquisition, "delay_s", 0.0)
+            if gauss_hz is not None:
+                dict.__setitem__(truth.lineshape, "gauss_hz", float(gauss_hz))
+            parts = voxel._component_fids(truth, self.npoints, self.dwell_s)
+            dry = sum(np.asarray(fid) for name, fid in parts.items() if name != "water") * turn
+            lines = _lines(dry + residual * (abs(dry[0]) / self.dry_amplitude) * water, self.dwell_s, voxel._f0_mhz(), WATER_PPM)
+            phases.append(np.degrees(np.angle(lines["Cr"][0] / lines["NAA"][0])))
+        return float(np.median(phases))
+
+    def delay_s(self, voxel, gauss_hz=None):
+        """The receiver delay: creatine's measured phase beyond the twin's intrinsic one,
+        over creatine's distance from NAA; negative when the first sample sits before
+        the echo top."""
+        return float(np.radians(self.creatine_phase_deg - self.intrinsic_phase_deg(voxel, gauss_hz))
+                     / (2.0 * np.pi * self.creatine_offset_hz))
+
+    #*************#
+    #   records   #
+    #*************#
+    def record_residual(self, voxel, dataset, presets=(), citation=None, url=None):
+        """The Calibration of water.adjusted_residual: the residual over the full water,
+        signed by its side (inverted past a quarter turn), the prior a quarter either side."""
+        value = self.residual_over_full * (-1.0 if abs(self.water_phase_deg) > 90.0 else 1.0)
+        return Calibration(
+            leaf="water.adjusted_residual", value=float(round(value, 6)),
+            prior=tuple(sorted((round(0.75 * value, 6), round(1.25 * value, 6)))),
+            measured={"statistic": "residual water at t = 0 over the water reference's, signed by its phase against "
+                                   "the metabolites (scan.calibrate.WaterReading)",
+                      "residual_over_full": round(self.residual_over_full, 6), "over_dry_maximum": round(self.residual_over_dry_max, 3),
+                      "phase_deg": round(self.water_phase_deg, 1), "inverted": abs(self.water_phase_deg) > 90.0},
+            processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials "
+                       "within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+            presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
+
+    def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None):
+        """The Calibration of acquisition.delay_s: creatine's phase against NAA beyond the
+        twin's intrinsic one (the twin as broad as `gauss_hz`), over their distance, a
+        delay of the samples against the echo top; no fallback, this scanner's."""
+        intrinsic = self.intrinsic_phase_deg(voxel, gauss_hz)
+        delay = float(np.radians(self.creatine_phase_deg - intrinsic) / (2.0 * np.pi * self.creatine_offset_hz))
+        return Calibration(
+            leaf="acquisition.delay_s", value=float(round(delay, 7)),
+            prior=tuple(sorted((round(0.75 * delay, 7), round(1.25 * delay, 7)))),
+            measured={"statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency "
+                                   "difference, as seconds (scan.calibrate.WaterReading)",
+                      "delay_us": round(1e6 * delay, 1), "creatine_phase_deg": round(self.creatine_phase_deg, 1),
+                      "intrinsic_phase_deg": round(intrinsic, 1), "creatine_offset_hz": round(self.creatine_offset_hz, 1)},
+            processing="NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, "
+                       "phases at the peaks' maxima",
+            presets=tuple(presets), fallback=False, **self._conditions(voxel, dataset, citation, url))
+

@@ -195,9 +195,12 @@ class TestSession:
         session.protocol.water_suppression = "assumed residual"
         session.field, session.protocol.real, session.protocol.averages, session.seed = "uniform", False, 32, 4
         session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
-        exam = session.run(session.plan())
+        session.protocol.water_reference = 2                                   # its water reference exam runs first
+        session.plan()
+        reference, exam = (session.run(planned) for planned in session.queue)
         drawn = exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]
-        profile = json.loads(session.calibrate(session.export(exam, tmp_path), "mine", folder=tmp_path).read_text())
+        profile = json.loads(session.calibrate(session.export(exam, tmp_path), "mine", folder=tmp_path,
+                                               reference=session.export(reference, tmp_path)).read_text())
         read = {record["leaf"]: record["value"] for record in profile["records"]}
         # the file is in the standard's frame (the centre at 4.65 ppm), so the reading finds NAA where a scanner's data has it
         # one subject's NAA level against the twin's median subject: within 15 percent over five subjects tried, the width
@@ -205,6 +208,10 @@ class TestSession:
         assert read["noise.sigma"] == pytest.approx(drawn["noise"]["sigma"], rel=0.2)
         assert read["lineshape.gauss_hz"] == pytest.approx(drawn["lineshape"]["gauss_hz"], rel=0.2)
         assert profile["scanner"]["name"] == session.scanner
+        # with the reference: the residual the shortcut water left, upright, and a receiver delay record come too (the
+        # delay's number is gated on a voxel's own FID in tests/scan/test_profile.py; on a console exam the shortcut
+        # water's wing bends creatine's phase, info/HANDOFF.md item 229)
+        assert 0.0 < read["water.adjusted_residual"] < 0.05 and "acquisition.delay_s" in read
 
     def test_an_own_design_of_two_sub_acquisitions_is_multiplexed_as_its_weights_say(self):
         from mrsandbox.console.session import BLOCKS, TEMPLATES

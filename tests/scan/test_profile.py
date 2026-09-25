@@ -142,3 +142,41 @@ class TestScannerProfile:
         edge = 0.5 * (power[:102].mean() + power[-102:].mean()) / power[1024 - 102: 1024 + 102].mean()
         assert 0.3 < edge < 0.6, edge
 
+    def test_the_residual_water_and_the_receiver_delay_are_read_off_a_scan_and_its_reference(self, tmp_path):
+        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
+        from nifti_mrs.hdr_ext import Hdr_Ext
+        from mrsandbox import Unsuppressed
+
+        # a virtual scanner whose suppression leaves one percent of the water, upright, and whose receiver samples 400 us
+        # before the echo top: a suppressed scan and its water reference, one coil, eight transients, fully relaxed,
+        # Lorentzian lines (a Gaussian decay reads a quarter higher through the exponentials, on real data as here)
+        n, dwell_s = 2048, 1.0 / 2000.0
+        params = CALM | Params(water=dict(residual_fraction=0.01), acquisition=dict(delay_s=-0.0004), lineshape=dict(gauss_hz=0.0))
+        press = Press(te1_s=0.011, te2_s=0.024)
+        files = {}
+        for name, water in (("scan", None), ("reference", Unsuppressed())):
+            scan = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press, params=params, **({} if water is None else {"water": water}))
+            voxel = scan.voxel(PLACE, SIZE)
+            _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
+            fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n) * dwell_s)
+            noise = 0.02 * np.abs(fid).max() * (np.random.default_rng(2).normal(size=(n, 1, 8)) + 1j * np.random.default_rng(3).normal(size=(n, 1, 8)))
+            data = fid[:, None, None] + noise
+            hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
+            hdr.set_dim_info(0, "DIM_COIL")
+            hdr.set_dim_info(1, "DIM_DYN")
+            files[name] = tmp_path / f"{name}.nii.gz"
+            gen_nifti_mrs_hdr_ext(data[None, None, None], dwell_s, hdr).save(files[name])
+        twin = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press, params=CALM).voxel(PLACE, SIZE, compiled=True)
+        profile = ScannerProfile.read(files["scan"], twin, "a virtual scanner", reference=files["reference"])
+        records = profile.calibrations()
+        assert records["water.adjusted_residual"].value == pytest.approx(0.01, rel=0.15)          # upright, one percent
+        # beyond PRESS's own phase on creatine and the residual's wing; one acquisition reads its delay to about a third
+        # (three degrees of noise on creatine's phase and the twin's draws are 60 to 100 us each)
+        assert records["acquisition.delay_s"].value == pytest.approx(-0.0004, rel=0.4)
+        assert not records["acquisition.delay_s"].fallback
+        intrinsic = records["acquisition.delay_s"].measured["intrinsic_phase_deg"]          # the twin's own creatine phase, taken out
+        assert intrinsic != 0.0 and -30.0 < intrinsic < 30.0
+        # the reading's twin carries both in its tree, as the console's does after a calibration
+        twin = profile.scan(Brain.load("icbm152"), press, params=CALM).voxel(PLACE, SIZE)
+        assert twin.scan.params["acquisition"]["delay_s"].low < -0.0003
+

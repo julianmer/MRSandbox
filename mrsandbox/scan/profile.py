@@ -20,7 +20,7 @@ import json
 
 from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
-from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading
+from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading, WaterReading
 from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
 
@@ -75,7 +75,7 @@ class ScannerProfile:
     #   from a raw file   #
     #*********************#
     @classmethod
-    def read(cls, source, voxel, dataset, array=None, load="a head", excitations=1):
+    def read(cls, source, voxel, dataset, array=None, load="a head", excitations=1, reference=None):
         """The profile one raw acquisition gives: `source` is NIfTI-MRS with the coils and
         the transients apart, `voxel` its virtual twin (a Voxel of a scan set up as the
         acquisition was: field, sequence, timings, place, size; placed with
@@ -86,7 +86,10 @@ class ScannerProfile:
         the hardware.CoilArray standing in for the coil's geometry, the FIDs' tails give
         the share of the channels' noise that is their own (CovarianceReading; `load` says
         what was in the coil), and the profile's coils are the array so loaded, its
-        combined noise the drawn sigma at the twin's place."""
+        combined noise the drawn sigma at the twin's place. With `reference`, the same
+        voxel's unsuppressed water (NIfTI-MRS, transients apart), the residual water the
+        scanner's suppression leaves and its receiver delay become records too
+        (WaterReading)."""
         # the width first: the noise is then read against a twin as broad as the acquisition is
         shim = SpectrumReading.from_nifti(source).record(voxel, dataset)
         noise = NoiseReading.from_nifti(source, excitations).record(voxel, dataset, gauss_hz=shim.value)
@@ -96,6 +99,10 @@ class ScannerProfile:
                                         scanner=noise.scanner)
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
+        if reference is not None:
+            water = WaterReading.from_nifti(source, reference)
+            records += (dataclasses.replace(water.record_residual(voxel, dataset), scanner=noise.scanner),
+                        dataclasses.replace(water.record_delay(voxel, dataset, gauss_hz=shim.value), scanner=noise.scanner))
         return cls(voxel.scan.scanner, records, coils=coils)
 
     #**********#
