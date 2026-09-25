@@ -126,6 +126,17 @@ class Steam(Sequence):
         super().__init__(*events, tr_s=tr_s)
 
 
+#********************#
+#   gaussian width   #
+#********************#
+def gaussian_for(bandwidth_hz):
+    """The duration of a 10 percent cutoff Gaussian that saturates `bandwidth_hz` at half
+    (1 - Mz): the COWS pulse of Igwe et al. 2025 does 68 Hz in 17.92 ms (checked in the
+    engine), and the width scales as one over the duration. For the trains whose sources
+    hold a band and no pulse."""
+    return 0.01792 * 68.0 / float(bandwidth_hz)
+
+
 #**************************************************************************************************#
 #                                     Class SuppressionTrain                                       #
 #**************************************************************************************************#
@@ -141,26 +152,47 @@ class SuppressionTrain(Sequence):
     and Vapor below are trains with their published flip and delay series, typed from
     the sources in database.suppression.
 
+    The pulses are ideal bands taking no time, or, with a `pulse_s`, pulses played in
+    time (a Gaussian cut at `truncation` of its peak, or a sinc of `lobes` zero crossings
+    a side): then the profile, the spins' evolution during the pulse and the time it takes
+    are physical. A delay is the gap after a pulse, before the next pulse or the
+    excitation; a played pulse adds its own duration before its gap.
+
     Args:
         flips_deg: One flip angle per suppression pulse.
         offset_ppm: Pulse centre in ppm (water sits at 4.65).
-        bandwidth_hz: Full selective bandwidth in Hz.
-        delays_s: Optional delay after each pulse (same length as flips_deg).
+        bandwidth_hz: Full selective bandwidth in Hz of the ideal band, and the stated
+            width the closed forms keep for a played pulse.
+        delays_s: Optional gap after each pulse (same length as flips_deg).
+        pulse_s: Optional pulse duration in seconds; None plays ideal bands.
+        shape: "gaussian" or "sinc" for a played pulse.
+        truncation: Where the Gaussian is cut, as a fraction of its peak.
+        lobes: The sinc's zero crossings a side.
+        adjusted: Whether the scanner's water suppression adjustment scales this train
+            per voxel (a product's does; a scheme played at its nominal flips is not).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, flips_deg, offset_ppm=4.65, bandwidth_hz=60.0, delays_s=None):
+    def __init__(self, flips_deg, offset_ppm=4.65, bandwidth_hz=60.0, delays_s=None, pulse_s=None, shape="gaussian",
+                 truncation=0.1, lobes=2, adjusted=True):
         self.flips_deg = tuple(flips_deg)
         self.offset_ppm = offset_ppm
         self.bandwidth_hz = bandwidth_hz
         self.delays_s = tuple(delays_s) if delays_s is not None else (0.0,) * len(self.flips_deg)
+        self.pulse_s, self.shape, self.truncation, self.lobes = pulse_s, shape, truncation, lobes
+        self.adjusted = adjusted
         events = []
         for flip, delay in zip(self.flips_deg, self.delays_s):
-            events.append(SelectivePulse(flip, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz))
+            if pulse_s is None:
+                events.append(SelectivePulse(flip, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz))
+            elif shape == "gaussian":
+                events.append(ShapedPulse.gaussian(flip, pulse_s, offset_ppm=offset_ppm, truncation=truncation))
+            else:
+                events.append(ShapedPulse.sinc(flip, pulse_s, offset_ppm=offset_ppm, lobes=lobes))
             events.append(CoherenceFilter(0))
-            if delay:
+            if delay > 0.0:
                 events.append(Delay(delay))
         super().__init__(*events)
 
@@ -171,7 +203,8 @@ class SuppressionTrain(Sequence):
         """This train with every flip times `factor`: what the scanner's water suppression
         adjustment does to the pulses' power."""
         return SuppressionTrain(tuple(flip * factor for flip in self.flips_deg), offset_ppm=self.offset_ppm,
-                                bandwidth_hz=self.bandwidth_hz, delays_s=self.delays_s)
+                                bandwidth_hz=self.bandwidth_hz, delays_s=self.delays_s, pulse_s=self.pulse_s, shape=self.shape,
+                                truncation=self.truncation, lobes=self.lobes, adjusted=self.adjusted)
 
 
 #*****************#
@@ -699,10 +732,11 @@ class Chess(SuppressionTrain):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, n=3, flip_deg=90.0, offset_ppm=4.65, bandwidth_hz=60.0):
+    def __init__(self, n=3, flip_deg=90.0, offset_ppm=4.65, bandwidth_hz=60.0, real=False):
         self.n = n
         self.flip_deg = flip_deg
-        super().__init__([flip_deg] * n, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz)
+        super().__init__([flip_deg] * n, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz,
+                         pulse_s=gaussian_for(bandwidth_hz) if real else None)
 
 
 #**************************************************************************************************#
@@ -718,23 +752,27 @@ class SiemensChess(SuppressionTrain):
     50 Hz wide (database.suppression SIEMENS_SVS_SE, read from Big GABA headers); like
     WET's last pulse the third one turns the water past zero so that what recovers through
     the last gap crosses zero at the excitation, whatever the T1. The scanner's adjustment
-    scales all three at once (`scaled`). The spacing is a stated 30 ms.
+    scales all three at once (`scaled`). The spacing is a stated 30 ms. Played real, the
+    pulses are Gaussians of 24.4 ms: the header holds no shape or duration, and that is
+    what a 10 percent Gaussian takes for the header's 50 Hz (`gaussian_for`), stated.
 
     Args:
         flip_deg: The first pulse's flip; the other two follow the ratios.
         offset_ppm: Pulse centre in ppm (water sits at 4.65).
         spacing_s: The gap after each pulse; None takes the table's stated value.
+        real: Whether the pulses are played in time (Gaussians) or as ideal bands.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, flip_deg=90.0, offset_ppm=4.65, spacing_s=None):
+    def __init__(self, flip_deg=90.0, offset_ppm=4.65, spacing_s=None, real=False):
         table = suppression.SIEMENS_SVS_SE
         self.flip_deg = flip_deg
         spacing = table["spacing_s"] if spacing_s is None else spacing_s
         super().__init__(tuple(flip_deg * ratio for ratio in table["amplitude_ratios"]), offset_ppm=offset_ppm,
-                         bandwidth_hz=table["bandwidth_hz"], delays_s=(spacing,) * len(table["amplitude_ratios"]))
+                         bandwidth_hz=table["bandwidth_hz"], delays_s=(spacing,) * len(table["amplitude_ratios"]),
+                         pulse_s=gaussian_for(table["bandwidth_hz"]) if real else None)
 
 
 #**************************************************************************************************#
@@ -759,11 +797,11 @@ class Wet(SuppressionTrain):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, delay_s=0.060, offset_ppm=4.65, bandwidth_hz=60.0):
+    def __init__(self, delay_s=0.060, offset_ppm=4.65, bandwidth_hz=60.0, real=False):
         self.delay_s = delay_s
         flips = suppression.WET["flips_deg"]
         super().__init__(flips, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz,
-                         delays_s=(delay_s,) * len(flips))
+                         delays_s=(delay_s,) * len(flips), pulse_s=gaussian_for(bandwidth_hz) if real else None)
 
 
 #**************************************************************************************************#
@@ -779,23 +817,30 @@ class Vapor(SuppressionTrain):
     2005: power offsets in dB from the nominal pulse power with per-field delay series.
     A dB offset scales the flip of a fixed-shape pulse by 10 ** (db / 20); the scheme
     is designed to null the water over a wide band of nominal flips around 90 degrees.
+    Played real, the pulses are the three-lobe sincs of 35 ms of Tkac and Gruetter (ISMRM
+    2000, abstract 1856: under 5 percent saturation outside 0.4 ppm at 4 T), symmetric
+    here where theirs were asymmetrically truncated, stated; that source plays VAPOR
+    without any water suppression adjustment (the ratio to the localization's power
+    holds), so the train is not `adjusted`.
 
     Args:
         field: Delay series to use, "4t" or "7t".
         nominal_flip_deg: Flip of the nominal-power pulses (models a B1 miscalibration).
         offset_ppm: Pulse centre in ppm.
         bandwidth_hz: Full selective bandwidth in Hz.
+        real: Whether the pulses are played in time (sincs) or as ideal bands.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, field="4t", nominal_flip_deg=90.0, offset_ppm=4.65, bandwidth_hz=60.0):
+    def __init__(self, field="4t", nominal_flip_deg=90.0, offset_ppm=4.65, bandwidth_hz=60.0, real=False):
         self.field = field
         self.nominal_flip_deg = nominal_flip_deg
         flips = tuple(nominal_flip_deg * 10.0 ** (db / 20.0) for db in suppression.VAPOR["power_db"])
-        super().__init__(flips, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz,
-                         delays_s=suppression.VAPOR["delays_s"][field])
+        pulse = suppression.VAPOR["pulse"]
+        super().__init__(flips, offset_ppm=offset_ppm, bandwidth_hz=bandwidth_hz, delays_s=suppression.VAPOR["delays_s"][field],
+                         pulse_s=pulse["duration_s"] if real else None, shape="sinc", lobes=pulse["lobes"], adjusted=False)
 
 
 #**************************************************************************************************#
@@ -810,22 +855,29 @@ class Cows(SuppressionTrain):
     (database.suppression COWS): COWS(7;236) and COWS(12;626), flips and delays constrained
     optimized to null the water over T1 0.5 to 5 s and a B1 factor of 0.75 to 1.25 in 236
     and 626 ms, and VAPOR7, the seven pulse VAPOR the paper held them against. The delays
-    run from each pulse to the next and the last to the excitation; the pulses are 68 Hz
-    wide. The scanner's adjustment scales every flip at once (`scaled`).
+    run from each pulse's peak to the next and the last to the excitation's; the pulses
+    are 10 percent cutoff Gaussians of 17.92 ms saturating 68 Hz at half, played in time
+    with `real`. The study's scanner played the table's flips as they stand (no
+    adjustment per voxel: the dataset's headers), so the train is not `adjusted`.
 
     Args:
         scheme: "COWS(7;236)", "COWS(12;626)" or "VAPOR7".
         offset_ppm: Pulse centre in ppm (water sits at 4.65).
+        real: Whether the pulses are played in time (Gaussians) or as ideal bands.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, scheme="COWS(7;236)", offset_ppm=4.65):
+    def __init__(self, scheme="COWS(7;236)", offset_ppm=4.65, real=False):
         self.scheme = scheme
-        table = suppression.COWS[scheme]
-        super().__init__(table["flips_deg"], offset_ppm=offset_ppm,
-                         bandwidth_hz=suppression.COWS["pulse_bandwidth_hz"], delays_s=table["delays_s"])
+        table, pulse = suppression.COWS[scheme], suppression.COWS["pulse_duration_s"]
+        delays = table["delays_s"]      # from each pulse's peak to the next, the last to the excitation's: gaps when played
+        if real:
+            delays = (*(d - pulse for d in delays[:-1]), delays[-1] - pulse / 2.0)
+        super().__init__(table["flips_deg"], offset_ppm=offset_ppm, bandwidth_hz=suppression.COWS["pulse_bandwidth_hz"],
+                         delays_s=delays, pulse_s=pulse if real else None, truncation=suppression.COWS["pulse_truncation"],
+                         adjusted=False)
 
 
 #**************************************************************************************************#

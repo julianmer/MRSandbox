@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Chess, Cows, Engine, Press, PulseAcquire, SiemensChess, SpinSystem, Vapor, Wet
+from mrsandbox import Chess, CoherenceFilter, Cows, Engine, Press, PulseAcquire, Sequence, ShapedPulse, SiemensChess, SpinSystem, Vapor, Wet
 from mrsandbox.database import suppression
 from mrsandbox.phantom.water import WaterSource
 
@@ -192,4 +192,32 @@ class TestNamedSchemes:
                                        ("VAPOR7", (0.9, 1.0, 1.1), 0.007)):
                 for b1 in b1s:
                     assert total_amplitude(engine, Cows(scheme).scaled(b1) + PulseAcquire(tr_s=2.0), water) < bound * full
+
+    #*************************#
+    #   played trains        #
+    #*************************#
+    def test_a_played_train_carries_its_sources_pulse_and_still_nulls(self, engine):
+        # played real, COWS's pulses are the paper's 17.92 ms Gaussians (their saturation, 1 - Mz, at half at 34 Hz
+        # from the water: the paper's 68 Hz), the train's gaps follow the peak-to-peak table (the first pulse starts
+        # half a pulse before its peak), VAPOR's are the 35 ms three-lobe sincs of Tkac and Gruetter 2000, and the
+        # played COWS(7;236) still leaves under 0.1 percent of the water at the nominal flips over T1
+        from mrsandbox.sequences.timeline import event_spans
+
+        train = Cows(real=True)
+        pulse = train.events[0]
+        assert isinstance(pulse, ShapedPulse) and pulse.duration_s == 0.01792 and not train.adjusted
+        assert float(event_spans(train)[-1][1]) == pytest.approx(0.236157 + 0.01792 / 2.0, abs=1e-4)
+        assert Vapor(real=True).events[0].duration_s == 0.035 and not Vapor(real=True).adjusted
+        assert SiemensChess(real=True).events[0].duration_s == pytest.approx(0.01792 * 68.0 / 50.0) and SiemensChess(real=True).adjusted
+        water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=1.3, t2_s=0.05)
+        full = total_amplitude(engine, PulseAcquire(), water)
+        ninety = ShapedPulse.gaussian(90.0, pulse.duration_s, offset_ppm=4.65, truncation=train.truncation)
+        for offset_hz, saturation in ((0.0, 1.0), (34.0, 0.5), (100.0, 0.0)):
+            _, amps = engine.lines(Sequence(ninety, CoherenceFilter(-1)), water, offset_hz=offset_hz)
+            response = float(np.abs(ops.convert_to_numpy(amps)).sum()) / full
+            assert 1.0 - math.cos(math.asin(min(response, 1.0))) == pytest.approx(saturation, abs=0.1)
+        for t1 in (0.5, 1.3, 4.5):
+            water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
+            full = total_amplitude(engine, PulseAcquire(tr_s=2.0), water)
+            assert total_amplitude(engine, train + PulseAcquire(tr_s=2.0), water) < 0.001 * full
 

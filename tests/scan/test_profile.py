@@ -47,13 +47,22 @@ class TestScannerProfile:
 
     def test_a_vendors_receiver_delay_stays_with_its_presets(self):
         # the first-order phase read off Big GABA's Trio and GE runs reaches those presets' trees as a prior on
-        # the receiver delay (negative: the first sample before the echo top); a scanner without a record
-        # samples on the top, since the record is no fallback
+        # the receiver delay (negative: the first sample before the echo top); a scanner without a record samples on
+        # the top, since a vendor's record is no fallback and the delay is not pooled (a generic scanner is clean)
         trio = ScannerProfile(Scanner.preset("siemens_trio_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (trio.params.acquisition.delay_s.low, trio.params.acquisition.delay_s.high) == (-0.000574, -0.000319)
-        plain = ScannerProfile(Scanner.preset("generic_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert plain.params.acquisition.delay_s.value == 0.0
-        assert "acquisition.delay_s" not in ScannerProfile(Scanner.preset("generic_3t")).calibrations()
+        prisma = ScannerProfile.preset("siemens_prisma_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
+        assert (prisma.params.acquisition.delay_s.low, prisma.params.acquisition.delay_s.high) == (-0.000698, -0.000417)
+        assert (prisma.params.water.adjusted_residual.low, prisma.params.water.adjusted_residual.high) == (0.00029, 0.00153)
+        pooled = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
+        assert pooled.params.acquisition.delay_s.value == 0.0
+        assert "acquisition.delay_s" not in ScannerProfile.preset("generic_3t").calibrations()
+        assert (pooled.params.water.adjusted_residual.low, pooled.params.water.adjusted_residual.high) == (0.00075, 0.029)
+        assert (pooled.params.noise.sigma.low, pooled.params.noise.sigma.high) == (4.9, 10.3)
+        assert ScannerProfile.preset("philips_mr7700_3t").calibrations()["noise.sigma"].scanner["vendor"] == "pooled"    # the pool serves it
+        from mrsandbox.scan.calibrations import calibrations
+        plain = ScannerProfile(Scanner.preset("generic_1p5t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
+        assert calibrations("generic_1p5t")["noise.sigma"].departures(plain)["field_t"] == (3.0, 1.5)      # the pool, its field named
 
     def test_own_records_outrank_the_catalogue_in_priors_and_headers(self):
         own = dataclasses.replace(NOISE_COWS_PRISMA_3T, value=8.0, prior=(7.0, 9.0), presets=(),
@@ -61,7 +70,7 @@ class TestScannerProfile:
         profile = ScannerProfile(Scanner.preset("siemens_prisma_3t"), records=(own,))
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == (7.0, 9.0)
-        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr", "water.adjusted_residual"}
+        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr", "water.adjusted_residual", "acquisition.delay_s"}
         data = scan.voxel(PLACE, SIZE).acquire(seed=0, npoints=256)
         named = data.hdr_ext["SimulationPhantom"]["calibrations"]["noise.sigma"]
         assert named["source"] == "my scanner" and named["value"] == 8.0

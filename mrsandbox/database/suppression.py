@@ -35,8 +35,14 @@ WET = {
 #         delay series in seconds, optimized per field strength.
 # Notes:  VAPOR was introduced as a seven pulse scheme in Tkac et al. 1999 (MRM 41,
 #         649-656), whose flip table is not in any open text; this is the complete eight
-#         pulse table.
+#         pulse table. The pulse is from Tkac and Gruetter, ISMRM 2000, abstract 1856 (the
+#         4 T human scheme): "truncated 3 lobe asymmetric RF pulses of 35 ms duration" for
+#         "less than 5% saturation outside the +- 0.4 ppm region", played "without water
+#         suppression adjustment" (the ratio to the STEAM power holds); its timing there,
+#         150, 100, 120, 105, 102, 65, 67, 15 ms, differs from the 2005 table's by a few ms
+#         and is not typed. The lobes count the zero crossings a side of a symmetric sinc.
 VAPOR = {
+    "pulse": {"duration_s": 0.035, "lobes": 2, "adjusted": False},
     "power_db": (0.0, 0.0, 5.0, 0.0, 4.0, 0.0, 5.0, 5.0),
     "delays_s": {
         "4t": (0.150, 0.100, 0.140, 0.105, 0.105, 0.066, 0.072, 0.018),
@@ -55,16 +61,18 @@ VAPOR = {
 #         and VAPOR7, the seven pulse VAPOR the paper held them against.
 # Units:  flip angles in degrees; delays in seconds from each pulse's peak to the next pulse's
 #         peak, the last to the excitation's, so a scheme's delays sum to the duration in its
-#         name. The pulses are 10 percent cutoff Gaussians of 68 Hz and 17.92 ms, each
-#         followed by a 9 ms crusher (their DOTCOPS directions are in the table and not typed:
-#         the package keeps the longitudinal magnetization alone).
+#         name. The pulses are 10 percent cutoff Gaussians of 68 Hz and 17.92 ms (the 68 Hz is
+#         the full width at half of the saturation, 1 - Mz: that is what a Gaussian of that
+#         truncation and duration gives, checked in the engine), each followed by a 9 ms crusher
+#         (their DOTCOPS directions are in the table and not typed: the package keeps the
+#         longitudinal magnetization alone).
 # Notes:  CHECKED against the dataset's headers (OpenNeuro ds006812, sub-01, 25/09/26): the
 #         amplitudes of ss_rf_ws1 to ss_rf_ws12 over the 11.7936 V of the 90 degree pulses
 #         (reference 221.3 V; the study calibrated no flip per voxel) give every flip of the
 #         table to 0.1 degrees. The header's lRFExcitationBandwidth reads 50 Hz, the product's
 #         field, where the paper states its 68 Hz pulses.
 COWS = {
-    "pulse_bandwidth_hz": 68.0,
+    "pulse_bandwidth_hz": 68.0, "pulse_duration_s": 0.01792, "pulse_truncation": 0.1,
     "COWS(7;236)": {"flips_deg": (75.4, 86.2, 86.4, 72.4, 82.3, 116.7, 160.6),
                     "delays_s": (0.028, 0.028, 0.053032, 0.039794, 0.028, 0.038214, 0.021117)},
     "COWS(12;626)": {"flips_deg": (75.8, 3.4, 110.6, 141.1, 180.0, 20.1, 89.6, 76.3, 117.2, 79.6, 127.7, 167.6),

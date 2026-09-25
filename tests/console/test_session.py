@@ -303,9 +303,10 @@ class TestSession:
         session.protocol.water_reference = 0
         session.protocol.real, session.protocol.averages, session.protocol.npoints, session.seed = False, 4, 512, 4
         session.run_settings = {"events_per_min": 0.0}
-        assert session.protocol.water_suppression == "VAPOR"                        # the console's default: the train is played
+        default = session.protocol.water_suppression
+        assert default == "COWS(7;236)"                                             # the console's default: the train is played
         heights, truths = {}, []
-        for scheme in ("VAPOR", "VAPOR", "off", "assumed residual"):
+        for scheme in (default, default, "off", "assumed residual"):
             session.protocol.water_suppression = scheme
             exam = session.run(session.plan())
             water, naa = (exam.ppm > 4.4) & (exam.ppm < 4.9), (exam.ppm > 1.9) & (exam.ppm < 2.1)
@@ -313,8 +314,8 @@ class TestSession:
             truths.append(exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"])
         assert len({truth["conc"]["NAA"] for truth in truths}) == 1                 # one person through all four exams
         assert len({truth["acquisition"]["shift_hz"] for truth in truths}) == 4     # the scanner's state anew every time
-        assert heights["VAPOR"][0] != heights["VAPOR"][1]                           # so a train's residual differs from exam to exam
-        assert heights["off"][0] > 5.0 * max(heights["VAPOR"])                      # without a train, the whole water line
+        assert heights[default][0] != heights[default][1]                           # so a train's residual differs from exam to exam
+        assert heights["off"][0] > 5.0 * max(heights[default])                      # without a train, the whole water line
 
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
@@ -457,3 +458,18 @@ class TestSession:
         assert exam.data.shape[:3] == (6, 6, 1) and exam.cells.shape[:3] == (6, 6, 1) and set(exam.maps) == {"NAA", "Cr", "Cho", "lipid"}
         assert exam.maps["NAA"][3, 3, 0] > 0.0 and exam.maps["NAA"].shape == (6, 6, 1)
         assert abs(exam.ppm[exam.cells[3, 3, 0].argmax()] - 2.01) < 0.05           # a cell in the brain shows NAA
+
+    def test_the_scanner_runs_at_the_operators_field(self):
+        # the field beside the scanner: the preset's name, limits and records stay, the spins precess at the new field,
+        # the exam keeps the field in its room, and the preset's own number is the preset again
+        session = Session(ICBM)
+        session.protocol.water_reference, session.protocol.water_suppression = 0, "assumed residual"
+        session.protocol.averages, session.protocol.npoints, session.protocol.real = 2, 512, False
+        session.field_t = 1.5
+        assert session.profile().scanner.name == "siemens_prisma_3t" and session.profile().scanner.b0_t == 1.5
+        exam = session.run(session.plan(), seed=3)
+        assert float(exam.data.hdr_ext["SpectrometerFrequency"][0]) == pytest.approx(42.5774785 * 1.5, rel=1e-3)
+        assert exam.room["field_t"] == 1.5
+        session.field_t = None
+        assert session.profile().scanner.b0_t == 3.0
+

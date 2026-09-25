@@ -34,6 +34,7 @@ from PIL import Image
 
 from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, TARGETS,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
+from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 
@@ -561,6 +562,7 @@ async def console(client: Client):
             setattr(session, name, value)
         for name in ("scanner", "coil", "subject"):
             pickers[name].set_value(getattr(session, name))
+        pickers["field_t"].set_value(session.profile().scanner.b0_t)
         frame(exam, -1) if exam.frames else blank(f"{exam.name}   ·   {exam.status}")
         listing()
         room()
@@ -1110,6 +1112,13 @@ async def console(client: Client):
         except Exception as error:  # an idealization Pulseq cannot play: the design says which
             ui.notify(f"Not exported: {error}", type="warning", multi_line=True)
 
+    def field_changed(event):
+        """The field the scanner runs at; back on the preset's own number it is the preset's again."""
+        if event.value is None:
+            return
+        session.field_t = None if abs(float(event.value) - PRESETS[session.scanner].b0_t) < 1e-6 else float(event.value)
+        draw()
+
     def changed(attribute, target=None):
         """A handler that writes a control's value to the session (or the card) and redraws."""
         def handle(event):
@@ -1117,6 +1126,9 @@ async def console(client: Client):
                 return
             before = getattr(session.protocol if target == "card" else session, attribute)
             setattr(session.protocol if target == "card" else session, attribute, event.value)
+            if attribute == "scanner":                  # a scanner comes with its own field
+                session.field_t = None
+                pickers["field_t"].set_value(PRESETS[session.scanner].b0_t)
             if attribute == "subject":
                 try:
                     session.body()
@@ -1578,6 +1590,9 @@ async def console(client: Client):
             if attribute == "scanner":
                 ui.button(icon="verified", on_click=calibration).mark("calibration").props("flat dense round size=sm").style(
                     f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
+                pickers["field_t"] = ui.number(label="field (T)", value=session.profile().scanner.b0_t, min=0.5, max=14.0, step=0.5, precision=2,
+                                               on_change=field_changed).props("dense outlined dark").style("width: 92px").tooltip(
+                    "the field this scanner runs at: its limits and records stay (a record names the departure), the priors take the nearest typed field, 1.5, 3 or 7 T")
             if attribute in GEARS or attribute == "coil":
                 ui.button(icon="settings", on_click=(lambda _, panel=attribute: gear(panel)) if attribute in GEARS else coil_gear).props("flat dense round size=sm").style(
                     f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of the anatomy or phantom",

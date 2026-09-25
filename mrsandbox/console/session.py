@@ -122,8 +122,9 @@ SHIFTED = {"water": 4.65, "lipid": 1.3}
 # what a timed card can play before its localization: the water suppression trains, and outer-volume
 # suppression as six slabs of the card's ovs_mm about the voxel's faces (Session.slabs). The slabs play between the train and the
 # excitation, where they saturate what the excitation would see; the train's last delay grows by them.
-SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess, "CHESS, Siemens svs_se": SiemensChess,
-               "COWS(7;236)": Cows, "COWS(12;626)": lambda: Cows("COWS(12;626)"), "VAPOR7, Igwe 2025": lambda: Cows("VAPOR7")}
+SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess, "CHESS, Siemens svs_se": SiemensChess, "COWS(7;236)": Cows,
+               "COWS(12;626)": lambda real=False: Cows("COWS(12;626)", real=real),
+               "VAPOR7, Igwe 2025": lambda real=False: Cows("VAPOR7", real=real)}
 # how the water comes about. The water is a spin system of its own, run through the card's sequence at its full amplitude
 # (phantom.water Unsuppressed), so "off" is the whole water line and a train suppresses it as far as its physics does, by this
 # scanner's B1 and the water's T1. ASSUMED is the package's shortcut: no train is played and the water is scaled to a drawn
@@ -252,7 +253,7 @@ class Protocol:
     matrix: int = 8
     matrix_y: int = 8
     slices: int = 1
-    water_suppression: str = "VAPOR"
+    water_suppression: str = "COWS(7;236)"
     ovs: bool = False
     ovs_mm: float = 30.0
     ovs_gap_mm: float = 10.0
@@ -423,13 +424,14 @@ class Session:
                      "surface loop": dict(x_mm=0.0, y_mm=-105.0, z_mm=35.0, loop_radius_mm=50.0)}
 
     # what of the session is the room an exam is planned in and runs in
-    ROOM = ("scanner", "calibration", "coil", "subject", "seed", "field", "transmit", "shim", "shim_mm")
+    ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "seed", "field", "transmit", "shim", "shim_mm")
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, subject="Head, QSM challenge, 0.64 mm"):
         self.scanner = "siemens_prisma_3t"
+        self.field_t = None                    # the field the scanner runs at; None is the preset's own
         self.coil = "one ideal channel"
         self.subject = subject
         self.position_mm = list(PLACES.get(subject, PLACE))
@@ -928,10 +930,15 @@ class Session:
         return found
 
     def profile(self):
-        """The scanner on the floor with its records: a preset, or a saved profile."""
+        """The scanner on the floor with its records: a preset, or a saved profile; at the operator's field where one
+        is set (its limits and records stay, and a record names the departure)."""
         if self.calibration in self.calibrations():
-            return ScannerProfile.load(self.calibration) if self.calibration.endswith(".json") else ScannerProfile.preset(self.calibration)
-        return ScannerProfile.preset(self.scanner)
+            profile = ScannerProfile.load(self.calibration) if self.calibration.endswith(".json") else ScannerProfile.preset(self.calibration)
+        else:
+            profile = ScannerProfile.preset(self.scanner)
+        if self.field_t is None:
+            return profile
+        return dataclasses.replace(profile, scanner=dataclasses.replace(profile.scanner, b0_t=float(self.field_t)))
 
     def calibrate(self, source, name, folder=None):
         """Calibrate the scanner on the floor from one raw acquisition of the operator's own
@@ -1126,7 +1133,7 @@ class Session:
         """What a timed card plays before its localization, in order, {name: design}."""
         found = {}
         if card.water_suppression in SUPPRESSION:
-            found[card.water_suppression] = SUPPRESSION[card.water_suppression]()
+            found[card.water_suppression] = SUPPRESSION[card.water_suppression](real=card.real)
         if card.ovs:
             found["OVS"] = OuterVolumeSuppression(self.slabs(card), 42.5774785 * self.profile().scanner.b0_t, extent_mm=float(max(self.size_mm)))
         return found
@@ -1608,9 +1615,10 @@ class Session:
         card = exam.card
         if not self.prescan or card.water_suppression not in SUPPRESSION:
             return 1.0
-        train = SUPPRESSION[card.water_suppression]()
+        train = SUPPRESSION[card.water_suppression](real=card.real)
         n = len(train.events)
-        if any(len(design.events) < n or not isinstance(design.events[0], SelectivePulse) for design in exam.conditions.values()):
+        if not train.adjusted or any(len(design.events) < n or not isinstance(design.events[0], (SelectivePulse, ShapedPulse))
+                                     for design in exam.conditions.values()):
             return 1.0
         field = self.fields(card)["field"]
         groups = ([(mean, weight) for mean, weight, _ in field.groups(exam.position_mm, exam.size_mm, np.zeros(1), 8)]

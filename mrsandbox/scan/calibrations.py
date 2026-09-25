@@ -158,7 +158,7 @@ NOISE_BIG_GABA_SIEMENS_3T = Calibration(
                "(weights from the mean transient), SNR per transient, median per subject",
     date="18/09/26",
     presets=("siemens_trio_3t",),
-    note="the first record of its leaf: the fallback of every scanner without its own",
+    note="the first system's record; a scanner without its own takes the pooled record of the leaf",
 )
 
 
@@ -537,8 +537,8 @@ MM_MEASURED_LEVEL_3T = Calibration(
 # coil-combined by the noise-whitened SVD of their own file (the same voxel and coils, so the
 # weights differ by a few percent, stated). The console's prescan lands the water on this
 # residual instead of on zero (console.session Session.adjust): a fraction of the full
-# water's steady state at the excitation, its sign free. Scanners without a record fall back
-# to the Siemens one (the smaller residual).
+# water's steady state at the excitation, its sign free. Scanners without a record take the
+# pooled record below.
 # The sign is the residual's phase against the metabolites once the receiver delay below is
 # taken out (info/analysis/water_phase.py): on the Trio 161 degrees at the median, inverted in
 # 12 of 12 runs (the third pulse overtips past the null); on GE 51 degrees, upright in 66 of 68.
@@ -651,11 +651,105 @@ RECEIVER_DELAY_BIG_GABA_GE_3T = Calibration(
     note="the prior is the subjects' 10th to 90th percentile; the top end is no delay",
 )
 
-CALIBRATIONS = (NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
+# The Prisma of the COWS study (24 to 25/09/26, the same scripts): the three schemes of Igwe et
+# al. 2025 at the table's nominal flips, scaled by the session's transmitter reference alone, no
+# adjustment per voxel (the headers, info/HANDOFF.md item 222). The residual is a tenth of the
+# Trio's and its side is the SCHEME's: VAPOR7 lands inverted (21 of 29 runs), the two COWS
+# schemes upright (59 of 60); one number per scanner carries the majority's side, stated. The
+# macromolecule scans (a double inversion before the train, which moves the null) leave twenty
+# times more and are not in the value. The reference is one unsuppressed transient in the
+# same file, combined with the suppressed transients' own weights.
+RESIDUAL_WATER_COWS_PRISMA_3T = Calibration(
+    leaf="water.adjusted_residual",
+    value=0.00075,
+    prior=(0.00029, 0.00153),
+    measured={"statistic": RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.measured["statistic"],
+              "median": 0.00075, "percentiles_10_90": (0.00029, 0.00153), "runs": 89, "subjects": 10,
+              "per_scheme_median": {"VAPOR7": 0.00034, "COWS(7;236)": 0.00105, "COWS(12;626)": 0.00090},
+              "phase_deg_10_50_90": (-131, 13, 41),
+              "inverted": "22 of 89: VAPOR7 21 of 29 (-111 degrees at the median), COWS(7;236) 1 of 30 (26), "
+                          "COWS(12;626) 0 of 30 (20)",
+              "over_dry_maximum": "0.03 to 0.14 (a tenth of NAA at TE 26 in 8 mL)",
+              "macromolecule_scans": "COWS(7;236) 0.026, VAPOR7 0.013 at the median of 30 each, not in the value"},
+    source={"dataset": "COWS, OpenNeuro ds006812, the metabolite scans of all subjects and regions "
+                       "(one occipital VAPOR7 file unreadable)",
+            "citation": NOISE_COWS_PRISMA_3T.source["citation"], "url": NOISE_COWS_PRISMA_3T.source["url"]},
+    scanner=NOISE_COWS_PRISMA_3T.scanner,
+    coil=NOISE_COWS_PRISMA_3T.coil,
+    sequence={"name": "sLASER", "family": "SemiLaser", "product": "WIP with GOIA refocusing", "te_s": 0.026, "tr_s": 2.0,
+              "water_suppression": "VAPOR7, COWS(7;236) or COWS(12;626) at the table's nominal flips times the "
+                                   "session's transmitter reference, no adjustment per voxel (database.suppression COWS)",
+              "simulated_as": "Cows(scheme) + SemiLaser(te_s=0.026, tr_s=2.0)"},
+    acquisition={"npoints": 2048, "bandwidth_hz": 4000.0, "transients": 32, "measured_on": 32,
+                 "water_suppressed": True, "reference": "one unsuppressed transient in the same file"},
+    voxel=NOISE_COWS_PRISMA_3T.voxel,
+    processing="TWIX through mapVBVD, the oversampling removed, noise-whitened SVD coil combination from the "
+               "suppressed transients applied to their reference too, HLSVD water of the mean suppressed FID "
+               "over the reference FID at t = 0",
+    date="25/09/26",
+    presets=("siemens_prisma_3t",),
+    note="the prior is the runs' 10th to 90th percentile; the sign is the majority's, VAPOR7 alone lands inverted",
+)
+
+RECEIVER_DELAY_COWS_PRISMA_3T = Calibration(
+    leaf="acquisition.delay_s",
+    value=-0.000595,
+    prior=(-0.000698, -0.000417),
+    measured={"statistic": RECEIVER_DELAY_BIG_GABA_SIEMENS_3T.measured["statistic"],
+              "median_us": -595.0, "percentiles_10_90_us": (-698.0, -417.0), "runs": 89, "subjects": 10,
+              "creatine_phase_deg_median": -27.0, "choline_phase_deg_median": -28.0},
+    source=RESIDUAL_WATER_COWS_PRISMA_3T.source,
+    scanner=NOISE_COWS_PRISMA_3T.scanner,
+    coil=NOISE_COWS_PRISMA_3T.coil,
+    sequence=RESIDUAL_WATER_COWS_PRISMA_3T.sequence,
+    acquisition=RESIDUAL_WATER_COWS_PRISMA_3T.acquisition,
+    voxel=NOISE_COWS_PRISMA_3T.voxel,
+    processing="TWIX through mapVBVD, noise-whitened SVD coil combination, the mean FID's spectrum fourfold "
+               "zero filled, phases at the peaks' maxima",
+    date="25/09/26",
+    presets=("siemens_prisma_3t",),
+    fallback=False,
+    note="the prior is the runs' 10th to 90th percentile",
+)
+
+#*************************************#
+#   the systems pooled, 3 tesla       #
+#*************************************#
+# The generic 3 T preset, and every scanner without a record of a leaf, take the median over the
+# systems measured at 3 T (one vote per system, the records above), the systems' spread as the
+# prior. Nothing here was measured on a generic scanner: the pool is the best guess for a scanner
+# the package has no record of, its departures named as any record's. A signed leaf takes the
+# majority's side and the median magnitude. The receiver delay is not pooled: a first-order
+# phase on every scan of an unrecorded scanner would turn its lines from absorption for a
+# vendor's number, so a vendor's delay stays with its presets and a generic scanner samples
+# on the echo top.
+POOLED = {"scanner": {"vendor": "pooled", "model": "the 3 T systems above", "field_t": 3.0},
+          "coil": {"channels": "the systems' own"},
+          "sequence": {"name": "PRESS and sLASER, the systems' own", "family": ""},
+          "acquisition": {"the systems' own": True},
+          "voxel": {"region": "the systems' own", "size_mm": "8 to 27 mL"},
+          "processing": "the median over the systems' records", "date": "25/09/26", "presets": ("generic_3t",)}
+NOISE_POOLED_3T = Calibration(
+    leaf="noise.sigma", value=7.0, prior=(4.9, 10.3),
+    measured={"statistic": "median over the systems' records", "systems": {
+        "siemens_trio_3t": 5.5, "siemens_prisma_3t": 4.9, "philips_achieva_3t": 10.3, "ge_mr750_3t": 7.0, "ge_mr750_32ch_3t": 7.9}},
+    source={"dataset": "the noise records above: Big GABA (Siemens, GE), COWS (Prisma), fMRS in pain (Achieva), ds006444 (GE 32-channel)"},
+    note="the prior is the systems' range", **POOLED,
+)
+RESIDUAL_WATER_POOLED_3T = Calibration(
+    leaf="water.adjusted_residual", value=0.0088, prior=(0.00075, 0.029),
+    measured={"statistic": "median magnitude over the systems' records, the majority's side (upright, 2 of 3)", "systems": {
+        "siemens_trio_3t": -0.0088, "ge_mr750_3t": 0.029, "siemens_prisma_3t": 0.00075}},
+    source={"dataset": "the residual water records above: Big GABA (Siemens, GE), COWS (Prisma)"},
+    note="the prior is the systems' range of magnitudes", **POOLED,
+)
+
+CALIBRATIONS = (NOISE_POOLED_3T, RESIDUAL_WATER_POOLED_3T,
+                NOISE_BIG_GABA_SIEMENS_3T, NOISE_COWS_PRISMA_3T, NOISE_FMRS_PAIN_ACHIEVA_3T,
                 NOISE_BIG_GABA_GE_3T, NOISE_DS006444_GE_32CH_3T, NOISE_NEUROMET_7T,
                 CREATINE_THREE_DATASETS_3T, RESIDUAL_WATER_BIG_GABA_SIEMENS_3T,
-                RESIDUAL_WATER_BIG_GABA_GE_3T, RECEIVER_DELAY_BIG_GABA_SIEMENS_3T,
-                RECEIVER_DELAY_BIG_GABA_GE_3T)
+                RESIDUAL_WATER_BIG_GABA_GE_3T, RESIDUAL_WATER_COWS_PRISMA_3T, RECEIVER_DELAY_BIG_GABA_SIEMENS_3T,
+                RECEIVER_DELAY_BIG_GABA_GE_3T, RECEIVER_DELAY_COWS_PRISMA_3T)
 
 
 def calibrations(scanner=None, records=()):

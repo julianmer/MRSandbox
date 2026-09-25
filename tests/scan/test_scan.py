@@ -564,10 +564,12 @@ class TestNoiseModel:
         from mrsandbox import SemiLaser
         from mrsandbox.scan.calibrations import calibrations
 
-        record = calibrations()["noise.sigma"]
+        # the bare default and the generic 3 T take the systems' pool; the Trio its own record
+        assert calibrations()["noise.sigma"].scanner["vendor"] == "pooled"
+        record = calibrations("siemens_trio_3t")["noise.sigma"]
         assert record.source["dataset"].startswith("Big GABA")
         brain = Brain.load("icbm152")
-        same = VirtualScan(brain, Scanner.preset("generic_3t"), Press(0.011, 0.024))
+        same = VirtualScan(brain, Scanner.preset("siemens_trio_3t"), Press(0.011, 0.024))
         prior = same.params["noise"]["sigma"]
         assert (prior.low, prior.high) == record.prior
         assert record.departures(same) == {}
@@ -629,12 +631,13 @@ class TestNoiseModel:
         # transient) the default draws give the single-transient NAA SNR measured on
         # its 36 Siemens subjects, 36.5 (28.8 to 43.6), by the consensus definition; the record's
         # sigma is the mean of what the plain and the apodized reading imply, so the simulated
-        # SNR lies a little above the plain one and a little below the apodized one
+        # SNR lies a little above the plain one and a little below the apodized one (the Trio
+        # preset: the bare default draws the systems' pool)
         calm = Params(spurious=dict(amplitude=0.0),
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
                       gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                                      linear_short=0.0, linear_long=0.0))
-        calibration = VirtualScan(scan.brain, scan.scanner,
+        calibration = VirtualScan(scan.brain, Scanner.preset("siemens_trio_3t"),
                                   Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=calm)
         voxel = calibration.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
         n, bw, cf = 2048, 2000.0, voxel._f0_mhz()
