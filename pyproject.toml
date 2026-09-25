@@ -68,4 +68,5 @@ ignore = ["E731", "E741"]
 testpaths = ["tests"]
 markers = [
     "render: integration tests that render full scans; deselect with -m 'not render'",
+    "slow: the gates over a minute each on a laptop; deselect with -m 'not slow' for a quick run",
 ]

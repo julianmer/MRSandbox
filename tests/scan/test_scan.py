@@ -218,6 +218,7 @@ class TestAcquisitionImperfections:
     #**************************#
     #   compiled ensembles     #
     #**************************#
+    @pytest.mark.slow
     def test_a_shaped_ensemble_design_compiles_per_metabolite_to_the_same_fid(self, scan):
         # shaped pulses on an isochromat ensemble compile one graph per metabolite (a
         # graph holds its intermediates); the FID is the plain path's

@@ -346,6 +346,8 @@ class TestMeasuredResponse:
                         Gradient(moment, 20.0, axis="y"), refocus["y"], Gradient(moment, 20.0, axis="y"),
                         Delay(tau - 0.004), *edit)
 
+    @pytest.mark.slow
+
     def test_sidebands_on_unsuppressed_water_sit_in_the_consensus_range(self):
         brain, scanner = Brain.load("icbm152"), Scanner.preset("generic_3t")
         engine, design = Engine(scanner), self.localized_echo()
@@ -362,6 +364,8 @@ class TestMeasuredResponse:
         # al. 2021), here of the order of the metabolites
         sideband = np.abs(s1 - s0)[far].max() / water
         assert 1e-4 < sideband < 0.02, sideband
+
+    @pytest.mark.slow
 
     def test_the_mega_difference_cancels_the_sidebands(self):
         brain, scanner = Brain.load("icbm152"), Scanner.preset("generic_3t")

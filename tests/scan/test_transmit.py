@@ -118,6 +118,8 @@ class TestTransmitMap:
             position_mm=(0.0, 0.0, 4.0), size_mm=20.0).b1_profile(truth) is None
         assert voxel.frame(truth)[2] == (voxel.b1_scale(truth), profile.tobytes())
 
+    @pytest.mark.slow
+
     def test_a_uniform_map_equals_the_scalar_path_and_a_ramp_moves_the_signal(self):
         shape = (24, 24, 24)
         affine = np.diag([2.0, 2.0, 2.0, 1.0])

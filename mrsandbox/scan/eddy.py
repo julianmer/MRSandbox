@@ -155,8 +155,12 @@ def readout_kernel(sequence, scanner, position_mm, size_mm, npoints, dwell_s, re
     readout dephases in the design's own ensemble, `induced_sequence`, so the two
     sincs multiply where one of their sum would be exact, stated). `response` as in
     `induced_phase`, a measured one band-limited to the readout's receiver band; the
-    points sit `start_s` after the readout's start (the receiver delay)."""
+    points sit `start_s` after the readout's start (the receiver delay). None for a
+    design that plays no gradient (an ideal localization): nothing is induced, and the
+    kernel of ones would cost a draw three milliseconds of interpolation."""
     start = float(sequence.duration_s)
+    if not gradient_waveforms(sequence, scanner, TIME_STEP_S, start, gamma_mhz_t)[1]:
+        return None
     t, cycles, moments = induced_phase(sequence, scanner, response,
                                        start + start_s + npoints * dwell_s,
                                        gamma_mhz_t, bandwidth_hz=1.0 / dwell_s)

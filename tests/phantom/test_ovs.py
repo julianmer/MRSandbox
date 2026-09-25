@@ -140,6 +140,8 @@ class TestLipids:
         centred, _ = self.lipid_amplitude(unlocalized)
         assert abs(shifted / centred - expected) < 0.1 * expected
 
+    @pytest.mark.slow
+
     def test_outer_volume_bands_saturate_the_fat_and_spare_the_voxel(self):
         design = slab_echo()
         fat, voxel = self.lipid_amplitude(design)

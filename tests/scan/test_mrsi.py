@@ -788,6 +788,8 @@ class TestBasis:
 #**************************************************************************************************#
 class TestExcitedBox:
 
+    @pytest.mark.slow
+
     def test_cells_inside_the_box_carry_signal_and_cells_beyond_it_do_not(self):
         from mrsandbox import LocalizedPress, NoDownfield, NoLipids, NoMM, NoWater
 
