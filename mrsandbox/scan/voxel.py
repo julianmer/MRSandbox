@@ -556,10 +556,18 @@ class Voxel:
             fids = {}
             if basis is not None:
                 fids["metabolites"] = (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope
-            ready = None if self._field_offset_hz else self._lines_cache(truth).get(("metabolite fid", npoints, float(dwell_s), start_s))
+            held = {} if self._field_offset_hz else self._lines_cache(truth)
+            ready = held.get(("metabolite fid", npoints, float(dwell_s), start_s))
             if ready is not None:               # rendered with the batch (`prepare`)
                 fids["metabolites"] = ready
-            for name, parts in self._grouped(truth, metabolites=basis is None and ready is None).items():
+            if ready is not None and held.get(("every source", npoints, float(dwell_s), start_s)):
+                for name in ("water", "lipids", "mm", "downfield"):
+                    if (name, npoints, float(dwell_s), start_s) in [key[1:] for key in held if key[0] == "fid"]:
+                        fids[name] = held[("fid", name, npoints, float(dwell_s), start_s)]
+                grouped = {}
+            else:
+                grouped = self._grouped(truth, metabolites=basis is None and ready is None)
+            for name, parts in grouped.items():
                 lorentzian, voigt = self._flat_lines(parts)
                 fid = np.zeros(npoints, dtype=np.complex64)
                 if lorentzian is not None:
@@ -1067,6 +1075,41 @@ class Voxel:
                     start_s, gauss = float(truth.acquisition.delay_s), self.resolve(truth.lineshape.gauss_hz)
                     envelope = np.exp(-(np.pi * gauss) ** 2 / (4.0 * np.log(2.0)) * (start_s + grid) ** 2).astype(np.float32)
                     self._lines_cache(truth)[("metabolite fid", n, float(dwell), start_s)] = fids[row] * envelope
+            # the other sources the same way: their parts per draw (the engine parts cached above), the draws with one
+            # line list rendered as rows, Lorentzian lines through the factorized graph, Voigt ones densely; a draw's
+            # `_rendered_fids` then takes every source from the cache and skips its own grouping and renders
+            alike = {}
+            for truth, _, _ in members:
+                start_s = float(truth.acquisition.delay_s)
+                for name, parts in self._grouped(truth, metabolites=False).items():
+                    freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _, _, _ in parts])
+                    amps = np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a, _, _ in parts])
+                    lw = np.concatenate([np.full(f.shape[0], w, np.float32) for f, _, w, _ in parts])
+                    gauss = np.concatenate([np.asarray(ops.convert_to_numpy(g), np.float32) * np.ones(f.shape[0], np.float32) for f, _, _, g in parts])
+                    alike.setdefault((name, freqs.tobytes(), bool(gauss.any())), (freqs, []))[1].append((truth, amps, lw, gauss, start_s))
+            for (name, _, voigt), (f, draws) in alike.items():
+                for first in range(0, len(draws), 32):
+                    chunk = draws[first:first + 32]
+                    pad = -(-f.size // (64 if voigt else 512)) * (64 if voigt else 512) - f.size
+                    rows_amps, rows_lw = np.zeros((len(chunk), f.size + pad), np.complex64), np.ones((len(chunk), f.size + pad), np.float32)
+                    rows_gauss = np.zeros((len(chunk), f.size + pad), np.float32)
+                    for row, (truth, amps, lw, gauss, start_s) in enumerate(chunk):
+                        amps = amps * self._advance(f, lw, start_s)
+                        if voigt:               # a Gaussian line's cross term over the delay is a Lorentzian width (as `_render_lines`)
+                            g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
+                            amps, lw = (amps * np.exp(-g * start_s ** 2)).astype(np.complex64), (lw + 2.0 * g * start_s / np.pi).astype(np.float32)
+                        rows_amps[row, :f.size], rows_lw[row, :f.size], rows_gauss[row, :f.size] = amps, lw, gauss
+                    padded = ops.convert_to_tensor(np.pad(f, (0, pad)))
+                    _, fids = self.scan.engine.render_fids(padded, ops.convert_to_tensor(rows_amps), npoints=n, dwell_s=dwell, lw_hz=rows_lw,
+                                                           gauss_hz=rows_gauss if voigt else None)
+                    fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
+                    for row, (truth, _, _, _, start_s) in enumerate(chunk):
+                        if not voigt:
+                            gauss_hz = self.resolve(truth.lineshape.gauss_hz)
+                            fids[row] = fids[row] * np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0)) * (start_s + grid) ** 2).astype(np.float32)
+                        self._lines_cache(truth)[("fid", name, n, float(dwell), start_s)] = fids[row]
+            for truth, _, _ in members:
+                self._lines_cache(truth)[("every source", n, float(dwell), float(truth.acquisition.delay_s))] = True
 
     def _f0_mhz(self):
         return self.scan.database.gamma("1H") * self.scan.engine.b0_t

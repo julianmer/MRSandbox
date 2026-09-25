@@ -522,12 +522,23 @@ class Engine:
         gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
         return self._renderers[key](freqs, amps, lw, gauss)
 
-    def render_fids(self, freqs, amps, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0):
-        """Render K amplitude rows over one Lorentzian line list to K FIDs in one call:
-        `amps` is (K, L), the result (K, npoints). The factorized graph of `render_fid`
-        with a batched matmul; what a multi-voxel acquisition uses to render every
-        metabolite's unit FID once per truth. `lw_hz` is a scalar, one width per line,
-        or (K, L), one per line and row: a batch of draws, each with its own widths."""
+    def render_fids(self, freqs, amps, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0, gauss_hz=None):
+        """Render K amplitude rows over one line list to K FIDs in one call: `amps` is
+        (K, L), the result (K, npoints). Lorentzian lines take the factorized graph of
+        `render_fid` with a batched matmul; what a multi-voxel acquisition uses to render
+        every metabolite's unit FID once per truth. `lw_hz` is a scalar, one width per
+        line, or (K, L), one per line and row: a batch of draws, each with its own
+        widths. With `gauss_hz` (K, L) the lines are Voigt and take the dense graph, eight
+        rows at a time (its phase table is rows x lines x points)."""
+        if gauss_hz is not None:
+            key = (npoints, float(dwell_s), "voigt rows")
+            if key not in self._renderers:
+                self._renderers[key] = self._fid_renderer(npoints, dwell_s, True, rows=True)
+            lw = ops.convert_to_tensor(lw_hz, dtype=ops.dtype(freqs)) * ops.ones_like(gauss_hz, dtype=ops.dtype(freqs))
+            fids = [self._renderers[key](freqs, amps[first:first + 8], lw[first:first + 8],
+                                         ops.convert_to_tensor(gauss_hz[first:first + 8], dtype=ops.dtype(freqs)))[1]
+                    for first in range(0, int(amps.shape[0]), 8)]
+            return None, ops.concatenate(fids, axis=0)
         rows = np.ndim(lw_hz) == 2
         key = (npoints, float(dwell_s), "rows" if rows else "many")
         if key not in self._renderers:
@@ -591,6 +602,11 @@ class Engine:
             t = n * dwell_s
             r = math.pi * lw_hz
             g = (math.pi * gauss_hz) ** 2 / (4.0 * math.log(2.0))
+            if rows:                # (K, L) widths: the table is (K, L, N) and each row sums its own lines
+                decay = (-ops.expand_dims(r, 2) * t - ops.expand_dims(g, 2) * (t * t))
+                cycles = ops.mod(ops.expand_dims(freqs * dwell_s, 1) * ops.expand_dims(n, 0), 1.0)
+                phase = nops.complex_from(decay, 2.0 * math.pi * ops.expand_dims(cycles, 0))
+                return t, ops.sum(ops.expand_dims(amps, 2) * ops.exp(phase), axis=1)
             decay = (-ops.expand_dims(r, 1) * ops.expand_dims(t, 0)
                      - ops.expand_dims(g, 1) * ops.expand_dims(t * t, 0))
             # the oscillation f t runs to thousands of cycles on long FIDs, where
