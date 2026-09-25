@@ -122,3 +122,23 @@ class TestScannerProfile:
         header = loaded.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024)).voxel(PLACE, SIZE).acquire(
             seed=0, npoints=256).hdr_ext["SimulationPhantom"]["calibrations"]
         assert header["noise.sigma"]["source"] == "a virtual scanner"
+
+    def test_a_vendors_receiver_colours_the_noise_as_its_raw_data_do(self):
+        # GE's noise rolls off to half power at the band's edges (Big GABA, the five dwell filter), Siemens' stays
+        # flat since its files are cropped from twice the band: the GE presets carry a receiver, the Siemens none
+        from mrsandbox import NoDownfield, NoLipids, NoMM, NoWater, Params
+
+        assert ScannerProfile.preset("siemens_prisma_3t").receiver is None
+        profile = ScannerProfile.preset("ge_mr750_3t")
+        assert profile.receiver.span_dwells == 5
+        quiet = Params(conc={name: 0.0 for name in ScannerProfile.preset("ge_mr750_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024)).params.conc})
+        scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024), params=quiet, water=NoWater(), lipids=NoLipids(),
+                            mm=NoMM(), downfield=NoDownfield())
+        voxel = scan.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=20.0)
+        power = np.zeros(2048)
+        for seed in range(8):
+            _, fid = voxel.fid(seed=seed, npoints=2048)
+            power += np.abs(np.fft.fftshift(np.fft.fft(fid))) ** 2
+        edge = 0.5 * (power[:102].mean() + power[-102:].mean()) / power[1024 - 102: 1024 + 102].mean()
+        assert 0.3 < edge < 0.6, edge
+

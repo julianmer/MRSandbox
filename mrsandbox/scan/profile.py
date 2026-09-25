@@ -65,8 +65,11 @@ class ScannerProfile:
     #*****************#
     @classmethod
     def preset(cls, name):
-        """The profile of a named scanner preset, served by the package's records."""
-        return cls(Scanner.preset(name))
+        """The profile of a named scanner preset, served by the package's records, with
+        the vendor's receiver where the raw data showed one (hardware.receiver RECEIVERS)."""
+        from mrsandbox.hardware.receiver import RECEIVERS
+
+        return cls(Scanner.preset(name), receiver=RECEIVERS.get(name))
 
     #*********************#
     #   from a raw file   #

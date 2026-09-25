@@ -805,7 +805,7 @@ class TestExcitedBox:
         f0_mhz = 3.0 * 42.5774785
         design = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(20.0, 20.0, 15.0))
         scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=params, water=NoWater(),
-                           lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), isochromats=8)
+                           lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), isochromats=4)      # four: the gate holds, a quarter of the time
         mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=10.0, thickness_mm=15.0)
         data = mrsi.acquire(seed=3, npoints=64)
         first = np.abs(np.asarray(data[:])[:, :, 0, 0])

@@ -98,3 +98,18 @@ class Receiver:
         half = self.oversampling * self.span_dwells
         filtered = np.convolve(fid, self.taps)[half::self.oversampling][:npoints]
         return filtered.astype(np.complex64)
+
+
+#*********************************#
+#   the vendors' receivers        #
+#*********************************#
+# What the raw data's noise says of each vendor's filter (info/analysis/noise_colour.py, 25/09/26): the power
+# spectrum of the last quarter of every coil-combined transient, averaged over the runs and put on one grid of the
+# band's fraction, over its median. Big GABA GE MR750 (40 runs): 0.48 at the outer twentieth of the band each side,
+# 0.66 at the next, 0.91 at 0.3 to 0.4 of the band from the carrier, flat inside: the Hamming windowed sinc of five
+# output dwells a side (0.42, 0.75, 1.0) is the nearest of spans 2 to 64 (mean log error 0.086). Big GABA Siemens
+# Trio (36 runs) and the COWS Prisma (39): flat to the edges (1.0 to 1.1), because Siemens acquires at twice the
+# band and the reader crops the spectrum to its middle half, so the filter's roll-off never reaches the kept band:
+# no receiver is the right model of those files, stated. Philips: no raw noise read.
+RECEIVERS = {"ge_mr750_3t": Receiver(oversampling=8, span_dwells=5), "ge_mr750_32ch_3t": Receiver(oversampling=8, span_dwells=5)}
+

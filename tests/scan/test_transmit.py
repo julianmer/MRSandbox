@@ -98,7 +98,7 @@ class TestTransmitMap:
                        gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                                       linear_short=0.0, linear_long=0.0))
         return VirtualScan(brain, Scanner.preset("generic_7t"), sequence, params=quiet,
-                           transmit=transmit, isochromats=16)
+                           transmit=transmit, isochromats=8)
 
     def test_profile_reads_the_map_at_the_isochromats(self):
         shape = (24, 24, 24)
@@ -131,7 +131,7 @@ class TestTransmitMap:
         with_map = self.scan(Volume(flat, affine), slice_echo())
         without = self.scan(None, slice_echo())
         _, mapped = with_map.voxel(**kw).fid(seed=3, npoints=512)
-        scalar = VirtualScan(without.brain, without.scanner, without.sequence, isochromats=16,
+        scalar = VirtualScan(without.brain, without.scanner, without.sequence, isochromats=8,
                              params=without.params | Params(b1_scale=0.9))
         _, plain = scalar.voxel(**kw).fid(seed=3, npoints=512)
         np.testing.assert_allclose(mapped, plain, atol=1e-5 * np.abs(plain).max())
