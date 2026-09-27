@@ -719,6 +719,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.428,
+      "prior": [
+       0.428,
+       0.428
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.428,
+       "strongest_pair": 0.508,
+       "median_pair": 0.039,
+       "level_spread": 1.648,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -2953,6 +3004,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.435,
+      "prior": [
+       0.435,
+       0.435
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.435,
+       "strongest_pair": 0.514,
+       "median_pair": 0.042,
+       "level_spread": 1.653,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -5189,6 +5291,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.424,
+      "prior": [
+       0.424,
+       0.424
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.424,
+       "strongest_pair": 0.502,
+       "median_pair": 0.056,
+       "level_spread": 1.772,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -7423,6 +7576,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.437,
+      "prior": [
+       0.437,
+       0.437
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.437,
+       "strongest_pair": 0.512,
+       "median_pair": 0.058,
+       "level_spread": 1.552,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -9659,6 +9863,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.437,
+      "prior": [
+       0.437,
+       0.437
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.437,
+       "strongest_pair": 0.516,
+       "median_pair": 0.045,
+       "level_spread": 1.531,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -11893,6 +12148,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.421,
+      "prior": [
+       0.421,
+       0.421
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.421,
+       "strongest_pair": 0.491,
+       "median_pair": 0.046,
+       "level_spread": 1.925,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -14129,6 +14435,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.431,
+      "prior": [
+       0.431,
+       0.431
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.431,
+       "strongest_pair": 0.492,
+       "median_pair": 0.046,
+       "level_spread": 1.79,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -16363,6 +16720,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.432,
+      "prior": [
+       0.432,
+       0.432
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.432,
+       "strongest_pair": 0.495,
+       "median_pair": 0.04,
+       "level_spread": 1.924,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -18599,6 +19007,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.421,
+      "prior": [
+       0.421,
+       0.421
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.421,
+       "strongest_pair": 0.486,
+       "median_pair": 0.044,
+       "level_spread": 1.687,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -20833,6 +21292,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.422,
+      "prior": [
+       0.422,
+       0.422
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.422,
+       "strongest_pair": 0.504,
+       "median_pair": 0.032,
+       "level_spread": 1.709,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -23069,6 +23579,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.422,
+      "prior": [
+       0.422,
+       0.422
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.422,
+       "strongest_pair": 0.489,
+       "median_pair": 0.041,
+       "level_spread": 1.968,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -25303,6 +25864,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.417,
+      "prior": [
+       0.417,
+       0.417
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.417,
+       "strongest_pair": 0.496,
+       "median_pair": 0.044,
+       "level_spread": 2.279,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -27539,6 +28151,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.415,
+      "prior": [
+       0.415,
+       0.415
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.415,
+       "strongest_pair": 0.496,
+       "median_pair": 0.03,
+       "level_spread": 1.918,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -29773,6 +30436,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.418,
+      "prior": [
+       0.418,
+       0.418
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.418,
+       "strongest_pair": 0.475,
+       "median_pair": 0.043,
+       "level_spread": 1.618,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -32009,6 +32723,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.429,
+      "prior": [
+       0.429,
+       0.429
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.429,
+       "strongest_pair": 0.516,
+       "median_pair": 0.043,
+       "level_spread": 1.68,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -34243,6 +35008,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.424,
+      "prior": [
+       0.424,
+       0.424
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.424,
+       "strongest_pair": 0.491,
+       "median_pair": 0.05,
+       "level_spread": 1.815,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -36479,6 +37295,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.428,
+      "prior": [
+       0.428,
+       0.428
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.428,
+       "strongest_pair": 0.497,
+       "median_pair": 0.034,
+       "level_spread": 1.988,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -38713,6 +39580,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.421,
+      "prior": [
+       0.421,
+       0.421
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.421,
+       "strongest_pair": 0.496,
+       "median_pair": 0.035,
+       "level_spread": 1.778,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -40949,6 +41867,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.43,
+      "prior": [
+       0.43,
+       0.43
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.43,
+       "strongest_pair": 0.509,
+       "median_pair": 0.036,
+       "level_spread": 1.735,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -43183,6 +44152,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.413,
+      "prior": [
+       0.413,
+       0.413
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.413,
+       "strongest_pair": 0.506,
+       "median_pair": 0.028,
+       "level_spread": 1.528,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -45419,6 +46439,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.425,
+      "prior": [
+       0.425,
+       0.425
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.425,
+       "strongest_pair": 0.502,
+       "median_pair": 0.041,
+       "level_spread": 1.918,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -47653,6 +48724,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.433,
+      "prior": [
+       0.433,
+       0.433
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.433,
+       "strongest_pair": 0.503,
+       "median_pair": 0.04,
+       "level_spread": 1.907,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -49889,6 +51011,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.412,
+      "prior": [
+       0.412,
+       0.412
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.412,
+       "strongest_pair": 0.465,
+       "median_pair": 0.044,
+       "level_spread": 1.865,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -52124,6 +53297,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.419,
+      "prior": [
+       0.419,
+       0.419
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.419,
+       "strongest_pair": 0.492,
+       "median_pair": 0.031,
+       "level_spread": 1.866,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -54358,6 +55582,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.407,
+      "prior": [
+       0.407,
+       0.407
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.407,
+       "strongest_pair": 0.48,
+       "median_pair": 0.042,
+       "level_spread": 1.725,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds005917.v1.1.0",
+       "url": "https://openneuro.org/datasets/ds005917"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": "syngo MR B17",
+       "field_t": 6.98
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch_Head_7T"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],

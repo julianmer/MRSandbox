@@ -125,6 +125,11 @@ class TestConsole:
         session = Session("Brain, ICBM152 average, 2 mm")
         was = session.card_from(run)
         assert was["scanner"] == "ge_mr750_3t" and was["array"] == "head array" and len(session.array()) == 32
+        # a coil the sidecar names and the package has as published: that array, GE's head coil being Nova's
+        (tmp_path / "acq-slaser_svs.json").write_text(json.dumps({"Manufacturer": "GE", "ManufacturersModelName": "Discovery MR750",
+                                                                   "ReceiveCoilName": "32Ch Head"}))
+        again = Session("Brain, ICBM152 average, 2 mm")
+        assert again.card_from(run)["array"] == "GE · 32-ch Head (Nova 3832016)" and len(again.array()) == 32
 
     def test_a_relaxation_map_gives_the_water_its_t1_per_tissue(self, tmp_path):
         # an R1 map of the subject on the floor (1 / T1 of the stated values mixed by the anatomy's own tissues), read per

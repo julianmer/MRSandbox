@@ -27,6 +27,7 @@ from keras import ops
 from mrsandbox.backend import Backend
 from mrsandbox.engine import Engine
 from mrsandbox.hardware import CoilArray
+from mrsandbox.hardware.arrays import PRESETS as ARRAY_PRESETS
 from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Empirical, Fixed, Mapped, Normal, Params, Sourced, Uniform
@@ -324,6 +325,10 @@ def _describe(value):
     return "other", repr(value)[:60]
 
 
+# the makers of the receive arrays on the shelf (hardware.arrays), as the console names them
+MAKERS = {"siemens": "Siemens", "ge": "GE", "philips": "Philips", "research": "Research"}
+
+
 #**************************************************************************************************#
 #                                          Class Protocol                                          #
 #**************************************************************************************************#
@@ -513,6 +518,10 @@ class Session:
     COIL_SETTINGS = {"one ideal channel": {}, "head array": dict(loops_at_0_deg=1, loops_at_35_deg=6, loops_at_65_deg=10, loops_at_95_deg=15, loop_radius_mm=38.0),
                      "ring of loops": dict(channels=8, ring_radius_mm=110.0, loop_radius_mm=40.0, z_mm=0.0),
                      "surface loop": dict(x_mm=0.0, y_mm=-105.0, z_mm=35.0, loop_radius_mm=50.0)}
+    # the scanners' own arrays as published (hardware.arrays), by maker: no settings, what is cited and what stated on the card
+    ARRAYS = {f"{MAKERS[preset.vendor]} · {preset.label}": key for key, preset in ARRAY_PRESETS.items()}
+    COILS = {**COILS, **{label: (lambda key=key: ARRAY_PRESETS[key].array()) for label, key in ARRAYS.items()}}
+    COIL_SETTINGS = {**COIL_SETTINGS, **{label: {} for label in ARRAYS}}
 
     # what of the session is the room an exam is planned in and runs in
     ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "seed", "field", "transmit", "shim", "shim_mm")
@@ -923,12 +932,20 @@ class Session:
     def own_share(self):
         """The share of a channel's noise that is its own, in force for the array on the floor, and
         where it comes from: the operator's own reading (coil_noise), else the package's rows pooled
-        for the scanner at the array's channel count (scan.cohort), as (value, source, provenance)."""
+        for the scanner at the array's channel count (scan.cohort), as (value, source, provenance): the
+        channels' measured correlation turned into the share against this array (a share read against a
+        stand-in geometry carries the stand-in, info/HANDOFF.md item 246), else a pooled share."""
         if self.own_noise is not None:
             return self.own_noise, "own", "read from your scan with the coils apart"
         array = self.array()
-        record = self.profile().calibrations().get("coils.loaded.own_noise") if array is None else calibrations(
-            self.profile().scanner, self.profile().records, channels=len(array)).get("coils.loaded.own_noise")
+        served = self.profile().calibrations() if array is None else calibrations(self.profile().scanner, self.profile().records,
+                                                                                   channels=len(array))
+        correlation = served.get("coils.partner_correlation")
+        if array is not None and array.loops and correlation is not None:          # a mapped array has no geometry to take it against
+            return (round(CovarianceReading.share(array, correlation.value), 2), "pooled",
+                    f"the channels' correlation {correlation.value:.2f}, {correlation.source['dataset']}, {correlation.date}, "
+                    f"against this array")
+        record = served.get("coils.loaded.own_noise")
         if record is None:
             return 0.25, "literature", "the package's stated share"
         return float(record.value), "pooled", f"{record.source['dataset']}, {record.date}"
@@ -986,7 +1003,14 @@ class Session:
                 break
         else:
             self.scanner = was["scanner"] = "generic_3t"
-        if x.shape[1] == 32 and len(self.array() or ()) != 32:
+        # the array as acquired: the coil the header or sidecar names, where a preset is that coil; a 32-channel run on
+        # an unnamed coil the helmet the cohorts read such runs against
+        named = str(header.get("ReceiveCoilName") or said.get("ReceiveCoilName") or "")
+        preset = next((label for label, key in self.ARRAYS.items() if named in ARRAY_PRESETS[key].names and ARRAY_PRESETS[key].vendor in vendor
+                       and ARRAY_PRESETS[key].channels == x.shape[1]), None) if named else None
+        if preset is not None:
+            self.coil = was["array"] = preset
+        elif x.shape[1] == 32 and len(self.array() or ()) != 32:
             self.coil = was["array"] = "head array"
         self.calibration = None
         return was

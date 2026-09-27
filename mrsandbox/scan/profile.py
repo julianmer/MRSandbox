@@ -18,6 +18,8 @@
 import dataclasses
 import json
 
+import numpy as np
+
 from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
 from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading, WaterReading, _raw
@@ -122,6 +124,8 @@ class ScannerProfile:
         if shim.failed:                                          # what is read against the width fails with it
             sigma = dataclasses.replace(sigma, failed="read against a failed width: " + shim.failed)
         records, coils = (sigma, shim), None
+        if covariance is not None and covariance.coils > 1:           # the channels' own number, whatever the geometry
+            records += (dataclasses.replace(covariance.record_correlation(dataset, load=load), scanner=sigma.scanner),)
         if array is not None:
             share = dataclasses.replace(covariance.record(array, dataset, load=load), scanner=sigma.scanner)
             records += (share,)
@@ -151,9 +155,12 @@ class ScannerProfile:
 
     def to_dict(self):
         """The profile as plain data, what `save` writes."""
+        # JSON holds no complex: a complex matrix (the modes, the resistance they mix) as its real and imaginary parts
+        pair = lambda matrix: None if matrix is None else (np.stack([np.real(matrix), np.imag(matrix)]).tolist()
+                                                            if np.iscomplexobj(matrix) else matrix.tolist())
         coils = None if self.coils is None else {
             "loops": [dataclasses.asdict(loop) for loop in self.coils.loops],
-            "noise_resistance": self.coils.noise_resistance.tolist(), "gain": self.coils.gain}
+            "noise_resistance": pair(self.coils.noise_resistance), "gain": self.coils.gain, "modes": pair(self.coils.modes)}
         return {"scanner": dataclasses.asdict(self.scanner),
                 "records": [dataclasses.asdict(record) for record in self.records],
                 "coils": coils, "girf": None if self.girf is None else self.girf.name,
@@ -173,9 +180,12 @@ class ScannerProfile:
         """The profile `to_dict` gave."""
         records = tuple(Calibration(**{**record, "prior": tuple(record["prior"]),
                                        "presets": tuple(record["presets"])}) for record in stored["records"])
+        # a matrix as its real and imaginary parts (a file of before 27/09/26 holds a real resistance alone)
+        matrix = lambda stored: None if stored is None else (np.asarray(stored)[0] + 1j * np.asarray(stored)[1]
+                                                             if np.asarray(stored).ndim == 3 else np.asarray(stored))
         coils = stored["coils"] and CoilArray(
             [Loop(loop["radius_mm"], tuple(loop["center_mm"]), tuple(loop["normal"])) for loop in stored["coils"]["loops"]],
-            stored["coils"]["noise_resistance"], gain=stored["coils"]["gain"])
+            matrix(stored["coils"]["noise_resistance"]), gain=stored["coils"]["gain"], modes=matrix(stored["coils"].get("modes")))
         return cls(Scanner(**stored["scanner"]), records, coils=coils,
                    girf=stored["girf"] and GIRF.named(stored["girf"]),
                    receiver=stored["receiver"] and Receiver(**stored["receiver"]))

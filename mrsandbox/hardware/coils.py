@@ -134,27 +134,32 @@ class CoilArray:
             coil's own noise resistance, off-diagonal entries the correlated noise
             between coils. Defaults to the identity (independent, equal coils).
         gain: The scale on every sensitivity (`calibrated` sets it).
+        modes: The channels as combinations of the loops, (channels, loops) complex: a Tim
+            coil's mode matrix, whose primary, secondary and tertiary signals of a cluster
+            together carry what its raw loops do (Reykowski and Blasche, ISMRM 2004 #1587;
+            hardware.arrays). None: every loop its own channel.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, loops, noise_resistance=None, gain=1.0):
+    def __init__(self, loops, noise_resistance=None, gain=1.0, modes=None):
         self.loops = tuple(loops)
-        self.noise_resistance = self._resistance(len(self.loops), noise_resistance)
+        self.modes = None if modes is None else np.asarray(modes, dtype=np.complex128)
+        self.noise_resistance = self._resistance(len(self), noise_resistance)
         self.gain = float(gain)
 
     @staticmethod
     def _resistance(n, noise_resistance):
         """The (n, n) noise resistance matrix, the identity when none is given."""
-        matrix = (np.asarray(noise_resistance, dtype=float) if noise_resistance is not None
-                  else np.eye(n))
+        matrix = np.asarray(noise_resistance) if noise_resistance is not None else np.eye(n)
+        matrix = matrix.astype(np.complex128 if np.iscomplexobj(matrix) else float)     # a mode matrix mixes the loops' noise with phase
         if matrix.shape != (n, n):
             raise ValueError(f"noise_resistance must be {n}x{n} for {n} channels")
         return matrix
 
     def __len__(self):
-        return len(self.loops)
+        return len(self.loops) if self.modes is None else self.modes.shape[0]
 
     #**********#
     #   ring   #
@@ -238,7 +243,9 @@ class CoilArray:
         resistance = np.einsum("ipk,jpk->ij", potentials, potentials)
         resistance = resistance / np.mean(np.diag(resistance))
         resistance = (1.0 - own_noise) * resistance + own_noise * np.eye(len(self.loops))
-        return type(self)(self.loops, resistance, gain=self.gain)
+        if self.modes is not None:                       # the combiner mixes the loops' noise as it mixes their signals
+            resistance = self.modes @ resistance @ self.modes.conj().T
+        return type(self)(self.loops, resistance, gain=self.gain, modes=self.modes)
 
     #****************#
     #   calibrated   #
@@ -266,8 +273,8 @@ class CoilArray:
 
         The loop fields are analytic point samples at the position; `size_mm` is the
         shared signature of the mapped arrays and is ignored here (stated)."""
-        return self.gain * np.asarray([loop.sensitivity(position_mm) for loop in self.loops],
-                                      dtype=np.complex64)
+        b = np.asarray([loop.sensitivity(position_mm) for loop in self.loops], dtype=np.complex128)
+        return (self.gain * (b if self.modes is None else self.modes @ b)).astype(np.complex64)
 
     #*****************#
     #   combination   #
@@ -302,9 +309,7 @@ class CoilArray:
     def noise(self, rng, sigma, npoints):
         """Correlated complex Gaussian noise (n_coils, npoints) with covariance sigma^2 R."""
         chol = np.linalg.cholesky(self.noise_resistance)
-        eps = rng.standard_normal((len(self.loops), npoints)) + 1j * rng.standard_normal(
-            (len(self.loops), npoints)
-        )
+        eps = rng.standard_normal((len(self), npoints)) + 1j * rng.standard_normal((len(self), npoints))
         return (sigma * (chol @ eps)).astype(np.complex64)
 
 

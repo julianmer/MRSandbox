@@ -105,6 +105,12 @@ class TestApp:
                 user.find(marker="coil settings").click()                # the receive array card
                 await user.should_see("share of a channel's noise that is its own")
                 await user.should_see("sensitivity maps")
+                nova = "GE · 32-ch Head (Nova 3832016)"                   # a scanner's own array, as published (item 246)
+                [e for e in user.find(kind=ui.select).elements if nova in e.options][-1].value = nova          # the card's select, not the top bar's
+                await user.should_see("Nova Medical's user manual")
+                await user.should_see("the mean of the two pitches")     # what the package stated
+                await user.should_see("against this array")              # the pooled correlation turned into this array's share
+                [e for e in user.find(kind=ui.select).elements if nova in e.options][-1].value = "one ideal channel"
                 user.find("Done").click()
                 user.find(marker="subject settings").click()             # the anatomy card: the maps lines, then the values in groups
                 await user.should_see("Anatomy and maps")

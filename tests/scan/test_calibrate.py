@@ -122,6 +122,35 @@ class TestCovarianceReading:
         record = reading.record(CoilArray.helmet(), "a virtual noise scan", load="the model's head sphere")
         assert record.leaf == "coils.loaded.own_noise" and abs(record.value - 0.4) < 0.03
         assert record.measured["strongest_pair"] > record.measured["strongest_partner_mean"] > record.measured["median_pair"]
+        # the correlation is the data's own number; the share is taken from it against the array that plays it
+        correlation = reading.record_correlation("a virtual noise scan", load="the model's head sphere")
+        assert correlation.leaf == "coils.partner_correlation" and correlation.value == pytest.approx(record.measured["strongest_partner_mean"], abs=1e-3)
+        assert CovarianceReading.share(CoilArray.helmet(), correlation.value) == pytest.approx(reading.own_noise(CoilArray.helmet()), abs=0.01)
+
+    def test_multi_coil_kspace_gives_its_noise_beyond_the_head(self, tmp_path):
+        # fastMRI's layout: slices, coils, a readout oversampled twofold, phase encodes, half of them sampled; an object
+        # in the readout's middle half and noise of a known covariance everywhere: the outer readout reads the noise alone
+        import h5py
+
+        rng = np.random.default_rng(4)
+        mixing = np.eye(4) + 0.5 * rng.standard_normal((4, 4))
+        slices, coils, readout, lines = 3, 4, 128, 64
+        noise = np.einsum("ij,sjrl->sirl", mixing, rng.standard_normal((slices, coils, readout, lines)) + 1j * rng.standard_normal((slices, coils, readout, lines)))
+        image = noise.copy()
+        image[:, :, readout // 4: 3 * readout // 4] += 50.0 * rng.standard_normal((coils, readout // 2, lines))    # the head
+        kspace = np.fft.fftshift(np.fft.fft(np.fft.ifftshift(image, axes=2), axis=2), axes=2).astype(np.complex64)
+        header = ("<ismrmrdHeader><acquisitionSystemInformation><systemVendor>SIEMENS</systemVendor><systemModel>Skyra</systemModel>"
+                  "<systemFieldStrength_T>2.8936</systemFieldStrength_T><coilLabel><coilNumber>1</coilNumber><coilName>HeadNeck_20:1:H11"
+                  "</coilName></coilLabel></acquisitionSystemInformation></ismrmrdHeader>")
+        with h5py.File(tmp_path / "scan.h5", "w") as file:
+            file["kspace"] = kspace
+            file["mask"] = (np.arange(lines) % 2 == 0).astype(np.float32)
+            file["ismrmrd_header"] = header
+        reading = CovarianceReading.from_kspace(tmp_path / "scan.h5")
+        known = CovarianceReading(covariance=mixing @ mixing.conj().T, samples=0, header={})
+        assert reading.coils == 4 and reading.samples == slices * (readout // 4) * (lines // 2)
+        assert reading.statistics()["strongest_partner_mean"] == pytest.approx(known.statistics()["strongest_partner_mean"], abs=0.03)
+        assert reading.header == {"systemVendor": "SIEMENS", "systemModel": "Skyra", "systemFieldStrength_T": 2.8936, "ReceiveCoilName": "HeadNeck_20"}
 
     def test_an_ismrmrd_file_is_read_off_its_flagged_noise_lines(self, tmp_path):
         h5py = pytest.importorskip("h5py")

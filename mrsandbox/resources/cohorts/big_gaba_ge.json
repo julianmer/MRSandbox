@@ -719,6 +719,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.265,
+      "prior": [
+       0.265,
+       0.265
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.265,
+       "strongest_pair": 0.289,
+       "median_pair": 0.051,
+       "level_spread": 1.2,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -2953,6 +3004,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.266,
+      "prior": [
+       0.266,
+       0.266
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.266,
+       "strongest_pair": 0.309,
+       "median_pair": 0.046,
+       "level_spread": 1.379,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -5189,6 +5291,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.288,
+      "prior": [
+       0.288,
+       0.288
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.288,
+       "strongest_pair": 0.326,
+       "median_pair": 0.063,
+       "level_spread": 1.187,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -7423,6 +7576,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.266,
+      "prior": [
+       0.266,
+       0.266
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.266,
+       "strongest_pair": 0.293,
+       "median_pair": 0.042,
+       "level_spread": 1.182,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -9659,6 +9863,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.257,
+      "prior": [
+       0.257,
+       0.257
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.257,
+       "strongest_pair": 0.281,
+       "median_pair": 0.043,
+       "level_spread": 1.214,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -11893,6 +12148,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.278,
+      "prior": [
+       0.278,
+       0.278
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.278,
+       "strongest_pair": 0.303,
+       "median_pair": 0.055,
+       "level_spread": 1.29,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -14129,6 +14435,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.3,
+      "prior": [
+       0.3,
+       0.3
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.3,
+       "strongest_pair": 0.341,
+       "median_pair": 0.068,
+       "level_spread": 1.26,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -16313,6 +16670,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.5,
+      "prior": [
+       0.5,
+       0.5
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.5,
+       "strongest_pair": 0.568,
+       "median_pair": 0.388,
+       "level_spread": 1.374,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -16986,6 +17394,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.411,
+      "prior": [
+       0.411,
+       0.411
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.411,
+       "strongest_pair": 0.443,
+       "median_pair": 0.317,
+       "level_spread": 1.246,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -17661,6 +18120,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.477,
+      "prior": [
+       0.477,
+       0.477
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.477,
+       "strongest_pair": 0.527,
+       "median_pair": 0.362,
+       "level_spread": 1.319,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -18334,6 +18844,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.423,
+      "prior": [
+       0.423,
+       0.423
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.423,
+       "strongest_pair": 0.466,
+       "median_pair": 0.317,
+       "level_spread": 1.203,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -19009,6 +19570,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.465,
+      "prior": [
+       0.465,
+       0.465
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.465,
+       "strongest_pair": 0.509,
+       "median_pair": 0.347,
+       "level_spread": 1.305,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -19682,6 +20294,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.475,
+      "prior": [
+       0.475,
+       0.475
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.475,
+       "strongest_pair": 0.531,
+       "median_pair": 0.357,
+       "level_spread": 1.396,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -20357,6 +21020,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.426,
+      "prior": [
+       0.426,
+       0.426
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.426,
+       "strongest_pair": 0.463,
+       "median_pair": 0.304,
+       "level_spread": 1.293,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -21030,6 +21744,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.466,
+      "prior": [
+       0.466,
+       0.466
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.466,
+       "strongest_pair": 0.512,
+       "median_pair": 0.31,
+       "level_spread": 1.43,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -21705,6 +22470,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.446,
+      "prior": [
+       0.446,
+       0.446
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.446,
+       "strongest_pair": 0.477,
+       "median_pair": 0.346,
+       "level_spread": 1.291,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -22378,6 +23194,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.478,
+      "prior": [
+       0.478,
+       0.478
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.478,
+       "strongest_pair": 0.518,
+       "median_pair": 0.323,
+       "level_spread": 1.407,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -23053,6 +23920,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.499,
+      "prior": [
+       0.499,
+       0.499
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.499,
+       "strongest_pair": 0.549,
+       "median_pair": 0.371,
+       "level_spread": 1.401,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -23726,6 +24644,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.457,
+      "prior": [
+       0.457,
+       0.457
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.457,
+       "strongest_pair": 0.503,
+       "median_pair": 0.314,
+       "level_spread": 1.339,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -24451,6 +25420,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.409,
+      "prior": [
+       0.409,
+       0.409
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.409,
+       "strongest_pair": 0.443,
+       "median_pair": 0.052,
+       "level_spread": 1.479,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -26687,6 +27707,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.409,
+      "prior": [
+       0.409,
+       0.409
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.409,
+       "strongest_pair": 0.449,
+       "median_pair": 0.047,
+       "level_spread": 1.518,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -28921,6 +29992,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.412,
+      "prior": [
+       0.412,
+       0.412
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.412,
+       "strongest_pair": 0.47,
+       "median_pair": 0.061,
+       "level_spread": 1.474,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -31157,6 +32279,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.409,
+      "prior": [
+       0.409,
+       0.409
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.409,
+       "strongest_pair": 0.46,
+       "median_pair": 0.058,
+       "level_spread": 1.488,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -33391,6 +34564,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.405,
+      "prior": [
+       0.405,
+       0.405
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.405,
+       "strongest_pair": 0.456,
+       "median_pair": 0.055,
+       "level_spread": 1.451,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -35627,6 +36851,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.417,
+      "prior": [
+       0.417,
+       0.417
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.417,
+       "strongest_pair": 0.457,
+       "median_pair": 0.065,
+       "level_spread": 1.485,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -37861,6 +39136,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.403,
+      "prior": [
+       0.403,
+       0.403
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.403,
+       "strongest_pair": 0.436,
+       "median_pair": 0.055,
+       "level_spread": 1.403,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -40097,6 +41423,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.416,
+      "prior": [
+       0.416,
+       0.416
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.416,
+       "strongest_pair": 0.456,
+       "median_pair": 0.051,
+       "level_spread": 1.622,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -42331,6 +43708,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.407,
+      "prior": [
+       0.407,
+       0.407
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.407,
+       "strongest_pair": 0.45,
+       "median_pair": 0.058,
+       "level_spread": 1.45,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -44567,6 +45995,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.405,
+      "prior": [
+       0.405,
+       0.405
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.405,
+       "strongest_pair": 0.449,
+       "median_pair": 0.052,
+       "level_spread": 1.483,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -46801,6 +48280,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.411,
+      "prior": [
+       0.411,
+       0.411
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.411,
+       "strongest_pair": 0.44,
+       "median_pair": 0.06,
+       "level_spread": 1.458,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -49037,6 +50567,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.409,
+      "prior": [
+       0.409,
+       0.409
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.409,
+       "strongest_pair": 0.444,
+       "median_pair": 0.053,
+       "level_spread": 1.517,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -51221,6 +52802,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.353,
+      "prior": [
+       0.353,
+       0.353
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.353,
+       "strongest_pair": 0.387,
+       "median_pair": 0.259,
+       "level_spread": 1.369,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -51894,6 +53526,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.365,
+      "prior": [
+       0.365,
+       0.365
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.365,
+       "strongest_pair": 0.392,
+       "median_pair": 0.281,
+       "level_spread": 1.261,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -52569,6 +54252,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.382,
+      "prior": [
+       0.382,
+       0.382
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.382,
+       "strongest_pair": 0.448,
+       "median_pair": 0.278,
+       "level_spread": 1.237,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -53242,6 +54976,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.355,
+      "prior": [
+       0.355,
+       0.355
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.355,
+       "strongest_pair": 0.383,
+       "median_pair": 0.283,
+       "level_spread": 1.233,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -53917,6 +55702,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.376,
+      "prior": [
+       0.376,
+       0.376
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.376,
+       "strongest_pair": 0.402,
+       "median_pair": 0.288,
+       "level_spread": 1.344,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -54590,6 +56426,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.358,
+      "prior": [
+       0.358,
+       0.358
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.358,
+       "strongest_pair": 0.381,
+       "median_pair": 0.249,
+       "level_spread": 1.333,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -55265,6 +57152,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.378,
+      "prior": [
+       0.378,
+       0.378
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.378,
+       "strongest_pair": 0.393,
+       "median_pair": 0.275,
+       "level_spread": 1.298,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -55938,6 +57876,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.356,
+      "prior": [
+       0.356,
+       0.356
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.356,
+       "strongest_pair": 0.383,
+       "median_pair": 0.269,
+       "level_spread": 1.331,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -56613,6 +58602,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.368,
+      "prior": [
+       0.368,
+       0.368
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.368,
+       "strongest_pair": 0.402,
+       "median_pair": 0.268,
+       "level_spread": 1.342,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -57286,6 +59326,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.379,
+      "prior": [
+       0.379,
+       0.379
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.379,
+       "strongest_pair": 0.431,
+       "median_pair": 0.263,
+       "level_spread": 1.358,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -57961,6 +60052,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.382,
+      "prior": [
+       0.382,
+       0.382
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.382,
+       "strongest_pair": 0.404,
+       "median_pair": 0.282,
+       "level_spread": 1.39,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -58634,6 +60776,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.335,
+      "prior": [
+       0.335,
+       0.335
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.335,
+       "strongest_pair": 0.362,
+       "median_pair": 0.245,
+       "level_spread": 1.285,
+       "samples": 2048
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -59309,6 +61502,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.405,
+      "prior": [
+       0.405,
+       0.405
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.405,
+       "strongest_pair": 0.429,
+       "median_pair": 0.335,
+       "level_spread": 1.168,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -59982,6 +62226,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.423,
+      "prior": [
+       0.423,
+       0.423
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.423,
+       "strongest_pair": 0.452,
+       "median_pair": 0.342,
+       "level_spread": 1.174,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -60657,6 +62952,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.397,
+      "prior": [
+       0.397,
+       0.397
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.397,
+       "strongest_pair": 0.41,
+       "median_pair": 0.332,
+       "level_spread": 1.129,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -61330,6 +63676,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.41,
+      "prior": [
+       0.41,
+       0.41
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.41,
+       "strongest_pair": 0.435,
+       "median_pair": 0.33,
+       "level_spread": 1.197,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -62005,6 +64402,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.408,
+      "prior": [
+       0.408,
+       0.408
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.408,
+       "strongest_pair": 0.437,
+       "median_pair": 0.328,
+       "level_spread": 1.211,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -62678,6 +65126,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.409,
+      "prior": [
+       0.409,
+       0.409
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.409,
+       "strongest_pair": 0.43,
+       "median_pair": 0.348,
+       "level_spread": 1.168,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -63353,6 +65852,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.42,
+      "prior": [
+       0.42,
+       0.42
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.42,
+       "strongest_pair": 0.454,
+       "median_pair": 0.33,
+       "level_spread": 1.152,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -64026,6 +66576,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.413,
+      "prior": [
+       0.413,
+       0.413
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.413,
+       "strongest_pair": 0.432,
+       "median_pair": 0.331,
+       "level_spread": 1.252,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -64701,6 +67302,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.381,
+      "prior": [
+       0.381,
+       0.381
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.381,
+       "strongest_pair": 0.396,
+       "median_pair": 0.328,
+       "level_spread": 1.129,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -65374,6 +68026,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.398,
+      "prior": [
+       0.398,
+       0.398
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.398,
+       "strongest_pair": 0.421,
+       "median_pair": 0.332,
+       "level_spread": 1.217,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -66049,6 +68752,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.762,
+      "prior": [
+       0.762,
+       0.762
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.762,
+       "strongest_pair": 0.815,
+       "median_pair": 0.677,
+       "level_spread": 1.95,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -66722,6 +69476,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.37,
+      "prior": [
+       0.37,
+       0.37
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.37,
+       "strongest_pair": 0.395,
+       "median_pair": 0.324,
+       "level_spread": 1.075,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -67397,6 +70202,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.425,
+      "prior": [
+       0.425,
+       0.425
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.425,
+       "strongest_pair": 0.46,
+       "median_pair": 0.318,
+       "level_spread": 1.167,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -68070,6 +70926,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.44,
+      "prior": [
+       0.44,
+       0.44
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.44,
+       "strongest_pair": 0.494,
+       "median_pair": 0.336,
+       "level_spread": 1.109,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -68745,6 +71652,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.435,
+      "prior": [
+       0.435,
+       0.435
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.435,
+       "strongest_pair": 0.492,
+       "median_pair": 0.316,
+       "level_spread": 1.158,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -69418,6 +72376,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.446,
+      "prior": [
+       0.446,
+       0.446
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.446,
+       "strongest_pair": 0.5,
+       "median_pair": 0.321,
+       "level_spread": 1.126,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -70093,6 +73102,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.441,
+      "prior": [
+       0.441,
+       0.441
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.441,
+       "strongest_pair": 0.484,
+       "median_pair": 0.338,
+       "level_spread": 1.122,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -70766,6 +73826,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.429,
+      "prior": [
+       0.429,
+       0.429
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.429,
+       "strongest_pair": 0.475,
+       "median_pair": 0.323,
+       "level_spread": 1.19,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -71441,6 +74552,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.445,
+      "prior": [
+       0.445,
+       0.445
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.445,
+       "strongest_pair": 0.486,
+       "median_pair": 0.328,
+       "level_spread": 1.165,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -72114,6 +75276,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.454,
+      "prior": [
+       0.454,
+       0.454
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.454,
+       "strongest_pair": 0.499,
+       "median_pair": 0.35,
+       "level_spread": 1.198,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -72789,6 +76002,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.471,
+      "prior": [
+       0.471,
+       0.471
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.471,
+       "strongest_pair": 0.523,
+       "median_pair": 0.345,
+       "level_spread": 1.348,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -73462,6 +76726,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.443,
+      "prior": [
+       0.443,
+       0.443
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.443,
+       "strongest_pair": 0.486,
+       "median_pair": 0.331,
+       "level_spread": 1.225,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -74137,6 +77452,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.443,
+      "prior": [
+       0.443,
+       0.443
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.443,
+       "strongest_pair": 0.481,
+       "median_pair": 0.331,
+       "level_spread": 1.163,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -74811,6 +78177,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.452,
+      "prior": [
+       0.452,
+       0.452
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.452,
+       "strongest_pair": 0.519,
+       "median_pair": 0.337,
+       "level_spread": 1.223,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -75484,6 +78901,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.411,
+      "prior": [
+       0.411,
+       0.411
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.411,
+       "strongest_pair": 0.443,
+       "median_pair": 0.317,
+       "level_spread": 1.246,
+       "samples": 4096
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, GE sites G1, G4 to G8 (each run with its water reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": null,
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        8
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 8,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],

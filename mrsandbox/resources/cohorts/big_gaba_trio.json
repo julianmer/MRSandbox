@@ -719,6 +719,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.407,
+      "prior": [
+       0.407,
+       0.407
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.407,
+       "strongest_pair": 0.701,
+       "median_pair": 0.068,
+       "level_spread": 2.605,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -2953,6 +3004,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.36,
+      "prior": [
+       0.36,
+       0.36
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.36,
+       "strongest_pair": 0.414,
+       "median_pair": 0.081,
+       "level_spread": 1.802,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -5189,6 +5291,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.372,
+      "prior": [
+       0.372,
+       0.372
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.372,
+       "strongest_pair": 0.429,
+       "median_pair": 0.081,
+       "level_spread": 1.822,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -7423,6 +7576,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.382,
+      "prior": [
+       0.382,
+       0.382
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.382,
+       "strongest_pair": 0.439,
+       "median_pair": 0.054,
+       "level_spread": 1.828,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -9659,6 +9863,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.436,
+      "prior": [
+       0.436,
+       0.436
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.436,
+       "strongest_pair": 0.761,
+       "median_pair": 0.097,
+       "level_spread": 2.137,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -11893,6 +12148,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.476,
+      "prior": [
+       0.476,
+       0.476
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.476,
+       "strongest_pair": 0.898,
+       "median_pair": 0.125,
+       "level_spread": 4.078,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -14129,6 +14435,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.372,
+      "prior": [
+       0.372,
+       0.372
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.372,
+       "strongest_pair": 0.431,
+       "median_pair": 0.069,
+       "level_spread": 1.793,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -16363,6 +16720,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.374,
+      "prior": [
+       0.374,
+       0.374
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.374,
+       "strongest_pair": 0.43,
+       "median_pair": 0.067,
+       "level_spread": 1.725,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -18599,6 +19007,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.392,
+      "prior": [
+       0.392,
+       0.392
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.392,
+       "strongest_pair": 0.449,
+       "median_pair": 0.064,
+       "level_spread": 1.774,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -20833,6 +21292,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.385,
+      "prior": [
+       0.385,
+       0.385
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.385,
+       "strongest_pair": 0.452,
+       "median_pair": 0.065,
+       "level_spread": 2.101,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -23069,6 +23579,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.368,
+      "prior": [
+       0.368,
+       0.368
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.368,
+       "strongest_pair": 0.418,
+       "median_pair": 0.079,
+       "level_spread": 1.776,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -25304,6 +25865,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.408,
+      "prior": [
+       0.408,
+       0.408
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.408,
+       "strongest_pair": 0.727,
+       "median_pair": 0.067,
+       "level_spread": 2.783,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -27488,6 +28100,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.626,
+      "prior": [
+       0.626,
+       0.626
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.626,
+       "strongest_pair": 0.712,
+       "median_pair": 0.537,
+       "level_spread": 1.971,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -28161,6 +28824,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.639,
+      "prior": [
+       0.639,
+       0.639
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.639,
+       "strongest_pair": 0.685,
+       "median_pair": 0.571,
+       "level_spread": 2.198,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -28836,6 +29550,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.671,
+      "prior": [
+       0.671,
+       0.671
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.671,
+       "strongest_pair": 0.74,
+       "median_pair": 0.602,
+       "level_spread": 1.906,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -29509,6 +30274,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.701,
+      "prior": [
+       0.701,
+       0.701
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.701,
+       "strongest_pair": 0.768,
+       "median_pair": 0.632,
+       "level_spread": 1.864,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -30184,6 +31000,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.664,
+      "prior": [
+       0.664,
+       0.664
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.664,
+       "strongest_pair": 0.729,
+       "median_pair": 0.598,
+       "level_spread": 1.92,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -30857,6 +31724,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.704,
+      "prior": [
+       0.704,
+       0.704
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.704,
+       "strongest_pair": 0.765,
+       "median_pair": 0.626,
+       "level_spread": 2.05,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -31532,6 +32450,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.576,
+      "prior": [
+       0.576,
+       0.576
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.576,
+       "strongest_pair": 0.654,
+       "median_pair": 0.496,
+       "level_spread": 1.629,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -32205,6 +33174,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.689,
+      "prior": [
+       0.689,
+       0.689
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.689,
+       "strongest_pair": 0.739,
+       "median_pair": 0.63,
+       "level_spread": 1.571,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -32880,6 +33900,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.733,
+      "prior": [
+       0.733,
+       0.733
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.733,
+       "strongest_pair": 0.783,
+       "median_pair": 0.676,
+       "level_spread": 1.847,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -33553,6 +34624,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.702,
+      "prior": [
+       0.702,
+       0.702
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.702,
+       "strongest_pair": 0.782,
+       "median_pair": 0.621,
+       "level_spread": 1.854,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -34228,6 +35350,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.697,
+      "prior": [
+       0.697,
+       0.697
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.697,
+       "strongest_pair": 0.786,
+       "median_pair": 0.608,
+       "level_spread": 1.902,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -34901,6 +36074,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.663,
+      "prior": [
+       0.663,
+       0.663
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.663,
+       "strongest_pair": 0.729,
+       "median_pair": 0.597,
+       "level_spread": 1.787,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        4
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 4,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -35626,6 +36850,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.382,
+      "prior": [
+       0.382,
+       0.382
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.382,
+       "strongest_pair": 0.441,
+       "median_pair": 0.124,
+       "level_spread": 1.838,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -37862,6 +39137,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.403,
+      "prior": [
+       0.403,
+       0.403
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.403,
+       "strongest_pair": 0.465,
+       "median_pair": 0.105,
+       "level_spread": 2.056,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -40096,6 +41422,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.397,
+      "prior": [
+       0.397,
+       0.397
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.397,
+       "strongest_pair": 0.458,
+       "median_pair": 0.12,
+       "level_spread": 1.941,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -42332,6 +43709,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.388,
+      "prior": [
+       0.388,
+       0.388
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.388,
+       "strongest_pair": 0.444,
+       "median_pair": 0.103,
+       "level_spread": 1.829,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -44566,6 +45994,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.392,
+      "prior": [
+       0.392,
+       0.392
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.392,
+       "strongest_pair": 0.451,
+       "median_pair": 0.121,
+       "level_spread": 1.806,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -46802,6 +48281,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.39,
+      "prior": [
+       0.39,
+       0.39
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.39,
+       "strongest_pair": 0.461,
+       "median_pair": 0.124,
+       "level_spread": 1.928,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -49036,6 +50566,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.389,
+      "prior": [
+       0.389,
+       0.389
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.389,
+       "strongest_pair": 0.445,
+       "median_pair": 0.112,
+       "level_spread": 1.999,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -51272,6 +52853,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.397,
+      "prior": [
+       0.397,
+       0.397
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.397,
+       "strongest_pair": 0.443,
+       "median_pair": 0.087,
+       "level_spread": 2.015,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -53506,6 +55138,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.406,
+      "prior": [
+       0.406,
+       0.406
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.406,
+       "strongest_pair": 0.471,
+       "median_pair": 0.106,
+       "level_spread": 2.074,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -55742,6 +57425,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.377,
+      "prior": [
+       0.377,
+       0.377
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.377,
+       "strongest_pair": 0.438,
+       "median_pair": 0.128,
+       "level_spread": 1.903,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -57977,6 +59711,57 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.395,
+      "prior": [
+       0.395,
+       0.395
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.395,
+       "strongest_pair": 0.454,
+       "median_pair": 0.11,
+       "level_spread": 2.036,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": {
@@ -60211,6 +61996,57 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.4,
+      "prior": [
+       0.4,
+       0.4
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.4,
+       "strongest_pair": 0.452,
+       "median_pair": 0.084,
+       "level_spread": 2.015,
+       "samples": 16384
+      },
+      "source": {
+       "dataset": "Big GABA, PRESS arm, Siemens sites S1, S5, S6 (each run with its H2O reference)",
+       "citation": "Mikkelsen et al. 2017, NeuroImage 159:32",
+       "url": "https://www.nitrc.org/projects/biggaba/"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "TrioTim",
+       "software": "syngo MR B17",
+       "field_t": 2.89
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],

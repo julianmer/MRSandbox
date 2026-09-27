@@ -34,6 +34,7 @@ from nicegui import Client, run, ui
 from PIL import Image
 
 from mrsandbox.io.folder import reads
+from mrsandbox.hardware.arrays import PRESETS as ARRAY_PRESETS
 from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, RUN_OF, SCANNERS, TARGETS, adjusted, named,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.hardware.scanners import PRESETS
@@ -1777,7 +1778,14 @@ async def console(client: Client):
                 with row("array", "the loops the room shows on the head; one ideal channel has uniform sensitivity and the scanner's noise"):
                     ui.select(list(session.coils), value=session.coil, on_change=lambda e: (setattr(session, "coil", e.value), pickers["coil"].set_value(e.value), reopen())).props(
                         "dense outlined dark options-dense").style("width: 260px")
-                    chip("own" if session.coil not in session.COILS else "literature", "a stand-in geometry of the package" if session.coil in session.COILS else "your sensitivity maps")
+                    published = ARRAY_PRESETS[session.ARRAYS[session.coil]] if session.coil in session.ARRAYS else None
+                    chip("own" if session.coil not in session.COILS else "literature",
+                         published.cited if published else "a stand-in geometry of the package" if session.coil in session.COILS else "your sensitivity maps")
+                if published:                                      # a scanner's own array: what its sources say, what the package assumed
+                    for what, said_, word in (("published", published.cited, "literature"), ("stated", published.stated, "stated")):
+                        with row("    " + what):
+                            ui.label(said_).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal; flex: 1")
+                            chip(word, said_)
                 for key, value in settings.items():
                     with row("    " + key.replace("_mm", " (mm)").replace("_", " ")):
                         ui.number(value=value, format="%.6g", on_change=lambda e, key=key: (

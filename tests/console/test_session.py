@@ -447,14 +447,24 @@ class TestSession:
         assert session.member() is None and session.profile().records == ()
 
     def test_the_arrays_noise_share_comes_from_the_pooled_rows(self):
-        # the share of a channel's noise that is its own: the package's rows for the scanner at the array's channel
-        # count, until the operator reads one off a scan of their own
+        # the share of a channel's noise that is its own: the package's rows of the channels' correlation for the scanner
+        # at the array's channel count, turned into the share against the array on the floor (item 246), until the
+        # operator reads one off a scan of their own
+        from mrsandbox.scan.calibrate import CovarianceReading
         from mrsandbox.scan.calibrations import calibrations
 
         session = Session(ICBM)
+        session.coil = "head array"                                                  # 32 loops: a share to take
         share, source, provenance = session.own_share()
-        assert source == "pooled" and provenance.startswith("pooled over")
-        assert share == calibrations("generic_3t", channels=32)["coils.loaded.own_noise"].value
+        correlation = calibrations("generic_3t", channels=32)["coils.partner_correlation"]
+        assert source == "pooled" and provenance.startswith("the channels' correlation") and provenance.endswith("against this array")
+        assert share == round(CovarianceReading.share(session.array(), correlation.value), 2)
+        # an array of the operator's own maps has no loops to take the correlation against: the pooled share serves
+        from mrsandbox.hardware.coils import MappedCoilArray
+
+        session.coils["my maps"] = lambda: MappedCoilArray(np.ones((4, 4, 4, 32), dtype=np.complex64), np.eye(4), name="my maps")
+        session.coil = "my maps"
+        assert session.own_share()[1] == "pooled"
         session.own_noise = 0.4
         assert session.own_share() == (0.4, "own", "read from your scan with the coils apart")
 

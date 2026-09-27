@@ -34,7 +34,7 @@ COHORTS = pathlib.Path(__file__).resolve().parent.parent / "resources" / "cohort
 FIELD_T = 0.25
 # the leaves of the receive chain, which the receive array's channel count is a condition of;
 # the suppression's residual, the delay or the eddy transient do not change with the array
-RECEIVE = ("noise.sigma", "coils.loaded.own_noise")
+RECEIVE = ("noise.sigma", "coils.loaded.own_noise", "coils.partner_correlation")
 
 
 #**************************************************************************************************#

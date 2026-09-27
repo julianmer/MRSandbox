@@ -671,6 +671,41 @@ class CovarianceReading:
         return cls(covariance=total.conj() / count, samples=count, header=header)
 
     #*****************#
+    #   from kspace   #
+    #*****************#
+    @classmethod
+    def from_kspace(cls, path, edge=0.125):
+        """Read the noise of a multi-coil k-space as fastMRI stores it (an h5 file: kspace as
+        slices, coils, readout, phase encodes, the readout oversampled twofold; the sampled
+        phase encodes in `mask`; the ISMRMRD header): each sampled line brought to image
+        space along the readout alone, whose outer `edge` on either side lies beyond the head
+        (twice the prescribed field of view): noise, rolled off by the receiver's filter
+        alike in every channel, whatever the undersampling. Needs h5py."""
+        import re
+
+        import h5py
+
+        with h5py.File(str(path), "r") as file:
+            kspace = file["kspace"]
+            mask = file["mask"][()].astype(bool) if "mask" in file else np.ones(kspace.shape[-1], dtype=bool)
+            n = kspace.shape[2]
+            cut = int(round(edge * n))
+            samples = []
+            for index in range(kspace.shape[0]):                 # a slice at a time: a volume holds a gigabyte
+                lines = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(kspace[index][..., mask], axes=1), axis=1), axes=1)
+                samples.append(np.moveaxis(np.concatenate([lines[:, :cut], lines[:, n - cut:]], axis=1), 0, -1))
+            xml = file["ismrmrd_header"][()]
+        xml = xml.decode() if isinstance(xml, bytes) else str(xml)
+        found = {tag: re.search(rf"<{tag}>(.*?)</{tag}>", xml) for tag in ("systemVendor", "systemModel", "systemFieldStrength_T")}
+        header = {tag: match.group(1).strip() for tag, match in found.items() if match}
+        if "systemFieldStrength_T" in header:
+            header["systemFieldStrength_T"] = float(header["systemFieldStrength_T"])
+        names = [name.split(":")[0] for name in re.findall(r"<coilName>(.*?)</coilName>", xml)]
+        if names:
+            header["ReceiveCoilName"] = max(set(names), key=names.count)
+        return cls.from_arrays(np.stack(samples), header)
+
+    #*****************#
     #   correlation   #
     #*****************#
     @property
@@ -705,12 +740,19 @@ class CovarianceReading:
     #   own noise   #
     #***************#
     def own_noise(self, array):
-        """The share of a channel's noise that is its own, at which the geometric `array`
-        (a hardware.CoilArray of loops) has this reading's mean strongest partner: the
-        sample's share of the resistance comes from the geometry (`CoilArray.loaded`),
-        the rest is the identity."""
+        """The share of a channel's noise that is its own at which `array` has this
+        reading's mean strongest partner (`share`)."""
+        return self.share(array, self.statistics()["strongest_partner_mean"])
+
+    @staticmethod
+    def share(array, target):
+        """The share of a channel's noise that is its own at which the geometric `array` (a
+        hardware.CoilArray of loops) has `target` as its channels' mean strongest partner:
+        the sample's share of the resistance comes from the geometry (`CoilArray.loaded`),
+        the rest is the identity. The share is the geometry's as much as the data's (another
+        stand-in geometry reads it several times larger, HANDOFF item 246), so it is taken
+        against the array that plays it."""
         sample = array.loaded(own_noise=0.0).noise_resistance
-        target = self.statistics()["strongest_partner_mean"]
 
         def strongest(share):
             r = (1.0 - share) * sample + share * np.eye(len(array))
@@ -732,8 +774,17 @@ class CovarianceReading:
         """The Calibration of coils.loaded.own_noise this reading makes with `array`;
         `load` says what was in the coil."""
         share = round(self.own_noise(array), 2)
+        return self._calibration("coils.loaded.own_noise", share, dataset, load, citation, url)
+
+    def record_correlation(self, dataset, load, citation=None, url=None):
+        """The Calibration of coils.partner_correlation: the channels' mean strongest partner,
+        the data's own number whatever the coil's geometry, which the console turns into
+        the own share against the array on the floor (`share`)."""
+        return self._calibration("coils.partner_correlation", round(self.statistics()["strongest_partner_mean"], 3), dataset, load, citation, url)
+
+    def _calibration(self, leaf, number, dataset, load, citation, url):
         return Calibration(
-            leaf="coils.loaded.own_noise", value=share, prior=(share, share),
+            leaf=leaf, value=number, prior=(number, number),
             measured={"statistic": "magnitude of the noise correlation between channels "
                                    "(scan.calibrate.CovarianceReading.statistics)",
                       **{key: round(value, 3) for key, value in self.statistics().items()},
