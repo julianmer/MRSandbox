@@ -191,6 +191,72 @@ class Mapped(Value):
 
 
 #**************************************************************************************************#
+#                                          Class Sourced                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# A leaf with a value per source, literature, measured and custom, and the one chosen.             #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class Sourced(Value):
+    """A leaf with a value per source, literature, measured and custom, and the one chosen.
+
+    `literature` is the package's typed or stated prior, `measured` the one a record
+    made of raw data gives (None without a record), `custom` the user's (None until one
+    is set: merging a plain Value onto this leaf sets it and chooses it). The leaf
+    samples, compares and reads (low, high, mean, sd, value) as the chosen source's
+    value does, so the rest of the package sees one Value.
+    """
+    literature: Value = None
+    measured: Value = None
+    custom: Value = None
+    chosen: str = "literature"
+
+    def __post_init__(self):
+        if self.current is None:
+            raise ValueError(f"no {self.chosen} value to choose")
+
+    @property
+    def current(self):
+        """The chosen source's Value."""
+        return getattr(self, self.chosen)
+
+    @property
+    def available(self):
+        """The sources this leaf has a value for, in the order literature, measured, custom."""
+        return tuple(name for name in ("literature", "measured", "custom") if getattr(self, name) is not None)
+
+    def choose(self, source, strict=False):
+        """This leaf with `source` chosen; a source it has no value for leaves the choice as
+        it stands, or raises with `strict`."""
+        if getattr(self, source, None) is None:
+            if strict:
+                raise ValueError(f"no {source} value for this leaf; it has {', '.join(self.available)}")
+            return self
+        return dataclasses.replace(self, chosen=source)
+
+    def with_custom(self, value):
+        """This leaf with `value` as its custom source, chosen."""
+        return dataclasses.replace(self, custom=Value.of(value), chosen="custom")
+
+    def sample(self, rng):
+        return self.current.sample(rng)
+
+    def __getattr__(self, name):
+        if name in ("literature", "measured", "custom", "chosen") or name.startswith("__"):
+            raise AttributeError(name)
+        return getattr(self.current, name)
+
+    def __eq__(self, other):
+        if isinstance(other, Sourced):
+            return dataclasses.astuple(self) == dataclasses.astuple(other)
+        return self.current == other
+
+    def __hash__(self):
+        return hash((self.literature, self.measured, self.custom, self.chosen))
+
+
+#**************************************************************************************************#
 #                                          Class Tissues                                           #
 #**************************************************************************************************#
 #                                                                                                  #

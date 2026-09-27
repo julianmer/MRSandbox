@@ -67,9 +67,11 @@ class VirtualScan:
         water_groups: How many groups of the voxel's field distribution the WATER alone plays
             the sequence at, each at its own offset with its own dephasing (the other sources
             keep `field_groups`): a suppression pulse misses the water where the field is off
-            its band, which the voxel's mean offset cannot show. One (the default) plays the
-            water at the mean like everything else; the water is one spin, so more costs
-            little.
+            its band, which the voxel's mean offset cannot show, and the microscopic spread
+            (lineshape.gauss_hz) goes into the groups rather than onto the result, so a
+            train a few hertz wide leaves what the spread puts in or out of it. One (the
+            default) plays the water at the mean like everything else; the water is one
+            spin, so more costs little.
         transmit: A phantom.Volume of the relative transmit field B1+ (1.0 nominal);
             every voxel runs its pulses at the drawn b1_scale times its local value.
             None gives the nominal field everywhere.

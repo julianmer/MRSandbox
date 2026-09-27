@@ -268,6 +268,19 @@ class TestFieldGroups:
         np.testing.assert_allclose(sum(w * k for _, w, k in groups),
                                    field.kernel((0.0, 0.0, 0.0), 20.0, t), atol=1e-6)
 
+    def test_groups_with_a_spread_carry_it_and_sum_to_the_kernel_times_its_envelope(self):
+        # the microscopic field below the map's resolution (lineshape.gauss_hz) smears every cell's offset: the
+        # split reaches beyond the map's own offsets and the weighted kernels sum to the map's kernel times the
+        # Gaussian's envelope, so a sequence played per group sees the spread where it plays (item 234)
+        _, _, field = self.ramp(40.0)
+        t = np.arange(512) / 4000.0
+        plain = field.groups((0.0, 0.0, 0.0), 20.0, t, 8)
+        spread = field.groups((0.0, 0.0, 0.0), 20.0, t, 8, spread_hz=5.0)
+        assert spread[0][0] < plain[0][0] and spread[-1][0] > plain[-1][0]
+        envelope = np.exp(-(np.pi * 5.0) ** 2 / (4.0 * np.log(2.0)) * t * t)
+        np.testing.assert_allclose(sum(w * k for _, w, k in spread),
+                                   field.kernel((0.0, 0.0, 0.0), 20.0, t) * envelope, atol=1e-3)
+
     def test_a_shim_kept_while_the_head_moves_is_spoiled_by_the_move(self):
         # a linear field is shimmed away where the shim was fitted; the head moves 3 mm
         # along the ramp and the shim stays in the scanner: what is left is the ramp
@@ -295,7 +308,9 @@ class TestFieldGroups:
         shape, affine, field = self.ramp(60.0)
         ones = np.ones(shape, dtype=np.float32)
         brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
-        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
+        # (no microscopic spread: the water alone plays it through the train, the whole sequence keeps it as an
+        # envelope on the result, item 234)
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, lineshape=dict(gauss_hz=0.0),
                        acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
 
         def water(**groups):
@@ -308,6 +323,39 @@ class TestFieldGroups:
         whole, alone, mean = water(field_groups=8), water(water_groups=8), water()
         np.testing.assert_allclose(alone, whole, atol=1e-4 * np.abs(whole).max())
         assert np.abs(mean).max() < 1e-3 * np.abs(alone).max()
+
+    @pytest.mark.render
+    def test_the_water_plays_its_microscopic_spread_through_the_train(self):
+        # the microscopic field (lineshape.gauss_hz) is a spread of frequencies and a train suppresses each at its
+        # own: without a train the spread is the Gaussian envelope on the unspread water exactly (nothing the water
+        # meets depends on its frequency); Siemens' train played at its null (the flips scaled by 1.1, item 231)
+        # leaves parts of the spread water at phases apart, and half of what an envelope on the unspread residual
+        # would say cancels (item 234). The ideal train cannot show it: its box takes every spin alike.
+        from mrsandbox import NoDownfield, NoLipids, NoMM, Params, Unsuppressed
+        from mrsandbox.sequences import SiemensChess
+
+        shape, affine, field = self.ramp(2.0)
+        ones = np.ones(shape, dtype=np.float32)
+        brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
+        t = np.arange(512) / 4000.0
+        envelope = np.exp(-(np.pi * 6.0) ** 2 / (4.0 * np.log(2.0)) * t * t)
+
+        def water(sequence, gauss_hz):
+            quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, lineshape=dict(gauss_hz=gauss_hz),
+                           acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"), sequence, params=quiet, field=field, water=Unsuppressed(),
+                               lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), water_groups=8)
+            voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
+            return voxel._component_fids(voxel.sample(seed=3), 512, 1.0 / 4000.0)["water"]
+
+        press = Press(te1_s=0.011, te2_s=0.019)
+        sharp, spread = water(press, 0.0), water(press, 6.0)
+        full = np.abs(sharp).max()
+        np.testing.assert_allclose(spread, sharp * envelope, atol=2e-3 * full)
+        train = SiemensChess(real=True).scaled(1.1)
+        sharp, spread = water(train + press, 0.0), water(train + press, 6.0)
+        assert np.abs(sharp).max() < 2e-3 * full                                     # at the null
+        assert np.abs(spread).max() < 0.75 * np.abs(sharp * envelope).max()
 
     @pytest.mark.render
     def test_an_editing_pulse_misses_the_part_of_the_voxel_the_field_moves_away(self):

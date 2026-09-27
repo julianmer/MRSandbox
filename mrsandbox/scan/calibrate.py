@@ -107,6 +107,24 @@ def _exponentials(fid, dwell_s, order=20):
     return (np.angle(poles) / (2.0 * np.pi * dwell_s), np.log(np.abs(poles)) / dwell_s, amplitudes)
 
 
+def _eddy_transient(fid, dwell_s, f0_mhz, late_s=(0.06, 0.25), at_s=0.005):
+    """The eddy phase transient at the FID's start, in radians `at_s` after the first
+    sample: the water's components (within 0.4 ppm of the carrier, T2* above 5 ms) fitted
+    on the late FID, where eddy currents have died and the water is still far above the
+    metabolites, carried back to the start; what the early phase does against that model
+    (info/HANDOFF.md item 236). Exact for transients dead by the window's start, a lower
+    bound for slower ones (the model's frequencies take a slow phase into a ramp)."""
+    x = np.asarray(fid, dtype=np.complex128)
+    t = np.arange(x.size) * dwell_s
+    a, b = int(late_s[0] / dwell_s), int(late_s[1] / dwell_s)
+    freqs, damping, amplitudes = _exponentials(x[a:b], dwell_s, order=12)
+    keep = (np.abs(freqs) < 0.4 * f0_mhz) & (damping > -200.0)
+    rate = 2j * np.pi * freqs[keep] + damping[keep]
+    back = amplitudes[keep] * np.exp(-rate * t[a])
+    model = (back[:, None] * np.exp(rate[:, None] * t[None, :])).sum(axis=0)
+    return float(np.angle(x * np.conj(model))[int(round(at_s / dwell_s))])
+
+
 def _raw(source):
     """A NIfTI-MRS file (a path or a loaded image) as ((npoints, coils, transients),
     dwell_s, f0_mhz, header); the transients are needed apart."""
@@ -737,6 +755,14 @@ class WaterReading:
         creatine_offset_hz: Creatine's distance from NAA, the ppm way round, in hertz.
         dry_amplitude: The FID without its water at t = 0, in the data's units, the twin's scale.
         reference_fid: The reference's mean combined FID, the residual's own line shape.
+        leak_over_full: The residual's broad part (T2* under 35 ms, the water outside the
+            voxel the localization leaks) at t = 0 over the reference's; inside
+            `residual_over_full`, which is the total (info/HANDOFF.md item 238).
+        leak_t2star_s, leak_offset_hz: The heaviest broad part's decay and its frequency
+            from the carrier.
+        leak_phase_deg: The broad parts' phase against the narrow ones'.
+        eddy_transient_rad: The reference's phase 5 ms after its first sample against its
+            components fitted late (item 236).
     """
 
     residual_over_full: float
@@ -746,6 +772,11 @@ class WaterReading:
     creatine_offset_hz: float
     dry_amplitude: float
     reference_fid: np.ndarray
+    leak_over_full: float
+    leak_t2star_s: float
+    leak_offset_hz: float
+    leak_phase_deg: float
+    eddy_transient_rad: float
     transients: int
     reference_transients: int
     npoints: int
@@ -769,6 +800,12 @@ class WaterReading:
         freqs, damping, amplitudes = _exponentials(suppressed[:m], dwell_s)
         water = (np.abs(freqs) < 0.4 * f0_mhz) & (damping < 0.0)          # within 0.4 ppm of the carrier, as the records
         residual = complex(amplitudes[water].sum())
+        # the broad parts, the water the localization leaks; the narrow ones the voxel's own residual
+        t2star = -1.0 / damping[water]
+        broad = t2star < 0.035
+        leak, narrow = complex(amplitudes[water][broad].sum()), complex(amplitudes[water][~broad].sum())
+        heaviest = int(np.argmax(np.abs(amplitudes[water][broad]))) if broad.any() else None
+        reference_fid = _combined(reference, like=data).mean(axis=1)
         t = np.arange(suppressed.size) * dwell_s
         dry = suppressed - sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t)
                                for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
@@ -780,7 +817,12 @@ class WaterReading:
         beyond = float(np.degrees(np.angle(np.exp(1j * (np.angle(residual_line / naa) - slope * (f_water - f_naa))))))
         return cls(residual_over_full=abs(residual) / full, residual_over_dry_max=abs(residual) / float(np.abs(dry).max()),
                    water_phase_deg=beyond, creatine_phase_deg=float(np.degrees(phase_cr)), creatine_offset_hz=float(f_cr - f_naa),
-                   dry_amplitude=float(np.abs(dry[0])), reference_fid=_combined(reference, like=data).mean(axis=1),
+                   dry_amplitude=float(np.abs(dry[0])), reference_fid=reference_fid,
+                   leak_over_full=abs(leak) / full,
+                   leak_t2star_s=float(t2star[broad][heaviest]) if heaviest is not None else 0.0,
+                   leak_offset_hz=float(freqs[water][broad][heaviest]) if heaviest is not None else 0.0,
+                   leak_phase_deg=float(np.degrees(np.angle(leak / narrow))) if heaviest is not None and narrow != 0.0 else 0.0,
+                   eddy_transient_rad=_eddy_transient(reference_fid, dwell_s, f0_mhz),
                    transients=int(np.asarray(data).shape[2]), reference_transients=int(np.asarray(reference).shape[2]),
                    npoints=int(suppressed.size), coils=int(np.asarray(data).shape[1]), dwell_s=float(dwell_s), f0_mhz=float(f0_mhz),
                    header=dict(header or {}))
@@ -838,7 +880,7 @@ class WaterReading:
             if gauss_hz is not None:
                 dict.__setitem__(truth.lineshape, "gauss_hz", float(gauss_hz))
             parts = voxel._component_fids(truth, self.npoints, self.dwell_s)
-            dry = sum(np.asarray(fid) for name, fid in parts.items() if name != "water") * turn
+            dry = sum(np.asarray(fid) for name, fid in parts.items() if name not in ("water", "oov")) * turn
             lines = _lines(dry + residual * (abs(dry[0]) / self.dry_amplitude) * water, self.dwell_s, voxel._f0_mhz(), WATER_PPM)
             phases.append(np.degrees(np.angle(lines["Cr"][0] / lines["NAA"][0])))
         return float(np.median(phases))
@@ -867,6 +909,37 @@ class WaterReading:
             processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials "
                        "within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
             presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
+
+    def record_leak(self, voxel, dataset, presets=(), citation=None, url=None):
+        """The Calibration of oov.fraction: the residual's broad part over the full water, the
+        prior a quarter either side (info/HANDOFF.md item 238)."""
+        value = self.leak_over_full
+        return Calibration(
+            leaf="oov.fraction", value=float(round(value, 6)),
+            prior=(round(0.75 * value, 6), round(1.25 * value, 6)),
+            measured={"statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the "
+                                   "carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+                      "over_full": round(value, 6), "t2star_ms": round(1000.0 * self.leak_t2star_s, 1),
+                      "offset_hz": round(self.leak_offset_hz, 2), "phase_vs_residual_deg": round(self.leak_phase_deg, 1)},
+            processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials "
+                       "within 0.4 ppm of the carrier split at a T2* of 35 ms",
+            presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
+
+    def record_eddy(self, voxel, dataset, presets=(), citation=None, url=None):
+        """The Calibration of acquisition.eddy_transient_rad: the reference's phase 5 ms after
+        its first sample against its components fitted late, the prior a quarter either
+        side of it (one subject's own; a population's record is a spread about zero); no
+        fallback, this scanner's (info/HANDOFF.md item 236)."""
+        value = self.eddy_transient_rad
+        return Calibration(
+            leaf="acquisition.eddy_transient_rad", value=float(round(value, 4)),
+            prior=tuple(sorted((round(0.75 * value, 4), round(1.25 * value, 4)))),
+            measured={"statistic": "the water reference's phase 5 ms after its first sample against its components "
+                                   "fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+                      "at_5ms_rad": round(value, 4)},
+            processing="NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late "
+                       "window, the model carried back to the start",
+            presets=tuple(presets), fallback=False, **self._conditions(voxel, dataset, citation, url))
 
     def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None):
         """The Calibration of acquisition.delay_s: creatine's phase against NAA beyond the

@@ -112,6 +112,16 @@ class TestSession:
         assert abs(np.angle((mean[0] - dry[0]) / dry[0])) > np.pi / 2       # inverted, as the record's sign says of the Trio
         session.prescan = False
         assert session.run(session.plan(), seed=3).adjustment == 1.0
+        # the train played real: its Gaussians' own band and the T1 acting through them put its null a tenth above
+        # the ideal one (item 231), so the prescan searches the engine's steady state and lands on the record all the same
+        session.prescan, session.protocol.real = True, True
+        played = session.run(session.plan(), seed=3)
+        assert exam.adjustment + 0.1 < played.adjustment < 1.5
+        mean = np.asarray(played.data[:])[0, 0, 0].mean(axis=1).astype(np.complex128)
+        dry = hlsvd(mean, 1.0 / session.protocol.bandwidth_hz, float(played.data.hdr_ext["SpectrometerFrequency"][0]) * 1e6,
+                    (-0.25, 0.25), limitUnits="ppm")
+        assert 0.3 < abs(mean[0] - dry[0]) / np.abs(dry).max() < 3.0
+        assert abs(np.angle((mean[0] - dry[0]) / dry[0])) > np.pi / 2
 
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
         session = Session(ICBM)

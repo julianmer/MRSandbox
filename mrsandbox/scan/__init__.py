@@ -18,5 +18,6 @@ from mrsandbox.scan.generator import Generator
 from mrsandbox.scan.mrsi import MRSI
 from mrsandbox.scan.multiplex import Multiplex
 from mrsandbox.scan.profile import ScannerProfile
+from mrsandbox.scan.cohort import Cohort, Member
 from mrsandbox.scan.virtual_scan import VirtualScan
 from mrsandbox.scan.voxel import Voxel

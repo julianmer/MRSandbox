@@ -17,13 +17,15 @@
 #*************#
 #   imports   #
 #*************#
+import dataclasses
+
 from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
 from mrsandbox.scan.calibrations import calibrations
-from mrsandbox.params import Clipped, Normal, Params, PerTissue, Priors, Uniform
+from mrsandbox.params import Clipped, Fixed, Normal, Params, PerTissue, Priors, Sourced, Uniform
 
 
 #****************#
@@ -89,8 +91,9 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     # creatine: the de Graaf creatine range stacked on the phosphocreatine one overshoots
     # the total creatine of three in vivo datasets; the calibrated range replaces it
     # (scan.calibrations CREATINE_THREE_DATASETS_3T)
+    served = calibrations(scanner, records)         # the measured source of every leaf a record serves
     if "Cr" in conc:
-        conc = conc | Params(Cr=calibrations(scanner, records)["conc.Cr"].prior)
+        conc = conc | Params(Cr=Sourced(literature=conc.Cr, measured=Uniform(*served["conc.Cr"].prior), chosen="measured"))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
     water_t1, water_t2 = _water_relaxation(tesla)
     # background signal inherent to the voxel: residual water, lipids, and the
@@ -118,12 +121,26 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     lands the train there instead of on zero.
         water=dict(residual_fraction=(1e-4, 3e-3), t1_s=water_t1, t2_s=water_t2,
                    temperature_c=37.0,
-                   adjusted_residual=calibrations(scanner, records)["water.adjusted_residual"].prior),
+                   adjusted_residual=Sourced(measured=Uniform(*served["water.adjusted_residual"].prior), chosen="measured")),
         # lipids: subcutaneous fat at the skull boundary.
         #   amplitude_mm: adipose protons are water-like (about 60 to 70 M), which
         #     is why a voxel clipping the skull drowns in fat; the range is stated.
         #   t1_s, t2_s: stated assumptions.
         lipids=dict(amplitude_mm=(30000.0, 70000.0), t2_s=0.05, t1_s=0.3),
+        # oov: the water outside the voxel that the localization leaks (the refocusing
+        #   pulses' stopbands, the crushers' incomplete dephasing), one broad line at the
+        #   water's frequency at the FID's start, read on the raw as the broad part of
+        #   the residual (scan.calibrations OOV_WATER_BIG_GABA_SIEMENS_3T: T2* 15 to 28
+        #   ms, a fraction of the full water at t = 0, of a phase mostly opposite to the
+        #   voxel's own residual; info/HANDOFF.md item 238).
+        #   fraction: of the full water at t = 0 after the echo's decay, the record's.
+        #   t2star_s, offset_hz: its decay and its frequency from the water's, the
+        #     twelve subjects' 10 to 90.
+        #   phase_deg: against the voxel's own residual at t = 0, the twelve's median
+        #     and a stated spread (their 10 to 90 runs from -169 to +104).
+        oov=dict(fraction=Sourced(literature=Fixed(0.0), measured=Uniform(*served["oov.fraction"].prior), chosen="measured"),
+                 t2star_s=(0.015, 0.028),
+                 offset_hz=(-3.2, 7.3), phase_deg=Normal(-153.0, 45.0)),
         # mm: the macromolecule background.
         #   kappa: scales the challenge tissue ratios times the drawn creatine
         #     (the CoupledMM default). The challenge's own 0.4 normalizes its
@@ -201,7 +218,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #   line at f hertz is exp(+i 2 pi f t): the plain transform puts NAA at
         #   2.01 ppm (a first calibration read the conjugate with a 4.65 ppm carrier,
         #   the multiplets near 2.64 ppm). tests/scan/test_scan TestNoiseModel gates it.
-        noise=dict(sigma=calibrations(scanner, records)["noise.sigma"].prior),
+        noise=dict(sigma=Sourced(measured=Uniform(*served["noise.sigma"].prior), chosen="measured")),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),
@@ -218,11 +235,20 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     record per scanner where one was read (scan.calibrations, negative on
         #     the Trio and on GE: the first sample before the echo top), zero for a
         #     scanner without one.
+        #   eddy_transient_rad, eddy_transient_tau_s: the phase transient at the
+        #     FID's start that the water references show (scan.calibrations
+        #     EDDY_PHASE records: small in the median, of either sign, past half a
+        #     radian in a tenth of the subjects, dead by 30 ms), as the phase 5 ms
+        #     after the first sample, decaying as exp(-t / tau) from there and grown
+        #     back to the start: a Normal about zero whose sd is the record's, zero
+        #     for a scanner without one; the time constant a stated range.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
-                         delay_s=(calibrations(scanner, records)["acquisition.delay_s"].prior
-                                  if "acquisition.delay_s" in calibrations(scanner, records) else 0.0),
+                         delay_s=Sourced(literature=Fixed(0.0), **_measured("acquisition.delay_s", served, Uniform)),
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
-                         eddy_seed=(0.0, 2.0 ** 31 - 1.0)),
+                         eddy_seed=(0.0, 2.0 ** 31 - 1.0),
+                         eddy_transient_rad=Sourced(literature=Fixed(0.0), **_measured("acquisition.eddy_transient_rad", served,
+                                                                                        _transient_prior)),
+                         eddy_transient_tau_s=(0.005, 0.02)),
         # gradients: the eddy currents the design's own gradients induce (scan.eddy),
         #   two exponential terms per step of the gradient, shared by the three
         #   axes (stated): a short one of a few to a hundred milliseconds and a long
@@ -235,11 +261,15 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #   phase growing with the voxel's distance from the isocentre), over the
         #   readout they phase the FID (the Klose-type lineshape distortion) and
         #   dephase the voxel box; the ranges are stated so the strong end distorts
-        #   a line visibly and the weak end is clean. A scan with a measured
+        #   a line visibly and the weak end is clean; the B0 terms carry either sign,
+        #   as the eddy phase on eighty water references does (scan.calibrations
+        #   EDDY_PHASE_BIG_GABA_SIEMENS_3T and _GE_3T, which set the acquisition's
+        #   phase transient: these terms cannot reach that phase at any physical
+        #   size, info/HANDOFF.md item 236). A scan with a measured
         #   response (VirtualScan girf) plays its gradients through that instead
         #   and leaves these terms unread.
         gradients=dict(tau_short_s=(0.002, 0.100), tau_long_s=(0.3, 3.0),
-                       b0_short_hz_per_mt_m=(0.0, 0.5), b0_long_hz_per_mt_m=(0.0, 0.2),
+                       b0_short_hz_per_mt_m=(-0.5, 0.5), b0_long_hz_per_mt_m=(-0.2, 0.2),
                        linear_short=(0.0, 0.005), linear_long=(0.0, 0.002)),
         # spurious: the out-of-voxel echo that imperfect crushing or cycling fails
         #   to remove, rephasing mid-acquisition (the mechanism is demonstrated by
@@ -317,19 +347,43 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
     tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections
-    # a scanner's own record of any leaf of the tree sets it (scan.profile); a record of the
-    # hardware outside the tree (the array's noise share) is the hardware's to read
+    # a scanner's own record of any leaf of the tree is its measured source, chosen (scan.profile),
+    # the tree's value its literature one; a record of the hardware outside the tree (the array's
+    # noise share) is the hardware's to read
     for record in records:
         *branch, leaf = record.leaf.split(".")
         node = tree
         for key in branch:
             node = node.get(key, {})
         if leaf in node:
-            override = {leaf: record.prior if record.prior[0] < record.prior[1] else record.value}
+            measured = Uniform(*record.prior) if record.prior[0] < record.prior[1] else Fixed(record.value)
+            sourced = (dataclasses.replace(node[leaf], measured=measured, chosen="measured") if isinstance(node[leaf], Sourced)
+                       else Sourced(literature=node[leaf], measured=measured, chosen="measured"))
+            override = {leaf: sourced}
             for key in reversed(branch):
                 override = {key: override}
             tree = tree | Params(override)
     return tree
+
+
+#***************#
+#   transient   #
+#***************#
+def _transient_prior(low, high):
+    """The eddy transient's prior from its record: a population's record spans zero and is
+    a Normal about it with that spread; one subject's own lies on a side and is its range."""
+    return Normal(0.0, high) if low < 0.0 < high else Uniform(low, high)
+
+
+#**************#
+#   measured   #
+#**************#
+def _measured(leaf, served, make):
+    """The measured source of a Sourced leaf from the record that serves it, chosen; none
+    without a record (the leaf then stays at its literature value)."""
+    if leaf not in served:
+        return {}
+    return dict(measured=make(*served[leaf].prior), chosen="measured")
 
 
 #**********************#

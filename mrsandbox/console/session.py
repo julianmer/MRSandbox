@@ -21,20 +21,22 @@ import json
 import pathlib
 
 import numpy as np
+from keras import ops
 
+from mrsandbox.backend import Backend
 from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
-from mrsandbox.params import Fixed, Mapped, Normal, Params, Uniform
+from mrsandbox.params import Fixed, Mapped, Normal, Params, Sourced, Uniform
 from mrsandbox.params.values import Tissues
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
-from mrsandbox.phantom.water import Unsuppressed
+from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
-                                 OuterVolumeSuppression, Press, SelectivePulse, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
+                                 OuterVolumeSuppression, Press, PulseAcquire, SelectivePulse, Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.events import trapezoid
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
@@ -108,9 +110,9 @@ IDEALS = {
     "noise": {"noise.sigma": 0.0},
     "macromolecules": {"mm.level_mm": 0.0, "mm.kappa": 0.0},       # the measured shape's level, and the coupled systems'
     "lipids": {"lipids.amplitude_mm": 0.0},
-    "residual water": {"water.residual_fraction": 0.0},
+    "residual water": {"water.residual_fraction": 0.0, "oov.fraction": 0.0},
     "frequency and phase errors": {"acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0},
-    "eddy currents": {"acquisition.eddy_std_rad": 0.0},
+    "eddy currents": {"acquisition.eddy_std_rad": 0.0, "acquisition.eddy_transient_rad": 0.0},
     "spurious echoes": {"spurious.amplitude": 0.0},
 }
 # what the planes can wash over the anatomy: the room's maps and the subject's tissues
@@ -1301,6 +1303,8 @@ class Session:
         def walk(node, path):
             for key, value in node.items():
                 here = path + (key,)
+                if isinstance(value, Sourced):
+                    value = value.current                       # the chosen source's; the source itself is the builders' (PLAN 8.7)
                 if isinstance(value, Params):
                     walk(value, here)
                 elif isinstance(value, Fixed) and isinstance(value.value, (int, float)) and not isinstance(value.value, bool):
@@ -1661,8 +1665,10 @@ class Session:
         of the pulses' band), its tissues (each with its own T1 and content) and the drawn transmit scale, in the
         closed form of the train's ideal pulses: a spin in the band keeps cos(flip) of its Mz, the crusher keeps Mz
         alone, the gaps and the rest of the TR recover with T1 (from the excitation to the next train), which is
-        what the engine then plays. The exam's designs get the adjusted train. 1.0
-        without a prescan, without a train, or with the shortcut water."""
+        what the engine then plays. A played train the engine plays to its steady state instead, one water spin per
+        tissue and field group in one batch: its pulses' own band and the T1 acting through them put the null
+        where the closed form cannot follow (a tenth above the ideal one on Siemens' train). The exam's designs get
+        the adjusted train. 1.0 without a prescan, without a train, or with the shortcut water."""
         card = exam.card
         if not self.prescan or card.water_suppression not in SUPPRESSION:
             return 1.0
@@ -1672,34 +1678,69 @@ class Session:
                                      for design in exam.conditions.values()):
             return 1.0
         field = self.fields(card)["field"]
-        groups = ([(mean, weight) for mean, weight, _ in field.groups(exam.position_mm, exam.size_mm, np.zeros(1), 8)]
+        groups = ([(mean, weight) for mean, weight, _ in field.groups(exam.position_mm, exam.size_mm, np.zeros(1), 8,
+                                                                       spread_hz=float(voxel.resolve(truth.lineshape.gauss_hz)))]
                   if field is not None else [(0.0, 1.0)])
         shift, b1 = state.get("acquisition.shift_hz", 0.0), voxel.b1_scale(truth)
-        t1_s, content, fractions = truth.water.t1_s, self.body().water_content, voxel.fractions
-        tissues = [(getattr(fractions, name) * content[name], getattr(t1_s, name) if isinstance(t1_s, Tissues) else voxel.resolve(t1_s))
-                   for name in ("gm", "wm", "csf")]
-        rest = max(card.tr_ms / 1000.0 - sum(train.delays_s), 0.0)     # the water recovers from the excitation to the next train
-        factors = np.linspace(0.5, 1.5, 1001)
-        water, full = np.zeros_like(factors), 0.0
-        for share, t1 in tissues:
-            if share <= 0.0:
-                continue
-            full += share * (1.0 - np.exp(-(rest + sum(train.delays_s)) / t1))     # the reference: no train, the same TR
-            for mean, weight in groups:
-                inband = abs(mean - shift) <= train.bandwidth_hz / 2.0
-                mz = np.ones_like(factors)
-                for _ in range(8):                                    # to the steady state
-                    for flip, delay in zip(train.flips_deg, train.delays_s):
-                        if inband:
-                            mz = mz * np.cos(np.radians(flip * factors * b1))
-                        mz = 1.0 - (1.0 - mz) * np.exp(-delay / t1)
-                    before = mz
-                    mz = np.full_like(factors, 1.0 - np.exp(-rest / t1))  # the excitation takes it all, then the TR's rest
-                water = water + share * weight * before
+        content, fractions = self.body().water_content, voxel.fractions
+        per_tissue = lambda leaf, name: getattr(leaf, name) if isinstance(leaf, Tissues) else voxel.resolve(leaf)
+        tissues = [(getattr(fractions, name) * content[name], per_tissue(truth.water.t1_s, name), per_tissue(truth.water.t2_s, name))
+                   for name in ("gm", "wm", "csf") if getattr(fractions, name) * content[name] > 0.0]
+        tr_s = card.tr_ms / 1000.0
+        rest = max(tr_s - sum(train.delays_s), 0.0)     # the water recovers from the excitation to the next train
+        if train.pulse_s is None:
+            factors = np.linspace(0.5, 1.5, 1001)
+            water, full = np.zeros_like(factors), 0.0
+            for share, t1, _ in tissues:
+                full += share * (1.0 - np.exp(-(rest + sum(train.delays_s)) / t1))     # the reference: no train, the same TR
+                for mean, weight in groups:
+                    inband = abs(mean - shift) <= train.bandwidth_hz / 2.0
+                    mz = np.ones_like(factors)
+                    for _ in range(8):                                    # to the steady state
+                        for flip, delay in zip(train.flips_deg, train.delays_s):
+                            if inband:
+                                mz = mz * np.cos(np.radians(flip * factors * b1))
+                            mz = 1.0 - (1.0 - mz) * np.exp(-delay / t1)
+                        before = mz
+                        mz = np.full_like(factors, 1.0 - np.exp(-rest / t1))  # the excitation takes it all, then the TR's rest
+                    water = water + share * weight * before
+        else:
+            # the played train in the engine's spoiled steady state of the TR, every tissue and field group a draw of
+            # one batch (T1, T2, the transmit scale, the offset); what stands before the excitation over the full
+            # water's, weighted as the closed form weights its tissues
+            engine = voxel.scan.engine
+            rows = [(t1, t2, share * weight, mean - shift) for share, t1, t2 in tissues for mean, weight in groups]
+            draws = [ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+                [[t1] for t1, _, _, _ in rows], [[t2] for _, t2, _, _ in rows], [b1] * len(rows), [offset for _, _, _, offset in rows])]
+            system = WaterSource.system(voxel.scan.database.gamma("1H"))
+            def steady(design):
+                fn, _ = engine.compiled_batch(design, ((system,),))
+                return np.asarray(ops.convert_to_numpy(Backend.vmap(fn, in_axes=(0, 0, 0, 0))(*draws)[1]))
+            reference = steady(PulseAcquire(tr_s=tr_s))
+            shares = np.array([share * (1.0 - np.exp(-tr_s / t1)) for t1, _, share, _ in rows])
+            factors = np.linspace(0.5, 1.5, 101)
+            water = np.array([np.sum(shares * np.real(np.sum(steady(train.scaled(factor) + PulseAcquire(tr_s=tr_s)) * np.conj(reference), axis=1))
+                                     / np.sum(np.abs(reference) ** 2, axis=1)) for factor in factors])
+            full = float(shares.sum())
         # the scanner's adjustment leaves its record's residual, not zero: land there, on the record's side (inverted on
         # the Trio, upright on GE)
-        target = float(state.get("water.adjusted_residual", 0.0)) * full
-        factor = float(factors[np.abs(water - target).argmin()])
+        # the record is the residual's total at t = 0 as the raw reads it, the leaked water inside it (item 238): the
+        # voxel's own residual lands at the record less the leak's share along the full water (the leak's phase is
+        # drawn against the residual, whose side is the record's)
+        record = float(state.get("water.adjusted_residual", 0.0))
+        leak = float(truth.oov.fraction) * np.cos(np.radians(float(truth.oov.phase_deg))) * np.sign(record)
+        target = (record - leak) * full
+        # the water crosses the target on both sides of the train's null and again where the flips are far too low;
+        # the Trio lands past the null (twelve raw subjects' residuals a third narrower than their NAA, which only the
+        # far side gives, info/HANDOFF.md item 235), so the first crossing above the null is the scanner's
+        error = water - target
+        crossings = np.flatnonzero(np.sign(error[:-1]) != np.sign(error[1:]))
+        above = crossings[crossings >= np.abs(water).argmin()]
+        if crossings.size:
+            k = above[0] if above.size else crossings[-1]
+            factor = float(factors[k if abs(error[k]) <= abs(error[k + 1]) else k + 1])
+        else:
+            factor = float(factors[np.abs(error).argmin()])
         tuned = train.scaled(factor)
         def adjusted(design):           # the design with the tuned train in place of its own, its timings kept
             design = copy.copy(design)

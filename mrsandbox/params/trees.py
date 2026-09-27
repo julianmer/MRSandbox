@@ -22,7 +22,7 @@ import hashlib
 
 import numpy as np
 
-from mrsandbox.params.values import Value
+from mrsandbox.params.values import Sourced, Value
 
 
 #**************************************************************************************************#
@@ -94,9 +94,50 @@ class Params(dict):
         for key, value in Params(other).items():
             if key in merged and isinstance(merged[key], Params) and isinstance(value, Params):
                 merged[key] = merged[key] | value
+            elif key in merged and isinstance(merged[key], Sourced) and not isinstance(value, (Params, Sourced)):
+                merged[key] = merged[key].with_custom(value)         # the user's value, its sources kept
             else:
                 merged[key] = value.copy() if isinstance(value, Params) else value
         return merged
+
+    #*************#
+    #   sources   #
+    #*************#
+    def sources(self):
+        """{path: Sourced} for every leaf that carries values per source (literature,
+        measured, custom), the path dotted."""
+        found = {}
+        for key, value in self.items():
+            if isinstance(value, Params):
+                found.update({f"{key}.{path}": leaf for path, leaf in value.sources().items()})
+            elif isinstance(value, Sourced):
+                found[key] = value
+        return found
+
+    def select(self, source=None, **per_leaf):
+        """This tree with a source chosen for its Sourced leaves: `source` for every leaf that
+        has a value for it (the others keep their choice), then `per_leaf` {dotted path:
+        source} for named leaves, which must have it. A plain tree comes back unchanged."""
+        chosen = self.copy()
+        if source is not None:
+            for path, leaf in chosen.sources().items():
+                chosen._set(path, leaf.choose(source))
+        for path, name in per_leaf.items():
+            chosen._set(path, chosen._get(path).choose(name, strict=True))
+        return chosen
+
+    def _get(self, path):
+        node = self
+        for key in path.split("."):
+            node = node[key]
+        return node
+
+    def _set(self, path, value):
+        *keys, last = path.split(".")
+        node = self
+        for key in keys:
+            node = node[key]
+        node[last] = value
 
     #**************#
     #   sampling   #

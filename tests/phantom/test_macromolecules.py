@@ -344,7 +344,7 @@ class TestCoupled:
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
-                      mm=dict(kappa=10.4))
+                      mm=dict(kappa=10.4), oov=dict(fraction=0.0))       # the leaked water's wings out of the window
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
         with_mm = VirtualScan(brain, *pieces, params=tree)
         without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())

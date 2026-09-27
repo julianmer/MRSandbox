@@ -90,19 +90,31 @@ class ScannerProfile:
         voxel's unsuppressed water (NIfTI-MRS, transients apart), the residual water the
         scanner's suppression leaves and its receiver delay become records too
         (WaterReading)."""
-        # the width first: the noise is then read against a twin as broad as the acquisition is
-        shim = SpectrumReading.from_nifti(source).record(voxel, dataset)
-        noise = NoiseReading.from_nifti(source, excitations).record(voxel, dataset, gauss_hz=shim.value)
-        records, coils = (noise, shim), None
+        return cls.from_readings(SpectrumReading.from_nifti(source), NoiseReading.from_nifti(source, excitations), voxel, dataset,
+                                 covariance=None if array is None else CovarianceReading.from_nifti(source), array=array, load=load,
+                                 water=None if reference is None else WaterReading.from_nifti(source, reference))
+
+    #*********************#
+    #   from readings     #
+    #*********************#
+    @classmethod
+    def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None, load="a head", water=None):
+        """The profile the readings of one acquisition give (`read` makes them from files; a
+        cohort's builder from arrays): the spectrum's width first, then the noise against a
+        twin as broad as that, with `covariance` and `array` the channels' own noise and the
+        array so loaded, with `water` the residual, the receiver delay, the leaked water and
+        the eddy transient."""
+        shim = spectrum.record(voxel, dataset)
+        sigma = noise.record(voxel, dataset, gauss_hz=shim.value)
+        records, coils = (sigma, shim), None
         if array is not None:
-            share = dataclasses.replace(CovarianceReading.from_nifti(source).record(array, dataset, load=load),
-                                        scanner=noise.scanner)
+            share = dataclasses.replace(covariance.record(array, dataset, load=load), scanner=sigma.scanner)
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
-        if reference is not None:
-            water = WaterReading.from_nifti(source, reference)
-            records += (dataclasses.replace(water.record_residual(voxel, dataset), scanner=noise.scanner),
-                        dataclasses.replace(water.record_delay(voxel, dataset, gauss_hz=shim.value), scanner=noise.scanner))
+        if water is not None:
+            records += tuple(dataclasses.replace(record, scanner=sigma.scanner) for record in (
+                water.record_residual(voxel, dataset), water.record_delay(voxel, dataset, gauss_hz=shim.value),
+                water.record_leak(voxel, dataset), water.record_eddy(voxel, dataset)))
         return cls(voxel.scan.scanner, records, coils=coils)
 
     #**********#
@@ -117,15 +129,18 @@ class ScannerProfile:
             raise ValueError("only an array of loops is saved; a mapped array lives in its maps")
         if self.girf is not None and self.girf.name not in GIRF_NAMES:
             raise ValueError(f"only the package's GIRFs ({', '.join(GIRF_NAMES)}) are saved, by name")
+        with open(path, "w") as file:
+            json.dump(self.to_dict(), file, indent=2)
+
+    def to_dict(self):
+        """The profile as plain data, what `save` writes."""
         coils = None if self.coils is None else {
             "loops": [dataclasses.asdict(loop) for loop in self.coils.loops],
             "noise_resistance": self.coils.noise_resistance.tolist(), "gain": self.coils.gain}
-        with open(path, "w") as file:
-            json.dump({"scanner": dataclasses.asdict(self.scanner),
-                       "records": [dataclasses.asdict(record) for record in self.records],
-                       "coils": coils, "girf": None if self.girf is None else self.girf.name,
-                       "receiver": None if self.receiver is None else dataclasses.asdict(self.receiver)},
-                      file, indent=2)
+        return {"scanner": dataclasses.asdict(self.scanner),
+                "records": [dataclasses.asdict(record) for record in self.records],
+                "coils": coils, "girf": None if self.girf is None else self.girf.name,
+                "receiver": None if self.receiver is None else dataclasses.asdict(self.receiver)}
 
     #**********#
     #   load   #
@@ -134,7 +149,11 @@ class ScannerProfile:
     def load(cls, path):
         """The profile `save` wrote."""
         with open(path) as file:
-            stored = json.load(file)
+            return cls.from_dict(json.load(file))
+
+    @classmethod
+    def from_dict(cls, stored):
+        """The profile `to_dict` gave."""
         records = tuple(Calibration(**{**record, "prior": tuple(record["prior"]),
                                        "presets": tuple(record["presets"])}) for record in stored["records"])
         coils = stored["coils"] and CoilArray(

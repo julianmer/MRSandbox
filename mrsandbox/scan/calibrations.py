@@ -757,6 +757,7 @@ CALIBRATIONS = (NOISE_POOLED_3T, RESIDUAL_WATER_POOLED_3T,
                 CREATINE_THREE_DATASETS_3T, RESIDUAL_WATER_BIG_GABA_SIEMENS_3T,
                 RESIDUAL_WATER_BIG_GABA_GE_3T, RESIDUAL_WATER_COWS_PRISMA_3T, RECEIVER_DELAY_BIG_GABA_SIEMENS_3T,
                 RECEIVER_DELAY_BIG_GABA_GE_3T, RECEIVER_DELAY_COWS_PRISMA_3T)
+# the records typed below the linewidth check join the tuple where they are typed
 
 
 def calibrations(scanner=None, records=()):
@@ -800,6 +801,69 @@ LINEWIDTH_SIEMENS_3T = Calibration(
                "so drift widens the measured line (stated)",
     date="18/09/26",
     note="a check, not a fit; other vendors' lines are not measured yet",
+)
+
+
+#****************#
+#   eddy phase   #
+#****************#
+# the eddy-current phase on the water references' FIDs, parted from the water's own components
+# by fitting those on the late FID (60 to 250 ms, where eddy currents have died and the water is
+# still a hundred times the metabolites) and carrying the model back to the start; what the
+# early FID's phase does against it is the eddy phase. Exact for transients dead by 60 ms, a
+# lower bound for slower ones (a 20 ms transient reads a quarter, a 50 ms one a fifth: the
+# model's frequencies take the rest). Small in the median, of either sign, dead by 30 ms, past
+# half a radian at 10 ms in a tenth of the subjects on both vendors. The design's own gradient
+# terms (scan.defaults gradients) cannot reach it at any physical size, so it is a leaf of the
+# acquisition, the phase 5 ms after the first sample, a Normal about zero with the record's sd
+# (its 10 to 90 span over 2.56); vendor-specific like the delay (info/HANDOFF.md item 236).
+EDDY_PHASE_BIG_GABA_SIEMENS_3T = Calibration(
+    leaf="acquisition.eddy_transient_rad",
+    value=0.0,
+    prior=(-0.549, 0.549),
+    measured={"statistic": "the eddy phase on the water reference's mean FID, in radians: its value at 5, 10 and "
+                           "30 ms after the first sample, and its std over the first 50 ms",
+              "at_5ms_median": 0.016, "at_5ms_10_90": (-0.310, 1.095), "sd_from_5ms_span": 0.549,
+              "std_0_50ms_median": 0.084, "std_0_50ms_10_90": (0.016, 0.449),
+              "at_10ms_median": 0.022, "at_10ms_10_90": (-0.194, 0.853),
+              "at_30ms_median": -0.001, "at_30ms_10_90": (-0.090, 0.088),
+              "late_fit_std_median": 0.018, "subjects": 12},
+    source=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.source,
+    scanner=NOISE_BIG_GABA_SIEMENS_3T.scanner,
+    coil=NOISE_BIG_GABA_SIEMENS_3T.coil,
+    sequence=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.sequence,
+    acquisition={"npoints": 2048, "bandwidth_hz": 2000.0, "transients": 8, "measured_on": "the water reference's mean"},
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="TWIX through mapVBVD, the oversampling removed, noise-whitened SVD coil combination, the mean FID; "
+               "the components within 0.4 ppm of the carrier by Hankel SVD on 60 to 250 ms carried back to zero "
+               "(info/analysis/eddy_phase.py)",
+    date="26/09/26",
+    presets=("siemens_trio_3t",),
+    fallback=False,
+    note="the reading is a lower bound for transients slower than 20 ms; the median is near zero, the sd is the spread",
+)
+
+EDDY_PHASE_BIG_GABA_GE_3T = Calibration(
+    leaf="acquisition.eddy_transient_rad",
+    value=0.0,
+    prior=(-0.575, 0.575),
+    measured={"statistic": EDDY_PHASE_BIG_GABA_SIEMENS_3T.measured["statistic"],
+              "at_5ms_median": 0.035, "at_5ms_10_90": (-0.750, 0.724), "sd_from_5ms_span": 0.575,
+              "std_0_50ms_median": 0.114, "std_0_50ms_10_90": (0.028, 0.850),
+              "at_10ms_median": 0.029, "at_10ms_10_90": (-0.522, 0.639),
+              "at_30ms_median": 0.016, "at_30ms_10_90": (-0.153, 0.207),
+              "late_fit_std_median": 0.010, "subjects": 68},
+    source=RESIDUAL_WATER_BIG_GABA_GE_3T.source,
+    scanner=NOISE_BIG_GABA_GE_3T.scanner,
+    coil=NOISE_BIG_GABA_GE_3T.coil,
+    sequence=RESIDUAL_WATER_BIG_GABA_GE_3T.sequence,
+    acquisition={"npoints": 4096, "bandwidth_hz": 5000.0, "transients": 8, "measured_on": "the water reference's mean"},
+    voxel=NOISE_BIG_GABA_GE_3T.voxel,
+    processing="the NIfTI references' coils combined as the Siemens ones, then as the Siemens record",
+    date="26/09/26",
+    presets=("ge_mr750_3t", "ge_mr750_32ch_3t"),
+    fallback=False,
+    note=EDDY_PHASE_BIG_GABA_SIEMENS_3T.note,
 )
 
 # a second 7 T site read the same way, kept as a check beside NeuroMET and not as a value:
@@ -871,3 +935,63 @@ CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, COIL_OWN_NOISE_SIEMENS_PHANTOM_3T,
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
 # numbers of the signal models, outside the Params tree
 MODELS = {c.leaf: c for c in (MM_MEASURED_LEVEL_3T,)}
+
+
+#***********************#
+#   out-of-voxel water   #
+#***********************#
+# the broad part of the residual water: the suppressed run's mean FID's exponentials within
+# 0.4 ppm of the carrier split at a T2* of 35 ms, the broad ones' sum at t = 0 over the water
+# reference's full water at t = 0 (the same coil weights), their T2* and frequency, and their
+# phase against the narrow parts' sum. Water of that width in a well shimmed voxel is water
+# outside it; every subject has it, it is what makes |w(t)| of the residual rise to 20 ms
+# (info/HANDOFF.md items 237 and 238, info/analysis/oov_water.py).
+OOV_WATER_BIG_GABA_SIEMENS_3T = Calibration(
+    leaf="oov.fraction",
+    value=0.0025,
+    prior=(0.0008, 0.005),
+    measured={"statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of "
+                           "the carrier, summed at t = 0, over the water reference's full water at t = 0",
+              "median": 0.0025, "percentiles_10_90": (0.0008, 0.0050), "subjects": 12,
+              "t2star_ms_median": 22.4, "t2star_ms_10_90": (15.3, 27.7), "offset_hz_median": 2.7, "offset_hz_10_90": (-3.2, 7.3),
+              "over_narrow_median": 0.70, "over_narrow_10_90": (0.58, 1.07),
+              "phase_vs_narrow_deg_median": -153.0, "phase_vs_narrow_deg_10_90": (-169.0, 104.0)},
+    source=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.source,
+    scanner=NOISE_BIG_GABA_SIEMENS_3T.scanner,
+    coil=NOISE_BIG_GABA_SIEMENS_3T.coil,
+    sequence=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.sequence,
+    acquisition=RESIDUAL_WATER_BIG_GABA_SIEMENS_3T.acquisition,
+    voxel=NOISE_BIG_GABA_SIEMENS_3T.voxel,
+    processing="TWIX through mapVBVD, the oversampling removed, noise-whitened SVD coil combination with the "
+               "suppressed run's weights on both files, the mean FIDs; Hankel SVD on the first 1024 points",
+    date="26/09/26",
+    presets=("siemens_trio_3t",),
+    note="the first record of its leaf, so every scanner without one falls back to it",
+)
+
+# GE's residual is four times the Trio's and its broad part (T2* 28 ms) a third of it, of no fixed phase
+# against the narrow parts (median 3 degrees, the 10 to 90 the whole circle): the fraction is GE's, the
+# phase prior stays the Trio's (scan.defaults oov.phase_deg, stated for GE).
+OOV_WATER_BIG_GABA_GE_3T = Calibration(
+    leaf="oov.fraction",
+    value=0.0112,
+    prior=(0.0025, 0.0307),
+    measured={"statistic": OOV_WATER_BIG_GABA_SIEMENS_3T.measured["statistic"],
+              "median": 0.0112, "percentiles_10_90": (0.0025, 0.0307), "subjects": 68,
+              "t2star_ms_median": 27.5, "t2star_ms_10_90": (14.1, 34.0), "offset_hz_median": -0.9, "offset_hz_10_90": (-5.6, 4.8),
+              "over_narrow_median": 0.49, "phase_vs_narrow_deg_median": 2.6, "phase_vs_narrow_deg_10_90": (-164.0, 140.0)},
+    source=RESIDUAL_WATER_BIG_GABA_GE_3T.source,
+    scanner=NOISE_BIG_GABA_GE_3T.scanner,
+    coil=NOISE_BIG_GABA_GE_3T.coil,
+    sequence=RESIDUAL_WATER_BIG_GABA_GE_3T.sequence,
+    acquisition=RESIDUAL_WATER_BIG_GABA_GE_3T.acquisition,
+    voxel=NOISE_BIG_GABA_GE_3T.voxel,
+    processing="the NIfTI pairs' coils combined as the Siemens ones, then as the Siemens record",
+    date="26/09/26",
+    presets=("ge_mr750_3t", "ge_mr750_32ch_3t"),
+    fallback=False,
+    note="the phase against the voxel's own residual is not the Trio's; the prior keeps the Trio's (stated)",
+)
+
+CALIBRATIONS = CALIBRATIONS + (EDDY_PHASE_BIG_GABA_SIEMENS_3T, EDDY_PHASE_BIG_GABA_GE_3T,
+                               OOV_WATER_BIG_GABA_SIEMENS_3T, OOV_WATER_BIG_GABA_GE_3T)

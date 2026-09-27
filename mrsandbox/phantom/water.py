@@ -42,7 +42,8 @@ class WaterSource(abc.ABC):
     #***********#
     @abc.abstractmethod
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
-        """Return (freqs, amps) line tensors, or None when this source is silent.
+        """Return the water's parts, [(freqs, amps, t2_s)] line tensors each at the T2
+        its line decays with, or None when this source is silent.
 
         The shared source signature: the placed scan.Voxel (fractions and geometry),
         the realized truth, and the spectrometer frequency in MHz."""
@@ -72,14 +73,14 @@ class WaterSource(abc.ABC):
     #******************#
     #   engine lines   #
     #******************#
-    def _engine_lines(self, engine, sequence, voxel, truth, f0_mhz, t1_s=None):
+    def _engine_lines(self, engine, sequence, voxel, truth, f0_mhz, t1_s=None, t2_s=None):
         """The water lines of this draw through the engine's compiled path: relaxation
         and b1 stay inputs, so the first call compiles and every voxel replays. The
         relaxation leaves resolve at the voxel (per-tissue values weighted by its
-        composition, maps read over its box); `t1_s` plays one tissue's own instead. A
-        draw `prepare` replayed with its batch is read from the cache."""
+        composition, maps read over its box); `t1_s` and `t2_s` play one tissue's own
+        instead. A draw `prepare` replayed with its batch is read from the cache."""
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
-        t2_s = voxel.resolve(truth.water.t2_s)
+        t2_s = voxel.resolve(truth.water.t2_s) if t2_s is None else t2_s
         held = getattr(self, "_lines", {}).get(id(truth))
         key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[2], voxel.offset_hz(truth))
         if held is not None and held[0] is truth and key in held[1]:
@@ -148,30 +149,32 @@ class Unsuppressed(WaterSource):
     """The full water signal, as in a water reference acquisition, and what a suppression
     train in the sequence leaves of it.
 
-    Each tissue's water runs the sequence with its own T1 where the leaf is per tissue
-    (a map or a number runs once): what recovers through a train's gaps and over the TR
-    is the tissue's, so CSF's slow water and the tissues' fast water are never nulled
-    by one adjustment at once. The T2 stays the voxel's mean (one line width, stated).
+    Each tissue's water runs the sequence with its own T1 and decays with its own T2
+    where the leaves are per tissue (a map or a number runs once): what recovers
+    through a train's gaps and over the TR is the tissue's, so CSF's slow water and the
+    tissues' fast water are never nulled by one adjustment at once, and what a train
+    leaves is their sum, the CSF's long narrow line against the tissues' broader ones,
+    partly cancelling as the raw residuals do (info/HANDOFF.md item 232).
     """
 
     #***********#
     #   lines   #
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
-        t1_s = truth.water.t1_s
+        t1_s, t2_s = truth.water.t1_s, truth.water.t2_s
         if not isinstance(t1_s, Tissues):
             freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
-            return freqs, amps * complex(self.full_amplitude_mm(voxel))
+            return [(freqs, amps * complex(self.full_amplitude_mm(voxel)), voxel.resolve(t2_s))]
         fractions, content = voxel.fractions, voxel.scan.brain.water_content
-        total = None
+        parts = []
         for name in ("gm", "wm", "csf"):
             share = getattr(fractions, name) * content[name]
             if share <= 0.0:
                 continue
-            freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz, t1_s=getattr(t1_s, name))
-            part = amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share)
-            total = part if total is None else total + part
-        return None if total is None else (freqs, total)
+            own_t2 = getattr(t2_s, name) if isinstance(t2_s, Tissues) else voxel.resolve(t2_s)
+            freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz, t1_s=getattr(t1_s, name), t2_s=own_t2)
+            parts.append((freqs, amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share), own_t2))
+        return parts or None
 
 
 #**************************************************************************************************#
@@ -194,4 +197,4 @@ class Suppressed(WaterSource):
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
         freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
         residual = truth.water.residual_fraction * self.full_amplitude_mm(voxel)
-        return freqs, amps * complex(residual)
+        return [(freqs, amps * complex(residual), voxel.resolve(truth.water.t2_s))]

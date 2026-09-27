@@ -185,6 +185,56 @@ class TestFieldPriors:
         assert default_params(b0_t=3.0).lineshape.gauss_hz == Uniform(2.0, 6.0)
         assert default_params(b0_t=7.0).lineshape.gauss_hz == Uniform(2.0 * 7.0 / 3.0, 6.0 * 7.0 / 3.0)
 
+    #*****************************#
+    #   signed eddy field terms   #
+    #*****************************#
+    def test_the_gradient_eddy_field_terms_carry_either_sign(self):
+        # the eddy phase read on eighty water references shows both signs (scan.calibrations EDDY_PHASE records)
+        from mrsandbox import Uniform
+        from mrsandbox.scan.defaults import default_params
+
+        gradients = default_params(b0_t=3.0).gradients
+        assert gradients.b0_short_hz_per_mt_m == Uniform(-0.5, 0.5) and gradients.b0_long_hz_per_mt_m == Uniform(-0.2, 0.2)
+
+    #********************#
+    #   three sources    #
+    #********************#
+    def test_the_recorded_leaves_carry_their_literature_and_measured_sources(self):
+        # every leaf a record serves is Sourced with the measured one chosen; the literature one is the typed or
+        # stated prior before any record (de Graaf's creatine, zero delay, transient and leak), or none (the noise,
+        # the adjusted residual: nothing in the literature), which a tree-wide "literature" then leaves measured
+        from mrsandbox import Fixed, Normal, Sourced, Uniform
+        from mrsandbox.database import concentrations
+        from mrsandbox.scan.defaults import default_params
+
+        tree = default_params(b0_t=3.0, scanner="siemens_trio_3t")
+        assert set(tree.sources()) == {"conc.Cr", "noise.sigma", "water.adjusted_residual", "acquisition.delay_s",
+                                       "acquisition.eddy_transient_rad", "oov.fraction"}
+        assert all(leaf.chosen == "measured" for leaf in tree.sources().values())
+        assert tree.noise.sigma.literature is None and tree.acquisition.delay_s.literature == Fixed(0.0)
+        literature = tree.select("literature")
+        assert literature.conc.Cr == Uniform(*concentrations.DE_GRAAF["Cr"]) and literature.acquisition.delay_s == Fixed(0.0)
+        assert literature.acquisition.eddy_transient_rad == Fixed(0.0) and literature.oov.fraction == Fixed(0.0)
+        assert literature.noise.sigma == tree.noise.sigma and isinstance(tree.acquisition.eddy_transient_rad.measured, Normal)
+        assert isinstance(literature.conc.Cr, Sourced) and literature.conc.Cr.chosen == "literature"
+
+    #**********************#
+    #   eddy transient     #
+    #**********************#
+    def test_the_eddy_transient_is_the_records_and_zero_without_one(self):
+        # the phase transient at the FID's start: a Normal about zero with the vendor's record's sd (the Trio, GE),
+        # zero for a scanner without a record (the generic 3 T), the records of either sign in their 10 to 90
+        from mrsandbox import Fixed, Normal
+        from mrsandbox.scan.calibrations import CALIBRATIONS, EDDY_PHASE_BIG_GABA_GE_3T, EDDY_PHASE_BIG_GABA_SIEMENS_3T
+        from mrsandbox.scan.defaults import default_params
+
+        assert default_params(b0_t=3.0, scanner="siemens_trio_3t").acquisition.eddy_transient_rad == Normal(0.0, 0.549)
+        assert default_params(b0_t=3.0, scanner="ge_mr750_3t").acquisition.eddy_transient_rad == Normal(0.0, 0.575)
+        assert default_params(b0_t=3.0, scanner="generic_3t").acquisition.eddy_transient_rad == Fixed(0.0)
+        for record in (EDDY_PHASE_BIG_GABA_SIEMENS_3T, EDDY_PHASE_BIG_GABA_GE_3T):
+            assert record.leaf == "acquisition.eddy_transient_rad" and record in CALIBRATIONS and not record.fallback
+            assert record.measured["at_5ms_10_90"][0] < 0.0 < record.measured["at_5ms_10_90"][1]
+
 
 #**************************************************************************************************#
 #                                     Class TestScannerSurvey                                      #

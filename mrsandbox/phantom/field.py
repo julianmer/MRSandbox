@@ -233,17 +233,27 @@ class FieldMap:
             return np.ones_like(t, dtype=np.complex64)
         return self._dephasing(offsets, overlap, t, bins)
 
-    def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256, shim_at_mm=None):
+    def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256, shim_at_mm=None, spread_hz=0.0):
         """The box's post-shim offsets split into `count` groups of equal weight along
         the offset axis, as [(mean_hz, weight, kernel)]: each group's mean offset, its
         share of the box, and its own dephasing kernel, so the weighted kernels sum
         to `kernel`. What a sequence does at an offset (an editing pulse off its
         band, a selective pulse off its line) can then be played per group at the
-        group's mean. An empty box is one group at rest."""
+        group's mean. An empty box is one group at rest.
+
+        `spread_hz` smears every cell's offset by a Gaussian of that FWHM (the
+        microscopic field below the map's resolution, scan.defaults lineshape.gauss_hz)
+        before the split, so the groups carry the spread and their kernels sum to
+        `kernel` times the Gaussian's envelope: a spin is then played at the frequency
+        it actually has, not at the map's mean over its cell."""
         t = np.asarray(t_s, dtype=np.float64)
         offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
         if offsets.size == 0:
             return [(0.0, 1.0, np.ones_like(t, dtype=np.complex64))]
+        if spread_hz > 0.0:
+            nodes, node_weights = np.polynomial.hermite_e.hermegauss(32)
+            offsets = (offsets[:, None] + spread_hz / (2.0 * np.sqrt(2.0 * np.log(2.0))) * nodes[None, :]).ravel()
+            overlap = (overlap[:, None] * node_weights[None, :] / node_weights.sum()).ravel()
         order = np.argsort(offsets)
         offsets, overlap = offsets[order], overlap[order]
         share = np.cumsum(overlap) / overlap.sum()

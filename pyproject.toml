@@ -43,6 +43,10 @@ mrsandbox-console = "mrsandbox.console.app:main"
 [tool.setuptools.packages.find]
 include = ["mrsandbox*"]
 
+# the package's cohorts: subjects' readings with their conditions, no raw data (scan.cohort)
+[tool.setuptools.package-data]
+"mrsandbox.resources" = ["cohorts/*.json"]
+
 [tool.setuptools.dynamic]
 version = { attr = "mrsandbox.__version__" }
 

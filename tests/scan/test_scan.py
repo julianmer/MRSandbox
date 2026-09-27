@@ -530,6 +530,26 @@ class TestLineshape:
         np.testing.assert_allclose(broad, sharp * envelope, atol=1e-5 * np.abs(sharp).max())
         assert np.abs(broad[-1]) < 0.5 * np.abs(sharp[-1])  # the tail is damped
 
+    #**********************#
+    #   eddy transient     #
+    #**********************#
+    def test_the_eddy_transient_is_an_exact_phase_on_the_fid(self, scan):
+        # the phase transient at the FID's start (scan.calibrations EDDY_PHASE records): the phase 5 ms after the
+        # first sample, decaying from there with its time constant and grown back to the start, on every component
+        from mrsandbox import NoDownfield, NoMM
+
+        def fid(transient_rad):
+            params = Params(**{**self.STILL, "acquisition": dict(self.STILL["acquisition"], eddy_transient_rad=transient_rad, eddy_transient_tau_s=0.01)})
+            voxel = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=params,
+                                mm=NoMM(), downfield=NoDownfield()).voxel(position_mm=(10, -20, 5), size_mm=20)
+            return voxel.fid(seed=7, npoints=512)[1]
+
+        plain, turned = fid(0.0), fid(0.5)
+        t = np.arange(512) / 4000.0
+        phase = 0.5 * np.exp((0.005 - t) / 0.01)
+        np.testing.assert_allclose(turned, plain * np.exp(1j * phase), atol=1e-5 * np.abs(plain).max())
+        assert abs(phase[0] - 0.5 * np.e ** 0.5) < 1e-9 and phase[int(0.005 / (1 / 4000.0))] == 0.5
+
     #***********************#
     #   background exempt   #
     #***********************#

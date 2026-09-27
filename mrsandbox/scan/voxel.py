@@ -300,21 +300,21 @@ class Voxel:
         return [part for parts in self._grouped(truth, metabolites).values() for part in parts]
 
     def _water_parts(self, truth, engine, sequence, f0_mhz, faded):
-        """The water's line parts at the offset the voxel is being played at, or None."""
+        """The water's line parts at the offset the voxel is being played at (one per
+        tissue under a per-tissue draw, each at its own T2), or None."""
         water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
         if water is None:
             return None
-        w_freqs, w_amps = water
         # the water line moves with the temperature, fourteen times more than the metabolites
         # (which take their systems at the same temperature, `_metabolite_lines`)
         warm = self.resolve(truth.water.temperature_c) - 37.0
-        w_freqs = w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz)
-        return [(w_freqs, w_amps * np.complex64(faded(truth.diffusion.water)),
-                 1.0 / (np.pi * self.resolve(truth.water.t2_s)), 0.0)]
+        return [(w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz), w_amps * np.complex64(faded(truth.diffusion.water)),
+                 1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s in water]
 
     def _grouped(self, truth, metabolites=True):
         """The parts of `components` grouped by source, {name: [parts]} in the order
-        metabolites, water, lipids, mm, downfield; silent sources are left out."""
+        metabolites, water, oov (the water the localization leaks), lipids, mm,
+        downfield; silent sources are left out."""
         engine, sequence = self.scan.engine, self.design(truth)
         f0_mhz = self._f0_mhz()
         faded = self._diffusion_factor(truth)
@@ -337,6 +337,21 @@ class Voxel:
         water = self._water_parts(truth, engine, sequence, f0_mhz, faded)
         if water is not None:
             groups["water"] = water
+            residual = sum(complex(np.sum(np.asarray(ops.convert_to_numpy(a)))) for _, a, _, _ in water)
+            if truth.oov.fraction > 0.0 and residual != 0.0:
+                # the water outside the voxel that the localization leaks: one broad line at the water's frequency
+                # (its own offset), a fraction of the full water at t = 0 after the echo's decay, at a drawn phase
+                # against the voxel's own residual at t = 0 (info/HANDOFF.md item 238); a residual forced to nothing
+                # takes the leak with it (the console's switch, the silent gates)
+                from mrsandbox.phantom.macromolecules import _echo_time_s
+                from mrsandbox.phantom.water import WaterSource
+
+                freqs, amps = (np.asarray(ops.convert_to_numpy(v)) for v in water[0][:2])
+                at = float(np.sum(freqs * np.abs(amps)) / np.sum(np.abs(amps))) + float(truth.oov.offset_hz)
+                full = WaterSource.full_amplitude_mm(self) * np.exp(-(_echo_time_s(sequence) or 0.0) / self.resolve(truth.water.t2_s))
+                amplitude = float(truth.oov.fraction) * full * np.exp(1j * (np.angle(residual) + np.radians(float(truth.oov.phase_deg))))
+                groups["oov"] = [(np.array([at], np.float32), np.array([amplitude], np.complex64),
+                                  1.0 / (np.pi * float(truth.oov.t2star_s)), 0.0)]
         lipid = self.scan.lipids.lines(engine, sequence, self, truth, f0_mhz)
         if lipid is not None:
             l_freqs, l_amps = lipid
@@ -561,7 +576,7 @@ class Voxel:
             if ready is not None:               # rendered with the batch (`prepare`)
                 fids["metabolites"] = ready
             if ready is not None and held.get(("every source", npoints, float(dwell_s), start_s)):
-                for name in ("water", "lipids", "mm", "downfield"):
+                for name in ("water", "oov", "lipids", "mm", "downfield"):
                     if (name, npoints, float(dwell_s), start_s) in [key[1:] for key in held if key[0] == "fid"]:
                         fids[name] = held[("fid", name, npoints, float(dwell_s), start_s)]
                 grouped = {}
@@ -590,17 +605,21 @@ class Voxel:
             if "water" in fids and self.scan.water_groups > 1:
                 # the water alone at every field group's own offset under its own dephasing
                 # (VirtualScan water_groups): a suppression pulse misses the water where the
-                # field is off its band, which the voxel's mean cannot show
+                # field is off its band, which the voxel's mean cannot show. The microscopic
+                # spread goes into the groups, not onto the result: a train is a band-stop a
+                # few hertz wide, so what it leaves is narrower than the water's distribution
+                # (info/HANDOFF.md item 234)
                 engine, sequence, faded = self.scan.engine, self.design(truth), self._diffusion_factor(truth)
                 water = np.zeros(npoints, dtype=np.complex64)
                 for mean_hz, weight, part_kernel in self.scan.field.groups(
-                        self.position_mm, self.size_mm, grid, self.scan.water_groups, shim_at_mm=self.shim_at_mm):
+                        self.position_mm, self.size_mm, grid, self.scan.water_groups, shim_at_mm=self.shim_at_mm,
+                        spread_hz=float(gauss_hz)):
                     self._field_offset_hz = mean_hz
                     try:
                         lorentzian, _ = self._flat_lines(self._water_parts(truth, engine, sequence, self._f0_mhz(), faded))
                     finally:
                         self._field_offset_hz = 0.0
-                    water = water + np.float32(weight) * self._render_lines(lorentzian, npoints, dwell_s, start_s) * envelope * part_kernel
+                    water = water + np.float32(weight) * self._render_lines(lorentzian, npoints, dwell_s, start_s) * part_kernel
                 fids["water"] = water
         else:
             # the field inside the pulses: every group of the voxel's field distribution
@@ -636,6 +655,11 @@ class Voxel:
             fids["spurious"] = np.asarray(echo.process_tensor(total[None, :], sw_hz=sw_hz)[0][0]) - total
         modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
                                   + np.radians(acquisition.phase_deg)))
+        if acquisition.eddy_transient_rad:
+            # the phase transient at the FID's start (the records' phase 5 ms after the first sample, decaying from there)
+            since_start = np.arange(npoints) * dwell_s
+            modulation = modulation * np.exp(1j * float(acquisition.eddy_transient_rad)
+                                             * np.exp((0.005 - since_start) / float(acquisition.eddy_transient_tau_s)))
         if acquisition.eddy_std_rad > 0.0:
             key = (int(acquisition.eddy_seed), float(acquisition.eddy_std_rad),
                    float(acquisition.eddy_lp_cut_hz), npoints, float(dwell_s))

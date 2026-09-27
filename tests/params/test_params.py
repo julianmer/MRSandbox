@@ -168,3 +168,46 @@ class TestParams:
         assert isinstance(truth.brain.NAA.conc.gm, float)
         d = truth.to_dict()
         assert d["brain"]["NAA"]["conc"]["gm"] == truth.brain.NAA.conc.gm
+
+
+#**************************************************************************************************#
+#                                        Class TestSourced                                         #
+#**************************************************************************************************#
+class TestSourced:
+
+    #**************#
+    #   one leaf   #
+    #**************#
+    def test_a_sourced_leaf_reads_and_samples_as_its_chosen_source(self):
+        from mrsandbox import Sourced
+
+        leaf = Sourced(literature=Uniform(1.0, 2.0), measured=Normal(1.5, 0.1), chosen="measured")
+        assert leaf == Normal(1.5, 0.1) and (leaf.mean, leaf.sd) == (1.5, 0.1) and leaf.available == ("literature", "measured")
+        rng = np.random.default_rng(3)
+        assert leaf.sample(rng) == Normal(1.5, 0.1).sample(np.random.default_rng(3))
+        assert leaf.choose("literature") == Uniform(1.0, 2.0)
+        assert leaf.choose("custom") is leaf                          # nothing to choose: the choice stands
+        with pytest.raises(ValueError):
+            leaf.choose("custom", strict=True)
+        assert leaf.with_custom(3.0) == Fixed(3.0) and leaf.with_custom(3.0).literature == Uniform(1.0, 2.0)
+        with pytest.raises(ValueError):
+            Sourced(literature=Uniform(1.0, 2.0), chosen="measured")
+
+    #****************#
+    #   in a tree    #
+    #****************#
+    def test_a_tree_selects_its_sources_and_a_merge_sets_the_custom_one(self):
+        from mrsandbox import Sourced
+
+        tree = Params(a=dict(b=Sourced(literature=Uniform(1.0, 2.0), measured=Normal(1.5, 0.1), chosen="measured"),
+                             c=Sourced(measured=Fixed(4.0), chosen="measured"), d=(0.0, 1.0)))
+        assert list(tree.sources()) == ["a.b", "a.c"]
+        literature = tree.select("literature")
+        assert literature.a.b == Uniform(1.0, 2.0) and literature.a.c == Fixed(4.0)      # no literature for c: it keeps measured
+        assert tree.a.b == Normal(1.5, 0.1)                                              # the original untouched
+        custom = tree | Params(a=dict(b=3.0))
+        assert custom.a.b == Fixed(3.0) and custom.a.b.chosen == "custom" and custom.a.b.measured == Normal(1.5, 0.1)
+        assert custom.select("measured").a.b == Normal(1.5, 0.1) and custom.select("measured", **{"a.b": "custom"}).a.b == Fixed(3.0)
+        with pytest.raises(ValueError):
+            tree.select(**{"a.c": "literature"})
+        assert tree.sample(seed=1).a.b != literature.sample(seed=1).a.b

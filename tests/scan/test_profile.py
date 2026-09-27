@@ -24,7 +24,8 @@ from mrsandbox.scan.calibrations import NOISE_COWS_PRISMA_3T
 from mrsandbox.scan.voxel import noise_scale
 
 PLACE, SIZE = (0.0, -45.0, 35.0), 30.0
-CALM = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+# the leaked water off: these gates set a residual and read it back, and read the noise beside the water's wings
+CALM = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0), oov=dict(fraction=0.0))
 
 
 #**************************************************************************************************#
@@ -70,7 +71,7 @@ class TestScannerProfile:
         profile = ScannerProfile(Scanner.preset("siemens_prisma_3t"), records=(own,))
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == (7.0, 9.0)
-        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr", "water.adjusted_residual", "acquisition.delay_s"}
+        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr", "water.adjusted_residual", "acquisition.delay_s", "oov.fraction"}
         data = scan.voxel(PLACE, SIZE).acquire(seed=0, npoints=256)
         named = data.hdr_ext["SimulationPhantom"]["calibrations"]["noise.sigma"]
         assert named["source"] == "my scanner" and named["value"] == 8.0
@@ -170,6 +171,9 @@ class TestScannerProfile:
         profile = ScannerProfile.read(files["scan"], twin, "a virtual scanner", reference=files["reference"])
         records = profile.calibrations()
         assert records["water.adjusted_residual"].value == pytest.approx(0.01, rel=0.15)          # upright, one percent
+        # the leaked water and the eddy transient are read too: none in this synthetic scan (CALM has the leak off)
+        assert records["oov.fraction"].value < 0.002 and abs(records["acquisition.eddy_transient_rad"].value) < 0.05
+        assert not records["acquisition.eddy_transient_rad"].fallback
         # beyond PRESS's own phase on creatine and the residual's wing; one acquisition reads its delay to about a third
         # (three degrees of noise on creatine's phase and the twin's draws are 60 to 100 us each)
         assert records["acquisition.delay_s"].value == pytest.approx(-0.0004, rel=0.4)
