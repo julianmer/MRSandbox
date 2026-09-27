@@ -32,7 +32,7 @@ import numpy as np
 from nicegui import Client, run, ui
 from PIL import Image
 
-from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, TARGETS, adjusted, named,
+from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, RUN_OF, SCANNERS, TARGETS, adjusted, named,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
@@ -110,8 +110,46 @@ GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2"
           "contrast": "Grey to white matter concentration ratio", "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
           "mm": "Macromolecules", "downfield": "Downfield peaks", "lineshape": "Line shape (Hz)", "noise": "Noise",
           "b1_scale": "B1 scale", "acquisition": "Acquisition: shifts, phases, eddy currents", "gradients": "Gradient eddy currents",
-          "spurious": "Spurious echoes"}
-WAYS = ["as its source gives it", "set to", "vary between", "from a map"]
+          "spurious": "Spurious echoes", "oov": "Water outside the voxel, leaked"}
+WAYS = ["as its source gives it", "set to", "vary between", "from a map (a NIfTI on the anatomy's grid)"]
+# what the water suppression leaves: the scanner's, though the leaf lives under water (the leaked water's oov is the scanner's group)
+SUPPRESSION = ("water.adjusted_residual",)
+# the four sources a value can come from, the same word and colour on every chip; a cohort subject's reading is "own"
+# in the tree and says "cohort" on its chip
+SOURCE_WORDS = {"literature": "literature", "stated": "stated", "pooled": "pooled", "dataset": "dataset", "own": "yours", "custom": "custom"}
+SOURCE_SAYS = {"literature": "a published number, or the manufacturer's", "stated": "a range the package assumed, nothing published behind it",
+               "pooled": "the package's measured rows, pooled for this room", "dataset": "one real subject's own reading, from the dataset on the floor",
+               "own": "measured from a scan you uploaded", "custom": "a number or range you set"}
+SOURCE_COLORS = {"literature": "#7FA6D9", "stated": "#8C8C8C", "pooled": "#7FA66B", "dataset": "#C9A0DC", "own": "#E2A55F", "custom": "#E8E2D6"}
+SAID = "sources: " + " · ".join(f"{SOURCE_WORDS[s]} = {SOURCE_SAYS[s]}" for s in SOURCE_WORDS)
+# the leaves whose ranges the package assumed, and why (scan.defaults says it at each); every other plain leaf is
+# typed from a table of the literature (de Graaf, Gudmundson, Deelchand 2018, the consensus MM, Ozdemir, the water tables)
+STATED = {"gradients": "the eddy terms of a design's gradients: ranges set so the strong end distorts a line visibly, the weak end is clean",
+          "spurious": "spurious echoes: stated ranges, the counts on raw data an analysis only (echo_count)",
+          "acquisition.shift_hz": "a stated spread of the centre frequency", "acquisition.phase_deg": "a stated spread of the zero-order phase",
+          "acquisition.eddy_std_rad": "a stated spread of the eddy phase over the FID", "acquisition.eddy_lp_cut_hz": "its stated bandwidth",
+          "acquisition.eddy_seed": "a seed", "acquisition.eddy_transient_tau_s": "a stated time constant of the transient",
+          "lipids": "subcutaneous fat: water-like proton density and stated relaxation", "water.residual_fraction": "the shortcut's residual, stated",
+          "oov.t2star_s": "typed from the Trio readings of the leaked water (item 238), not pooled", "oov.offset_hz": "typed from the Trio readings (item 238)",
+          "oov.phase_deg": "typed from the Trio readings (item 238)", "b1_scale": "a stated calibration scatter of the transmitter"}
+
+
+def plain_word(path):
+    """The source word of a leaf that carries no sources of its own: stated where the package assumed its range,
+    literature where a table gives it."""
+    return "stated" if path in STATED or path.split(".")[0] in STATED else "literature"
+
+
+def plain_why(path):
+    return STATED.get(path) or STATED.get(path.split(".")[0]) or "typed from a table of the literature (scan.defaults names it)"
+# the scanner's leaves in words
+NAMES = {"noise.sigma": "noise level (one transient, 8 mL, 3 T)", "lineshape.gauss_hz": "line broadening, the shim (Hz)",
+         "acquisition.delay_s": "receiver delay (s)", "acquisition.eddy_transient_rad": "eddy phase transient at the start (rad)",
+         "acquisition.eddy_transient_tau_s": "its time constant (s)", "acquisition.shift_hz": "frequency offset (Hz)",
+         "acquisition.phase_deg": "zero-order phase (deg)", "acquisition.eddy_std_rad": "eddy phase over the FID (rad, std)",
+         "acquisition.eddy_lp_cut_hz": "its bandwidth (Hz)", "acquisition.eddy_seed": "its seed", "water.adjusted_residual": "residual water the suppression leaves (of the full water)",
+         "oov.fraction": "water leaked from outside the voxel (of the full water)", "b1_scale": "transmit scale (of nominal)", "spurious.amplitude": "spurious echo size"}
+SHOWN = {"fixed": "{0:g}", "range": "{0:g} to {1:g}", "normal": "{0:.4g} ± {1:.2g}", "empirical": "{0:.4g}, one of {3:.0f} measured subjects ({1:.3g} to {2:.3g})"}
 OWN = "your own file ..."      # on top of every drop-down of stored maps
 # the package's stored maps by one name each, the same on every line
 STORED = {"qsm_rc2": "QSM head", "bigbrain_mr": "BigBrain-MR", LENT: "QSM head"}
@@ -240,6 +278,17 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
 #*****************#
 #   choose file   #
 #*****************#
+def choose_folder(prompt):
+    """The operating system's folder dialog, as `choose_file`; the chosen path or None."""
+    if sys.platform == "darwin":
+        command = ["osascript", "-e", f'POSIX path of (choose folder with prompt "{prompt}")']
+    else:
+        command = [sys.executable, "-c", "import tkinter, tkinter.filedialog as d; r = tkinter.Tk(); r.withdraw(); "
+                                         f"r.attributes('-topmost', True); print(d.askdirectory(title={prompt!r}))"]
+    chosen = subprocess.run(command, capture_output=True, text=True).stdout.strip()
+    return pathlib.Path(chosen) if chosen else None
+
+
 def choose_file(prompt):
     """The operating system's own file dialog, as a process of its own, and the chosen path or None. The console
     runs on the operator's machine, so its server can ask; the embedded window's dialog (pywebview through
@@ -300,22 +349,31 @@ async def console(client: Client):
     session = await run.io_bound(Session)
     views, shown, hung, letters, crosses, texts, tools, pickers, origins, levels, places, edges, chosen = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [], {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None, "editing": None, "flipped": False, "ready": False, "dragging": False, "looking": False, "every": True, "cell": None, "grid": None, "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra", "slabs": True}
 
-    def room():
+    def room(loops_only=False):
         """Rebuild the 3D view: the three planes hung where they cut the subject (paint fills them,
-        with the overlay they carry), the receive loops, the voxel's box."""
+        with the overlay they carry), the receive loops, the voxel's box. With `loops_only` (an
+        array switch) the loops alone are replaced and the planes' textures stay where they are."""
         drawn = session.scene()
-        view.clear()
-        hung.clear()
-        shown.clear()
+        if loops_only:
+            for ring in chosen.get("rings", ()):
+                ring.delete()
+        else:
+            view.clear()
+            hung.clear()
+            shown.clear()
+        chosen["rings"] = []
         with view:
-            for name, (_, _, _, _, _, corners) in session.planes().items():
-                hung[name] = ui.scene.texture(BLANK, (np.asarray(corners) * MM).tolist())
+            if not loops_only:
+                for name, (_, _, _, _, _, corners) in session.planes().items():
+                    hung[name] = ui.scene.texture(BLANK, (np.asarray(corners) * MM).tolist())
             for centre, normal, radius in drawn["loops"]:
                 n = np.asarray(normal, dtype=float) / np.linalg.norm(normal)
                 a = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
                 a = a / np.linalg.norm(a)
-                ui.scene.ring(0.92 * radius * MM, radius * MM, 40).material(COPPER, 0.85).move(
-                    *(np.asarray(centre) * MM)).rotate_R(np.stack([a, np.cross(n, a), n], axis=1).tolist())
+                chosen["rings"].append(ui.scene.ring(0.92 * radius * MM, radius * MM, 40).material(COPPER, 0.85).move(
+                    *(np.asarray(centre) * MM)).rotate_R(np.stack([a, np.cross(n, a), n], axis=1).tolist()))
+            if loops_only:
+                return
             centre, size = drawn["voxel"]
             for axis, offset, thick in (session.slabs() if session.protocol.ovs and chosen["slabs"] else ()):        # the saturation slabs, 160 mm wide
                 edges_mm = [thick if name == axis else 160.0 for name in "xyz"]
@@ -487,7 +545,7 @@ async def console(client: Client):
                     with ui.column().style("flex: 1; gap: 0; min-width: 0"):
                         ui.label(exam.name)
                         field = exam.room.get("field_t") or PRESETS[exam.room.get("scanner", session.scanner)].b0_t      # the field the exam ran at
-                        ui.label(f"{session.scanners().get(exam.room.get('scanner'), '')} at {field:g} T · {str(exam.room.get('subject', '')).split(',')[0]}").style(
+                        ui.label(f"{SCANNERS.get(exam.room.get('scanner'), '')} at {field:g} T · {str(exam.room.get('subject', '')).split(',')[0]}").style(
                             f"color: {DIM}; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis")
                     ui.label(f"{minutes:02d}:{seconds:02d}").classes("value").style(f"color: {DIM}")
                     ui.icon("content_copy", size="14px").style(f"color: {DIM}").tooltip("duplicate as a new planned card").on(
@@ -642,114 +700,205 @@ async def console(client: Client):
                 ui.button("Export", icon="save_alt", on_click=write).mark("write the export").props("unelevated dense no-caps")
         dialog.open()
 
-    def gear(panel=None):
-        """The settings of the simulation, a line per parameter: as its source gives it (a value,
-        a range or a spread over the population, from which every exam draws), or the operator's
-        own: set to a number, varied between two, or read from a map. A panel's gear opens its
-        own branches (GEARS), the top bar's the whole tree; the search narrows either."""
-        priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
-                  if panel is None or path.split(".")[0] in GEARS[panel]}
+    def chip(source, provenance=""):
+        """The source of a value as one coloured word."""
+        return ui.label(SOURCE_WORDS[source]).style(f"color: {SOURCE_COLORS[source]}; width: 74px; font-size: 12px; letter-spacing: .04em").tooltip(
+            SOURCE_SAYS[source] + (f": {provenance}" if provenance else ""))
 
-        def line(holder, path):
-            """One parameter's line for the way it is set now."""
-            kind, numbers = priors[path]
-            own = session.overrides.get(path)
-            way = WAYS[0] if own is None else WAYS[3] if isinstance(own, str) else WAYS[2] if isinstance(own, tuple) else WAYS[1]
-            middle = numbers[0] if kind in ("fixed", "normal") else 0.5 * (numbers[0] + numbers[1]) if kind == "range" else 0.0
-            spread = (numbers if kind == "range" else (numbers[0] - 2.0 * numbers[1], numbers[0] + 2.0 * numbers[1]) if kind == "normal"
-                      else (0.9 * middle, 1.1 * middle))
+    def row(name, tip=None):
+        """One line of a card: the name on the left, the rest as the caller fills it."""
+        holder = ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}")
+        with holder:
+            label = ui.label(name).style("width: 250px; font-size: 13px")
+            if tip:
+                label.tooltip(tip)
+        return holder
 
-            def switch(event):
-                session.overrides.pop(path, None)
-                if event.value == WAYS[1]:
-                    session.overrides[path] = float(middle)
-                elif event.value == WAYS[2]:
-                    session.overrides[path] = (float(min(spread)), float(max(spread)))
-                line(holder, path)
-                draw()
+    def line(holder, path, priors, sources, after=None):
+        """One parameter's line: its name, the value in force, its source as a word, and one select that
+        chooses the source or sets the value (a number, a range, a map). `after` runs after a change."""
+        kind, numbers = priors[path]
+        own = session.overrides.get(path)
+        info = sources.get(path)
+        chosen = ("custom" if own is not None else info["chosen"]) if info else ("custom" if own is not None else plain_word(path))
+        provenance = info["provenance"].get(chosen, "") if info else (plain_why(path) if own is None else "")
+        middle = numbers[0] if kind in ("fixed", "normal", "empirical") else 0.5 * (numbers[0] + numbers[1]) if kind == "range" else 0.0
+        spread = (numbers if kind == "range" else numbers[1:3] if kind == "empirical"
+                  else (numbers[0] - 2.0 * numbers[1], numbers[0] + 2.0 * numbers[1]) if kind == "normal" else (0.9 * middle, 1.1 * middle))
+        options = {**({name: SOURCE_WORDS[name] for name in info["sources"]} if info else {plain_word(path): SOURCE_WORDS[plain_word(path)]}),
+                   **({"set": "set to", "vary": "vary between", "map": "from a map"} if kind != "other" else {"map": "from a map"})}
+        way = ("map" if isinstance(own, str) else "vary" if isinstance(own, tuple) else "set") if own is not None else chosen
 
-            def put(index):
-                def handle(event):
-                    if event.value is None:
-                        return
-                    now = session.overrides[path]
-                    if isinstance(now, tuple):
-                        values = list(now)
-                        values[index] = float(event.value)
-                        session.overrides[path] = (min(values), max(values))
-                    else:
-                        session.overrides[path] = float(event.value)
-                    draw()
-                return handle
+        def redraw():
+            line(holder, path, priors, sources, after)
+            if after is not None:
+                after()
 
-            async def taken(event):
-                session.overrides[path] = str(session.onto(await keep(event)))     # onto the subject's grid, by the scanner's coordinates
-                line(holder, path)
-                draw()
+        def switch(event):
+            session.overrides.pop(path, None)
+            if event.value in SOURCE_WORDS and info:
+                session.choices[path] = event.value
+            elif event.value == "set":
+                session.overrides[path] = float(middle)
+            elif event.value == "vary":
+                session.overrides[path] = (float(min(spread)), float(max(spread)))
+            if event.value != "map":
+                redraw()
 
-            holder.clear()
-            with holder:
-                ui.label(path.split(".", 1)[-1]).style(f"width: 190px; color: {SAND if own is not None else INK}")
-                ui.select(WAYS if kind != "other" else [WAYS[0], WAYS[3]], value=way, on_change=switch).props(
-                    "dense outlined dark options-dense").style("width: 190px")
-                if way == WAYS[0]:
-                    ui.label({"fixed": "{:g}", "range": "{:g} to {:g}", "normal": "{:.4g} ± {:.2g}"}[kind].format(*numbers)
-                             if kind != "other" else numbers).classes("value").style(f"color: {DIM}")
-                elif way == WAYS[3]:
-                    if own is not None:
-                        ui.label(pathlib.Path(own).name).classes("value")
-                    ui.upload(label="a NIfTI map in this parameter's units", auto_upload=True, on_upload=taken).props(
-                        "flat dense dark accept=.nii,.gz").style("width: 300px")
+        def put(index):
+            def handle(event):
+                if event.value is None:
+                    return
+                now = session.overrides[path]
+                if isinstance(now, tuple):
+                    values = list(now)
+                    values[index] = float(event.value)
+                    session.overrides[path] = (min(values), max(values))
                 else:
-                    for index, number in enumerate(own if isinstance(own, tuple) else (own,)):
-                        ui.number(value=number, format="%.6g", on_change=put(index)).props("dense outlined dark").style("width: 120px")
-                        if index == 0 and isinstance(own, tuple):
-                            ui.label("and").classes("label")
+                    session.overrides[path] = float(event.value)
+                if after is not None:
+                    after()
+            return handle
 
+        async def taken(event):
+            session.overrides[path] = str(session.onto(await keep(event)))     # onto the subject's grid, by the scanner's coordinates
+            redraw()
+
+        holder.clear()
+        with holder:
+            ui.label(NAMES.get(path, path.split(".", 1)[-1])).style(f"width: 250px; font-size: 13px; color: {SAND if own is not None else INK}")
+            ui.label(SHOWN[kind].format(*numbers) if kind != "other" else str(numbers)[:40]).classes("value").style("width: 260px")
+            chip(chosen, provenance)
+            ui.select(options, value=way if way in options else chosen, on_change=switch).props("dense outlined dark options-dense").style("width: 150px").tooltip(
+                "\n".join(f"{SOURCE_WORDS[name]}: {SHOWN.get(k, '{}').format(*n) if k != 'other' else n}; {info['provenance'].get(name, '')}"
+                          for name, (k, n) in info["sources"].items()) if info else "set to a number, vary between two, or read a map")
+            if way == "map":
+                if isinstance(own, str):
+                    ui.label(pathlib.Path(own).name).classes("value")
+                ui.upload(label="a NIfTI in this parameter's units", auto_upload=True, on_upload=taken).props(
+                    "flat dense dark accept=.nii,.gz").style("width: 240px")
+            elif own is not None:
+                for index, number in enumerate(own if isinstance(own, tuple) else (own,)):
+                    ui.number(value=number, format="%.6g", on_change=put(index)).props("dense outlined dark").style("width: 110px")
+                    if index == 0 and isinstance(own, tuple):
+                        ui.label("to").classes("label")
+
+    def lines(body, priors, sources, after=None, groups=True):
+        """The lines of `priors` in `body`: with `groups`, one line per group carrying the group's source
+        (a select for all its lines) and its members under it, opened on click; without, the lines alone.
+        Returns build(wanted), which refills them (a search opens what it finds)."""
         def build(wanted=""):
-            """The groups, each filled when it first opens; a search fills and opens what it finds."""
             body.clear()
-            groups = {}
+            found = {}
             for path in priors:
-                if wanted.lower() in path.lower():
-                    groups.setdefault(path.split(".")[0], []).append(path)
+                if wanted.lower() in path.lower() or wanted.lower() in NAMES.get(path, "").lower():
+                    found.setdefault(path.split(".")[0] if groups else "", []).append(path)
             with body:
-                for group, paths in groups.items():
-                    def fill(event, group=group, paths=paths, done=[]):
+                for group, paths in found.items():
+                    if not groups:
+                        for path in paths:
+                            line(ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}"),
+                                 path, priors, sources, after)
+                        continue
+                    sourced = [path for path in paths if path in sources]
+                    words = {(sources[path]["chosen"] if path in sources else plain_word(path)) if session.overrides.get(path) is None else "custom"
+                             for path in paths}
+                    common = next(iter(words)) if len(words) == 1 else None
+                    offered = {name: SOURCE_WORDS[name] for name in SOURCE_WORDS if any(name in sources[path]["sources"] for path in sourced)}
+
+                    def for_all(event, paths=sourced):
+                        if event.value in ("literature", "pooled", "dataset", "own"):
+                            session.choose_all(paths, event.value)
+                            build(wanted)
+                            draw()
+                            if after is not None:
+                                after()
+
+                    def fill(event, paths=paths, done=[]):
                         if event.value and not done:
                             done.append(True)
                             with event.sender:
-                                if any(priors[path][0] != "other" for path in paths) and len(paths) > 1:
-                                    with ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; border-bottom: 1px solid {LINE}"):
-                                        ui.label("the whole group").style(f"width: 190px; color: {GLOW}")
-                                        way = ui.select(["as its source gives it", "set to", "scale by"], value="as its source gives it").props(
-                                            "dense outlined dark options-dense").style("width: 190px")
-                                        number = ui.number(value=1.0, format="%.6g").props("dense outlined dark").style("width: 120px")
-                                        ui.button("Apply", on_click=lambda: (session.whole(group, way.value, number.value), build(wanted), draw())
-                                                  ).props("outline dense no-caps")
                                 for path in paths:
-                                    line(ui.row().classes("w-full items-center no-wrap").style("gap: 10px; min-height: 40px"), path)
+                                    line(ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}; margin-left: 20px"),
+                                         path, priors, sources, after)
 
-                    changed_here = sum(path in session.overrides for path in paths)
-                    fold = ui.expansion(f"{GROUPS.get(group, group)}   ·   {len(paths)}" + (f"   ·   {changed_here} your own" if changed_here else ""),
-                                        on_value_change=fill).classes("w-full").props("dense dark")
-                    if wanted:
-                        fold.value = True
+                    with ui.column().classes("w-full").style("gap: 0"):
+                        with ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}"):
+                            fold = ui.expansion(f"{GROUPS.get(group, group)}   ·   {len(paths)}", on_value_change=fill).props("dense dark").style("width: 520px")
+                            chip(common or "custom", "" if common else "the lines differ: open the group")
+                            if not common:
+                                ui.label("mixed").classes("label")
+                            if sourced:
+                                ui.select(offered, value=common if common in offered else None, label="for all lines", on_change=for_all).props(
+                                    "dense outlined dark options-dense").style("width: 150px")
+                        if wanted:
+                            fold.value = True
 
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px; max-width: 1000px"):
+        return build
+
+    def run_lines(body, keys=None):
+        """The run's instabilities (drift, wander, breathing, jitter, broadening, motion events) as lines, `keys`
+        or all: each drawn from the 3 T envelope until set, off, or a number (Session.run_settings)."""
+        ways = {"drawn": "drawn, as at 3 T", "off": "off", "set": "set to"}
+
+        def one(holder, caption, key, off):
+            now = session.run_settings.get(key)
+            way = "drawn" if now is None else "off" if now == off else "set"
+
+            def switch(event):
+                session.run_settings.pop(key, None)
+                if event.value == "off":
+                    session.run_settings[key] = off
+                elif event.value == "set":
+                    session.run_settings[key] = 1.0
+                one(holder, caption, key, off)
+
+            holder.clear()
+            with holder:
+                ui.label(caption).style(f"width: 250px; font-size: 13px; color: {SAND if now is not None else INK}").tooltip(
+                    "over the transients of a run (Augmentrum's synthesis of instabilities, its envelope from Big Drift, Hui et al. 2021)")
+                ui.label(ways["drawn"] if now is None else "off" if now == off else f"{now:g}").classes("value").style("width: 260px")
+                chip("literature" if now is None else "custom", "Augmentrum's 3 T envelope (Big Drift, Hui et al. 2021)" if now is None else "set by you")
+                ui.select(ways, value=way, on_change=switch).props("dense outlined dark options-dense").style("width: 150px")
+                if way == "set":
+                    ui.number(value=now, format="%.4g", on_change=lambda e: e.value is not None and session.run_settings.__setitem__(key, float(e.value))).props(
+                        "dense outlined dark").style("width: 110px")
+
+        with body:
+            for caption, (key, off) in RUN.items():
+                if keys is None or key in keys:
+                    one(ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}"), caption, key, off)
+            if keys is None or "events_per_min" in keys:
+                with row("a motion event moves the head by (mm)", "empty: the head stays and the events kick the frequency, the phase and the amplitude alone; "
+                                                                   "a moved head is scanned where it then lies, under the shim of the planned place"):
+                    low = ui.number("from", value=None if session.motion_mm is None else session.motion_mm[0], min=0.0).props("dense outlined dark clearable").style("width: 110px")
+                    high = ui.number("to", value=None if session.motion_mm is None else session.motion_mm[1], min=0.0).props("dense outlined dark clearable").style("width: 110px")
+                    for field in (low, high):
+                        field.on_value_change(lambda: setattr(session, "motion_mm", None if low.value is None or high.value is None
+                                                              else (float(min(low.value, high.value)), float(max(low.value, high.value)))))
+                    chip("custom" if session.motion_mm else "stated", "the head stays unless set")
+
+    def gear(panel=None):
+        """Every setting of the simulation as lines, grouped (the top bar's "all settings"); the search
+        narrows them. Each piece's own card holds its own lines the same way."""
+        priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
+                  if panel is None or path.split(".")[0] in GEARS[panel]}
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1000px; max-width: 1140px"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"Settings · {dict(subject='anatomy or phantom').get(panel, panel) if panel else 'everything'}").classes("label")
+                ui.label("All settings").classes("label")
                 ui.space()
                 ui.input(placeholder="search, e.g. NAA or t2", on_change=lambda e: build(e.value or "")).props(
                     "dense outlined dark clearable debounce=300").style("width: 260px")
-                ui.button("Reset all", icon="restart_alt", on_click=lambda: (session.overrides.clear(), build(), draw())).props(
+                ui.button("Reset all", icon="restart_alt", on_click=lambda: (session.overrides.clear(), session.choices.clear(), build(), draw())).props(
                     "flat dense no-caps")
-                ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
-            ui.label("Every exam draws its values from these lines. Left as they are, they are the population's, each from its source. "
-                     "Set one to a number to decide it yourself, or let it vary between two.").classes("label").style(
-                "text-transform: none; letter-spacing: 0")
-            with ui.scroll_area().style("height: 580px; width: 100%"):
+                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
+            ui.label(SAID).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+            with ui.scroll_area().style("height: 620px; width: 100%"):
                 body = ui.column().classes("w-full").style("gap: 0")
+                with ui.expansion("the run: drift, breathing, jitter, motion   ·   " + str(len(RUN))).props("dense dark").classes("w-full") as fold:
+                    run_lines(ui.column().classes("w-full").style("gap: 0; margin-left: 20px"))
+                fold.value = False
+            build = lines(body, priors, session.sources())
             build()
         dialog.open()
 
@@ -971,6 +1120,22 @@ async def console(client: Client):
                     [reshape(i, True) for i in range(len(session.design)) if session.protocol.real],
                     state.__setitem__("at", 0), refresh())).props("dense outlined dark").style("width: 300px").tooltip(
                     "a template's pulses are shaped where the card plays real pulses, ideal where it plays ideal ones")
+
+                async def seq_file():
+                    """A Pulseq file becomes the design, block by block, up to its first readout."""
+                    path = await run.io_bound(choose_file, "A Pulseq .seq file")
+                    if path is None:
+                        return
+                    try:
+                        await run.io_bound(session.adopt_seq, path)
+                    except Exception as error:
+                        ui.notify(f"Not read: {error}"[:200], type="warning", multi_line=True)
+                        return
+                    state["at"] = 0
+                    refresh()
+
+                ui.button("or a Pulseq file", icon="folder_open", on_click=seq_file).props("outline dense no-caps").style("width: 150px").tooltip(
+                    "the file's pulses, delays and gradients up to its first readout become blocks; the card plays it as Custom")
                 problem = ui.label("").classes("value")
                 ui.space()
                 ui.button("all pulses ideal", icon="bolt", on_click=lambda: ([reshape(i, False) for i in range(len(session.design))], refresh())
@@ -1117,11 +1282,14 @@ async def console(client: Client):
             ui.notify(f"Not exported: {error}", type="warning", multi_line=True)
 
     def field_changed(event):
-        """The field the scanner runs at; back on the preset's own number it is the preset's again."""
+        """The field the scanner runs at; back on the preset's own number it is the preset's again. A value the
+        picker was set to by a scanner switch changes nothing and does not redraw."""
         if event.value is None:
             return
+        before = session.field_t
         session.field_t = None if abs(float(event.value) - PRESETS[session.scanner].b0_t) < 1e-6 else float(event.value)
-        draw()
+        if session.field_t != before:
+            draw()
 
     def changed(attribute, target=None):
         """A handler that writes a control's value to the session (or the card) and redraws."""
@@ -1146,8 +1314,10 @@ async def console(client: Client):
                 session.home()
                 if session.field in FieldMap.PRESETS or session.field == "uniform":       # the operator's own map stays
                     session.field = FIELDS.get(session.subject, "uniform")
-            if attribute in ("subject", "coil"):
+            if attribute == "subject":
                 room()
+            elif attribute == "coil":
+                room(loops_only=True)
             draw()
         return handle
 
@@ -1158,12 +1328,13 @@ async def console(client: Client):
         await event.file.save(folder / event.file.name)
         return folder / event.file.name
 
-    def maps(said=""):
-        """The anatomy and its maps, line by line: the anatomy (a T1-weighted image), its three tissues, and its B0, B1+ and
-        lipid maps. Every line says what is loaded now and offers what the package has stored, with "your own file ..." on
-        top (the system's file dialog; NIfTI, or DICOM of any vendor). What is chosen waits; "Apply" at the end puts it all
-        in force at once: a new anatomy with own tissue maps is used as it is, one without them is segmented first, and
-        every map is brought onto the anatomy's grid. "Register" on a line is for a file of another session."""
+    def maps(said="", values=True):
+        """The brain built in one place (PLAN 8.7): the anatomy and its maps, line by line (the anatomy, a T1-weighted
+        image, its three tissues, and its B0, B1+ and lipid maps; every line says what is loaded now and offers what the
+        package has stored, with "your own file ..." on top: the system's file dialog, NIfTI or DICOM of any vendor; what
+        is chosen waits, and "Apply" puts it all in force at once: a new anatomy with own tissue maps is used as it is, one
+        without them is segmented first, and every map is brought onto the anatomy's grid; "Register" on a line is for a
+        file of another session), and with `values` the subject's values, each with the source it comes from."""
         own, selects, shown_now = {}, {}, {}          # the operator's files by line, the lines' drop-downs, what each shows
 
         async def picked(what, value):
@@ -1250,24 +1421,29 @@ async def console(client: Client):
             room()
             draw()
             maps(f"In force: {session.subject}, B0 {STORED.get(session.field, pathlib.Path(session.field).name)}, B1+ "       # the pop-up stays, showing what is
-                 f"{'nominal' if session.transmit is None else pathlib.Path(session.transmit).name}")  # loaded now, for the next change
+                 f"{'nominal' if session.transmit is None else pathlib.Path(session.transmit).name}", values)  # loaded now, for the next change
 
         fat = getattr(session.body(), "fat", None)
-        lines = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject),
+        entries = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject),
                  ("GM", "grey matter", [f"of {session.subject}"], f"of {session.subject}"),
                  ("WM", "white matter", [f"of {session.subject}"], f"of {session.subject}"),
                  ("CSF", "CSF", [f"of {session.subject}"], f"of {session.subject}"),
                  ("B0", "B0 field (Hz)", ["uniform", *FieldMap.PRESETS], session.field),
                  ("B1+", "B1+ (of nominal)", ["nominal"], session.transmit or "nominal"),
                  ("lipid", "lipid layer (0 to 1)", ["its own" if fat is not None else "none", LENT], "its own" if fat is not None else "none"))
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 820px"):
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 900px; max-width: 1060px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Anatomy and maps").style(f"color: {SAND}; font-size: 15px")
+                ui.label("Anatomy" if values else "Anatomy and maps").classes("label")
                 ui.space()
                 working = ui.spinner(size="26px", color=SAND)
                 working.set_visibility(False)
+                if values:
+                    ui.input(placeholder="search a value, e.g. NAA or t2", on_change=lambda e: build(e.value or "")).props(
+                        "dense outlined dark clearable debounce=300").style("width: 240px")
+            if values:
+                ui.label("Anatomy and maps").classes("label").style(f"border-top: 1px solid {LINE}; padding-top: 8px; width: 100%")
             told = ui.label(said).classes("value").style(f"white-space: normal; color: {GOOD if said else INK}")
-            for what, caption, stored, now in lines:
+            for what, caption, stored, now in entries:
                 shown_now[what] = now
                 with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                     ui.label(caption).style("width: 170px")
@@ -1290,13 +1466,23 @@ async def console(client: Client):
                 "text-transform: none; letter-spacing: 0; white-space: normal")
             with ui.row().classes("w-full items-center no-wrap").style("gap: 8px"):
                 name = ui.input("name of a new anatomy (the file's, if empty)").props("dense outlined dark").style("flex: 1")
-                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+                ui.button("Close", on_click=lambda: (dialog.close(), draw())).props("flat dense no-caps")
                 ui.button("Apply", icon="check", on_click=apply).mark("apply the maps").props("unelevated dense no-caps").style("width: 120px")
+            if values:
+                ui.label(SAID).classes("label").style(f"margin-top: 10px; border-top: 1px solid {LINE}; padding-top: 8px; text-transform: none; letter-spacing: 0; white-space: normal")
+                priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
+                          if path.split(".")[0] in GEARS["subject"] and path not in SUPPRESSION}
+                with ui.scroll_area().style("height: calc(100vh - 640px); min-height: 220px; width: 100%"):
+                    body = ui.column().classes("w-full").style("gap: 0")
+                    if not hasattr(session.body(), "contents"):                                            # a body breathes and moves; a phantom does not
+                        run_lines(ui.column().classes("w-full").style("gap: 0"), RUN_OF["subject"])
+                build = lines(body, priors, session.sources())
+                build()
         dialog.open()
 
-    def realism():
-        """What is real about the scan, each a switch: the console starts with everything real, and
-        what is switched off is ideal (pulses that act at once, a uniform field, no noise, ...)."""
+    def switches():
+        """One list of switches: what is real about the scan and what happens over a run, each on or off;
+        the numbers behind them live in the cards (all settings, the scanner, the anatomy)."""
         def pulses(event):
             session.protocol.real = event.value
             draw()
@@ -1305,11 +1491,20 @@ async def console(client: Client):
             session.field = FIELDS.get(session.subject, "uniform") if event.value else "uniform"
             draw()
 
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 640px"):
+        def running(key, off):
+            def handle(event):
+                session.run_settings.pop(key, None)
+                if not event.value:
+                    session.run_settings[key] = off
+                draw()
+            return handle
+
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 700px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Realism · on is real, off is ideal").classes("label")
+                ui.label("Switches · on is real, off is ideal or still").classes("label")
                 ui.space()
                 ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+            ui.label("the scan").classes("label").style(f"border-top: 1px solid {LINE}; padding-top: 6px; width: 100%")
             for caption, note, value, handler in (
                     ("real pulses", "shaped pulses under gradients, played in time: a voxel profile, displaced shifts, a slower simulation",
                      session.protocol.real, pulses),
@@ -1326,172 +1521,263 @@ async def console(client: Client):
                     ui.label("off sets " + ", ".join(leaves) + " to 0" + (
                         "; on, the measured 3 T shape, coupled systems on edited cards" if name == "macromolecules" else "")).classes(
                         "label").style("text-transform: none; letter-spacing: 0")
-            ui.label("Drift, breathing and motion over the transients are part of every run (Review shows them). "
-                     "Every single value stays open in the settings.").classes("label").style("text-transform: none; letter-spacing: 0")
-        dialog.open()
-
-    def run_settings():
-        """What happens over the transients of every run: each instability drawn from the 3 T
-        envelope (scan.Multiplex.transients), off, or set by the operator; and how far a motion
-        event moves the head."""
-        ways = ["drawn, as at 3 T", "off", "set to"]
-
-        def put(argument, off, way, number):
-            session.run_settings.pop(argument, None)
-            if way.value == ways[1]:
-                session.run_settings[argument] = off
-            elif way.value == ways[2] and number.value is not None:
-                session.run_settings[argument] = float(number.value)
-
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 680px"):
-            with ui.row().classes("w-full items-center"):
-                ui.label("The run · what happens over the transients").classes("label")
-                ui.space()
-                ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
+            ui.label("the run").classes("label").style(f"border-top: 1px solid {LINE}; padding-top: 6px; margin-top: 6px; width: 100%")
             ui.label(f"This session the scanner drifts at {session.drift_hz_per_min:+.2f} Hz per minute; {session.clock_s / 60.0:.1f} minutes "
-                     "have been scanned.").classes("label").style("text-transform: none; letter-spacing: 0")
-            for caption, (argument, off) in RUN.items():
-                now = session.run_settings.get(argument)
-                with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
-                    ui.label(caption).style("width: 250px")
-                    way = ui.select(ways, value=ways[0] if now is None else ways[1] if now == off else ways[2]).props(
-                        "dense outlined dark options-dense").style("width: 170px")
-                    number = ui.number(value=now if now not in (None, off) else None, format="%.4g").props("dense outlined dark").style(
-                        "width: 110px").bind_visibility_from(way, "value", value=ways[2])
-                    way.on_value_change(lambda _, a=argument, o=off, w=way, n=number: put(a, o, w, n))
-                    number.on_value_change(lambda _, a=argument, o=off, w=way, n=number: put(a, o, w, n))
-            with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
-                ui.label("a motion event moves the head by (mm)").style("width: 250px")
-                low = ui.number("from", value=None if session.motion_mm is None else session.motion_mm[0], min=0.0).props(
-                    "dense outlined dark clearable").style("width: 110px")
-                high = ui.number("to", value=None if session.motion_mm is None else session.motion_mm[1], min=0.0).props(
-                    "dense outlined dark clearable").style("width: 110px")
-                for field in (low, high):
-                    field.on_value_change(lambda: setattr(session, "motion_mm", None if low.value is None or high.value is None
-                                                          else (float(min(low.value, high.value)), float(max(low.value, high.value)))))
-            ui.label("Empty: the head stays, the events kick the frequency, the phase and the amplitude alone. A moved head is scanned "
-                     "where it then lies, under the shim of the planned place. Review shows the tracks of every exam. A phase cycle is "
-                     "set in the designer (a pulse's phase stepped over the transients, the receiver following); the cards keep their "
-                     "pathways by crushers and filters.").classes("label").style(
+                     "have been scanned. On: drawn from the 3 T envelope, or the number set in the cards; off: still.").classes("label").style(
                 "text-transform: none; letter-spacing: 0")
+            for caption, (key, off) in RUN.items():
+                with ui.row().classes("w-full items-center no-wrap"):
+                    ui.switch(caption, value=session.run_settings.get(key) != off, on_change=running(key, off)).props("dense color=accent").style("width: 230px")
+                    ui.label("the scanner's" if key in RUN_OF["scanner"] else "the subject's; a phantom has none").classes("label").style("text-transform: none; letter-spacing: 0")
+            ui.label("Every number stays open in the cards: the scanner's over a run on the scanner card, the subject's on the anatomy card.").classes(
+                "label").style("text-transform: none; letter-spacing: 0")
         dialog.open()
 
-    def calibration():
-        """What the scanner is calibrated by: the records in force with their sources, and, where
-        the package has records of the same hardware read under another coil, the choice of them."""
-        held = {}
+    def scanner_builder():
+        """The scanner as one list of lines (PLAN 8.10): what stands on the floor (the system, a dataset,
+        your calibration file), the hardware's numbers, the measured behaviour, each line with its value,
+        its source and one select; then the scans of yours that read the lines, and the scanner saved."""
+        held, status = session.reports, {}
+        sources = session.sources()
+        priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
+                  if path.split(".")[0] in GEARS["scanner"] or path in SUPPRESSION}
+        lined = [path for path in ("noise.sigma", "lineshape.gauss_hz", "acquisition.delay_s", "acquisition.eddy_transient_rad",
+                                   "water.adjusted_residual", "oov.fraction", "spurious.amplitude", "b1_scale") if path in priors]
+
+        def reopen():
+            dialog.close()
+            draw()
+            scanner_builder()
+
+        def system_picked(event):
+            session.scanner = event.value
+            session.field_t, session.calibration = None, None
+            pickers["scanner"].set_options(session.scanners(), value=session.scanner)
+            pickers["field_t"].set_value(PRESETS[session.scanner].b0_t)
+            reopen()
+
+        def dataset_picked(event):
+            session.pick_cohort(event.value or None)
+            pickers["scanner"].set_options(session.scanners(), value=session.scanner)
+            pickers["field_t"].set_value(session.profile().scanner.b0_t)
+            session.home()
+            room()
+            reopen()
+
+        def for_all(event):
+            if event.value in ("literature", "pooled", "dataset", "own"):
+                session.choose_all(lined, event.value)
+                reopen()
+
+        def departures():
+            told.clear()
+            with told:
+                said = [f"{NAMES.get(leaf, leaf)}: " + "; ".join(f"{what} {' → '.join(str(v) for v in pair)}" for what, pair in record["extrapolated"].items())
+                        for leaf, record in session.outlook()["records"].items() if record["extrapolated"]]
+                ui.label(("your setup differs from the measurements in: " + " | ".join(said)) if said else "your setup matches the measurements").style(
+                    f"color: {BAD if said else GOOD}; font-size: 12px; white-space: normal")
 
         async def reference(event):
             held["reference"] = await keep(event)
-            said.text = f"water reference kept: {pathlib.Path(held['reference']).name}; now your scan"
+            status["reference"].text = f"kept: {pathlib.Path(held['reference']).name}; now the run"
 
         async def read(event):
             if not named.value:
-                said.text = "Give the calibration a name first"
+                status["scan"].text = "give the calibration a name first"
                 return
             busy.set_visibility(True)
             try:
                 path = await run.io_bound(session.calibrate, await keep(event), named.value, None, held.get("reference"))
             except Exception as error:
-                said.text = f"Not read: {error}"[:260]
+                status["scan"].text = f"not read: {error}"[:200]
                 return
             finally:
                 busy.set_visibility(False)
-            dialog.close()
-            draw()
-            calibration()
             ui.notify(f"This scanner is now calibrated by {path.name}")
+            reopen()
 
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px"):
+        async def load_file():
+            path = await run.io_bound(choose_file, "A scanner file, JSON as the package saves it")
+            if path is None:
+                return
+            try:
+                session.load_scanner(path)
+            except Exception as error:
+                ui.notify(f"Not read: {error}"[:200], type="warning", multi_line=True)
+                return
+            pickers["scanner"].set_options(session.scanners(), value=session.scanner)
+            reopen()
+
+        async def load_folder():
+            path = await run.io_bound(choose_folder, "A folder of scans, any vendor's files: spectra with their water, images, maps, noise scans")
+            if path is None:
+                return
+            status["folder"].text = "reading the folder: raw spectra converted, the scanner read from the first run, an anatomy segmented (some minutes)"
+            try:
+                held["report"] = await run.io_bound(session.replicate, path)
+            except Exception as error:
+                status["folder"].text = f"not read: {error}"[:200]
+                return
+            pickers["scanner"].set_options(session.scanners(), value=session.scanner)
+            pickers["subject"].set_options(list(session.subjects), value=session.subject)
+            pickers["coil"].set_options(list(session.coils), value=session.coil)
+            room()
+            reopen()
+
+        def save(event=None):
+            if not saved_as.value:
+                status["save"].text = "give the file a name first"
+                return
+            status["save"].text = f"saved as {session.save_scanner(saved_as.value)}"
+
+        limits = session.profile().scanner
+        generic = "generic_3t"
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1000px; max-width: 1140px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Calibration · the records this scanner's noise, line shape and levels come from").classes("label")
+                ui.label("Scanner").classes("label")
+                ui.space()
+                ui.select({name: SOURCE_WORDS[name] for name in ("literature", "pooled", "dataset", "own")
+                           if any(name in sources[path]["sources"] for path in lined if path in sources)}, label="for all lines",
+                          on_change=for_all).props("dense outlined dark options-dense").style("width: 150px")
+                ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
+            ui.label(SAID).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+            with ui.scroll_area().style("height: 660px; width: 100%"):
+                with ui.column().classes("w-full").style("gap: 0"):
+                    # what stands on the floor
+                    with row("system"):
+                        ui.select({generic: f"generic, at the field set ({limits.b0_t:g} T)", **session.systems()},
+                                  value=session.scanner if session.scanner in session.systems() else generic, on_change=system_picked).mark("system").props(
+                            "dense outlined dark options-dense").style("width: 260px")
+                        chip("literature", limits.cited)
+                        ui.label(limits.cited).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal; flex: 1")
+                    with row("dataset", "one real subject of a package dataset on the floor: its readings become a source on every line, its scanner and voxel come with it"):
+                        ui.select({"": "none", **session.datasets()}, value=session.cohort or "", on_change=dataset_picked).mark("dataset").props(
+                            "dense outlined dark options-dense").style("width: 480px")
+                        if session.cohort:
+                            chip("dataset", session.cohort_says())
+                            ui.label(session.cohort_says()).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal; flex: 1")
+                    with row("your scanner file", "a scanner saved here, or read from your scans below, or a file from anywhere: its readings become a source on every line"):
+                        files = {key: what for key, what in session.calibrations().items() if key.endswith(".json")}
+                        ui.select({"": "none", **files}, value=session.calibration if session.calibration in files else "",
+                                  on_change=lambda e: (setattr(session, "calibration", e.value or None), reopen())).props(
+                            "dense outlined dark options-dense").style("width: 380px")
+                        ui.button("choose a file", icon="folder_open", on_click=lambda: load_file()).props("outline dense no-caps").style("width: 150px")
+                        if session.calibration in files:
+                            chip("own", session.calibration)
+                    with row("a folder of scans", "any vendor's files, read at once: raw spectra (Siemens twix and rda, GE P-files, Philips SDAT and data/list, Bruker) through spec2nii, "
+                                                  "NIfTI-MRS, T1-weighted images, field maps, B1 maps, coil maps, ISMRMRD noise scans, Pulseq files, saved scanners; each used for what it gives"):
+                        ui.button("choose a folder", icon="folder_open", on_click=lambda: load_folder()).props("outline dense no-caps").style("width: 150px")
+                        status["folder"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal; flex: 1")
+                    for file, kind, gave in held.get("report", ()):
+                        with row("    " + file):
+                            ui.label(kind).classes("label").style("width: 120px")
+                            ui.label(gave).classes("value").style("white-space: normal; font-size: 12px; flex: 1")
+                    # the hardware, the manufacturer's numbers
+                    for name, field, unit in (("field", "b0_t", "T"), ("peak B1", "peak_b1_ut", "uT"), ("gradient amplitude", "max_grad_mt_m", "mT/m"),
+                                              ("slew rate", "max_slew_t_m_s", "T/m/s")):
+                        with row(name, "the manufacturer's number; set your own here (the top bar's field is the same setting)"):
+                            ui.number(value=getattr(limits, field), format="%.6g", suffix=unit, on_change=lambda e, field=field: e.value is not None and (
+                                setattr(session, "field_t", float(e.value)) if field == "b0_t" else session.hardware.__setitem__(field, float(e.value)),
+                                pickers["field_t"].set_value(float(e.value)) if field == "b0_t" else None, draw(), departures())).props(
+                                "dense outlined dark").style("width: 150px")
+                            own_number = (session.field_t is not None) if field == "b0_t" else field in session.hardware
+                            chip("custom" if own_number else "literature", "set by you" if own_number else limits.cited)
+                            if own_number:
+                                ui.button("the manufacturer's", icon="restart_alt", on_click=lambda field=field: (
+                                    setattr(session, "field_t", None) if field == "b0_t" else session.hardware.pop(field, None), reopen())).props("flat dense no-caps")
+                    receiver = session.profile().receiver
+                    with row("receiver"):
+                        ui.label("acquires at the card's bandwidth" + (f", oversampled {receiver.oversampling} times, a filter of {receiver.span_dwells} dwells"
+                                                                         if receiver is not None else ", flat: the raw data of this system show no filter")).classes("value").style("width: 520px")
+                        chip("literature", "hardware.receiver, read off the vendor's raw noise")
+                    # the measured behaviour
+                    body = ui.column().classes("w-full").style("gap: 0")
+                    build = lines(body, {path: priors[path] for path in lined}, sources, after=departures, groups=False)
+                    build()
+                    told = ui.column().classes("w-full").style("gap: 0; padding: 6px 0")
+                    departures()
+                    run_lines(ui.column().classes("w-full").style("gap: 0"), RUN_OF["scanner"])          # the scanner over a run: drift, wander, jitter
+                    # your scans
+                    with row("your scans", "raw NIfTI-MRS with the transients apart (spec2nii writes it); set the card, the voxel and the room as the scan was acquired first: they are its twin"):
+                        named = ui.input("name of the calibration").props("dense outlined dark").style("width: 260px")
+                        busy = ui.spinner(size="24px", color=SAND)
+                        busy.set_visibility(False)
+                    for key, what, gives in (("scan", "the water-suppressed run", "gives the noise level, the line width; with the coils apart and an array in the room, the channels' own noise share"),
+                                             ("reference", "its water reference (optional): the same voxel unsuppressed, given before the run",
+                                              "gives, with the run, the residual water, the receiver delay, the eddy phase transient, the leaked water")):
+                        with row("    " + what):
+                            ui.upload(label=".nii.gz", auto_upload=True, on_upload=reference if key == "reference" else read).props(
+                                "flat dense dark accept=.nii,.gz").style("width: 150px")
+                            ui.label(gives).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal; width: 420px")
+                            status[key] = ui.label("").classes("value").style("white-space: normal; font-size: 12px")
+                    with row("save the scanner as a file", "~/MRSandbox/profiles; it then appears under \"your calibration file\""):
+                        saved_as = ui.input("name of the file").props("dense outlined dark").style("width: 260px")
+                        ui.button("Save", icon="save", on_click=save).props("outline dense no-caps").style("width: 120px")
+                        status["save"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+        dialog.open()
+
+    def coils_builder():
+        """The receive array as one list of lines: the array, its loops, the sensitivity maps, the channels'
+        own noise share with its source, the channel covariance; each line says what feeds it."""
+        settings = session.coil_settings[session.coil]
+
+        def reopen():
+            dialog.close()
+            room()
+            draw()
+            coils_builder()
+
+        async def own(kind):
+            picked_file = await run.io_bound(choose_file, "Sensitivity maps, one NIfTI of all channels" if kind == "maps" else
+                                             "A raw scan with the coils apart, NIfTI-MRS")
+            if picked_file is None:
+                said.text = "no file chosen"
+                return
+            try:
+                if kind == "maps":
+                    session.coil_maps(str(picked_file), picked_file.name.split(".")[0])
+                    pickers["coil"].set_options(list(session.coils), value=session.coil)
+                else:
+                    await run.io_bound(session.coil_noise, str(picked_file))
+            except Exception as error:
+                said.text = f"not taken: {error}"[:260]
+                return
+            reopen()
+
+        share, source, provenance = session.own_share()
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 1000px; max-width: 1140px"):
+            with ui.row().classes("w-full items-center"):
+                ui.label("Receive array").classes("label")
                 ui.space()
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props("unelevated dense no-caps")
-            others = session.calibrations()
-            if others:
-                ui.radio({None: "the package's records for this scanner", **others}, value=session.calibration if session.calibration in others else None,
-                         on_change=lambda e: (setattr(session, "calibration", e.value), dialog.close(), draw(), calibration())).props("dense color=accent")
-            for leaf, record in session.outlook()["records"].items():
-                measured = record.get("scanner") or {}
-                with ui.column().classes("w-full").style(f"gap: 2px; border-top: 1px solid {LINE}; padding-top: 6px"):
-                    ui.label(f"{RECORDS.get(leaf, leaf)}: {record['value']:g}").style(f"color: {SAND}")
-                    ui.label(f"measured in: {record['source']}" + (f", on a {measured.get('vendor', '')} {measured.get('model', '')} "
-                             f"at {measured.get('field_t', '')} T" if measured else "") + (f", with {record['sequence']}" if record.get("sequence") else "")
-                             ).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
-                    if record["extrapolated"]:
-                        ui.label("your setup differs from that measurement in: " + "; ".join(
-                            f"{what} ({' → '.join(str(v) for v in pair)})" if isinstance(pair, (list, tuple)) else str(what)
-                            for what, pair in (record["extrapolated"].items() if isinstance(record["extrapolated"], dict)
-                                               else ((w, None) for w in record["extrapolated"])))).style(f"color: {BAD}")
-                    else:
-                        ui.label("your setup matches that measurement").style(f"color: {GOOD}")
-            ui.label("Calibrate this scanner from a scan of your own").classes("label").style("margin-top: 8px")
-            ui.label("First set the card, the voxel and the room as your scan was acquired: they are its virtual twin. Then give raw "
-                     "NIfTI-MRS with the transients apart (spec2nii writes it). The noise level and the line broadening are read from "
-                     "it and kept as this scanner's calibration, on this machine only. With the same voxel's water reference given "
-                     "first, the residual water the suppression leaves and the receiver's delay are read too.").classes("label").style(
-                "text-transform: none; letter-spacing: 0; white-space: normal")
-            with ui.row().classes("w-full items-center no-wrap"):
-                named = ui.input("name of the calibration").props("dense outlined dark").style("width: 240px")
-                ui.upload(label="its water reference, .nii.gz (first, optional)", auto_upload=True, on_upload=lambda e: reference(e)).props(
-                    "flat dense dark accept=.nii,.gz").style("width: 260px")
-                ui.upload(label="your scan, .nii.gz", auto_upload=True, on_upload=lambda e: read(e)).props(
-                    "flat dense dark accept=.nii,.gz").style("width: 260px")
-                busy = ui.spinner(size="28px", color=SAND)
-                busy.set_visibility(False)
-            said = ui.label("").classes("value").style("white-space: normal")
-        dialog.open()
-
-    def coil_gear():
-        """The receive array's own settings: how many loops, how large, where."""
-        settings = session.coil_settings[session.coil]
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 420px"):
-            ui.label(f"Receive array · {session.coil}").classes("label")
-            if not settings:
-                ui.label("One ideal channel has nothing to set: uniform sensitivity, the scanner's noise.").classes("value")
-            for key, value in settings.items():
-                ui.number(key.replace("_mm", " (mm)").replace("_", " "), value=value, format="%.6g", on_change=lambda e, key=key: (
-                    e.value is not None and (settings.__setitem__(key, float(e.value)), room(), draw()))).props("dense outlined dark").classes("w-full")
-            ui.button("Back to the defaults", icon="restart_alt", on_click=lambda: (
-                settings.clear(), settings.update(session.COIL_SETTINGS.get(session.coil, {})), dialog.close(), room(), draw(), coil_gear())).props(
-                "flat dense no-caps")
-            ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
-        dialog.open()
-
-    def coils():
-        """The operator's own receive array: measured sensitivity maps, and the channels' own share of the noise read from a
-        raw scan. (Loop geometries from a file are to come.)"""
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 480px"):
-            ui.label("Your own receive array").style(f"color: {SAND}; font-size: 15px")
-            async def own(kind):
-                """The operator's own: measured sensitivity maps (the array is then theirs), or a raw scan with the coils apart,
-                from which the channels' own share of the noise is read."""
-                picked_file = await run.io_bound(choose_file, "Sensitivity maps, one NIfTI of all channels" if kind == "maps" else
-                                                 "A raw scan with the coils apart, NIfTI-MRS")
-                if picked_file is None:
-                    said.text = "No file chosen"
-                    return
-                files = [str(picked_file)]
-                try:
-                    if kind == "maps":
-                        session.coil_maps(files[0], pathlib.Path(files[0]).name.split(".")[0])
-                        pickers["coil"].set_options(list(session.coils), value=session.coil)
-                        dialog.close()
-                        room()
-                        draw()
-                    else:
-                        said.text = f"The channels' own share of the noise reads {await run.io_bound(session.coil_noise, files[0]):.2f} (the package's: 0.25)"
-                except Exception as error:
-                    said.text = f"Not taken: {error}"[:260]
-
-            with ui.row().classes("w-full").style("gap: 6px"):
-                ui.button("Sensitivity maps", icon="folder_open", on_click=lambda: own("maps")).props("outline dense no-caps").style("width: 200px").tooltip(
-                    "one NIfTI of (nx, ny, nz, channels), complex or real, in the scanner's coordinates: the array is then yours")
-                ui.button("A scan with the coils apart", icon="folder_open", on_click=lambda: own("noise")).props("outline dense no-caps").style(
-                    "width: 240px").tooltip("raw NIfTI-MRS: the channels' own share of the noise is read from the FIDs' tails")
-            said = ui.label("" if session.own_noise is None else f"own noise share {session.own_noise:.2f}, read from your scan").classes("value").style(
-                "white-space: normal")
-            ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+            ui.label(SAID).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
+            with ui.column().classes("w-full").style("gap: 0"):
+                with row("array", "the loops the room shows on the head; one ideal channel has uniform sensitivity and the scanner's noise"):
+                    ui.select(list(session.coils), value=session.coil, on_change=lambda e: (setattr(session, "coil", e.value), pickers["coil"].set_value(e.value), reopen())).props(
+                        "dense outlined dark options-dense").style("width: 260px")
+                    chip("own" if session.coil not in session.COILS else "literature", "a stand-in geometry of the package" if session.coil in session.COILS else "your sensitivity maps")
+                for key, value in settings.items():
+                    with row("    " + key.replace("_mm", " (mm)").replace("_", " ")):
+                        ui.number(value=value, format="%.6g", on_change=lambda e, key=key: (
+                            e.value is not None and (settings.__setitem__(key, float(e.value)), room(), draw()))).props("dense outlined dark").style("width: 110px")
+                        chip("custom" if value != session.COIL_SETTINGS.get(session.coil, {}).get(key) else "literature", "the package's stand-in geometry")
+                if settings:
+                    with row(""):
+                        ui.button("back to the package's geometry", icon="restart_alt", on_click=lambda: (
+                            settings.clear(), settings.update(session.COIL_SETTINGS.get(session.coil, {})), reopen())).props("flat dense no-caps")
+                with row("sensitivity maps", "one NIfTI of (nx, ny, nz, channels), complex or real, in the scanner's coordinates: the array is then yours"):
+                    ui.button("choose a file", icon="folder_open", on_click=lambda: own("maps")).props("outline dense no-caps").style("width: 150px")
+                    chip("own" if session.coil not in session.COILS else "literature", "")
+                with row("share of a channel's noise that is its own"):
+                    ui.label(f"{share:.2f}").classes("value").style("width: 260px")
+                    chip(source, provenance)
+                    if source == "own":
+                        ui.button("the package's", icon="restart_alt", on_click=lambda: (setattr(session, "own_noise", None), reopen())).props("flat dense no-caps")
+                    ui.label(provenance).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal; flex: 1")
+                with row("a scan with the coils apart", "raw NIfTI-MRS with DIM_COIL: the channels' own share of the noise is read from the FIDs' tails"):
+                    ui.button("choose a file", icon="folder_open", on_click=lambda: own("noise")).props("outline dense no-caps").style("width: 150px")
+                    ui.label("gives the share above").classes("label").style("text-transform: none; letter-spacing: 0")
+                said = ui.label("").classes("value").style("white-space: normal")
         dialog.open()
 
     def browse():
@@ -1601,16 +1887,21 @@ async def console(client: Client):
             pickers[attribute] = ui.select(options, value=getattr(session, attribute), label=caption, on_change=changed(attribute)).props(
                 "dense outlined dark").style(f"min-width: {width}px")
             if attribute == "scanner":
-                ui.button(icon="verified", on_click=calibration).mark("calibration").props("flat dense round size=sm").style(
-                    f"color: {GLOW}; margin-left: -10px").tooltip("what this scanner is calibrated by")
                 pickers["field_t"] = ui.number(label="field (T)", value=session.profile().scanner.b0_t, min=0.5, max=14.0, step=0.5, precision=3,
                                                on_change=field_changed).props("dense outlined dark").style("width: 92px").tooltip(
                     "the field this scanner runs at: its limits and records stay (a record names the departure), the priors take the nearest typed field, 1.5, 3 or 7 T")
             if attribute in GEARS or attribute == "coil":
-                ui.button(icon="settings", on_click=(lambda _, panel=attribute: gear(panel)) if attribute in GEARS else coil_gear).props("flat dense round size=sm").style(
+                ui.button(icon="settings", on_click={"scanner": scanner_builder, "subject": lambda: maps(), "coil": coils_builder}[attribute]
+                          ).mark(f"{attribute} settings").props("flat dense round size=sm").style(
                     f"color: {GLOW}; margin-left: -10px").tooltip({"subject": "the parameters and ranges of the anatomy or phantom",
                                                                    "coil": "the receive array: its loops, your own sensitivity maps, the noise its channels share"}.get(
                     attribute, f"the {attribute}'s parameters and ranges"))
+        ui.button(icon="tune", on_click=lambda: gear()).mark("all settings").props("flat dense round size=sm").style(f"color: {GLOW}").tooltip(
+            "all settings: every parameter of the simulation as lines, grouped, each with its source")
+        ui.button(icon="restart_alt", on_click=lambda: (session.reset_room(), pickers["scanner"].set_options(session.scanners(), value=session.scanner),
+                                                       pickers["field_t"].set_value(session.profile().scanner.b0_t), room(), draw(),
+                                                       ui.notify("The room is the package's again"))).mark("reset").props("flat dense round size=sm").style(
+            f"color: {GLOW}").tooltip("reset: the room back to the package's, a generic scanner on the pooled rows, no setting, choice, dataset or file of yours")
         ui.button(icon="person_add_alt", on_click=lambda: (setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
                                                            ui.notify("A new draw of the population is scanned from here on"))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
@@ -1658,27 +1949,16 @@ async def console(client: Client):
                             tools["slabs"] = ui.button("OVS slabs", icon="border_outer", on_click=lambda: (
                                 chosen.__setitem__("slabs", not chosen["slabs"]), room(), draw())).props("flat dense no-caps stack").classes("tool on").tooltip(
                                 "draw the saturation slabs of a card that plays OVS, on the planes and in the room; display only")
-                            tools["overlay"] = ui.button(session.overlay, icon="opacity").props("flat dense no-caps stack").classes("tool").tooltip(
-                                "wash a map over the anatomy (o: the next one)")
+                            tools["overlay"] = ui.button(session.overlay, icon="opacity").props("flat dense no-caps stack icon-right=arrow_drop_down").classes("tool").tooltip(
+                                "a drop-down: wash a map over the anatomy (o: the next one)")
                             with tools["overlay"]:
                                 overlays = ui.menu().props("dark")
                             texts["window"] = ui.label("").classes("label").style("text-transform: none; letter-spacing: 0")
                             ui.space()
                             # ... and what changes the simulated room and its scans
                             ui.label("sim").classes("label").style("writing-mode: vertical-rl; transform: rotate(180deg)")
-                            ui.button("realism", icon="auto_fix_high", on_click=realism).props("flat dense no-caps stack").classes("tool").tooltip(
-                                "what is real about the scan, as switches")
-                            ui.button("the run", icon="timeline", on_click=run_settings).props("flat dense no-caps stack").classes("tool").tooltip(
-                                "what happens over the transients: drift, breathing, jitter, motion")
-                            ui.button("maps", icon="layers", on_click=lambda: maps()).props("flat dense no-caps stack").classes("tool").tooltip(
-                                "load your own: the anatomy from a T1-weighted image, B0, B1+ and lipid maps; or use the measured ones")
-                            ui.button("coils", icon="settings_input_antenna", on_click=coils).props("flat dense no-caps stack").classes("tool").tooltip(
-                                "your own receive array: sensitivity maps, the channels' noise")
-                            ui.button("reset", icon="restart_alt", on_click=lambda: (session.reset(), room(), draw(), ui.notify(
-                                "Settings, the run, the shim and realism are back to how the console starts"))).props("flat dense no-caps stack").classes("tool").tooltip(
-                                "what you set (parameters, the run, shim, field, pulses) back to how the console starts")
-                            ui.button("all settings", icon="tune", on_click=lambda: gear()).props("flat dense no-caps stack").classes("tool").tooltip(
-                                "every parameter the simulation draws, with its source")
+                            ui.button("switches", icon="toggle_on", on_click=switches).props("flat dense no-caps stack").classes("tool").tooltip(
+                                "what is real about the scan and what happens over a run, each on or off; the numbers live in the cards")
                             ui.icon("keyboard", size="20px").style(f"color: {DIM}").tooltip(
                                 "scroll: leaf through · press or drag: place the voxel · with shift: look around · " + KEYS)
                         with ui.element("div").classes("w-full").style("display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px"):
@@ -1789,11 +2069,11 @@ async def console(client: Client):
                                         with ui.element("div").classes("info").style(
                                                 f"flex: 1; min-height: 0; max-height: calc(100vh - 650px); overflow-y: auto; border: 1px solid {LINE}; border-radius: 2px; padding: 8px 10px; background: {GROUND}"):
                                             ui.label("Overview").classes("label").style(f"grid-column: 1 / -1; color: {SAND}")
-                                            for key, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("needs", "one repetition"), ("volume", "voxel volume"), ("snr", "relative SNR"),
+                                            for what, caption in (("time", "scan duration"), ("timing", "TR / TE"), ("needs", "one repetition"), ("volume", "voxel volume"), ("snr", "relative SNR"),
                                                                  ("tissue", "tissue"), ("displaced", "displaced voxels"), ("lipid", "lipid layer"), ("linewidth", "line width from B0"), ("encoding", "image encoding"), ("resolution", "spectral resolution"), ("readout", "readout duration"),
                                                                  ("limits", "hardware")):
                                                 ui.label(caption).classes("label")
-                                                texts[key] = ui.label("").classes("value").style("white-space: pre-line")
+                                                texts[what] = ui.label("").classes("value").style("white-space: pre-line")   # not `key`: the keyboard's handler below
                             with below.after:
                                 # what the card plays and what came of it
                                 with ui.column().classes("pane").style("width: 100%; height: 100%; min-width: 0"):

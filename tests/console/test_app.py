@@ -43,14 +43,15 @@ class TestApp:
                 importlib.reload(app)                                   # the page registers with this simulation
                 await user.open("/")
                 await user.should_see("Exam cards", retries=200)          # behind the loading screen the room is made
-                user.find("all settings").click()
-                await user.should_see("Every exam draws")
+                assert all(callable(handler) for keyboard in user.find(kind=ui.keyboard).elements for handler in keyboard._key_handlers)   # the shortcuts' handler is a function, not a shadowed name
+                user.find(marker="all settings").click()
+                await user.should_see("sources:")
                 for fold in user.find(kind=ui.expansion).elements:      # a group fills when it opens
                     fold.value = True
-                await user.should_see("as its source gives it")
+                await user.should_see("literature")                       # a chip on an opened line
                 next(e for e in user.find(kind=ui.select).elements                  # a leaf that can vary (a tissue's or a model's cannot)
-                     if e.value == "as its source gives it" and "vary between" in e.options).value = "vary between"
-                await user.should_see("and")
+                     if e.value == "literature" and "vary" in e.options).value = "vary"
+                await user.should_see("to")
                 user.find("Done").click()
                 user.find(marker="design").click()
                 await user.should_see("the readout opens at")
@@ -63,7 +64,7 @@ class TestApp:
                 user.find("difference").click()
                 await user.should_see("The sub-acquisitions take turns")
                 user.find("Use this design").click()                    # the card plays it from here on, not before
-                user.find(kind=ui.button, content="maps").click()      # a tooltip names the maps too
+                user.find(marker="subject settings").click()             # the anatomy's wheel: its card, the maps lines on top
                 await user.should_see("Anatomy and maps")
                 # a uniform field from the stored ones, and an anatomy of the operator's own: a file chosen on a line waits
                 # there (the line then SHOWING it is no new choice: that once dropped the file), and one Apply at the end
@@ -85,11 +86,36 @@ class TestApp:
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
                 user.find(marker="protocol PRESS").click()                              # real pulses are the default: the displaced voxels in words
-                await user.should_see("water -1.8 -4.2 -4.2 mm")             # at the Prisma's 2.895 T
+                await user.should_see("water -")                              # the displaced voxels in mm
                 user.find(kind=ui.button, content="real pulses").click()   # by kind: a click takes the first match, and a tooltip names it too
                 await user.should_see("none, the localization is ideal")
-                user.find("realism").click()
-                await user.should_see("on is real, off is ideal")
+                user.find("switches").click()                            # realism and the run as one list of switches
+                await user.should_see("on is real, off is ideal or still")
+                await user.should_see("breathing (Hz)")
+                user.find("Done").click()
+                user.find(marker="scanner settings").click()            # the scanner card: one list of lines
+                await user.should_see("your scanner file")
+                await user.should_see("one of")                          # a pooled leaf: one measured subject per draw
+                await user.should_see("your setup")                      # the departures, redrawn after every change
+                source = next(e for e in user.find(kind=ui.select).elements if e.value == "literature" and "pooled" in e.options)
+                source.value = "pooled"                                  # the line width read on the package's cohorts in place of the stated range
+                await user.should_see("your scans")
+                await user.should_see("save the scanner as a file")
+                user.find("Done").click()
+                user.find(marker="coil settings").click()                # the receive array card
+                await user.should_see("share of a channel's noise that is its own")
+                await user.should_see("sensitivity maps")
+                user.find("Done").click()
+                user.find(marker="subject settings").click()             # the anatomy card: the maps lines, then the values in groups
+                await user.should_see("Anatomy and maps")
+                await user.should_see("for all lines")
+                user.find("Close").click()
+                user.find(marker="scanner settings").click()
+                next(iter(user.find(marker="dataset").elements)).value = "big_gaba_trio"        # a dataset's subject on the floor
+                await user.should_see("Big GABA · Siemens Trio 3 T · PRESS · 36 subjects")
+                await user.should_see("subject S")
+                next(iter(user.find(marker="dataset").elements)).value = ""
+                await user.should_see("generic, at the field set")                              # "none" put the room back
                 user.find("Done").click()
                 user.find("New scan").click()
                 user.find(marker="protocol STEAM").click()

@@ -16,5 +16,6 @@
 #*************#
 from mrsandbox.io.dicom import read_dicom
 from mrsandbox.io.philips import DataList, LabRaw, SdatSpar
+from mrsandbox.io.folder import Found, convert, pairs, survey
 from mrsandbox.io.pulseq import PulseqSequence, read_seq, read_seq_all, write_seq
 from mrsandbox.io.varian import VarianFid

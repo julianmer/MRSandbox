@@ -17,6 +17,7 @@
 #*************#
 import copy
 import dataclasses
+import functools
 import json
 import pathlib
 
@@ -27,12 +28,16 @@ from mrsandbox.backend import Backend
 from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
-from mrsandbox.params import Fixed, Mapped, Normal, Params, Sourced, Uniform
+from mrsandbox.params import Empirical, Fixed, Mapped, Normal, Params, Sourced, Uniform
 from mrsandbox.params.values import Tissues
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
 from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
+from mrsandbox.io import read_seq
+from mrsandbox.scan.calibrate import CovarianceReading
+from mrsandbox.scan.calibrations import calibrations
+from mrsandbox.scan.cohort import holding, package
 from mrsandbox.scan import Multiplex, ScannerProfile
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay, Gradient, Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
@@ -89,18 +94,24 @@ SEQUENCES = {
 REAL = {"PRESS": "PRESS, played", "STEAM": "STEAM, played", "sLASER": "sLASER, played",
         "MEGA-PRESS": "MEGA-PRESS, played", "HERMES GABA GSH": "HERMES, played"}
 # the scanners by name: what a preset stands for (hardware.scanners, scan.calibrations)
-SCANNERS = {"philips_mr7700_3t": "Philips MR 7700 3 T", "generic_1p5t": "Generic 1.5 T", "generic_3t": "Generic 3 T", "generic_7t": "Generic 7 T",
-            "siemens_prisma_3t": "Siemens Prisma 3 T", "siemens_trio_3t": "Siemens Trio 3 T", "ge_mr750_3t": "GE MR750 3 T",
-            "philips_elition_3t": "Philips Elition 3 T", "philips_achieva_3t": "Philips Achieva 3 T"}
-# a scanner's other calibrations in the package, {scanner: {what it is: the preset that carries its records}}: the
-# hardware is the same, the records were read under another coil
-CALIBRATIONS = {"ge_mr750_3t": {"noise read with the 32 channel head array": "ge_mr750_32ch_3t"}}
+SCANNERS = {"generic_1p5t": "Generic", "generic_3t": "Generic", "generic_7t": "Generic",
+            **{name: f"{ {'ge': 'GE', 'canon': 'Canon', 'united': 'United Imaging', 'bruker': 'Bruker'}.get(preset.vendor, str(preset.vendor).title())} "
+                     f"{preset.model.replace('TrioTim', 'Trio')} {min((1.5, 3.0, 5.0, 7.0, 9.4, 11.7), key=lambda f: abs(f - preset.b0_t)):g} T"
+               for name, preset in PRESETS.items() if preset.vendor}}       # the nominal field in the name; the exact one is the scanner's
+# the package's cohorts by name: the dataset each holds; the rest of a cohort's label comes off its rows (Cohort.label)
+COHORTS = {"big_gaba_trio": "Big GABA", "big_gaba_ge": "Big GABA", "big_gaba_philips": "Big GABA", "cows_prisma": "COWS ds006812",
+           "fmrs_pain_achieva": "fMRS in pain", "ds006444_ge_mr750": "OpenNeuro ds006444", "ds005917_siemens_7t": "OpenNeuro ds005917",
+           "neuromet_siemens_7t": "NeuroMET"}
 # a run's instabilities as the operator sets them (Augmentrum's TransientSynthesizer, scan.Multiplex.transients):
 # a name, the synthesizer's argument, and what switches it off; left alone, each is drawn from the 3 T envelope
 RUN = {"frequency drift (Hz per minute)": ("drift_hz_per_min", 0.0), "slow frequency wander (Hz)": ("ar_sigma_hz", 0.0),
        "breathing (Hz)": ("resp_amp_hz", 0.0), "phase jitter (degrees)": ("phase_jitter_deg", 0.0),
        "amplitude jitter (fraction)": ("amp_jitter_frac", 0.0), "broadening over the run (Hz)": ("broaden_hz", 0.0),
        "motion events (per minute)": ("events_per_min", 0.0)}
+# whose the run's instabilities are: the scanner's (its frequency and its receiver over time) or the subject's (a
+# body breathes and moves; a phantom does neither)
+RUN_OF = {"scanner": ("drift_hz_per_min", "ar_sigma_hz", "phase_jitter_deg", "amp_jitter_frac", "broaden_hz"),
+          "subject": ("resp_amp_hz", "events_per_min")}
 # the measured B0 field a subject lies in unless the operator chooses another (phantom.FieldMap.PRESETS); a
 # sphere of solution has none
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr", "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
@@ -169,7 +180,7 @@ EDITING = {
 # which branches of the parameter tree each panel's gear opens
 GEARS = {
     "subject": ("conc", "t1", "t2", "contrast", "diffusion", "mm", "downfield", "lipids", "water"),
-    "scanner": ("noise", "lineshape", "b1_scale", "gradients", "acquisition", "spurious"),
+    "scanner": ("noise", "lineshape", "b1_scale", "gradients", "acquisition", "spurious", "oov"),
     # and the card's tabs: what of the simulation belongs to each
     "Geometry": ("contrast", "lipids"),
     "Timing": ("t1", "t2", "mm", "lipids", "water", "downfield"),
@@ -278,6 +289,34 @@ TEMPLATES = {
                             ("hard pulse", dict(flip_deg=90.0)), ("coherence filter", dict(order=0)), ("delay", dict(ms=10.0)),
                             ("hard pulse", dict(flip_deg=90.0, phase_deg=180.0)), ("coherence filter", dict(order=-1)), ("delay", dict(ms=10.0))],
 }
+
+
+#**************#
+#   datasets   #
+#**************#
+@functools.lru_cache(maxsize=None)
+def _datasets():
+    return {cohort.name: cohort.label(COHORTS.get(cohort.name, cohort.name)) for cohort in package()}
+
+
+#***************#
+#   describe    #
+#***************#
+def _describe(value):
+    """A Value as the console lists it, (kind, numbers): "fixed" with (value,), "range" with (low,
+    high), "normal" with (mean, sd), "empirical" with (median, 5th, 95th, subjects), or "other"
+    with the value's own text (a tissue record, a map); a Sourced leaf as its chosen source."""
+    if isinstance(value, Sourced):
+        value = value.current
+    if isinstance(value, Empirical):                            # a pooled leaf: one measured subject per draw
+        return "empirical", (value.value, value.low, value.high, float(len(value.values)))
+    if isinstance(value, Fixed) and isinstance(value.value, (int, float)) and not isinstance(value.value, bool):
+        return "fixed", (float(value.value),)
+    if isinstance(value, Uniform):
+        return "range", (float(value.low), float(value.high))
+    if isinstance(value, Normal):
+        return "normal", (float(value.mean), float(value.sd))
+    return "other", repr(value)[:60]
 
 
 #**************************************************************************************************#
@@ -477,7 +516,7 @@ class Session:
     #   init   #
     #**********#
     def __init__(self, subject="Head, QSM challenge, 0.64 mm"):
-        self.scanner = "siemens_prisma_3t"
+        self.scanner = "generic_3t"                  # a generic system at the field set in the top bar; specific ones in the scanner builder
         self.field_t = None                    # the field the scanner runs at; None is the preset's own
         self.coil = "one ideal channel"
         self.subject = subject
@@ -485,14 +524,20 @@ class Session:
         self.view_mm = list(self.position_mm)
         self.size_mm = [20.0, 20.0, 20.0]
         self.calibration = None
+        self.hardware = {}                      # {field of hardware.Scanner: value}: the operator's own limits (custom)
+        self.files = {}                         # {path: label}: scanner files chosen from anywhere on this machine
+        self.reports = {}                       # what the last folder gave, shown on the scanner card
+        self.cohort = None                      # a package cohort on the floor: every exam scans one of its real subjects
         self.seed = int(np.random.default_rng().integers(2 ** 31))
         self.run_settings, self.motion_mm = {}, None
+        self._sequence_memo = (None, None)         # the last design built, by what it depends on (Session.sequence)
         self.processing = ALIGN
         self.prescan, self.clock_s, self._drift = True, 0.0, None
         self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
         self.overrides = {}
+        self.choices = {}                      # {path: source}: literature or measured chosen per leaf (the custom is an override)
         self.subjects, self.pictures, self.images = dict(SUBJECTS), dict(PICTURES), {}
         self.field = FIELDS.get(self.subject, "uniform")
         self.transmit = None
@@ -747,7 +792,7 @@ class Session:
         kept = list(self.position_mm)
         self.position_mm = [float(v) for v in position_mm]
         try:
-            scan = self.profile().scan(self.body(), self.sequence(), params=self.params(), **self.fields())
+            scan = self.twin()
             voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm))
             drawn, fields = voxel.sample(self.seed), self.fields()
             gm, wm = float(voxel.fractions.gm), float(voxel.fractions.wm)
@@ -864,6 +909,165 @@ class Session:
         one ideal channel."""
         return self.coils[self.coil](**self.coil_settings.get(self.coil, {}))
 
+    def own_share(self):
+        """The share of a channel's noise that is its own, in force for the array on the floor, and
+        where it comes from: the operator's own reading (coil_noise), else the package's rows pooled
+        for the scanner at the array's channel count (scan.cohort), as (value, source, provenance)."""
+        if self.own_noise is not None:
+            return self.own_noise, "own", "read from your scan with the coils apart"
+        array = self.array()
+        record = self.profile().calibrations().get("coils.loaded.own_noise") if array is None else calibrations(
+            self.profile().scanner, self.profile().records, channels=len(array)).get("coils.loaded.own_noise")
+        if record is None:
+            return 0.25, "literature", "the package's stated share"
+        return float(record.value), "pooled", f"{record.source['dataset']}, {record.date}"
+
+    def load_scanner(self, path):
+        """A scanner file from anywhere on this machine (scan.profile JSON) as this scanner's calibration."""
+        profile = ScannerProfile.load(path)
+        self.files[str(path)] = f"your file: {pathlib.Path(path).stem.replace('_', ' ')}"
+        if profile.scanner.name in PRESETS:
+            self.scanner = profile.scanner.name
+        self.calibration = str(path)
+
+    def card_from(self, source):
+        """The card and the scanner set from a NIfTI-MRS run's header, as the run was acquired, so the room is its
+        twin before it is read: TE, TR, the averages (the transients apart), the points, the bandwidth, the sequence
+        by its name (PRESS, STEAM, sLASER; MEGA and HERMES by theirs), the voxel's size from the file's grid, the
+        field from the spectrometer frequency, and the system where the vendor and model name a preset (else the
+        generic one at that field). Returns what was set, {field: value}."""
+        import nibabel as nib
+
+        from mrsandbox.scan.calibrate import _raw
+
+        x, dwell_s, f0_mhz, header = _raw(str(source))
+        image = nib.load(str(source))
+        card, was = self.protocol, {}
+        if header.get("EchoTime"):
+            card.te_ms = was["te_ms"] = round(1000.0 * float(header["EchoTime"]), 2)
+        if header.get("RepetitionTime"):
+            card.tr_ms = was["tr_ms"] = round(1000.0 * float(header["RepetitionTime"]), 1)
+        card.averages = was["averages"] = int(x.shape[2])
+        card.npoints = was["npoints"] = int(x.shape[0])
+        card.bandwidth_hz = was["bandwidth_hz"] = round(1.0 / dwell_s, 1)
+        name = " ".join(str(header.get(key, "")) for key in ("SequenceName", "ProtocolName")).lower()
+        for words, sequence in (("hermes", "HERMES GABA GSH"), ("mega", "MEGA-PRESS"), ("laser", "sLASER"), ("steam", "STEAM"), ("press", "PRESS"), ("svs_se", "PRESS")):
+            if words in name:
+                card.sequence = was["sequence"] = sequence
+                break
+        size = [float(v) for v in image.header.get_zooms()[:3]]
+        if all(1.0 < s < 100.0 for s in size):
+            self.size_mm = was["size_mm"] = size
+        self.field_t = was["field_t"] = round(f0_mhz / 42.5774785, 3)
+        vendor, model = str(header.get("Manufacturer", "")).lower(), str(header.get("ManufacturersModelName", "")).lower().replace(" ", "")
+        for key, preset in PRESETS.items():
+            if preset.vendor and preset.vendor in vendor and preset.model and preset.model.lower().replace(" ", "") in model:
+                self.scanner = was["scanner"] = key
+                self.field_t = None if abs(preset.b0_t - f0_mhz / 42.5774785) < 0.05 else self.field_t
+                break
+        else:
+            self.scanner = was["scanner"] = "generic_3t"
+        self.calibration = None
+        return was
+
+    def replicate(self, folder):
+        """A folder of scans read at once, whatever the scanner gave (io.folder, PLAN 8.9): every file told apart
+        by what it is, raw spectroscopy brought to NIfTI-MRS with spec2nii, and each kind used for what it can give:
+        the first run with its water reference calibrates the scanner (`calibrate`), a T1-weighted image becomes the
+        anatomy (`segment`), a field map the B0 map, a B1 map the transmit map, coil maps the array, a noise scan the
+        channels' own noise share, a Pulseq file the design, a saved scanner its calibration. Returns the report,
+        [(file, kind, what it gave or why not)]."""
+        from mrsandbox.io import folder as scans
+
+        folder = pathlib.Path(folder)
+        work = pathlib.Path.home() / "MRSandbox" / "converted" / folder.name
+        found = scans.survey(folder)
+        report = []
+        if any(item.kind == "DICOM series" for item in found):
+            from mrsandbox.io import read_dicom
+
+            found = [item for item in found if item.kind != "DICOM series"]
+            try:
+                series = read_dicom(folder, work / "dicom")
+                report.append((f"{folder.name} (DICOM)", "DICOM series", f"{len(series)} image series converted with dcm2niix: " + ", ".join(sorted(series))))
+                found += [item for item in scans.survey(work / "dicom") if item.kind not in ("unknown",)]
+            except Exception as error:
+                report.append((f"{folder.name} (DICOM)", "DICOM series", f"not converted: {error}"[:160]))
+            spectra = scans.Found(folder, "MRS run", note="spectroscopy DICOM through spec2nii")
+            if scans.convert(spectra, work / "dicom_mrs") is not None:
+                found.append(spectra)
+        for item in found:
+            if item.kind in ("MRS run", "MRS reference") and item.path.suffix.lower() not in (".nii", ".gz"):
+                scans.convert(item, work)
+        used = set()
+        for run, reference in scans.pairs(found):
+            source = run.converted or run.path
+            if run.converted is None and run.path.suffix.lower() not in (".nii", ".gz"):
+                continue
+            with_reference = reference.converted or reference.path if reference is not None else None
+            used.update({id(run), id(reference)})
+            try:
+                was = self.card_from(source)                     # the card and the scanner as the run was acquired: its twin
+                self.calibrate(source, folder.name, reference=with_reference)
+            except Exception as error:
+                report.append((run.path.name, run.kind, f"not read: {error}"[:160]))
+                continue
+            report.append((run.path.name, run.kind, "the card and the scanner as acquired (" + ", ".join(f"{k} {v}" for k, v in was.items()) +
+                           "); the scanner's noise level and line width" + (
+                f", and with {reference.path.name} the residual water, the receiver delay, the eddy transient, the leaked water" if reference else "")))
+            break                                               # one run calibrates; the others are listed as read
+        for item in found:
+            if id(item) in used:
+                continue
+            try:
+                if item.kind == "T1w":
+                    self.segment(str(item.path), folder.name)
+                    report.append((item.path.name, item.kind, "the anatomy, segmented"))
+                elif item.kind == "B0":
+                    self.field = str(self.onto(str(item.path)))
+                    report.append((item.path.name, item.kind, "the B0 map"))
+                elif item.kind == "B1+":
+                    self.transmit = str(self.onto(str(item.path)))
+                    report.append((item.path.name, item.kind, "the transmit map"))
+                elif item.kind == "coils":
+                    self.coil_maps(str(item.path), item.path.name.split(".")[0])
+                    report.append((item.path.name, item.kind, "the receive array's maps"))
+                elif item.kind == "noise scan":
+                    self.own_noise = float(CovarianceReading.from_ismrmrd(str(item.path)).own_noise(self.array() or CoilArray.helmet()))
+                    report.append((item.path.name, item.kind, f"the channels' own noise share, {self.own_noise:.2f}"))
+                elif item.kind == "Pulseq":
+                    self.adopt_seq(item.path)
+                    report.append((item.path.name, item.kind, "the design, block by block"))
+                elif item.kind == "scanner file":
+                    self.load_scanner(item.path)
+                    report.append((item.path.name, item.kind, "the scanner's calibration"))
+                elif item.kind in ("MRS run", "MRS reference"):
+                    report.append((item.path.name, item.kind, "read but not used: one run calibrates" if item.converted or item.path.suffix.lower() in (".nii", ".gz") else item.note))
+                else:
+                    report.append((item.path.name, item.kind, item.note))
+            except Exception as error:
+                report.append((item.path.name, item.kind, f"not read: {error}"[:160]))
+        return report
+
+    def reset_room(self):
+        """The room back to the package's: every setting, choice and hardware number of the operator's gone, the
+        scanner generic on the package's pooled rows, no dataset, no file, no reading of the operator's."""
+        self.reset()
+        self.choices, self.hardware, self.files, self.own_noise = {}, {}, {}, None
+        self.field_t, self.calibration = None, None
+        if self.cohort is not None:
+            self.pick_cohort(None)
+        self.scanner = "generic_3t"
+
+    def save_scanner(self, name):
+        """Save the scanner on the floor as one file, ~/MRSandbox/profiles/<name>.json (scan.profile), which then
+        stands in its calibrations; returns the path."""
+        folder = pathlib.Path.home() / "MRSandbox" / "profiles"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"{name}.json"
+        self.profile().save(path)
+        return path
+
     def coil_maps(self, path, name):
         """Put a receive array of the operator's own on the shelf: measured sensitivity maps, one NIfTI of
         (nx, ny, nz, channels), complex or real (hardware.coils MappedCoilArray), in the scanner's coordinates."""
@@ -958,34 +1162,92 @@ class Session:
                        env={**os.environ, "FSLOUTPUTTYPE": "NIFTI_GZ", "FSLDIR": os.environ.get("FSLDIR", str(pathlib.Path(flirt).parents[3]))})
         return out if out.exists() else pathlib.Path(str(out) + ".gz")
 
+    def scanners(self):
+        """The top bar's scanners, {key: name}: the generic system first (its field the number beside it),
+        then every specific system (`systems`)."""
+        return {"generic_3t": "Generic", **self.systems()}
+
     @staticmethod
-    def scanners():
-        """What can stand on the floor, {key: name}: the package's scanners as hardware. What
-        calibrates one is chosen apart (`calibrations`)."""
-        return dict(sorted(((name, label) for name, label in SCANNERS.items() if name in PRESETS), key=lambda item: item[1]))
+    def systems():
+        """The specific systems the scanner builder offers, {key: name}, the package's presets with a vendor."""
+        return dict(sorted(((name, label) for name, label in SCANNERS.items() if name in PRESETS and PRESETS[name].vendor), key=lambda item: item[1]))
 
     def calibrations(self):
-        """What can calibrate the scanner on the floor beside its own records, {key: what it is}:
-        the package's records of the same hardware read under another coil (CALIBRATIONS), and
-        the operator's own profiles of this scanner, read from their scans and saved as JSON
-        (scan.profile) in ./data/profiles or ~/MRSandbox/profiles, which stay on this machine."""
-        found = {preset: what for what, preset in CALIBRATIONS.get(self.scanner, {}).items()}
+        """What can calibrate the scanner on the floor in place of the package's pooled rows,
+        {key: what it is}: one of the package's cohorts that holds rows of its systems (that
+        dataset's rows alone, scan.cohort holding), and the operator's own profiles of this
+        scanner, read from their scans and saved as JSON (scan.profile) in ./data/profiles or
+        ~/MRSandbox/profiles, which stay on this machine."""
+        found = {name: self.datasets()[name] for name in holding(PRESETS[self.scanner])}
+        found.update(self.files)
         for folder in (pathlib.Path.cwd() / "data" / "profiles", pathlib.Path.home() / "MRSandbox" / "profiles"):
             for path in sorted(folder.glob("*.json")):
                 if json.loads(path.read_text())["scanner"]["name"] == self.scanner:
                     found[str(path)] = "read from your own scans: " + path.stem.replace("_private", "").replace("_", " ")
         return found
 
+    def member(self):
+        """The subject of the cohort on the floor that the session's seed draws (scan.cohort), None without a cohort."""
+        if self.cohort is None:
+            return None
+        return next(cohort for cohort in package() if cohort.name == self.cohort).draw(self.seed)
+
+    def pick_cohort(self, name):
+        """Put a package cohort on the floor, or none: its subject's scanner (where it is a preset), voxel place and
+        size come with it, and every exam scans that subject's own readings, fixed; a new draw of the population
+        (the seed) takes another subject. "None" puts back what stood on the floor before the cohort."""
+        if name is None and self.cohort is not None:
+            self.scanner, self.field_t, self.calibration, self.position_mm, self.size_mm, self.view_mm = self._before_cohort
+        elif name is not None and self.cohort is None:
+            self._before_cohort = (self.scanner, self.field_t, self.calibration, list(self.position_mm), list(self.size_mm), list(self.view_mm))
+        self.cohort = name
+        member = self.member()
+        if member is not None:
+            if member.profile.scanner.name in PRESETS:
+                self.scanner = member.profile.scanner.name
+            self.position_mm, self.size_mm = list(member.position_mm), list(member.size_mm)
+            self.view_mm = list(self.position_mm)
+            self.field_t, self.calibration = None, None
+
+    @staticmethod
+    def datasets():
+        """The package's datasets, {cohort name: label}, every label the same shape (Cohort.label), made once."""
+        return _datasets()
+
+    def cohort_says(self):
+        """One sentence on the dataset on the floor and what it sets, empty without one."""
+        member = self.member()
+        if member is None:
+            return ""
+        return (f"subject {member.subject}: its scanner, voxel and {len(member.fixed().records)} readings; a new draw of the population "
+                "takes another subject")
+
+    def choose_all(self, paths, source):
+        """Choose `source` for every leaf of `paths` that has it (the card's "for all lines"): the leaf's own
+        setting goes, and "custom" keeps what is set."""
+        sourced = self.twin(params=Params({})).params.sources()
+        for path in paths:
+            if source in ("literature", "pooled", "dataset", "own") and path in sourced and source in sourced[path].available:
+                self.overrides.pop(path, None)
+                self.choices[path] = source
+
     def profile(self):
-        """The scanner on the floor with its records: a preset, or a saved profile; at the operator's field where one
-        is set (its limits and records stay, and a record names the departure)."""
-        if self.calibration in self.calibrations():
-            profile = ScannerProfile.load(self.calibration) if self.calibration.endswith(".json") else ScannerProfile.preset(self.calibration)
+        """The scanner on the floor with its records: the cohort's subject with its own readings fixed, or the preset
+        on the package's pooled rows, or calibrated by one cohort's rows, or a saved profile; at the operator's field
+        where one is set (its limits and records stay, and a record names the departure)."""
+        member = self.member()
+        if member is not None:
+            profile = member.fixed()
+        elif self.calibration in self.calibrations():
+            profile = (ScannerProfile.load(self.calibration) if self.calibration.endswith(".json")
+                       else ScannerProfile.preset(self.scanner, cohort=self.calibration))
         else:
             profile = ScannerProfile.preset(self.scanner)
-        if self.field_t is None:
-            return profile
-        return dataclasses.replace(profile, scanner=dataclasses.replace(profile.scanner, b0_t=float(self.field_t)))
+        if self.field_t is not None:
+            profile = dataclasses.replace(profile, scanner=dataclasses.replace(profile.scanner, b0_t=float(self.field_t)))
+        if self.hardware:
+            profile = dataclasses.replace(profile, scanner=dataclasses.replace(profile.scanner, **self.hardware))
+        return profile
 
     def calibrate(self, source, name, folder=None, reference=None):
         """Calibrate the scanner on the floor from one raw acquisition of the operator's own
@@ -996,7 +1258,7 @@ class Session:
         broadening become records of a profile saved under `name` in ~/MRSandbox/profiles, which
         stays on this machine and is then this scanner's calibration; returns its path. With `reference`, the
         same voxel's water reference file, the residual water and the receiver delay are read as well."""
-        twin = self.profile().scan(self.body(), self.sequence(), params=self.params(), **self.fields()).voxel(
+        twin = self.twin().voxel(
             tuple(self.position_mm), tuple(self.size_mm), compiled=True)
         folder = pathlib.Path(folder) if folder is not None else pathlib.Path.home() / "MRSandbox" / "profiles"
         folder.mkdir(parents=True, exist_ok=True)
@@ -1024,6 +1286,13 @@ class Session:
         if card.sequence == MRSI:
             return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None, None, None)
         scanner = self.profile().scanner
+        key = (dataclasses.astuple(card), self.condition, repr(self.designs), scanner.b0_t, scanner.peak_b1_ut)     # what the design depends on
+        if self._sequence_memo[0] == key:
+            return self._sequence_memo[1]
+        self._sequence_memo = (key, self._sequence(card, scanner))
+        return self._sequence_memo[1]
+
+    def _sequence(self, card, scanner):
         if card.sequence == "Custom":
             design = self.turned(self.own(card.tr_ms / 1000.0), card.axes)
         else:
@@ -1151,8 +1420,18 @@ class Session:
         card = self.protocol
         skip = sum(len(prelude.events) for prelude in self.preludes(card).values()) if REAL.get(card.sequence, card.sequence) in (
             *SEQUENCES, *EDITING, "Custom") else 0
+        self.design = self._blocks(self.sequence().events[skip:])
+
+    def adopt_seq(self, path):
+        """Make the own design a Pulseq file's sequence (io.read_seq: the pulses, delays and gradients up
+        to its first readout), block by block as `adopt` does; the card plays it as "Custom"."""
+        self.design = self._blocks(read_seq(str(path)).events)
+        self.protocol.sequence = "Custom"
+
+    @staticmethod
+    def _blocks(events):
         design = []
-        for event in self.sequence().events[skip:]:
+        for event in events:
             if type(event) is Pulse:
                 design.append(("hard pulse", dict(flip_deg=float(event.flip_deg), phase_deg=float(event.phase_deg))))
             elif isinstance(event, Delay):
@@ -1170,7 +1449,7 @@ class Session:
                         ("phase_deg", event.phase_deg), ("peak_hz", event.peak_hz if event.flip_deg is None else None),
                         ("slice_hz_per_mm", event.gradient_hz_per_mm if event.gradient_hz_per_mm else None)) if value is not None}
                 design.append((FIXED, dict(what=named(event), event=event, **knobs)))
-        self.design = design
+        return design
 
     def slabs(self, card=None):
         """The six outer-volume suppression slabs of a card, [(axis, centre, thickness)] in mm from the voxel's centre:
@@ -1279,6 +1558,28 @@ class Session:
     #************#
     #   leaves   #
     #************#
+    def twin(self, sequence=None, params=None, card=None, profile=None):
+        """A VirtualScan of the room as it stands: the profile on the floor (or `profile`), the
+        body, the card's sequence (or `sequence`), the operator's settings (or `params`) and
+        the card's fields, with the operator's source choices applied to its tree (`choices`:
+        a leaf's literature or measured source in place of the default's)."""
+        profile = profile if profile is not None else self.profile()
+        scan = profile.scan(self.body(), sequence if sequence is not None else self.sequence(card),
+                            params=params if params is not None else self.params(), **self.fields(card))
+        if self.choices:
+            sourced = scan.params.sources()
+            scan.params = scan.params.select(**{path: source for path, source in self.choices.items()
+                                                if path in sourced and source in sourced[path].available})     # a leaf without that source keeps its own
+        return scan
+
+    def sources(self):
+        """Every leaf of the tree that carries values per source, {path: {"chosen": source, "sources":
+        {source: (kind, numbers)}, "provenance": {source: text}}} in the tree before the operator's
+        settings, the choices applied (Session.leaves describes kind and numbers the same way)."""
+        return {path: {"chosen": leaf.chosen, "sources": {name: _describe(getattr(leaf, name)) for name in leaf.available},
+                       "provenance": dict(leaf.provenance)}
+                for path, leaf in self.twin(params=Params({})).params.sources().items()}
+
     def params(self, overrides=None):
         """The operator's own settings as a Params tree over the defaults: {path: value or
         (low, high)} of `overrides` (the session's as they stand, unless given), nested."""
@@ -1294,8 +1595,9 @@ class Session:
     def leaves(self, own=True):
         """Every leaf of the parameter tree a scan of this room would draw from, as
         [(path, kind, numbers, changed)]: kind "fixed" with (value,), "range" with (low,
-        high), "normal" with (mean, sd), or "other" with the prior's own text (a tissue
-        record, a map), which the console shows and does not edit. Without `own` the
+        high), "normal" with (mean, sd), "empirical" with (median, 5th, 95th, subjects), or
+        "other" with the prior's own text (a tissue record, a map), which the console shows
+        and does not edit. Without `own` the
         tree is the one before the operator's settings: the priors as their sources give them."""
         sequence = self.sequence()
         found = []
@@ -1303,20 +1605,12 @@ class Session:
         def walk(node, path):
             for key, value in node.items():
                 here = path + (key,)
-                if isinstance(value, Sourced):
-                    value = value.current                       # the chosen source's; the source itself is the builders' (PLAN 8.7)
                 if isinstance(value, Params):
                     walk(value, here)
-                elif isinstance(value, Fixed) and isinstance(value.value, (int, float)) and not isinstance(value.value, bool):
-                    found.append((".".join(here), "fixed", (float(value.value),), ".".join(here) in self.overrides))
-                elif isinstance(value, Uniform):
-                    found.append((".".join(here), "range", (float(value.low), float(value.high)), ".".join(here) in self.overrides))
-                elif isinstance(value, Normal):
-                    found.append((".".join(here), "normal", (float(value.mean), float(value.sd)), ".".join(here) in self.overrides))
                 else:
-                    found.append((".".join(here), "other", repr(value)[:60], ".".join(here) in self.overrides))
+                    found.append((".".join(here), *_describe(value), ".".join(here) in self.overrides))
 
-        walk(self.profile().scan(self.body(), sequence, params=self.params() if own else Params({}), **self.fields()).params, ())
+        walk(self.twin(sequence, params=self.params() if own else Params({})).params, ())
         return found
 
     #************#
@@ -1464,7 +1758,7 @@ class Session:
         card = self.protocol
         sequence = self.sequence()
         profile = self.profile()
-        scan = profile.scan(self.body(), sequence, params=self.params(), **self.fields())
+        scan = self.twin(sequence, profile=profile)
         fractions = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).fractions
         limits = profile.scanner
         drawn = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).sample(self.seed)
@@ -1587,7 +1881,7 @@ class Session:
         profile = self.profile()
         coils = self.array()
         if card.sequence == MRSI:
-            grid = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields(card)).mrsi(
+            grid = self.twin(sequence, params=self.params(exam.overrides), card=card, profile=profile).mrsi(
                 center_mm=exam.position_mm, matrix=(int(card.matrix), int(card.matrix_y)) + ((int(card.slices),) if card.slices > 1 else ()),
                 voxel_mm=exam.size_mm[0], thickness_mm=exam.size_mm[2],
                 oversampling=int(card.mrsi_oversampling), weighting=None if card.mrsi_weighting == "none" else card.mrsi_weighting,
@@ -1617,7 +1911,7 @@ class Session:
         # person: the frequency offset and phase the acquisition starts with, its eddy currents, its spurious echoes, and
         # the transmit gain, by which a suppression train's residual differs from exam to exam. What the operator set stays.
         anew = int(np.random.SeedSequence([int(seed), self.queue.index(exam) + 1 if exam in self.queue else 0]).generate_state(1)[0])
-        scan = profile.scan(self.body(), sequence, params=self.params(exam.overrides), **self.fields(card))
+        scan = self.twin(sequence, params=self.params(exam.overrides), card=card, profile=profile)
         truth = scan.params.sample(anew)
         drawn = truth.to_dict()
         state = {}
@@ -1633,7 +1927,7 @@ class Session:
                          **self.fields(card),
                          # the array's noise is tied to the scanner's record AT THIS VOXEL, so every place has the record's SNR: what
                          # an array gives by place (better under its loops) is not in the console yet (info/HANDOFF.md item 196)
-                         coils=None if coils is None else (coils.loaded(**({} if self.own_noise is None else {"own_noise": self.own_noise}))
+                         coils=None if coils is None else (coils.loaded(own_noise=self.own_share()[0])
                                                            if coils.loops else coils).calibrated(exam.position_mm, exam.size_mm))
         names = list(exam.conditions)
         exam.schedule = [names[k % len(names)] for k in range(card.averages)]        # interleaved, as an edited scan runs
@@ -1874,7 +2168,8 @@ class Session:
         self.LIBRARY.mkdir(parents=True, exist_ok=True)
         path = self.LIBRARY / f"{name}.json"
         path.write_text(json.dumps({"card": dataclasses.asdict(self.protocol), "size_mm": list(self.size_mm),
-                                    "designs": self.designs, "weights": self.weights, "overrides": self.overrides}, indent=2))
+                                    "designs": self.designs, "weights": self.weights, "overrides": self.overrides,
+                                    "choices": self.choices}, indent=2))
         return path
 
     def load_protocol(self, name):
@@ -1887,6 +2182,7 @@ class Session:
         self.designs = {name: [(kind, dict(settings)) for kind, settings in blocks] for name, blocks in stored_designs.items()}
         self.condition, self.weights = next(iter(self.designs)), stored.get("weights", {})
         self.overrides = {path: tuple(value) if isinstance(value, list) else value for path, value in stored["overrides"].items()}
+        self.choices = dict(stored.get("choices", {}))
 
     #************#
     #   export   #

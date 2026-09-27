@@ -99,7 +99,7 @@ class TestSession:
         session.protocol.averages, session.protocol.npoints, session.protocol.real = 4, 1024, False
         session.scanner = "siemens_trio_3t"
         exam = session.run(session.plan(), seed=3)
-        assert 0.7 < exam.adjustment < 1.3 and exam.adjustment != 1.0
+        assert 0.4 < exam.adjustment < 1.3 and exam.adjustment != 1.0            # the Trio's pooled residual is a tenth of a percent: a train scaled well down
         assert exam.sequence.events[0].flip_deg == pytest.approx(90.0 * exam.adjustment)
         # and it leaves what the Trio's record says it leaves, read the record's own way (HLSVD water of the mean FID
         # at t = 0 over the dry maximum): 0.7 to 1.1 on Big GABA's Trio runs (scan.calibrations, item 217)
@@ -274,7 +274,8 @@ class TestSession:
         session.protocol.sequence, session.protocol.averages, session.protocol.npoints, session.field = "Custom", 8, 1024, "uniform"
         # nothing of the scanner's own state, which is drawn anew for every exam: the exams below differ by their designs alone
         session.overrides = {"noise.sigma": 0.0, "acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0, "acquisition.eddy_std_rad": 0.0,
-                             "spurious.amplitude": 0.0, "b1_scale": 1.0}
+                             "spurious.amplitude": 0.0, "b1_scale": 1.0, "acquisition.delay_s": 0.0, "acquisition.eddy_transient_rad": 0.0,
+                             "oov.fraction": 0.0}                       # the scanner's state is drawn anew per run: held still here
         session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "phase_jitter_deg": 0.0,
                                 "amp_jitter_frac": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
         # a spin echo without any filter or crusher, its refocusing pulse 40 degrees short: the 140 leaves a free induction
@@ -368,15 +369,111 @@ class TestSession:
         exam = session.run(session.plan(), seed=1)
         assert exam.status == "done" and np.isfinite(exam.frames[-1][1]).all()
 
+    def test_one_dataset_can_calibrate_the_scanner_on_the_floor(self):
+        # the scanner is hardware; its calibration is chosen apart: the package's pooled rows, or one cohort's alone
+        session = Session(ICBM)
+        session.scanner = "siemens_trio_3t"
+        assert session.calibrations()["big_gaba_trio"] == "Big GABA · Siemens Trio 3 T · PRESS · 36 subjects"
+        assert session.profile().records == () and session.outlook()["records"]["noise.sigma"]["source"].startswith("pooled over")
+        session.calibration = "big_gaba_trio"
+        assert {r.leaf for r in session.profile().records} and all(r.source["dataset"].endswith(": big_gaba_trio") for r in session.profile().records)
+        assert session.outlook()["records"]["noise.sigma"]["source"].endswith(": big_gaba_trio")
+
+    def test_the_hardware_numbers_and_a_folder_are_the_operators_to_set(self, tmp_path):
+        # the manufacturer's numbers are the scanner's until set; a scanner file from anywhere calibrates; an empty folder says what it lacks
+        session = Session(ICBM)
+        assert session.profile().scanner.max_slew_t_m_s == 200.0 and len(session.systems()) >= 25
+        session.hardware["max_slew_t_m_s"] = 120.0
+        assert session.profile().scanner.max_slew_t_m_s == 120.0 and session.outlook()["limits"][2] == 120.0
+        path = tmp_path / "my_slow_scanner.json"
+        session.profile().save(path)
+        fresh = Session(ICBM)
+        fresh.load_scanner(path)
+        assert fresh.calibration == str(path) and str(path) in fresh.calibrations() and fresh.profile().scanner.max_slew_t_m_s == 120.0
+        report = fresh.replicate(tmp_path)                                          # the folder holds the saved scanner alone
+        assert report == [("my_slow_scanner.json", "scanner file", "the scanner's calibration")]
+
+    def test_a_pulseq_file_becomes_the_design(self, tmp_path):
+        # the sequence builder's upload: a .seq file's events up to its first readout as blocks, the card on Custom
+        import numpy as np
+        import pypulseq
+
+        system = pypulseq.Opts(max_grad=40, grad_unit="mT/m", max_slew=150, slew_unit="T/m/s")
+        seq = pypulseq.Sequence(system=system)
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=1e-3, system=system))     # within a 25 uT peak B1
+        seq.add_block(pypulseq.make_delay(0.01))
+        seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi, duration=2e-3, system=system))
+        seq.add_block(pypulseq.make_delay(0.01))
+        seq.add_block(pypulseq.make_adc(num_samples=512, dwell=2.5e-4, system=system))
+        seq.write(str(tmp_path / "echo.seq"))
+        session = Session(ICBM)
+        session.adopt_seq(tmp_path / "echo.seq")
+        kinds = [kind for kind, _ in session.design]
+        assert session.protocol.sequence == "Custom" and len(kinds) >= 3 and "delay" in kinds
+        assert session.sequence().events and session.outlook()["violations"] == ()
+
+    def test_a_cohort_on_the_floor_scans_one_of_its_subjects(self):
+        # a package cohort picked: its subject's scanner, voxel place and size come with it, every record of the scan is
+        # that subject's own reading fixed, and a new draw of the population takes another subject
+        session = Session(ICBM)
+        session.pick_cohort("big_gaba_trio")
+        assert session.scanner == "siemens_trio_3t" and session.position_mm == [0.0, -35.0, 20.0] and session.size_mm == [30.0, 30.0, 30.0]
+        while "noise.sigma" not in {r.leaf for r in session.member().fixed().records}:     # a subject whose noise reading did not fail
+            session.seed += 1
+        member = session.member()
+        assert member.subject.startswith("S") and all(record.prior == (record.value, record.value) for record in session.profile().records)
+        assert not any(record.failed for record in session.profile().records)
+        leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
+        assert leaves["noise.sigma"] == ("fixed", (next(r.value for r in member.profile.records if r.leaf == "noise.sigma"),))
+        subjects = set()
+        for seed in range(12):
+            session.seed = seed
+            subjects.add(session.member().subject)
+        assert len(subjects) > 1
+        session.pick_cohort(None)
+        assert session.member() is None and session.profile().records == ()
+
+    def test_the_arrays_noise_share_comes_from_the_pooled_rows(self):
+        # the share of a channel's noise that is its own: the package's rows for the scanner at the array's channel
+        # count, until the operator reads one off a scan of their own
+        from mrsandbox.scan.calibrations import calibrations
+
+        session = Session(ICBM)
+        share, source, provenance = session.own_share()
+        assert source == "pooled" and provenance.startswith("pooled over")
+        assert share == calibrations("generic_3t", channels=32)["coils.loaded.own_noise"].value
+        session.own_noise = 0.4
+        assert session.own_share() == (0.4, "own", "read from your scan with the coils apart")
+
+    def test_a_source_chosen_for_a_leaf_reaches_the_scan(self, tmp_path):
+        # every Sourced leaf lists its sources with where each comes from; a choice of literature or measured is applied to
+        # every scan of the session (Session.twin) and saved with the protocol; an override makes the leaf custom
+        session = Session(ICBM)
+        sources = session.sources()
+        assert sources["lineshape.gauss_hz"]["chosen"] == "literature" and set(sources["lineshape.gauss_hz"]["sources"]) == {"literature", "pooled"}
+        assert sources["noise.sigma"]["chosen"] == "pooled" and sources["noise.sigma"]["provenance"]["pooled"].startswith("pooled over")
+        assert sources["lineshape.gauss_hz"]["sources"]["literature"] == ("range", (2.0, 6.0)) and sources["lineshape.gauss_hz"]["sources"]["pooled"][0] == "empirical"
+        session.choices["lineshape.gauss_hz"] = "pooled"
+        leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
+        assert leaves["lineshape.gauss_hz"][0] == "empirical" and session.sources()["lineshape.gauss_hz"]["chosen"] == "pooled"
+        assert session.twin().params.lineshape.gauss_hz.chosen == "pooled"
+        session.LIBRARY = tmp_path
+        session.save_protocol("chosen")
+        fresh = Session(ICBM)
+        fresh.LIBRARY = tmp_path
+        fresh.load_protocol("chosen")
+        assert fresh.choices == {"lineshape.gauss_hz": "pooled"}
+
     def test_the_card_promises_and_the_exam_delivers(self, tmp_path):
         session = Session(ICBM)
+        session.scanner = "siemens_prisma_3t"      # these gates were written on the Prisma (the console opens on a generic 3 T)
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.averages, session.protocol.npoints = 6, 1024
         look = session.outlook()
         assert look["gm"] + look["wm"] + look["csf"] == pytest.approx(1.0, abs=0.02)
         assert look["scan_time_s"] == 12.0 and look["violations"] == () and look["limits"] == (25.0, 80.0, 200.0)
-        assert look["records"]["noise.sigma"]["source"].startswith("COWS")     # the Prisma's own record
+        assert look["records"]["noise.sigma"]["source"].endswith("cows_prisma")     # the Prisma's own rows, pooled
         exam = session.plan()
         assert exam.name == "1 PRESS TE 30" and exam.status == "planned" and session.queue == [exam]
         session.position_mm = [20.0, 0.0, 30.0]                                 # the exam keeps the voxel it was planned with
@@ -406,7 +503,11 @@ class TestSession:
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         leaves = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves()}
-        assert leaves["noise.sigma"] == ("range", (3.7, 6.9)) and leaves["water.temperature_c"] == ("fixed", (37.0,))
+        from mrsandbox.scan.calibrations import calibrations
+
+        sigma = calibrations("generic_3t")["noise.sigma"]
+        assert leaves["noise.sigma"] == ("empirical", (sigma.value, *sigma.prior, float(sigma.measured["subjects"])))    # the pooled rows, one per draw
+        assert leaves["water.temperature_c"] == ("fixed", (37.0,))
         assert leaves["water.t1_s"][0] == "other"                               # a tissue record, shown and not edited
         session.overrides.update({"conc.NAA": 20.0, "noise.sigma": (1.0, 1.5)})
         changed = {path: numbers for path, _, numbers, touched in session.leaves() if touched}
@@ -417,6 +518,7 @@ class TestSession:
 
     def test_a_design_of_blocks_draws_as_a_diagram_and_scans(self):
         session = Session(ICBM)
+        session.scanner = "siemens_prisma_3t"      # written on the Prisma: the generic 3 T pools every vendor's leaked water
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.real = False
@@ -464,6 +566,7 @@ class TestSession:
 
     def test_a_spectroscopic_image_is_a_card_too(self):
         session = Session(ICBM)
+        session.scanner = "siemens_prisma_3t"      # written on the Prisma: the generic 3 T pools every vendor's leaked water
         session.protocol.water_reference = 0       # one card, one exam; the reference has a test of its own
         session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.sequence, session.protocol.npoints, session.protocol.bandwidth_hz = "MRSI PRESS", 512, 2000.0
@@ -483,10 +586,10 @@ class TestSession:
         session.protocol.water_reference, session.protocol.water_suppression = 0, "assumed residual"
         session.protocol.averages, session.protocol.npoints, session.protocol.real = 2, 512, False
         session.field_t = 1.5
-        assert session.profile().scanner.name == "siemens_prisma_3t" and session.profile().scanner.b0_t == 1.5
+        assert session.profile().scanner.name == "generic_3t" and session.profile().scanner.b0_t == 1.5
         exam = session.run(session.plan(), seed=3)
         assert float(exam.data.hdr_ext["SpectrometerFrequency"][0]) == pytest.approx(42.5774785 * 1.5, rel=1e-3)
         assert exam.room["field_t"] == 1.5
         session.field_t = None
-        assert session.profile().scanner.b0_t == 2.895                    # the Prisma's own field, as its headers state it
+        assert session.profile().scanner.b0_t == 3.0                      # the generic system's nominal field
 
