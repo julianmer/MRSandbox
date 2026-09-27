@@ -249,13 +249,13 @@ class MotionReading:
 class RunReading:
     """What a run's transients, kept apart, say of the scanner and the subject over it. Every
     transient is registered to the mean one on the first 100 ms of the FID (Near et al. 2015's
-    spectral registration, here a weighted line fitted to the phase of transient times the
-    mean's conjugate): a frequency, a phase and an amplitude per transient. Off those tracks:
+    spectral registration, here the peak of the cross spectrum of transient and mean, its
+    least-squares frequency): a frequency, a phase and an amplitude per transient. Off those tracks:
     the drift is the frequency's slope in time; the breathing the frequency's amplitude in the
     0.15 to 0.5 Hz band (a sine's amplitude, root two times the band's rms); the wander what
     is left of the frequency after the line and the band; the phase jitter the phase's
     spread about its own trend; the amplitude jitter the amplitude's spread over its mean;
-    an event a step of the frequency or the phase past four times its median step.
+    an event a step of the frequency or the phase past six times its median step.
 
     Attributes:
         frequency_hz, phase_deg, amplitude: The tracks, one value per transient.
@@ -281,20 +281,20 @@ class RunReading:
         if x.shape[1] < 8:
             raise ValueError("a run reading needs at least eight transients apart")
         n = min(x.shape[0], int(round(window_s / dwell_s)))
-        t = np.arange(n) * dwell_s
         mean = x[:n].mean(axis=1)
-        weight = np.abs(mean) ** 2
-        frequencies, phases, amplitudes = [], [], []
-        for k in range(x.shape[1]):
-            cross = x[:n, k] * np.conj(mean)
-            # the phase of the cross product is a line 2 pi f t + phi, unwrapped and fitted with the mean's power as weight
-            angle = np.unwrap(np.angle(cross))
-            slope, intercept = np.polyfit(t, angle, 1, w=np.sqrt(weight))
-            frequencies.append(slope / (2.0 * np.pi))
-            phases.append(np.degrees(intercept))
-            amplitudes.append(float(np.abs(cross).sum() / weight.sum()))
-        return cls(frequency_hz=np.asarray(frequencies), phase_deg=np.asarray(phases), amplitude=np.asarray(amplitudes), tr_s=float(tr_s),
-                   header=dict(header or {}))
+        cross = x[:n] * np.conj(mean)[:, None]
+        # the least-squares frequency of a transient against the mean is the peak of their cross spectrum, with no phase
+        # to unwrap (a line unwrapped over the window wrapped with the noise where the signal had gone: every 7 T run, some
+        # GE runs), found on a sixteenfold grid and refined by a parabola through the top; the phase and the amplitude
+        # are the peak's
+        grid = 16 * n
+        spectrum = np.abs(np.fft.fft(cross, grid, axis=0))
+        top = np.argmax(spectrum, axis=0)
+        below, at, above = (spectrum[(top + step) % grid, np.arange(x.shape[1])] for step in (-1, 0, 1))
+        frequency = np.fft.fftfreq(grid, dwell_s)[top] + 0.5 * (below - above) / (below - 2.0 * at + above) / (grid * dwell_s)
+        peak = (cross * np.exp(-2j * np.pi * np.outer(np.arange(n) * dwell_s, frequency))).sum(axis=0)
+        return cls(frequency_hz=frequency, phase_deg=np.degrees(np.angle(peak)), amplitude=np.abs(peak) / (np.abs(mean) ** 2).sum(),
+                   tr_s=float(tr_s), header=dict(header or {}))
 
     @classmethod
     def from_nifti(cls, source, tr_s=None):
@@ -362,9 +362,11 @@ class RunReading:
 
     @property
     def events(self):
-        """The transients where the frequency or the phase steps past four times its median step."""
+        """The transients where the frequency or the phase steps past six times its median step: four
+        standard deviations of a white track's steps, passed once in about a hundred runs of 128 transients
+        (four times, 2.7 deviations, passed once a run, and each such step was taken out of the drift)."""
         steps_f, steps_p = np.abs(np.diff(self.frequency_hz)), np.abs(np.diff(self.phase_deg))
-        return np.flatnonzero((steps_f > 4.0 * np.median(steps_f) + 1e-9) | (steps_p > 4.0 * np.median(steps_p) + 1e-9)) + 1
+        return np.flatnonzero((steps_f > 6.0 * np.median(steps_f) + 1e-9) | (steps_p > 6.0 * np.median(steps_p) + 1e-9)) + 1
 
     #*************#
     #   records   #
@@ -377,9 +379,9 @@ class RunReading:
                   "run.resp_amp_hz": (self.resp_amp_hz, "the frequency track's amplitude in the 0.15 to 0.5 Hz band"),
                   "run.phase_jitter_deg": (self.phase_jitter_deg, "the phase track's spread about its line"),
                   "run.amp_jitter_frac": (self.amp_jitter_frac, "the amplitude track's spread over its mean"),
-                  "run.events_per_min": (self.events.size / self.minutes, "steps of the frequency or the phase past four times the median step, a minute")}
+                  "run.events_per_min": (self.events.size / self.minutes, "steps of the frequency or the phase past six times the median step, a minute")}
         # the rule: a registration whose wander passes 10 Hz or whose phase jitter passes 60 degrees did not register the
-        # transients (the phase wraps within the window, or the stored transients carry a receiver cycle): every row fails
+        # transients (the stored transients carry a receiver cycle, or water the loader did not part): every row fails
         failed = ("" if self.ar_sigma_hz <= 10.0 and self.phase_jitter_deg <= 60.0 else
                   f"the transients did not register: wander {self.ar_sigma_hz:.1f} Hz, phase jitter {self.phase_jitter_deg:.0f} degrees")
         made = []
@@ -388,7 +390,7 @@ class RunReading:
             made.append(Calibration(leaf=leaf, value=value, prior=tuple(sorted((round(0.75 * value, 6), round(1.25 * value, 6)))), failed=failed,
                                     measured={"statistic": f"{statistic} (scan.run.RunReading)", "transients": int(self.frequency_hz.size), "minutes": round(self.minutes, 2)},
                                     acquisition={"tr_s": self.tr_s, "registration": "each transient to the mean on the first 100 ms"}, voxel={},
-                                    processing="the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+                                    processing="the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
                                     **{**_conditions(self.header, dataset, citation, url, "run"),
                                        "carried_by": "scanner" if leaf in ("run.drift_hz_per_min", "run.ar_sigma_hz", "run.phase_jitter_deg", "run.amp_jitter_frac") else "subject"}))
         return tuple(made)

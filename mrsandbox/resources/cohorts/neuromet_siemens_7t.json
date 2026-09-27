@@ -22,25 +22,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -92,15 +93,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -1735,25 +1736,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -1805,15 +1807,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -3448,25 +3450,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -3518,15 +3521,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -5161,25 +5164,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -5231,15 +5235,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -6874,25 +6878,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -6944,15 +6949,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -8587,25 +8592,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -8657,15 +8663,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -10300,25 +10306,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -10370,15 +10377,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -12013,25 +12020,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -12083,15 +12091,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",
@@ -13726,25 +13734,26 @@
      "max_grad_mt_m": 70.0,
      "max_slew_t_m_s": 200.0,
      "vendor": null,
-     "model": null
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.78,
+      "value": 4.37,
       "prior": [
-       2.84,
-       4.73
+       3.28,
+       5.47
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 58.7,
-       "implied_value": 3.72,
+       "implied_value": 4.21,
        "naa_found_at_ppm": 1.976,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 211.7,
-        "implied_value": 3.78
+        "implied_value": 4.37
        }
       },
       "source": {
@@ -13796,15 +13805,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.71,
+      "value": 10.36,
       "prior": [
-       8.03,
-       13.39
+       7.77,
+       12.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.95,
-       "twin_without_broadening_hz": 3.84
+       "twin_without_broadening_hz": 3.99
       },
       "source": {
        "dataset": "NeuroMET SPECIAL MRS reproducibility, the first hyperbolic secant scan of each subject's first session (CC BY-NC-SA 4.0)",

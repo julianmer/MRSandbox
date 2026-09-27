@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 from scipy import signal
 
-from mrsandbox import Brain, Params, Press, Receiver, Scanner, VirtualScan
+from mrsandbox import Brain, CoupledMM, Params, Press, Receiver, Scanner, VirtualScan
 
 
 #**************************************************************************************************#
@@ -87,8 +87,10 @@ class TestScan:
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                        acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
-        ideal = VirtualScan(brain, *pieces, params=quiet).voxel(**kw)
-        real = VirtualScan(brain, *pieces, params=quiet, receiver=Receiver()).voxel(**kw)
+        # the coupled systems: the measured shape carries a flat floor to the band's edges (8 percent of its peak, its
+        # measurement's own), which the filter trims all along the FID (info/HANDOFF.md item 245)
+        ideal = VirtualScan(brain, *pieces, params=quiet, mm=CoupledMM()).voxel(**kw)
+        real = VirtualScan(brain, *pieces, params=quiet, mm=CoupledMM(), receiver=Receiver()).voxel(**kw)
         clean, filtered = ideal.fid(seed=7, npoints=512)[1], real.fid(seed=7, npoints=512)[1]
         assert 0.45 < abs(filtered[0] / clean[0]) < 0.65
         assert np.abs(filtered[1:8] - clean[1:8]).max() > 5e-3 * np.abs(clean).max()

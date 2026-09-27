@@ -14,6 +14,8 @@
 #*************#
 #   imports   #
 #*************#
+import json
+
 import numpy as np
 import pytest
 
@@ -103,3 +105,41 @@ class TestConsole:
         session.choices["lineshape.gauss_hz"] = "pooled"
         session.reset_room()
         assert session.scanner == "generic_3t" and session.hardware == {} and session.choices == {} and session.calibration is None and session.files == {}
+
+    def test_the_card_takes_the_model_from_the_bids_sidecar_and_the_array_from_the_channels(self, tmp_path):
+        # as ds006444 ships: the NIfTI-MRS header names the station, the dataset's sidecar the model; 32 channels apart
+        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
+        from nifti_mrs.hdr_ext import Hdr_Ext
+
+        from mrsandbox.console.session import Session
+
+        (tmp_path / "sub-01" / "mrs").mkdir(parents=True)
+        (tmp_path / "acq-slaser_svs.json").write_text(json.dumps({"Manufacturer": "GE", "ManufacturersModelName": "Discovery MR750"}))
+        hdr = Hdr_Ext(127.74, "1H")
+        hdr.set_dim_info(0, "DIM_COIL")
+        hdr.set_dim_info(1, "DIM_DYN")
+        hdr.set_standard_def("Manufacturer", "GE")
+        hdr.set_standard_def("ManufacturersModelName", "CBICMR30X")
+        run = tmp_path / "sub-01" / "mrs" / "sub-01_acq-slaser_svs.nii.gz"
+        gen_nifti_mrs_hdr_ext((np.random.default_rng(0).normal(size=(1, 1, 1, 64, 32, 4)) + 0j).astype(np.complex64), 5e-4, hdr).save(run)
+        session = Session("Brain, ICBM152 average, 2 mm")
+        was = session.card_from(run)
+        assert was["scanner"] == "ge_mr750_3t" and was["array"] == "head array" and len(session.array()) == 32
+
+    def test_a_relaxation_map_gives_the_water_its_t1_per_tissue(self, tmp_path):
+        # an R1 map of the subject on the floor (1 / T1 of the stated values mixed by the anatomy's own tissues), read per
+        # tissue: the water's T1 becomes the operator's own, per tissue
+        import nibabel as nib
+
+        from mrsandbox.console.session import Session
+
+        session = Session("Brain, ICBM152 average, 2 mm")
+        maps = session.body().maps
+        t1 = sum(value * maps.data[..., k] for k, value in enumerate((1.5, 0.8, 4.0)))
+        nib.save(nib.Nifti1Image(np.divide(1.0, t1, out=np.zeros_like(t1), where=t1 > 0.1).astype(np.float32), maps.affine), tmp_path / "sub-01_R1map.nii.gz")
+        report = {file: (kind, gave) for file, kind, gave in session.replicate(tmp_path)}
+        assert report["sub-01_R1map.nii.gz"][0] == "R1 map" and report["sub-01_R1map.nii.gz"][1].startswith("the water's T1 per tissue: gm 1.5")
+        read = {r.leaf: r.value for r in session.run_records}                        # a pure cell still holds 5 percent of another tissue
+        assert read["water.t1_s.gm"] == pytest.approx(1.5, rel=0.02) and read["water.t1_s.wm"] == pytest.approx(0.8, rel=0.02)
+        leaf = session.twin().params["water"]["t1_s"]
+        assert leaf.chosen == "own" and leaf.own.gm.low < 1.5 < leaf.own.gm.high

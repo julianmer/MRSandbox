@@ -19,8 +19,9 @@ import dataclasses
 import numpy as np
 import pytest
 
-from mrsandbox import Brain, CoilArray, Params, Press, Scanner, ScannerProfile, VirtualScan
+from mrsandbox import Brain, CoilArray, CoupledMM, Params, Press, Scanner, ScannerProfile, VirtualScan
 from mrsandbox.scan import cohort as cohorts
+from mrsandbox.scan.calibrate import WaterReading, _raw
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.voxel import noise_scale
 
@@ -171,20 +172,26 @@ class TestScannerProfile:
         n, dwell_s = 2048, 1.0 / 2000.0
         params = CALM | Params(water=dict(residual_fraction=0.01), acquisition=dict(delay_s=-0.0004), lineshape=dict(gauss_hz=0.0))
         press = Press(te1_s=0.011, te2_s=0.024)
-        files = {}
+        files, arrays = {}, {}
         for name, water in (("scan", None), ("reference", Unsuppressed())):
-            scan = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press, params=params, **({} if water is None else {"water": water}))
+            # the coupled systems: the measured shape does not take a receiver delay yet (info/HANDOFF.md item 245, open)
+            scan = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press, params=params, mm=CoupledMM(),
+                                                            **({} if water is None else {"water": water}))
             voxel = scan.voxel(PLACE, SIZE)
             _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
             fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n) * dwell_s)
             noise = 0.02 * np.abs(fid).max() * (np.random.default_rng(2).normal(size=(n, 1, 8)) + 1j * np.random.default_rng(3).normal(size=(n, 1, 8)))
-            data = fid[:, None, None] + noise
+            arrays[name] = fid[:, None, None] + noise
+        # the same run with two of its water's transients interleaved (ds005917 stores one every 16th)
+        arrays["mixed"] = np.concatenate([arrays["scan"][..., :4], arrays["reference"][..., :1], arrays["scan"][..., 4:],
+                                          arrays["reference"][..., 1:2]], axis=2)
+        for name, data in arrays.items():
             hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
             hdr.set_dim_info(0, "DIM_COIL")
             hdr.set_dim_info(1, "DIM_DYN")
             files[name] = tmp_path / f"{name}.nii.gz"
             gen_nifti_mrs_hdr_ext(data[None, None, None], dwell_s, hdr).save(files[name])
-        twin = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press, params=CALM).voxel(PLACE, SIZE, compiled=True)
+        twin = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press, params=CALM, mm=CoupledMM()).voxel(PLACE, SIZE, compiled=True)
         profile = ScannerProfile.read(files["scan"], twin, "a virtual scanner", reference=files["reference"])
         records = profile.calibrations()
         assert records["water.adjusted_residual"].value == pytest.approx(0.01, rel=0.15)          # upright, one percent
@@ -197,6 +204,13 @@ class TestScannerProfile:
         assert not records["acquisition.delay_s"].fallback
         intrinsic = records["acquisition.delay_s"].measured["intrinsic_phase_deg"]          # the twin's own creatine phase, taken out
         assert intrinsic != 0.0 and -30.0 < intrinsic < 30.0
+        # the interleaved run is parted on loading: the run alone, and its water as its own reference, read as the two files
+        assert _raw(files["mixed"])[0].shape[2] == 8 and _raw(files["mixed"], water=True)[0].shape[2] == 2
+        apart, together = WaterReading.from_nifti(files["scan"], files["reference"]), WaterReading.from_nifti(files["mixed"])
+        assert together.residual_over_full == pytest.approx(apart.residual_over_full, rel=0.05)
+        assert together.creatine_phase_deg == pytest.approx(apart.creatine_phase_deg, abs=0.5)
+        with pytest.raises(ValueError, match="interleaves no water"):
+            WaterReading.from_nifti(files["scan"])
         # the reading's twin carries both in its tree, as the console's does after a calibration (nothing set on them here)
         twin = profile.scan(Brain.load("icbm152"), press, params=Params(spurious=dict(amplitude=0.0))).voxel(PLACE, SIZE)
         assert twin.scan.params["acquisition"]["delay_s"].low < -0.0003

@@ -20,7 +20,7 @@ import json
 
 from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
-from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading, WaterReading
+from mrsandbox.scan.calibrate import CovarianceReading, NoiseReading, SpectrumReading, WaterReading, _raw
 from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
 
@@ -96,12 +96,14 @@ class ScannerProfile:
         the share of the channels' noise that is their own (CovarianceReading; `load` says
         what was in the coil), and the profile's coils are the array so loaded, its
         combined noise the drawn sigma at the twin's place. With `reference`, the same
-        voxel's unsuppressed water (NIfTI-MRS, transients apart), the residual water the
-        scanner's suppression leaves and its receiver delay become records too
-        (WaterReading)."""
+        voxel's unsuppressed water (NIfTI-MRS, transients apart), or the water transients the
+        run interleaves with its own, the residual water the scanner's suppression leaves and
+        its receiver delay become records too (WaterReading)."""
+        interleaved = reference is None and _raw(source, water=True)[0].shape[2] > 0
         return cls.from_readings(SpectrumReading.from_nifti(source), NoiseReading.from_nifti(source, excitations), voxel, dataset,
                                  covariance=None if array is None else CovarianceReading.from_nifti(source), array=array, load=load,
-                                 water=None if reference is None else WaterReading.from_nifti(source, reference), seeds=seeds)
+                                 water=WaterReading.from_nifti(source, reference) if reference is not None or interleaved else None,
+                                 seeds=seeds)
 
     #*********************#
     #   from readings     #

@@ -19,6 +19,8 @@
 import numpy as np
 
 from mrsandbox.engine import Engine
+from mrsandbox.phantom.macromolecules import CoupledMM
+from mrsandbox.phantom.solution import Phantom
 from mrsandbox.scan.virtual_scan import VirtualScan
 from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
 
@@ -66,8 +68,12 @@ class Multiplex:
         self.compiled = compiled
         self.brain = brain
         self.scanner = scanner
-        # one engine for every condition: designs of one structure share its graphs
-        self._kwargs = dict(kwargs, engine=Engine(scanner, isochromats=kwargs.pop("isochromats", 32)))
+        # one engine for every condition: designs of one structure share its graphs; a caller that builds room after room
+        # (the console, exam after exam) passes its own, so the graphs outlive the room
+        isochromats = kwargs.pop("isochromats", 32)
+        if self.combinations and "mm" not in kwargs and not isinstance(brain, Phantom):
+            kwargs["mm"] = CoupledMM()          # a weighted difference edits: the coupled systems, as VirtualScan gives an editing design
+        self._kwargs = dict(kwargs, engine=kwargs.pop("engine", None) or Engine(scanner, isochromats=isochromats))
         self.scans = {}
         for name, sequence in sequences.items():
             self.add(name, sequence)

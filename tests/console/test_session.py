@@ -179,6 +179,19 @@ class TestSession:
         session.queue.append(again)
         assert not np.allclose(session.run(again).frames[-1][1], scan.frames[-1][1])   # its own noise at another place in the queue
 
+    def test_one_engine_serves_every_exam_and_the_physics_is_the_same(self):
+        # the engine of a field is kept across exams, so its graphs are built once (item 245); an exam on the kept engine
+        # equals the one that built it, a preview at the same place and seed
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
+        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 4, 512
+        first = session.run(session.plan(queued=False), seed=3)
+        engine = session._bodies[("engine", session.profile().scanner.b0_t)]
+        kept = session.run(session.plan(queued=False), seed=3)
+        assert session._bodies[("engine", session.profile().scanner.b0_t)] is engine and engine._compiled
+        assert np.array_equal(np.asarray(kept.data[:]), np.asarray(first.data[:]))
+
     def test_the_scanner_drifts_through_the_session_and_a_prescan_centres_it(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0
@@ -506,7 +519,8 @@ class TestSession:
         from mrsandbox.scan.calibrations import calibrations
 
         sigma = calibrations("generic_3t")["noise.sigma"]
-        assert leaves["noise.sigma"] == ("empirical", (sigma.value, *sigma.prior, float(sigma.measured["subjects"])))    # the pooled rows, one per draw
+        assert leaves["noise.sigma"][0] == "empirical"                                                                # the pooled rows, one per draw
+        assert leaves["noise.sigma"][1] == pytest.approx((sigma.value, *sigma.prior, float(sigma.measured["subjects"])))
         assert leaves["water.temperature_c"] == ("fixed", (37.0,))
         assert leaves["water.t1_s"][0] == "other"                               # a tissue record, shown and not edited
         session.overrides.update({"conc.NAA": 20.0, "noise.sigma": (1.0, 1.5)})

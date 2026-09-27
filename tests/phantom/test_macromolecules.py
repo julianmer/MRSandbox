@@ -18,7 +18,7 @@
 import numpy as np
 import pytest
 
-from mrsandbox import (Brain, ChallengeMM, MeasuredMM, NoMM, ParameterizedMM, Params, Press,
+from mrsandbox import (Brain, ChallengeMM, CoupledMM, MeasuredMM, NoMM, ParameterizedMM, Params, Press,
                        Scanner, VirtualScan)
 from mrsandbox.resources import Resources
 from mrsandbox.database import macromolecules
@@ -321,7 +321,7 @@ class TestCoupled:
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                       mm=dict(kappa=7.0), **params)
         pieces = (Scanner.preset("generic_3t"), sequence)
-        with_mm = VirtualScan(brain, *pieces, params=tree)
+        with_mm = VirtualScan(brain, *pieces, params=tree, mm=CoupledMM())          # the package's default is the measured shape
         without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         ppm, s1 = with_mm.voxel(**kw).spectrum(seed=seed, npoints=4096)
@@ -346,7 +346,7 @@ class TestCoupled:
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                       mm=dict(kappa=10.4), oov=dict(fraction=0.0))       # the leaked water's wings out of the window
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
-        with_mm = VirtualScan(brain, *pieces, params=tree)
+        with_mm = VirtualScan(brain, *pieces, params=tree, mm=CoupledMM())          # the package's default is the measured shape
         without = VirtualScan(brain, *pieces, params=tree, mm=NoMM())
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         ppm, s1 = with_mm.voxel(**kw).spectrum(seed=7, npoints=4096)
@@ -381,7 +381,7 @@ class TestCoupled:
                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
-        _, s1 = VirtualScan(brain, *pieces, params=tree).voxel(**kw).spectrum(seed=7, npoints=1024)
+        _, s1 = VirtualScan(brain, *pieces, params=tree, mm=CoupledMM()).voxel(**kw).spectrum(seed=7, npoints=1024)
         _, s0 = VirtualScan(brain, *pieces, params=tree, mm=NoMM()).voxel(**kw).spectrum(seed=7, npoints=1024)
         np.testing.assert_array_equal(np.asarray(s1), np.asarray(s0))
 

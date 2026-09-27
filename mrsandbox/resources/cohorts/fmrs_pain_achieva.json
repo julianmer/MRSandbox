@@ -23,25 +23,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 11.31,
+      "value": 12.99,
       "prior": [
-       8.48,
-       14.13
+       9.75,
+       16.24
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.2,
-       "implied_value": 10.27,
+       "implied_value": 11.72,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 41.1,
-        "implied_value": 11.31
+        "implied_value": 12.99
        }
       },
       "source": {
@@ -97,15 +97,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.46,
+      "value": 4.95,
       "prior": [
-       4.09,
-       6.83
+       3.71,
+       6.19
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 8.71,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -224,16 +224,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0002939,
+      "value": -0.0001544,
       "prior": [
-       -0.0003674,
-       -0.0002204
+       -0.000193,
+       -0.0001158
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -293.9,
+       "delay_us": -154.4,
        "creatine_phase_deg": -8.9,
-       "intrinsic_phase_deg": 4.8,
+       "intrinsic_phase_deg": -1.7,
        "creatine_offset_hz": 130.3
       },
       "source": {
@@ -419,10 +419,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.655209,
+      "value": 0.671636,
       "prior": [
-       0.491407,
-       0.819011
+       0.503727,
+       0.839545
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -455,7 +455,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -465,10 +465,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 2.36438,
+      "value": 2.409095,
       "prior": [
-       1.773285,
-       2.955475
+       1.806821,
+       3.011369
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -501,7 +501,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -547,7 +547,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -557,10 +557,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 5.375483,
+      "value": 8.037742,
       "prior": [
-       4.031612,
-       6.719354
+       6.028306,
+       10.047178
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -593,7 +593,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -603,10 +603,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.152398,
+      "value": 0.161835,
       "prior": [
-       0.114298,
-       0.190498
+       0.121376,
+       0.202294
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -639,7 +639,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -649,13 +649,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 2.484375,
+      "value": 0.703125,
       "prior": [
-       1.863281,
-       3.105469
+       0.527344,
+       0.878906
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -685,7 +685,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -721,25 +721,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.99,
+      "value": 10.32,
       "prior": [
-       6.74,
-       11.24
+       7.74,
+       12.9
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.7,
-       "implied_value": 8.61,
+       "implied_value": 9.8,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 52.0,
-        "implied_value": 8.99
+        "implied_value": 10.32
        }
       },
       "source": {
@@ -795,15 +795,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.17,
+      "value": 4.71,
       "prior": [
-       3.88,
-       6.46
+       3.53,
+       5.89
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 8.35,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -922,16 +922,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 3.47e-05,
+      "value": 3.7e-06,
       "prior": [
-       2.6e-05,
-       4.33e-05
+       2.8e-06,
+       4.6e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 34.7,
+       "delay_us": 3.7,
        "creatine_phase_deg": -20.3,
-       "intrinsic_phase_deg": -21.9,
+       "intrinsic_phase_deg": -20.5,
        "creatine_offset_hz": 130.5
       },
       "source": {
@@ -1117,10 +1117,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.110769,
+      "value": -0.128581,
       "prior": [
-       0.083077,
-       0.138461
+       -0.160726,
+       -0.096436
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -1153,7 +1153,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1163,10 +1163,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 0.812696,
+      "value": 0.585503,
       "prior": [
-       0.609522,
-       1.01587
+       0.439127,
+       0.731879
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -1199,7 +1199,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1245,7 +1245,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -1255,10 +1255,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 5.95105,
+      "value": 7.137445,
       "prior": [
-       4.463287,
-       7.438813
+       5.353084,
+       8.921806
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -1291,7 +1291,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1301,10 +1301,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.231487,
+      "value": 0.235702,
       "prior": [
-       0.173615,
-       0.289359
+       0.176777,
+       0.294627
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -1337,7 +1337,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1347,13 +1347,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.96875,
+      "value": 0.515625,
       "prior": [
-       1.476562,
-       2.460938
+       0.386719,
+       0.644531
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -1383,7 +1383,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -1419,25 +1419,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.09,
+      "value": 11.59,
       "prior": [
-       7.57,
-       12.62
+       8.69,
+       14.49
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.3,
-       "implied_value": 9.71,
+       "implied_value": 11.08,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 46.4,
-        "implied_value": 10.09
+        "implied_value": 11.59
        }
       },
       "source": {
@@ -1493,15 +1493,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.1,
+      "value": 4.62,
       "prior": [
-       3.82,
-       6.38
+       3.46,
+       5.78
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 8.23,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -1620,16 +1620,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0004139,
+      "value": 0.000123,
       "prior": [
-       -0.0005174,
-       -0.0003104
+       9.22e-05,
+       0.0001537
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -413.9,
+       "delay_us": 123.0,
        "creatine_phase_deg": -3.0,
-       "intrinsic_phase_deg": 16.4,
+       "intrinsic_phase_deg": -8.8,
        "creatine_offset_hz": 130.1
       },
       "source": {
@@ -1815,10 +1815,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.02242,
+      "value": 0.011183,
       "prior": [
-       -0.028025,
-       -0.016815
+       0.008387,
+       0.013979
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -1851,7 +1851,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1861,10 +1861,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.63341,
+      "value": 1.211186,
       "prior": [
-       1.225058,
-       2.041762
+       0.90839,
+       1.513983
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -1897,7 +1897,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1943,7 +1943,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -1953,10 +1953,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 4.465588,
+      "value": 1.777133,
       "prior": [
-       3.349191,
-       5.581985
+       1.33285,
+       2.221416
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -1989,7 +1989,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -1999,10 +1999,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.262242,
+      "value": 0.263797,
       "prior": [
-       0.196681,
-       0.327802
+       0.197848,
+       0.329746
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -2035,7 +2035,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -2045,13 +2045,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.515625,
+      "value": 0.09375,
       "prior": [
-       0.386719,
-       0.644531
+       0.070312,
+       0.117188
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -2081,7 +2081,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -2117,25 +2117,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 9.71,
+      "value": 11.13,
       "prior": [
-       7.28,
-       12.14
+       8.35,
+       13.91
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 15.3,
-       "implied_value": 8.9,
+       "implied_value": 9.99,
        "naa_found_at_ppm": 1.967,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 49.2,
-        "implied_value": 9.71
+        "implied_value": 11.13
        }
       },
       "source": {
@@ -2191,15 +2191,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.02,
+      "value": 3.72,
       "prior": [
-       3.01,
-       5.02
+       2.79,
+       4.65
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.98,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -2318,16 +2318,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0008121,
+      "value": -0.000207,
       "prior": [
-       0.000609,
-       0.0010151
+       -0.0002588,
+       -0.0001553
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 812.1,
+       "delay_us": -207.0,
        "creatine_phase_deg": -10.6,
-       "intrinsic_phase_deg": -48.6,
+       "intrinsic_phase_deg": -0.9,
        "creatine_offset_hz": 130.0
       },
       "source": {
@@ -2513,10 +2513,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.81834,
+      "value": -0.06185,
       "prior": [
-       -1.022925,
-       -0.613755
+       -0.077313,
+       -0.046387
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -2549,7 +2549,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -2559,10 +2559,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 20.348475,
+      "value": 0.49897,
       "prior": [
-       15.261356,
-       25.435594
+       0.374228,
+       0.623713
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -2595,7 +2595,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -2641,7 +2641,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -2651,10 +2651,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 38.422462,
+      "value": 3.041255,
       "prior": [
-       28.816847,
-       48.028078
+       2.280941,
+       3.801569
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -2687,7 +2687,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -2697,10 +2697,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.050644,
+      "value": 0.046762,
       "prior": [
-       0.037983,
-       0.063305
+       0.035071,
+       0.058452
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -2733,7 +2733,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -2743,13 +2743,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.640625,
+      "value": 0.09375,
       "prior": [
-       1.230469,
-       2.050781
+       0.070312,
+       0.117188
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -2779,7 +2779,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -2815,25 +2815,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.2,
+      "value": 11.94,
       "prior": [
-       7.65,
-       12.75
+       8.96,
+       14.93
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.0,
-       "implied_value": 9.53,
+       "implied_value": 10.97,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 45.2,
-        "implied_value": 10.2
+        "implied_value": 11.94
        }
       },
       "source": {
@@ -2889,15 +2889,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.35,
+      "value": 5.7,
       "prior": [
-       4.76,
-       7.94
+       4.28,
+       7.12
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 9.82,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -3016,16 +3016,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 1.52e-05,
+      "value": -8.81e-05,
       "prior": [
-       1.14e-05,
-       1.9e-05
+       -0.0001101,
+       -6.61e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 15.2,
+       "delay_us": -88.1,
        "creatine_phase_deg": -19.7,
-       "intrinsic_phase_deg": -20.4,
+       "intrinsic_phase_deg": -15.5,
        "creatine_offset_hz": 130.9
       },
       "source": {
@@ -3211,10 +3211,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.006544,
+      "value": 0.216623,
       "prior": [
-       0.004908,
-       0.00818
+       0.162467,
+       0.270779
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -3247,7 +3247,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -3257,10 +3257,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 6.065088,
+      "value": 0.888978,
       "prior": [
-       4.548816,
-       7.58136
+       0.666734,
+       1.111223
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -3293,7 +3293,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -3339,7 +3339,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -3349,10 +3349,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 186.606092,
+      "value": 15.797446,
       "prior": [
-       139.954569,
-       233.257615
+       11.848085,
+       19.746808
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -3385,7 +3385,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -3395,10 +3395,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.16851,
+      "value": 0.184108,
       "prior": [
-       0.126383,
-       0.210637
+       0.138081,
+       0.230135
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -3431,7 +3431,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -3441,13 +3441,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.0,
+      "value": 1.453125,
       "prior": [
-       0.0,
-       0.0
+       1.089844,
+       1.816406
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -3477,7 +3477,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -3513,25 +3513,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 12.14,
+      "value": 13.91,
       "prior": [
-       9.1,
-       15.17
+       10.44,
+       17.39
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.5,
-       "implied_value": 10.65,
+       "implied_value": 12.01,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 39.2,
-        "implied_value": 12.14
+        "implied_value": 13.91
        }
       },
       "source": {
@@ -3587,15 +3587,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.18,
+      "value": 3.84,
       "prior": [
-       3.13,
-       5.22
+       2.88,
+       4.8
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.16,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -3714,16 +3714,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0001153,
+      "value": 6.6e-06,
       "prior": [
-       8.65e-05,
-       0.0001442
+       4.9e-06,
+       8.2e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 115.3,
+       "delay_us": 6.6,
        "creatine_phase_deg": -19.6,
-       "intrinsic_phase_deg": -25.0,
+       "intrinsic_phase_deg": -19.9,
        "creatine_offset_hz": 130.4
       },
       "source": {
@@ -3909,10 +3909,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.50728,
+      "value": 0.269931,
       "prior": [
-       0.38046,
-       0.6341
+       0.202448,
+       0.337414
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -3945,7 +3945,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -3955,10 +3955,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.520077,
+      "value": 1.281427,
       "prior": [
-       1.140058,
-       1.900096
+       0.96107,
+       1.601784
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -3991,7 +3991,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4037,7 +4037,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -4047,10 +4047,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 24.688649,
+      "value": 13.259819,
       "prior": [
-       18.516487,
-       30.860811
+       9.944864,
+       16.574774
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -4083,7 +4083,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4093,10 +4093,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.127196,
+      "value": 0.12903,
       "prior": [
-       0.095397,
-       0.158995
+       0.096773,
+       0.161288
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -4129,7 +4129,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4139,13 +4139,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.125,
+      "value": 0.234375,
       "prior": [
-       0.84375,
-       1.40625
+       0.175781,
+       0.292969
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -4175,7 +4175,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -4211,25 +4211,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.69,
+      "value": 12.26,
       "prior": [
-       8.02,
-       13.37
+       9.19,
+       15.32
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.5,
-       "implied_value": 10.16,
+       "implied_value": 11.46,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 44.2,
-        "implied_value": 10.69
+        "implied_value": 12.26
        }
       },
       "source": {
@@ -4285,15 +4285,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.58,
+      "value": 4.22,
       "prior": [
-       3.44,
-       5.72
+       3.17,
+       5.27
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.64,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -4412,16 +4412,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0003312,
+      "value": -0.0002418,
       "prior": [
-       -0.0004139,
-       -0.0002484
+       -0.0003022,
+       -0.0001813
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -331.2,
+       "delay_us": -241.8,
        "creatine_phase_deg": -8.2,
-       "intrinsic_phase_deg": 7.3,
+       "intrinsic_phase_deg": 3.1,
        "creatine_offset_hz": 130.2
       },
       "source": {
@@ -4607,10 +4607,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 1.9358,
+      "value": 0.4373,
       "prior": [
-       1.45185,
-       2.41975
+       0.327975,
+       0.546625
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -4643,7 +4643,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4653,10 +4653,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 10.703817,
+      "value": 2.425211,
       "prior": [
-       8.027863,
-       13.379771
+       1.818908,
+       3.031514
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -4689,7 +4689,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4735,7 +4735,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -4745,10 +4745,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 40.877793,
+      "value": 9.364451,
       "prior": [
-       30.658345,
-       51.097241
+       7.023338,
+       11.705564
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -4781,7 +4781,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4791,10 +4791,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.252871,
+      "value": 0.258265,
       "prior": [
-       0.189653,
-       0.316089
+       0.193699,
+       0.322831
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -4827,7 +4827,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -4837,13 +4837,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.5,
+      "value": 0.140625,
       "prior": [
-       1.125,
-       1.875
+       0.105469,
+       0.175781
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -4873,7 +4873,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -4909,25 +4909,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 11.98,
+      "value": 13.74,
       "prior": [
-       8.99,
-       14.98
+       10.31,
+       17.18
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.8,
-       "implied_value": 11.16,
+       "implied_value": 12.46,
        "naa_found_at_ppm": 1.99,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 40.0,
-        "implied_value": 11.98
+        "implied_value": 13.74
        }
       },
       "source": {
@@ -4983,15 +4983,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.72,
+      "value": 3.46,
       "prior": [
-       2.79,
-       4.65
+       2.59,
+       4.33
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.64,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -5110,16 +5110,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0001915,
+      "value": 5.13e-05,
       "prior": [
-       0.0001437,
-       0.0002394
+       3.84e-05,
+       6.41e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 191.5,
+       "delay_us": 51.3,
        "creatine_phase_deg": -12.0,
-       "intrinsic_phase_deg": -21.0,
+       "intrinsic_phase_deg": -14.4,
        "creatine_offset_hz": 129.9
       },
       "source": {
@@ -5305,10 +5305,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -1.59679,
+      "value": 0.016981,
       "prior": [
-       -1.995988,
-       -1.197592
+       0.012736,
+       0.021226
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -5341,7 +5341,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -5351,10 +5351,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 14.603622,
+      "value": 1.094876,
       "prior": [
-       10.952716,
-       18.254527
+       0.821157,
+       1.368595
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -5387,7 +5387,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -5433,7 +5433,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -5443,10 +5443,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 170.186461,
+      "value": 25.165638,
       "prior": [
-       127.639846,
-       212.733076
+       18.874229,
+       31.457048
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -5479,7 +5479,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -5489,10 +5489,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.296484,
+      "value": 0.331902,
       "prior": [
-       0.222363,
-       0.370605
+       0.248926,
+       0.414877
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -5525,7 +5525,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -5535,13 +5535,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.046875,
+      "value": 0.46875,
       "prior": [
-       0.035156,
-       0.058594
+       0.351562,
+       0.585938
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -5571,7 +5571,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -5607,25 +5607,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 12.05,
+      "value": 13.81,
       "prior": [
-       9.04,
-       15.06
+       10.35,
+       17.26
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.8,
-       "implied_value": 11.18,
+       "implied_value": 12.56,
        "naa_found_at_ppm": 1.99,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 39.5,
-        "implied_value": 12.05
+        "implied_value": 13.81
        }
       },
       "source": {
@@ -5681,15 +5681,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.23,
+      "value": 3.92,
       "prior": [
-       3.17,
-       5.29
+       2.94,
+       4.9
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.24,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -5808,16 +5808,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0002201,
+      "value": 0.0002505,
       "prior": [
-       -0.0002751,
-       -0.0001651
+       0.0001879,
+       0.0003131
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -220.1,
+       "delay_us": 250.5,
        "creatine_phase_deg": -4.8,
-       "intrinsic_phase_deg": 5.5,
+       "intrinsic_phase_deg": -16.5,
        "creatine_offset_hz": 129.8
       },
       "source": {
@@ -6003,10 +6003,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.200447,
+      "value": -0.047972,
       "prior": [
-       0.150335,
-       0.250559
+       -0.059965,
+       -0.035979
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -6039,7 +6039,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6049,10 +6049,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 0.889478,
+      "value": 0.715914,
       "prior": [
-       0.667108,
-       1.111848
+       0.536936,
+       0.894893
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -6085,7 +6085,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6131,7 +6131,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -6141,10 +6141,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 9.585309,
+      "value": 11.064846,
       "prior": [
-       7.188982,
-       11.981636
+       8.298634,
+       13.831058
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -6177,7 +6177,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6187,10 +6187,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.126169,
+      "value": 0.125677,
       "prior": [
-       0.094627,
-       0.157711
+       0.094258,
+       0.157096
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -6223,7 +6223,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6233,13 +6233,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.828125,
+      "value": 0.703125,
       "prior": [
-       1.371094,
-       2.285156
+       0.527344,
+       0.878906
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -6269,7 +6269,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -6305,25 +6305,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.42,
+      "value": 11.95,
       "prior": [
-       7.82,
-       13.03
+       8.96,
+       14.93
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.5,
-       "implied_value": 9.52,
+       "implied_value": 10.75,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 45.4,
-        "implied_value": 10.42
+        "implied_value": 11.95
        }
       },
       "source": {
@@ -6379,15 +6379,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.48,
+      "value": 4.12,
       "prior": [
-       3.36,
-       5.6
+       3.09,
+       5.15
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.51,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -6506,16 +6506,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -8.92e-05,
+      "value": -0.0001692,
       "prior": [
-       -0.0001115,
-       -6.69e-05
+       -0.0002115,
+       -0.0001269
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -89.2,
+       "delay_us": -169.2,
        "creatine_phase_deg": -1.0,
-       "intrinsic_phase_deg": 3.1,
+       "intrinsic_phase_deg": 6.9,
        "creatine_offset_hz": 129.7
       },
       "source": {
@@ -6701,10 +6701,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.048861,
+      "value": -0.105008,
       "prior": [
-       0.036646,
-       0.061076
+       -0.13126,
+       -0.078756
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -6737,7 +6737,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6747,10 +6747,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.589882,
+      "value": 1.167268,
       "prior": [
-       1.192411,
-       1.987353
+       0.875451,
+       1.459085
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -6783,7 +6783,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6829,7 +6829,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -6839,10 +6839,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 12.622965,
+      "value": 8.569053,
       "prior": [
-       9.467224,
-       15.778706
+       6.42679,
+       10.711316
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -6875,7 +6875,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6885,10 +6885,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.119277,
+      "value": 0.124443,
       "prior": [
-       0.089458,
-       0.149096
+       0.093332,
+       0.155554
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -6921,7 +6921,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -6931,13 +6931,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.5,
+      "value": 0.75,
       "prior": [
-       1.125,
-       1.875
+       0.5625,
+       0.9375
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -6967,7 +6967,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -7003,25 +7003,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.76,
+      "value": 10.04,
       "prior": [
-       6.57,
-       10.95
+       7.53,
+       12.55
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 15.5,
-       "implied_value": 8.04,
+       "implied_value": 9.1,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 53.9,
-        "implied_value": 8.76
+        "implied_value": 10.04
        }
       },
       "source": {
@@ -7077,15 +7077,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.7,
+      "value": 4.31,
       "prior": [
-       3.53,
-       5.88
+       3.23,
+       5.39
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.79,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -7204,16 +7204,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0003194,
+      "value": -0.0003175,
       "prior": [
-       -0.0003993,
-       -0.0002396
+       -0.0003968,
+       -0.0002381
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -319.4,
+       "delay_us": -317.5,
        "creatine_phase_deg": -9.1,
-       "intrinsic_phase_deg": 5.9,
+       "intrinsic_phase_deg": 5.8,
        "creatine_offset_hz": 130.2
       },
       "source": {
@@ -7399,10 +7399,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.0742,
+      "value": -0.065408,
       "prior": [
-       -0.09275,
-       -0.05565
+       -0.08176,
+       -0.049056
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -7435,7 +7435,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -7445,10 +7445,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 3.360673,
+      "value": 0.802389,
       "prior": [
-       2.520505,
-       4.200841
+       0.601792,
+       1.002986
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -7481,7 +7481,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -7527,7 +7527,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -7537,10 +7537,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 10.387227,
+      "value": 3.58893,
       "prior": [
-       7.79042,
-       12.984034
+       2.691698,
+       4.486162
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -7573,7 +7573,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -7583,10 +7583,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.293925,
+      "value": 0.300442,
       "prior": [
-       0.220444,
-       0.367406
+       0.225331,
+       0.375552
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -7619,7 +7619,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -7629,13 +7629,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 4.734375,
+      "value": 0.28125,
       "prior": [
-       3.550781,
-       5.917969
+       0.210938,
+       0.351562
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -7665,7 +7665,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -7701,25 +7701,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 9.89,
+      "value": 11.34,
       "prior": [
-       7.42,
-       12.37
+       8.51,
+       14.18
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 14.2,
-       "implied_value": 8.83,
+       "implied_value": 10.0,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 47.7,
-        "implied_value": 9.89
+        "implied_value": 11.34
        }
       },
       "source": {
@@ -7775,15 +7775,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.65,
+      "value": 4.26,
       "prior": [
-       3.49,
-       5.81
+       3.19,
+       5.32
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.71,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -7902,16 +7902,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -9e-05,
+      "value": 0.0001795,
       "prior": [
-       -0.0001125,
-       -6.75e-05
+       0.0001346,
+       0.0002243
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -90.0,
+       "delay_us": 179.5,
        "creatine_phase_deg": 1.2,
-       "intrinsic_phase_deg": 5.4,
+       "intrinsic_phase_deg": -7.2,
        "creatine_offset_hz": 129.6
       },
       "source": {
@@ -8097,10 +8097,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.482664,
+      "value": 0.267948,
       "prior": [
-       -0.60333,
-       -0.361998
+       0.200961,
+       0.334935
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -8133,7 +8133,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8143,10 +8143,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 2.309033,
+      "value": 1.557076,
       "prior": [
-       1.731775,
-       2.886291
+       1.167807,
+       1.946345
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -8179,7 +8179,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8225,7 +8225,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -8235,10 +8235,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 6.303935,
+      "value": 6.207214,
       "prior": [
-       4.727951,
-       7.879919
+       4.65541,
+       7.759017
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -8271,7 +8271,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8281,10 +8281,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.239279,
+      "value": 0.249146,
       "prior": [
-       0.179459,
-       0.299099
+       0.18686,
+       0.311433
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -8317,7 +8317,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8327,13 +8327,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 4.875,
+      "value": 0.421875,
       "prior": [
-       3.65625,
-       6.09375
+       0.316406,
+       0.527344
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -8363,7 +8363,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -8399,25 +8399,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.47,
+      "value": 12.01,
       "prior": [
-       7.85,
-       13.09
+       9.01,
+       15.01
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.1,
-       "implied_value": 9.53,
+       "implied_value": 10.8,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 45.0,
-        "implied_value": 10.47
+        "implied_value": 12.01
        }
       },
       "source": {
@@ -8473,15 +8473,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.7,
+      "value": 4.3,
       "prior": [
-       3.53,
-       5.88
+       3.22,
+       5.38
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.78,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -8600,16 +8600,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0004705,
+      "value": -0.0003058,
       "prior": [
-       -0.0005881,
-       -0.0003529
+       -0.0003823,
+       -0.0002294
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -470.5,
+       "delay_us": -305.8,
        "creatine_phase_deg": -12.7,
-       "intrinsic_phase_deg": 9.3,
+       "intrinsic_phase_deg": 1.6,
        "creatine_offset_hz": 130.1
       },
       "source": {
@@ -8795,10 +8795,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -2.599551,
+      "value": 0.133259,
       "prior": [
-       -3.249439,
-       -1.949663
+       0.099944,
+       0.166574
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -8831,7 +8831,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8841,10 +8841,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 27.792095,
+      "value": 1.356318,
       "prior": [
-       20.844071,
-       34.740119
+       1.017238,
+       1.695397
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -8877,7 +8877,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8923,7 +8923,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -8933,10 +8933,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 87.53082,
+      "value": 16.259762,
       "prior": [
-       65.648115,
-       109.413525
+       12.194821,
+       20.324702
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -8969,7 +8969,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -8979,10 +8979,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.233425,
+      "value": 0.256422,
       "prior": [
-       0.175069,
-       0.291781
+       0.192317,
+       0.320527
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -9015,7 +9015,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -9025,13 +9025,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 2.25,
+      "value": 0.890625,
       "prior": [
-       1.6875,
-       2.8125
+       0.667969,
+       1.113281
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -9061,7 +9061,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -9097,25 +9097,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 11.53,
+      "value": 13.21,
       "prior": [
-       8.64,
-       14.41
+       9.91,
+       16.51
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.6,
-       "implied_value": 11.07,
+       "implied_value": 12.48,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 41.1,
-        "implied_value": 11.53
+        "implied_value": 13.21
        }
       },
       "source": {
@@ -9171,15 +9171,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.46,
+      "value": 4.11,
       "prior": [
-       3.34,
-       5.58
+       3.08,
+       5.14
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.48,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -9298,16 +9298,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0001051,
+      "value": -1.78e-05,
       "prior": [
-       7.89e-05,
-       0.0001314
+       -2.23e-05,
+       -1.34e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 105.1,
+       "delay_us": -17.8,
        "creatine_phase_deg": -23.8,
-       "intrinsic_phase_deg": -28.8,
+       "intrinsic_phase_deg": -23.0,
        "creatine_offset_hz": 130.7
       },
       "source": {
@@ -9493,10 +9493,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 4.066293,
+      "value": -0.130239,
       "prior": [
-       3.04972,
-       5.082866
+       -0.162799,
+       -0.097679
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -9529,7 +9529,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -9539,10 +9539,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 26.798744,
+      "value": 1.389801,
       "prior": [
-       20.099058,
-       33.49843
+       1.042351,
+       1.737251
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -9575,7 +9575,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -9621,7 +9621,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -9631,10 +9631,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 238.541851,
+      "value": 4.616528,
       "prior": [
-       178.906388,
-       298.177314
+       3.462396,
+       5.77066
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -9667,7 +9667,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -9677,10 +9677,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.383418,
+      "value": 0.266363,
       "prior": [
-       0.287563,
-       0.479272
+       0.199772,
+       0.332954
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -9713,7 +9713,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -9723,13 +9723,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.140625,
+      "value": 0.65625,
       "prior": [
-       0.105469,
-       0.175781
+       0.492188,
+       0.820312
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -9759,7 +9759,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -9795,25 +9795,25 @@
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
      "model": "Achieva",
-     "cited": "stated"
+     "cited": "the gradients from the vendor's specification (Achieva Quasar Dual 40 mT/m, 200 T/m/s), the peak B1 the Philips default of Deelchand et al. 2021; the field nominal"
     },
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.68,
+      "value": 12.24,
       "prior": [
-       8.01,
-       13.35
+       9.18,
+       15.3
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.6,
-       "implied_value": 9.74,
+       "implied_value": 10.94,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 44.5,
-        "implied_value": 10.68
+        "implied_value": 12.24
        }
       },
       "source": {
@@ -9869,15 +9869,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.23,
+      "value": 3.92,
       "prior": [
-       3.17,
-       5.29
+       2.94,
+       4.9
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.25,
-       "twin_without_broadening_hz": 3.51
+       "twin_without_broadening_hz": 3.67
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -9996,16 +9996,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0005183,
+      "value": -0.0001128,
       "prior": [
-       0.0003887,
-       0.0006479
+       -0.0001409,
+       -8.46e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 518.3,
+       "delay_us": -112.8,
        "creatine_phase_deg": -9.6,
-       "intrinsic_phase_deg": -33.9,
+       "intrinsic_phase_deg": -4.3,
        "creatine_offset_hz": 129.9
       },
       "source": {
@@ -10191,10 +10191,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -5.028396,
+      "value": -0.459613,
       "prior": [
-       -6.285495,
-       -3.771297
+       -0.574516,
+       -0.34471
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -10227,7 +10227,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -10237,10 +10237,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 15.809362,
+      "value": 1.609559,
       "prior": [
-       11.857022,
-       19.761702
+       1.207169,
+       2.011949
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -10273,7 +10273,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -10319,7 +10319,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],
@@ -10329,10 +10329,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 150.784401,
+      "value": 10.845494,
       "prior": [
-       113.088301,
-       188.480501
+       8.13412,
+       13.556868
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -10365,7 +10365,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -10375,10 +10375,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.589026,
+      "value": 0.49445,
       "prior": [
-       0.44177,
-       0.736283
+       0.370837,
+       0.618062
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -10411,7 +10411,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "scanner",
       "presets": [],
@@ -10421,13 +10421,13 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 3.703125,
+      "value": 2.25,
       "prior": [
-       2.777344,
-       4.628906
+       1.6875,
+       2.8125
       ],
       "measured": {
-       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
        "transients": 320,
        "minutes": 21.33
       },
@@ -10457,7 +10457,7 @@
        "registration": "each transient to the mean on the first 100 ms"
       },
       "voxel": {},
-      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
       "date": "27/09/26",
       "carried_by": "subject",
       "presets": [],

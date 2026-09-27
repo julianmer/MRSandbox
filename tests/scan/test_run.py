@@ -97,3 +97,19 @@ class TestRunReading:
         assert set(records) == {"run.drift_hz_per_min", "run.ar_sigma_hz", "run.resp_amp_hz", "run.phase_jitter_deg", "run.amp_jitter_frac", "run.events_per_min"}
         assert records["run.drift_hz_per_min"].carried_by == "scanner" and records["run.events_per_min"].carried_by == "subject"
         assert records["run.events_per_min"].value == pytest.approx(reading.events.size / reading.minutes, rel=1e-4)
+
+    def test_a_run_whose_lines_are_gone_within_the_window_registers_all_the_same(self):
+        # 7 T: lines 13 Hz wide, one transient's start ten times its noise, 128 transients 2.5 s apart with a drift of 1 Hz a
+        # minute and breathing of 0.5 Hz at 0.25 Hz; a phase line unwrapped over the 100 ms window wrapped with the noise
+        # (every ds005917 run failed the registration rule that way), the cross spectrum's peak does not
+        rng = np.random.default_rng(1)
+        n, dwell, tr = 2048, 1.0 / 4000.0, 2.5
+        t = np.arange(n) * dwell
+        fid = np.exp(2j * np.pi * 150.0 * t - t / 0.025) + 0.6 * np.exp(2j * np.pi * 400.0 * t - t / 0.025)
+        times = np.arange(128) * tr
+        frequency = times / 60.0 + 0.5 * np.sin(2.0 * np.pi * 0.25 * times)
+        data = np.stack([fid * np.exp(2j * np.pi * f * t) for f in frequency], axis=1)[:, None, :]
+        data = data + 0.1 * (rng.standard_normal(data.shape) + 1j * rng.standard_normal(data.shape))
+        reading = RunReading.from_arrays(data, dwell, tr)
+        assert abs(reading.drift_hz_per_min - 1.0) < 0.15 and abs(reading.resp_amp_hz - 0.5) < 0.1 and reading.ar_sigma_hz < 0.3
+        assert not any(r.failed for r in reading.records("a synthetic 7 T run"))

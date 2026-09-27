@@ -70,19 +70,27 @@ def _combined(data, noise=None, like=None):
     return np.einsum("c,ncs->ns", weights, white)
 
 
+def _axis(fid, dwell_s, f0_mhz, carrier_ppm):
+    """(sign, spectrum, hertz) of a FID whose carrier sits at `carrier_ppm`: the spectrum
+    sixteenfold zero filled, and the sign +1 where it holds NAA the engine's way round
+    (ppm = carrier + hertz / f0), -1 where the axis runs the other way (a file stored as
+    the conjugate of the engine's convention)."""
+    n = fid.shape[0]
+    spectrum = np.fft.fftshift(np.fft.fft(np.asarray(fid), 16 * n))
+    hz = np.fft.fftshift(np.fft.fftfreq(16 * n, dwell_s))
+    sign = max((1.0, -1.0), key=lambda s: np.abs(spectrum[np.abs(carrier_ppm + s * hz / f0_mhz - NAA_PPM) < 0.15]).max())
+    return sign, spectrum, hz
+
+
 def _lines(fid, dwell_s, f0_mhz, carrier_ppm):
     """The complex values of the NAA, creatine and water peaks of a FID whose carrier sits
     at `carrier_ppm`, each the mean over the bins within 1.5 Hz of its maximum on a
     sixteenfold zero-filled spectrum (one bin's value swings by degrees with where the
     bins fall on the line, which is a hundred microseconds of delay), and their
     places in hertz the ppm way round: {name: (value, hertz)}. The axis is the one of
-    the two that holds NAA; a FID whose axis runs the other way (a file stored as the
-    conjugate of the engine's convention) has its values conjugated, so every phase
-    reads in the engine's convention, a twin's included."""
-    n = fid.shape[0]
-    spectrum = np.fft.fftshift(np.fft.fft(np.asarray(fid), 16 * n))
-    hz = np.fft.fftshift(np.fft.fftfreq(16 * n, dwell_s))
-    sign = max((1.0, -1.0), key=lambda s: np.abs(spectrum[np.abs(carrier_ppm + s * hz / f0_mhz - NAA_PPM) < 0.15]).max())
+    the two that holds NAA (`_axis`); a FID whose axis runs the other way has its values
+    conjugated, so every phase reads in the engine's convention, a twin's included."""
+    sign, spectrum, hz = _axis(fid, dwell_s, f0_mhz, carrier_ppm)
     ppm = carrier_ppm + sign * hz / f0_mhz
     found = {}
     for name, at in (("NAA", NAA_PPM), ("Cr", 3.03), ("water", WATER_PPM)):
@@ -129,9 +137,13 @@ def _eddy_transient(fid, dwell_s, f0_mhz, late_s=(0.06, 0.25), at_s=0.005):
     return float(np.angle(x * np.conj(model))[int(round(at_s / dwell_s))])
 
 
-def _raw(source):
+def _raw(source, water=False):
     """A NIfTI-MRS file (a path or a loaded image) as ((npoints, coils, transients),
-    dwell_s, f0_mhz, header); the transients are needed apart."""
+    dwell_s, f0_mhz, header); the transients are needed apart. A run that interleaves
+    unsuppressed water transients with its own (ds005917 stores one every 16th, some 300
+    times the others at their start, where a suppressed run's transients stay within
+    three times their median) gives its suppressed transients, or with `water` the
+    interleaved water, the run's own reference (none: no transient)."""
     import json
 
     import nibabel as nib
@@ -152,6 +164,9 @@ def _raw(source):
     if any(data.shape[axis] > 1 for axis in rest):
         raise ValueError("only coils and transients are read; select the other dimension first")
     x = np.transpose(data, order + rest).reshape(data.shape[0], data.shape[order[1]], data.shape[order[2]])
+    start = np.abs(x[:8]).mean(axis=(0, 1))
+    loud = start > 20.0 * np.median(start)
+    x = x[:, :, loud] if water else x[:, :, ~loud]
     header = {key: extension[key] for key in HEADER if extension.get(key) not in (None, "")}
     return x, float(image.header["pixdim"][4]), float(extension["SpectrometerFrequency"][0]), header
 
@@ -763,7 +778,8 @@ class WaterReading:
         creatine_phase_deg: Creatine's phase against NAA as measured.
         creatine_offset_hz: Creatine's distance from NAA, the ppm way round, in hertz.
         dry_amplitude: The FID without its water at t = 0, in the data's units, the twin's scale.
-        reference_fid: The reference's mean combined FID, the residual's own line shape.
+        residual_fid: The residual water as the data show it, its fitted components narrow and
+            broad, turned so its line has `water_phase_deg` against the metabolites' frame.
         leak_over_full: The residual's broad part (T2* under 35 ms, the water outside the
             voxel the localization leaks) at t = 0 over the reference's; inside
             `residual_over_full`, which is the total (info/HANDOFF.md item 238).
@@ -780,7 +796,7 @@ class WaterReading:
     creatine_phase_deg: float
     creatine_offset_hz: float
     dry_amplitude: float
-    reference_fid: np.ndarray
+    residual_fid: np.ndarray
     leak_over_full: float
     leak_t2star_s: float
     leak_offset_hz: float
@@ -816,8 +832,8 @@ class WaterReading:
         heaviest = int(np.argmax(np.abs(amplitudes[water][broad]))) if broad.any() else None
         reference_fid = _combined(reference, like=data).mean(axis=1)
         t = np.arange(suppressed.size) * dwell_s
-        dry = suppressed - sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t)
-                               for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
+        fitted = sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t) for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
+        dry = suppressed - fitted
         # the first-order phase: the complex peaks of the mean spectrum, NAA phased to zero
         lines = _lines(suppressed, dwell_s, f0_mhz, WATER_PPM)
         (naa, f_naa), (creatine, f_cr), (residual_line, f_water) = lines["NAA"], lines["Cr"], lines["water"]
@@ -826,7 +842,11 @@ class WaterReading:
         beyond = float(np.degrees(np.angle(np.exp(1j * (np.angle(residual_line / naa) - slope * (f_water - f_naa))))))
         return cls(residual_over_full=abs(residual) / full, residual_over_dry_max=abs(residual) / float(np.abs(dry).max()),
                    water_phase_deg=beyond, creatine_phase_deg=float(np.degrees(phase_cr)), creatine_offset_hz=float(f_cr - f_naa),
-                   dry_amplitude=float(np.abs(dry[0])), reference_fid=reference_fid,
+                   dry_amplitude=float(np.abs(dry[0])),
+                   # in the engine's convention, as `_lines` reads the phases (a file stored as the conjugate: the FID
+                   # conjugated), turned so its line has `beyond` against the metabolites' frame
+                   residual_fid=(fitted if _axis(suppressed, dwell_s, f0_mhz, WATER_PPM)[0] > 0 else np.conj(fitted))
+                   * np.exp(1j * (np.radians(beyond) - np.angle(residual_line))),
                    leak_over_full=abs(leak) / full,
                    leak_t2star_s=float(t2star[broad][heaviest]) if heaviest is not None else 0.0,
                    leak_offset_hz=float(freqs[water][broad][heaviest]) if heaviest is not None else 0.0,
@@ -837,10 +857,13 @@ class WaterReading:
                    header=dict(header or {}))
 
     @classmethod
-    def from_nifti(cls, source, reference):
-        """From two NIfTI-MRS files with the transients apart: the suppressed run and its reference."""
+    def from_nifti(cls, source, reference=None):
+        """From two NIfTI-MRS files with the transients apart: the suppressed run and its reference,
+        or with no reference the water transients the run interleaves with its own (`_raw`)."""
         data, dwell_s, f0_mhz, header = _raw(source)
-        water, dwell_ref, _, _ = _raw(reference)
+        water, dwell_ref, _, _ = _raw(source, water=True) if reference is None else _raw(reference)
+        if water.shape[2] == 0:
+            raise ValueError("the run interleaves no water transients; give its water reference")
         if abs(dwell_ref - dwell_s) > 1e-9:
             raise ValueError("the reference is sampled at another dwell than the scan")
         return cls.from_arrays(data, water, dwell_s, f0_mhz, header)
@@ -872,16 +895,16 @@ class WaterReading:
     def intrinsic_phase_deg(self, voxel, gauss_hz=None, seeds=3):
         """The phase creatine's peak carries against NAA's with no delay: the twin's
         sources but its water, rendered at a zero delay (as broad as `gauss_hz` says,
-        the acquisition's own width), plus the residual water as the data show it (the
-        reference's own line shape at the read residual, on its side, phased to the
-        frame's zero as the engine renders an upright residual, scaled by the FIDs
-        without their water at t = 0), the median over `seeds` draws. What the
-        sequence's own evolution and the residual's wing put under 3.03 ppm, which a
-        delay reading must take out."""
+        the acquisition's own width), plus the residual water as the data show it (its
+        fitted components, the broad ones the localization leaks among them, at their
+        phase against the metabolites, scaled by the FIDs without their water at t = 0),
+        the median over `seeds` draws. What the sequence's own evolution, the
+        macromolecules and the residual's wing put under 3.03 ppm, which a delay reading
+        must take out. A residual taken as one narrow line of the reference's shape left
+        the leak's broader wing in every delay row, where the console plays it again
+        (info/HANDOFF.md item 244)."""
         t = np.arange(self.npoints) * self.dwell_s
         turn = np.exp(-2j * np.pi * WATER_PPM * voxel._f0_mhz() * t)     # the twin into the standard's frame
-        residual = self.residual_over_full * (-1.0 if abs(self.water_phase_deg) > 90.0 else 1.0)
-        water = self.reference_fid[:self.npoints] * np.exp(-1j * np.angle(self.reference_fid[0]))
         phases = []
         for seed in range(seeds):
             truth = voxel.sample(seed)
@@ -890,7 +913,7 @@ class WaterReading:
                 dict.__setitem__(truth.lineshape, "gauss_hz", float(gauss_hz))
             parts = voxel._component_fids(truth, self.npoints, self.dwell_s)
             dry = sum(np.asarray(fid) for name, fid in parts.items() if name not in ("water", "oov")) * turn
-            lines = _lines(dry + residual * (abs(dry[0]) / self.dry_amplitude) * water, self.dwell_s, voxel._f0_mhz(), WATER_PPM)
+            lines = _lines(dry + (abs(dry[0]) / self.dry_amplitude) * self.residual_fid, self.dwell_s, voxel._f0_mhz(), WATER_PPM)
             phases.append(np.degrees(np.angle(lines["Cr"][0] / lines["NAA"][0])))
         return float(np.median(phases))
 
@@ -932,6 +955,9 @@ class WaterReading:
                       "offset_hz": round(self.leak_offset_hz, 2), "phase_vs_residual_deg": round(self.leak_phase_deg, 1)},
             processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials "
                        "within 0.4 ppm of the carrier split at a T2* of 35 ms",
+            # the rule: the split is a 3 T number; at 7 T the voxel's own water decays within it (ds005917's reference
+            # water at 23 ms, its whole residual counted broad), so the broad part is not the leak there
+            failed="" if self.f0_mhz < 4.0 * 42.5774785 else "the split at a T2* of 35 ms is set for 3 T: above 4 T the voxel's own water decays within it",
             presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
 
     def record_eddy(self, voxel, dataset, presets=(), citation=None, url=None):
@@ -948,8 +974,10 @@ class WaterReading:
                       "at_5ms_rad": round(value, 4)},
             processing="NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late "
                        "window, the model carried back to the start",
-            # the rule: a phase past a quarter turn 5 ms in is the late model landing a half turn off, not a transient
-            failed="" if abs(value) <= 0.5 * np.pi else f"the phase 5 ms in ({value:.2f} rad) is past a quarter turn: the late model's own wrap",
+            # the rules: a phase past a quarter turn 5 ms in is the late model landing a half turn off, not a transient; the
+            # late window is set for 3 T, and at 7 T the water has decayed in it (T2* 23 ms on ds005917, 6 of 25 past the turn)
+            failed=("the late window, 60 to 250 ms, is set for 3 T: above 4 T the water has decayed in it" if self.f0_mhz >= 4.0 * 42.5774785
+                    else "" if abs(value) <= 0.5 * np.pi else f"the phase 5 ms in ({value:.2f} rad) is past a quarter turn: the late model's own wrap"),
             presets=tuple(presets), fallback=False, **self._conditions(voxel, dataset, citation, url))
 
     def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None, seeds=3):

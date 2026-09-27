@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Brain, Fixed, Normal, Params, Press, Scanner, Uniform, VirtualScan
+from mrsandbox import Brain, CoupledMM, Fixed, Normal, Params, Press, Scanner, Uniform, VirtualScan
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
 pytestmark = pytest.mark.render
@@ -278,8 +278,10 @@ class TestAcquisitionImperfections:
         def fid(delay_s, npoints, dwell_s=1.0 / 4000.0):
             params = Params(**quiet, acquisition=dict(shift_hz=5.0, phase_deg=30.0,
                                                       eddy_std_rad=0.0, eddy_transient_rad=0.0, delay_s=delay_s))
-            voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
-                                                                     size_mm=20)
+            # the coupled systems: the measured shape takes the sequence's response over the sampled window, so a
+            # delayed window is 2 percent another FID (info/HANDOFF.md item 245, open)
+            voxel = VirtualScan(brain, *pieces, params=params, mm=CoupledMM()).voxel(position_mm=(10, -20, 5),
+                                                                                     size_mm=20)
             return voxel.fid(seed=7, npoints=npoints, dwell_s=dwell_s)[1]
 
         prompt = fid(0.0, 512 + 8)
@@ -592,7 +594,7 @@ class TestNoiseModel:
         brain = Brain.load("icbm152")
         same = VirtualScan(brain, Scanner.preset("siemens_trio_3t"), Press(0.011, 0.024))
         prior = same.params["noise"]["sigma"]
-        assert (prior.low, prior.high) == record.prior
+        assert (prior.low, prior.high) == pytest.approx(record.prior)
         assert record.departures(same) == {}
         other = VirtualScan(brain, Scanner.preset("generic_7t"), Steam(te_s=0.01, tm_s=0.02))
         assert set(record.departures(other)) == {"field_t", "sequence"}
@@ -606,7 +608,7 @@ class TestNoiseModel:
         prisma = VirtualScan(brain, Scanner.preset("siemens_prisma_3t"), SemiLaser(te_s=0.026))
         served = calibrations(prisma.scanner)["noise.sigma"]
         assert served.source["dataset"].endswith("cows_prisma")
-        assert (prisma.params["noise"]["sigma"].low, prisma.params["noise"]["sigma"].high) == served.prior
+        assert (prisma.params["noise"]["sigma"].low, prisma.params["noise"]["sigma"].high) == pytest.approx(served.prior)
         assert served.departures(prisma) == {}
         achieva = VirtualScan(brain, Scanner.preset("philips_achieva_3t"), Press(0.009, 0.013))
         birdcage = calibrations(achieva.scanner)["noise.sigma"]

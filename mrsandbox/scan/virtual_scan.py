@@ -20,7 +20,7 @@ from mrsandbox.engine import Engine
 from mrsandbox.params import Params
 from mrsandbox.phantom.downfield import NoDownfield, ParameterizedDownfield
 from mrsandbox.phantom.lipids import NoLipids, Skull
-from mrsandbox.phantom.macromolecules import CoupledMM, NoMM
+from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM, NoMM
 from mrsandbox.phantom.solution import Phantom
 from mrsandbox.phantom.water import Suppressed
 from mrsandbox.scan.defaults import default_params
@@ -75,7 +75,11 @@ class VirtualScan:
         transmit: A phantom.Volume of the relative transmit field B1+ (1.0 nominal);
             every voxel runs its pulses at the drawn b1_scale times its local value.
             None gives the nominal field everywhere.
-        mm: A phantom.MMSource; defaults to the LCModel-convention parameterization.
+        mm: A phantom.MMSource; defaults to the measured 3 T shape (MeasuredMM, the
+            console's: one raw Trio run beside it put the whole background right where the
+            coupled systems fell two to three short, info/HANDOFF.md item 216), and to the
+            coupled systems (CoupledMM) for an editing design, whose pulses act on them
+            where the measured shape carries no editing response; none in vitro.
         downfield: A phantom.DownfieldSource; defaults to the nine-peak
             parameterization, presaturated along with the default suppressed water.
         girf: A resources.GIRF, the scanner's measured gradient impulse response;
@@ -116,7 +120,7 @@ class VirtualScan:
         self.water = water if water is not None else Suppressed()
         in_vitro = isinstance(brain, Phantom)
         self.lipids = lipids if lipids is not None else NoLipids() if in_vitro else Skull()
-        self.mm = mm if mm is not None else NoMM() if in_vitro else CoupledMM()
+        self.mm = mm if mm is not None else NoMM() if in_vitro else CoupledMM() if hasattr(sequence, "edit_ppm") else MeasuredMM()
         self.downfield = (downfield if downfield is not None
                           else NoDownfield() if in_vitro else ParameterizedDownfield())
         self.coils = coils

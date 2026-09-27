@@ -34,6 +34,9 @@ from mrsandbox.params import Clipped, Empirical, Fixed, Normal, Params, PerTissu
 #****************#
 # the typed fields; a scan at any other field takes the nearest one (stated)
 FIELDS_T = (1.5, 3.0, 7.0)
+TISSUES = ("gm", "wm", "csf")
+WATER_CITED = ("Boudreau et al. 2024 (the ISMRM T1 challenge, 3 T cortex and genu), Rooney et al. 2007 (CSF), Wansapura et al. 1999 "
+               "(T2); at 1.5 and 7 T Ethofer et al. 2003, Xin et al. 2013, Marjanska et al. 2012 (database.relaxation)")
 RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about 0.3 Hz a minute at 3 T, either sign; Augmentrum's envelope",
              "breathing": "van de Moortele et al. 2002, Magn Reson Med 47:888: breathing at about 0.3 Hz modulates the field; the range stated",
              "jitter": "Near et al. 2015, Magn Reson Med 73:44: the phase partly follows the frequency; the spreads stated",
@@ -107,7 +110,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     if "Cr" in conc:
         conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5), cited=CREATINE))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
-    water_t1, water_t2 = _water_relaxation(tesla)
+    water_t1, water_t2 = (_per_tissue(f"water.{leaf}", served, value) for leaf, value in zip(("t1_s", "t2_s"), _water_relaxation(tesla)))
     # background signal inherent to the voxel: residual water, lipids, and the
     # macromolecules are signal, never baseline or nuisance (Kreis et al. 2021)
     background = Params(
@@ -382,12 +385,19 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     # record of the hardware outside the tree (the array's noise share) is the hardware's to read
     for record in records:
         *branch, leaf = record.leaf.split(".")
-        node = tree
+        nodes = [tree]
         for key in branch:
-            node = node.get(key, {})
+            nodes.append(nodes[-1].get(key, {}))
+        node = nodes[-1]
+        measured = Uniform(*record.prior) if record.prior[0] < record.prior[1] else Fixed(record.value)
+        slot = "dataset" if str(record.source.get("dataset", "")).startswith("subject ") else "own"     # a cohort's subject names itself (Member.fixed)
+        if leaf in TISSUES and isinstance(node, (PerTissue, Sourced)):
+            # one tissue of a PerTissue leaf (a map read per tissue, scan.maps): the slot's PerTissue takes the record's
+            # tissue, its others as the leaf gives them (a tissue already read into the slot stays)
+            held = getattr(node, slot, None) if isinstance(node, Sourced) else None
+            measured = dataclasses.replace(held if held is not None else node.current if isinstance(node, Sourced) else node, **{leaf: measured})
+            leaf, node = branch.pop(), nodes[-2]
         if leaf in node:
-            measured = Uniform(*record.prior) if record.prior[0] < record.prior[1] else Fixed(record.value)
-            slot = "dataset" if str(record.source.get("dataset", "")).startswith("subject ") else "own"     # a cohort's subject names itself (Member.fixed)
             told = {slot: _cited(record)}
             sourced = (dataclasses.replace(node[leaf], **{slot: measured}, chosen=slot, provenance={**node[leaf].provenance, **told})
                        if isinstance(node[leaf], Sourced)
@@ -435,6 +445,22 @@ def _spread(record, make):
 
 def _cited(record):
     return f"{record.source['dataset']}, {record.date}"
+
+
+#****************#
+#   per tissue   #
+#****************#
+def _per_tissue(leaf, served, literature):
+    """A PerTissue leaf with its pooled source where the package's rows read it per tissue (a
+    quantitative map on its subject's tissue maps, scan.maps): `leaf`.gm, .wm and .csf each
+    pooled, a tissue without rows as the literature gives it; the literature chosen. Without
+    rows the literature alone."""
+    records = {tissue: served.get(f"{leaf}.{tissue}") for tissue in TISSUES}
+    if not any(records.values()):
+        return literature
+    pooled = PerTissue(**{tissue: getattr(literature, tissue) if record is None else _spread(record, Uniform) for tissue, record in records.items()})
+    return Sourced(literature=literature, pooled=pooled, chosen="literature",
+                   provenance={"literature": WATER_CITED, "pooled": "; ".join(f"{tissue}: {_cited(record)}" for tissue, record in records.items() if record)})
 
 
 #**********************#

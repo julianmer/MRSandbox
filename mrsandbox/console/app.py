@@ -19,6 +19,7 @@
 #*************#
 import asyncio
 import base64
+import collections
 import copy
 import dataclasses
 import io
@@ -1682,6 +1683,18 @@ async def console(client: Client):
                         with row("    " + file):
                             ui.label(kind).classes("label").style("width: 120px")
                             ui.label(gave).classes("value").style("white-space: normal; font-size: 12px; flex: 1")
+                    if held.get("report"):
+                        # the report as PLAN 8.9's table: every parameter the folder set, its value and the file it came from,
+                        # and the rest counted by the source each keeps
+                        table = session.where_from()
+                        for path, kind, numbers, source, said in table:
+                            if source == "own":
+                                with row("    " + NAMES.get(path, path)):
+                                    ui.label(SHOWN[kind].format(*numbers) if kind != "other" else str(numbers)[:40]).classes("value").style("width: 260px")
+                                    chip("own", said)
+                        kept = collections.Counter(SOURCE_WORDS[source or plain_word(path)] for path, _, _, source, _ in table if source != "own")
+                        with row("    what the folder did not give", "every other line keeps its source; the lines of the cards say which"):
+                            ui.label(", ".join(f"{count} {word}" for word, count in kept.most_common())).classes("value").style("flex: 1")
                     # the hardware, the manufacturer's numbers
                     for name, field, unit in (("field", "b0_t", "T"), ("peak B1", "peak_b1_ut", "uT"), ("gradient amplitude", "max_grad_mt_m", "mT/m"),
                                               ("slew rate", "max_slew_t_m_s", "T/m/s")):

@@ -25,6 +25,7 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.backend import Backend
+from mrsandbox.engine import Engine
 from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
@@ -36,6 +37,7 @@ from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
 from mrsandbox.io import read_seq
 from mrsandbox.scan.calibrate import CovarianceReading
+from mrsandbox.scan.maps import MapReading
 from mrsandbox.scan.run import MotionReading, PhysioReading
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.cohort import holding, package
@@ -943,13 +945,20 @@ class Session:
         """The card and the scanner set from a NIfTI-MRS run's header, as the run was acquired, so the room is its
         twin before it is read: TE, TR, the averages (the transients apart), the points, the bandwidth, the sequence
         by its name (PRESS, STEAM, sLASER; MEGA and HERMES by theirs), the voxel's size from the file's grid, the
-        field from the spectrometer frequency, and the system where the vendor and model name a preset (else the
-        generic one at that field). Returns what was set, {field: value}."""
+        field from the spectrometer frequency, the system where the vendor and model, in the header or the BIDS
+        sidecar, name a preset (else the generic one at that field), and the head array where the run has 32
+        channels apart (the helmet the cohorts read such runs against). Returns what was set, {field: value}."""
         import nibabel as nib
 
         from mrsandbox.scan.calibrate import _raw
+        from mrsandbox.scan.run import _sidecar
 
         x, dwell_s, f0_mhz, header = _raw(str(source))
+        # the BIDS sidecar, by inheritance, says what a NIfTI-MRS header may not (ds006444's header names the station,
+        # CBICMR30X, its sidecar the model, Discovery MR750)
+        stem = pathlib.Path(source).name.split(".")[0]
+        sidecar = _sidecar(pathlib.Path(source), f"_{stem.rsplit('_', 1)[-1]}.json")
+        said = json.loads(sidecar.read_text()) if sidecar else {}
         image = nib.load(str(source))
         card, was = self.protocol, {}
         if header.get("EchoTime"):
@@ -968,7 +977,8 @@ class Session:
         if all(1.0 < s < 100.0 for s in size):
             self.size_mm = was["size_mm"] = size
         self.field_t = was["field_t"] = round(f0_mhz / 42.5774785, 3)
-        vendor, model = str(header.get("Manufacturer", "")).lower(), str(header.get("ManufacturersModelName", "")).lower().replace(" ", "")
+        vendor = " ".join(str(told.get("Manufacturer", "")) for told in (header, said)).lower()
+        model = " ".join(str(told.get("ManufacturersModelName", "")) for told in (header, said)).lower().replace(" ", "")
         for key, preset in PRESETS.items():
             if preset.vendor and preset.vendor in vendor and preset.model and preset.model.lower().replace(" ", "") in model:
                 self.scanner = was["scanner"] = key
@@ -976,6 +986,8 @@ class Session:
                 break
         else:
             self.scanner = was["scanner"] = "generic_3t"
+        if x.shape[1] == 32 and len(self.array() or ()) != 32:
+            self.coil = was["array"] = "head array"
         self.calibration = None
         return was
 
@@ -1009,7 +1021,7 @@ class Session:
         for item in found:
             if item.kind in ("MRS run", "MRS reference") and item.path.suffix.lower() not in (".nii", ".gz"):
                 scans.convert(item, work)
-        used = set()
+        used, later = set(), []
         for run, reference in scans.pairs(found):
             source = run.converted or run.path
             if run.converted is None and run.path.suffix.lower() not in (".nii", ".gz"):
@@ -1065,8 +1077,32 @@ class Session:
                     report.append((item.path.name, item.kind, f"the head's motion: {reading.events.size} events in {reading.minutes:.1f} minutes"))
                 elif item.kind in ("MRS run", "MRS reference"):
                     report.append((item.path.name, item.kind, "read but not used: one run calibrates" if item.converted or item.path.suffix.lower() in (".nii", ".gz") else item.note))
+                elif item.kind in ("T1 map", "R1 map"):
+                    later.append(item)                                  # read on the anatomy, once a T1w of the folder is on the floor
                 else:
                     report.append((item.path.name, item.kind, item.note))
+            except Exception as error:
+                report.append((item.path.name, item.kind, f"not read: {error}"[:160]))
+        for item in later:
+            # a quantitative map of the subject on the floor, read per tissue on the anatomy's tissues (scan.maps): its
+            # records the subject's own, the water's T1 per tissue "yours"
+            try:
+                import nibabel as nib
+                import nibabel.processing
+
+                maps = getattr(self.body(), "maps", None)
+                if maps is None:
+                    raise ValueError("the anatomy on the floor has no tissue maps to read it on")
+                onto = nibabel.processing.resample_from_to(nib.load(str(item.path)), (maps.data.shape[:3], maps.affine), order=1)
+                data = np.asarray(onto.dataobj, dtype=np.float64)
+                data = np.divide(1.0, data, out=np.zeros_like(data), where=data > 0.0) if item.kind == "R1 map" else data
+                sidecar = item.path.parent / (item.path.name.split(".")[0] + ".json")
+                reading = MapReading.from_arrays("water.t1_s", data, {tissue: maps.data[..., k] for k, tissue in enumerate(("gm", "wm", "csf"))},
+                                                 json.loads(sidecar.read_text()) if sidecar.exists() else {})
+                records = reading.records(folder.name)
+                self.run_records += records
+                report.append((item.path.name, item.kind, "the water's T1 per tissue: " + ", ".join(
+                    f"{r.leaf.split('.')[-1]} {r.value:.2f} s" for r in records) if records else "no tissue with enough of its own cells"))
             except Exception as error:
                 report.append((item.path.name, item.kind, f"not read: {error}"[:160]))
         self.uploads += [(str(pathlib.Path(folder) / file) if not pathlib.Path(file).is_absolute() else file, kind, gave) for file, kind, gave in report]
@@ -1077,6 +1113,23 @@ class Session:
         from mrsandbox.io.folder import reads
 
         return [(path, kind, gave) for path, kind, gave in self.uploads if kind in reads(leaf)]
+
+    def where_from(self):
+        """The room as it stands, one row per leaf of the tree (PLAN 8.9's report): (path, kind, numbers, source, from
+        what), the value as `leaves` describes it, the source chosen (literature, pooled, dataset, own, custom; None for
+        a leaf without sources of its own, which the package stated or typed from a table), and what it came from: the
+        citation, the pooled rows' datasets, the dataset's subject, and for the operator's own the files read this
+        session that give it."""
+        sources = self.sources()
+        rows = []
+        for path, kind, numbers, changed in self.leaves():
+            told = sources.get(path)
+            source = "custom" if changed else told["chosen"] if told else None
+            said = "set by the operator" if changed else told["provenance"].get(source, "") if told else ""
+            if source == "own":
+                said = "; ".join([said] + [pathlib.Path(file).name for file, _, _ in self.uploads_for(path)])
+            rows.append((path, kind, numbers, source, said))
+        return rows
 
     def reset_room(self):
         """The room back to the package's: every setting, choice and hardware number of the operator's gone, the
@@ -1952,6 +2005,9 @@ class Session:
                     state[path] = float(value)
         exam.adjustment = self.adjust(exam, scan.voxel(exam.position_mm, exam.size_mm), truth, state)
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records, params=self.params({**state, **exam.overrides}),
+                         # one engine per field for every exam: its graphs are built once, not once an exam (nine compiles an exam
+                         # of the default card, info/HANDOFF.md item 245)
+                         engine=self._bodies.setdefault(("engine", profile.scanner.b0_t), Engine(profile.scanner)),
                          **self.fields(card),
                          # the array's noise is tied to the scanner's record AT THIS VOXEL, so every place has the record's SNR: what
                          # an array gives by place (better under its loops) is not in the console yet (info/HANDOFF.md item 196)
