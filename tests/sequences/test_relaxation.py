@@ -103,7 +103,7 @@ class TestInSequenceRelaxation:
         # macromolecule at 2.04, the water tail) decays on its own T2 and would drift
         # the 2.008 ppm bin, so the gate on the NAA law reads NAA by itself
         alone = {name: 0.0 for name in VirtualScan.default_params().conc if name != "NAA"}
-        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                        spurious=dict(amplitude=0.0), conc=alone)
         heights, truth = [], None
         for te in (0.03, 0.06):

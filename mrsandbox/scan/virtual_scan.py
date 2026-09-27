@@ -132,7 +132,8 @@ class VirtualScan:
         self.temperature_c = float(temperature_c if temperature_c is not None
                                    else brain.temperature_c if in_vitro else 37.0)
         self.ph = float(ph if ph is not None else brain.ph if in_vitro else 7.0)
-        defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner, records=self.records)
+        defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner, records=self.records,
+                                  channels=None if coils is None else len(coils))
         self.params = (defaults
                        | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=self.temperature_c))

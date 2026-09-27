@@ -21,6 +21,8 @@ import dataclasses
 import numbers
 import typing
 
+import numpy as np
+
 
 #**************************************************************************************************#
 #                                           Class Value                                            #
@@ -120,6 +122,60 @@ class Normal(Value):
 
 
 #**************************************************************************************************#
+#                                         Class Empirical                                          #
+#**************************************************************************************************#
+#                                                                                                  #
+# A quantity drawn as one of the values measured on a population, however that is shaped.          #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class Empirical(Value):
+    """A quantity drawn from the population as it was measured, however that is shaped
+    (the package's pooled readings fall into sites and vendors, not about one middle):
+    a kernel density over the subjects' values. A draw is one subject's value plus a
+    Gaussian as wide as the subjects' typical gap (the median distance of a value to its
+    nearest neighbour), held inside the measured range, so the draws fill the shape
+    between neighbouring subjects and never smear one site's cluster into another's.
+    `low`, `high` and `value` read the 5th and 95th percentile and the median, the
+    range convention beside the draw."""
+
+    values: tuple
+
+    def __post_init__(self):
+        object.__setattr__(self, "values", tuple(float(v) for v in self.values))
+        if not self.values:
+            raise ValueError("an empirical value needs at least one measured value")
+
+    @property
+    def bandwidth(self):
+        """The kernel's width: the median distance of a value to its nearest neighbour; zero for one value."""
+        values = np.sort(np.asarray(self.values))
+        if values.size < 2:
+            return 0.0
+        gaps = np.diff(values)
+        nearest = np.minimum(np.append(gaps, np.inf), np.insert(gaps, 0, np.inf))
+        return float(np.median(nearest))
+
+    #************#
+    #   sample   #
+    #************#
+    def sample(self, rng):
+        drawn = self.values[int(rng.integers(len(self.values)))] + self.bandwidth * float(rng.standard_normal())
+        return float(min(max(drawn, min(self.values)), max(self.values)))
+
+    @property
+    def value(self):
+        return float(np.median(self.values))
+
+    @property
+    def low(self):
+        return float(np.percentile(self.values, 5))
+
+    @property
+    def high(self):
+        return float(np.percentile(self.values, 95))
+
+
+#**************************************************************************************************#
 #                                          Class Clipped                                           #
 #**************************************************************************************************#
 #                                                                                                  #
@@ -190,6 +246,10 @@ class Mapped(Value):
         return self.volume
 
 
+# the sources a leaf's value can come from, in the order they are shown
+SOURCES = ("literature", "pooled", "dataset", "own", "custom")
+
+
 #**************************************************************************************************#
 #                                          Class Sourced                                           #
 #**************************************************************************************************#
@@ -199,18 +259,25 @@ class Mapped(Value):
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class Sourced(Value):
-    """A leaf with a value per source, literature, measured and custom, and the one chosen.
+    """A leaf with a value per source, literature, pooled, own and custom, and the one chosen.
 
-    `literature` is the package's typed or stated prior, `measured` the one a record
-    made of raw data gives (None without a record), `custom` the user's (None until one
-    is set: merging a plain Value onto this leaf sets it and chooses it). The leaf
-    samples, compares and reads (low, high, mean, sd, value) as the chosen source's
-    value does, so the rest of the package sees one Value.
+    `literature` is a published value or a manufacturer's number (None where none is
+    published: a zero written for want of a number is not literature), `pooled` the
+    package's measured rows pooled for the scanner (scan.cohort), `dataset` one real
+    subject's own reading from a package dataset on the floor, `own` a reading made on
+    the operator's own scan, `custom` the user's (None until one is set: merging a plain
+    Value onto this leaf sets it and chooses it). `provenance` says where each source's
+    value comes from, {source: text}. The leaf samples, compares and reads (low, high,
+    mean, sd, value) as the chosen source's value does, so the rest of the package sees
+    one Value.
     """
     literature: Value = None
-    measured: Value = None
+    pooled: Value = None
+    dataset: Value = None
+    own: Value = None
     custom: Value = None
     chosen: str = "literature"
+    provenance: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         if self.current is None:
@@ -223,8 +290,8 @@ class Sourced(Value):
 
     @property
     def available(self):
-        """The sources this leaf has a value for, in the order literature, measured, custom."""
-        return tuple(name for name in ("literature", "measured", "custom") if getattr(self, name) is not None)
+        """The sources this leaf has a value for, in the order literature, pooled, dataset, own, custom."""
+        return tuple(name for name in SOURCES if getattr(self, name) is not None)
 
     def choose(self, source, strict=False):
         """This leaf with `source` chosen; a source it has no value for leaves the choice as
@@ -237,13 +304,14 @@ class Sourced(Value):
 
     def with_custom(self, value):
         """This leaf with `value` as its custom source, chosen."""
-        return dataclasses.replace(self, custom=Value.of(value), chosen="custom")
+        return dataclasses.replace(self, custom=Value.of(value), chosen="custom",
+                                   provenance={**self.provenance, "custom": "set by the operator"})
 
     def sample(self, rng):
         return self.current.sample(rng)
 
     def __getattr__(self, name):
-        if name in ("literature", "measured", "custom", "chosen") or name.startswith("__"):
+        if name in (*SOURCES, "chosen", "provenance") or name.startswith("__"):
             raise AttributeError(name)
         return getattr(self.current, name)
 
@@ -253,7 +321,7 @@ class Sourced(Value):
         return self.current == other
 
     def __hash__(self):
-        return hash((self.literature, self.measured, self.custom, self.chosen))
+        return hash((self.literature, self.pooled, self.dataset, self.own, self.custom, self.chosen))
 
 
 #**************************************************************************************************#

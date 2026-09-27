@@ -19,13 +19,14 @@ import dataclasses
 import numpy as np
 import pytest
 
-from mrsandbox import Brain, CoilArray, Params, Press, Scanner, ScannerProfile
-from mrsandbox.scan.calibrations import NOISE_COWS_PRISMA_3T
+from mrsandbox import Brain, CoilArray, Params, Press, Scanner, ScannerProfile, VirtualScan
+from mrsandbox.scan import cohort as cohorts
+from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.voxel import noise_scale
 
 PLACE, SIZE = (0.0, -45.0, 35.0), 30.0
 # the leaked water off: these gates set a residual and read it back, and read the noise beside the water's wings
-CALM = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0), oov=dict(fraction=0.0))
+CALM = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
 
 #**************************************************************************************************#
@@ -34,44 +35,59 @@ CALM = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase
 @pytest.mark.render
 class TestScannerProfile:
 
-    def test_a_preset_is_served_by_the_catalogue(self):
+    def test_a_preset_is_served_by_its_pooled_rows(self):
         profile = ScannerProfile.preset("siemens_prisma_3t")
-        assert profile.calibrations()["noise.sigma"] is NOISE_COWS_PRISMA_3T
+        served = profile.calibrations()["noise.sigma"]
+        assert served == cohorts.pooled("noise.sigma", Scanner.preset("siemens_prisma_3t"))
+        assert served.measured["matched_on"]["model"] == "Prisma" and served.source["dataset"].startswith("pooled over")
+        assert "cows_prisma" in served.source["dataset"] and served.scanner["vendor"] == "siemens"
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == NOISE_COWS_PRISMA_3T.prior
+        assert (round(scan.params.noise.sigma.low, 7), round(scan.params.noise.sigma.high, 7)) == served.prior
 
-    def test_a_coil_with_its_own_record_is_a_preset_of_its_own(self):
-        eight, many = (ScannerProfile.preset(name).calibrations()["noise.sigma"]
-                       for name in ("ge_mr750_3t", "ge_mr750_32ch_3t"))
-        assert eight.coil["channels"] == (8, 8) and many.coil["channels"] == (32,)
-        assert eight.value == 7.0 and many.value == 7.9
+    def test_the_receive_arrays_count_is_one_of_the_conditions(self):
+        # the MR750 was read with an 8-channel array (Big GABA) and a 32-channel one (ds006444): the array on the
+        # floor picks the rows, one ideal channel pools both
+        eight, many = (calibrations("ge_mr750_3t", channels=n)["noise.sigma"] for n in (8, 32))
+        assert eight.coil["channels"] == (8,) and many.coil["channels"] == (32,)
+        assert "big_gaba_ge" in eight.source["dataset"] and "ds006444_ge_mr750" in many.source["dataset"]
+        both = calibrations("ge_mr750_3t")["noise.sigma"]
+        assert both.measured["subjects"] == eight.measured["subjects"] + many.measured["subjects"]
+        scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("ge_mr750_3t"), Press(te1_s=0.011, te2_s=0.024), coils=CoilArray.ring(8))
+        assert (round(scan.params.noise.sigma.low, 7), round(scan.params.noise.sigma.high, 7)) == eight.prior
 
-    def test_a_vendors_receiver_delay_stays_with_its_presets(self):
-        # the first-order phase read off Big GABA's Trio and GE runs reaches those presets' trees as a prior on
-        # the receiver delay (negative: the first sample before the echo top); a scanner without a record samples on
-        # the top, since a vendor's record is no fallback and the delay is not pooled (a generic scanner is clean)
-        trio = ScannerProfile(Scanner.preset("siemens_trio_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert (trio.params.acquisition.delay_s.low, trio.params.acquisition.delay_s.high) == (-0.0004845, -0.0002331)          # beyond the sequence's own creatine phase (item 230)
-        prisma = ScannerProfile.preset("siemens_prisma_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert (prisma.params.acquisition.delay_s.low, prisma.params.acquisition.delay_s.high) == (-0.0005563, -0.0001537)
-        assert (prisma.params.water.adjusted_residual.low, prisma.params.water.adjusted_residual.high) == (0.00029, 0.00153)
+    def test_the_pool_is_as_specific_as_the_scanner_on_the_floor(self):
+        # the receiver delay: the Trio's own rows for the Trio, every 3 T system for the generic 3 T, the vendor's
+        # for a Philips system the package has no rows of, and everything for a field it has none at, the departure named
+        trio = calibrations("siemens_trio_3t")["acquisition.delay_s"]
+        assert trio.measured["matched_on"]["model"] == "TrioTim" and trio.value < 0.0
+        scan = ScannerProfile(Scanner.preset("siemens_trio_3t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
+        assert (round(scan.params.acquisition.delay_s.low, 7), round(scan.params.acquisition.delay_s.high, 7)) == trio.prior
+        generic = calibrations("generic_3t")["acquisition.delay_s"]
+        assert generic.measured["matched_on"] == {"field_t": 3.0} and generic.measured["subjects"] > trio.measured["subjects"]
         pooled = ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert pooled.params.acquisition.delay_s.value == 0.0
-        assert "acquisition.delay_s" not in ScannerProfile.preset("generic_3t").calibrations()
-        assert (pooled.params.water.adjusted_residual.low, pooled.params.water.adjusted_residual.high) == (0.00075, 0.029)
-        assert (pooled.params.noise.sigma.low, pooled.params.noise.sigma.high) == (4.9, 10.3)
-        assert ScannerProfile.preset("philips_mr7700_3t").calibrations()["noise.sigma"].scanner["vendor"] == "pooled"    # the pool serves it
-        from mrsandbox.scan.calibrations import calibrations
+        assert (round(pooled.params.acquisition.delay_s.low, 7), round(pooled.params.acquisition.delay_s.high, 7)) == generic.prior
+        assert calibrations("philips_mr7700_3t")["noise.sigma"].measured["matched_on"] == {"field_t": 3.0, "vendor": "philips"}
+        low = calibrations("generic_1p5t")["noise.sigma"]
         plain = ScannerProfile(Scanner.preset("generic_1p5t")).scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
-        assert calibrations("generic_1p5t")["noise.sigma"].departures(plain)["field_t"] == (3.0, 1.5)      # the pool, its field named
+        assert low.measured["matched_on"] == {} and low.departures(plain)["field_t"] == (low.scanner["field_t"], 1.5)
+
+    def test_one_cohorts_rows_alone_calibrate_a_scanner(self):
+        # the scanner is hardware; what calibrates it is chosen apart: the pool, or one dataset's rows
+        trio = ScannerProfile.preset("siemens_trio_3t", cohort="big_gaba_trio")
+        assert {record.leaf for record in trio.records} == set(cohorts.leaves())
+        assert all(record.source["dataset"].endswith(": big_gaba_trio") for record in trio.records)
+        assert trio.calibrations()["noise.sigma"] == cohorts.pooled("noise.sigma", Scanner.preset("siemens_trio_3t"), within=("big_gaba_trio",))
+        assert "big_gaba_trio" in cohorts.holding(Scanner.preset("siemens_trio_3t"))
+        assert cohorts.holding(Scanner.preset("generic_1p5t")) == []                          # nothing at the field
+        assert set(cohorts.holding(Scanner.preset("generic_3t"))) >= {"big_gaba_trio", "big_gaba_ge", "big_gaba_philips"}
 
     def test_own_records_outrank_the_catalogue_in_priors_and_headers(self):
-        own = dataclasses.replace(NOISE_COWS_PRISMA_3T, value=8.0, prior=(7.0, 9.0), presets=(),
+        own = dataclasses.replace(calibrations("siemens_prisma_3t")["noise.sigma"], value=8.0, prior=(7.0, 9.0),
                                   source={"dataset": "my scanner", "citation": None, "url": None})
         profile = ScannerProfile(Scanner.preset("siemens_prisma_3t"), records=(own,))
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == (7.0, 9.0)
-        assert set(profile.calibrations()) == {"noise.sigma", "conc.Cr", "water.adjusted_residual", "acquisition.delay_s", "oov.fraction"}
+        assert set(profile.calibrations()) == {"conc.Cr", *cohorts.leaves()}
         data = scan.voxel(PLACE, SIZE).acquire(seed=0, npoints=256)
         named = data.hdr_ext["SimulationPhantom"]["calibrations"]["noise.sigma"]
         assert named["source"] == "my scanner" and named["value"] == 8.0
@@ -180,7 +196,7 @@ class TestScannerProfile:
         assert not records["acquisition.delay_s"].fallback
         intrinsic = records["acquisition.delay_s"].measured["intrinsic_phase_deg"]          # the twin's own creatine phase, taken out
         assert intrinsic != 0.0 and -30.0 < intrinsic < 30.0
-        # the reading's twin carries both in its tree, as the console's does after a calibration
-        twin = profile.scan(Brain.load("icbm152"), press, params=CALM).voxel(PLACE, SIZE)
+        # the reading's twin carries both in its tree, as the console's does after a calibration (nothing set on them here)
+        twin = profile.scan(Brain.load("icbm152"), press, params=Params(spurious=dict(amplitude=0.0))).voxel(PLACE, SIZE)
         assert twin.scan.params["acquisition"]["delay_s"].low < -0.0003
 

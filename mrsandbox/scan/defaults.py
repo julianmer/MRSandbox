@@ -24,8 +24,9 @@ from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
+from mrsandbox.hardware.scanners import Scanner
 from mrsandbox.scan.calibrations import calibrations
-from mrsandbox.params import Clipped, Fixed, Normal, Params, PerTissue, Priors, Sourced, Uniform
+from mrsandbox.params import Clipped, Empirical, Fixed, Normal, Params, PerTissue, Priors, Sourced, Uniform
 
 
 #****************#
@@ -33,6 +34,8 @@ from mrsandbox.params import Clipped, Fixed, Normal, Params, PerTissue, Priors, 
 #****************#
 # the typed fields; a scan at any other field takes the nearest one (stated)
 FIELDS_T = (1.5, 3.0, 7.0)
+CREATINE = ("de Graaf, In Vivo NMR Spectroscopy, 3rd ed.: total creatine 4.5 to 10.5 mM with the phosphocreatine "
+            "3.0 to 5.5 mM inside it taken out, the free creatine (database.concentrations DE_GRAAF)")
 
 # the consensus MM T1 study per field beyond 3 T and the default components it covers
 # (the only human rows the consensus table carries off 3 T; the rest keep the 3 T values)
@@ -64,7 +67,7 @@ _TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
 #**********************#
 #   default catalogue  #
 #**********************#
-def default_params(database=None, b0_t=3.0, scanner=None, records=()):
+def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=None):
     """Concentration priors and pooled literature relaxation for every metabolite that
     has both a spin system and a de Graaf range. Total choline is covered by GPC and
     PCho, its two constituents, so there is no separate Cho entry.
@@ -80,20 +83,24 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         database: Database instance; defaults to the packaged one.
         b0_t: The scanner field in tesla.
         scanner: The hardware.Scanner (or its preset name); a leaf calibrated on in vivo
-            data takes the record that serves the preset, else the leaf's fallback
-            (scan.calibrations).
+            data takes the package's readings pooled under the scanner's conditions, else
+            the typed record that serves the preset, else the leaf's fallback
+            (scan.calibrations); without a scanner, a nameless one at `b0_t`.
         records: The scanner's own Calibrations (scan.profile), which outrank those.
+        channels: The receive array's count, one of the conditions the readings are pooled by.
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
     names = [name for name in db.metabolites() if name in concentrations.DE_GRAAF]
     conc = Priors.de_graaf(metabolites=names, database=db)
-    # creatine: the de Graaf creatine range stacked on the phosphocreatine one overshoots
-    # the total creatine of three in vivo datasets; the calibrated range replaces it
-    # (scan.calibrations CREATINE_THREE_DATASETS_3T)
-    served = calibrations(scanner, records)         # the measured source of every leaf a record serves
+    # creatine: de Graaf's 4.5 to 10.5 mM is the total creatine and his 3.0 to 5.5 the phosphocreatine
+    # inside it; stacked on the PCr leaf the total range would count the phosphocreatine twice, so the
+    # creatine leaf's literature is the total with the phosphocreatine taken out, 3.0 to 5.5 in the
+    # ranges' own numbers (a total of 6 to 11 mM); three in vivo datasets put the total at 0.8 to 1.0
+    # of NAA, which the measured source says (scan.calibrations CREATINE_THREE_DATASETS_3T)
+    served = calibrations(scanner if scanner is not None else Scanner("unnamed", float(b0_t)), records, channels)   # the measured source of every leaf a record serves
     if "Cr" in conc:
-        conc = conc | Params(Cr=Sourced(literature=conc.Cr, measured=Uniform(*served["conc.Cr"].prior), chosen="measured"))
+        conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5), cited=CREATINE))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
     water_t1, water_t2 = _water_relaxation(tesla)
     # background signal inherent to the voxel: residual water, lipids, and the
@@ -121,7 +128,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     lands the train there instead of on zero.
         water=dict(residual_fraction=(1e-4, 3e-3), t1_s=water_t1, t2_s=water_t2,
                    temperature_c=37.0,
-                   adjusted_residual=Sourced(measured=Uniform(*served["water.adjusted_residual"].prior), chosen="measured")),
+                   adjusted_residual=_sourced("water.adjusted_residual", served, Uniform)),
         # lipids: subcutaneous fat at the skull boundary.
         #   amplitude_mm: adipose protons are water-like (about 60 to 70 M), which
         #     is why a voxel clipping the skull drowns in fat; the range is stated.
@@ -130,7 +137,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         # oov: the water outside the voxel that the localization leaks (the refocusing
         #   pulses' stopbands, the crushers' incomplete dephasing), one broad line at the
         #   water's frequency at the FID's start, read on the raw as the broad part of
-        #   the residual (scan.calibrations OOV_WATER_BIG_GABA_SIEMENS_3T: T2* 15 to 28
+        #   the residual (the package's cohorts, scan.cohort: on the Trio T2* 15 to 28
         #   ms, a fraction of the full water at t = 0, of a phase mostly opposite to the
         #   voxel's own residual; info/HANDOFF.md item 238).
         #   fraction: of the full water at t = 0 after the echo's decay, the record's.
@@ -138,7 +145,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     twelve subjects' 10 to 90.
         #   phase_deg: against the voxel's own residual at t = 0, the twelve's median
         #     and a stated spread (their 10 to 90 runs from -169 to +104).
-        oov=dict(fraction=Sourced(literature=Fixed(0.0), measured=Uniform(*served["oov.fraction"].prior), chosen="measured"),
+        oov=dict(fraction=_sourced("oov.fraction", served, Uniform) or Fixed(0.0),
                  t2star_s=(0.015, 0.028),
                  offset_hz=(-3.2, 7.3), phase_deg=Normal(-153.0, 45.0)),
         # mm: the macromolecule background.
@@ -199,8 +206,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #   gauss_hz: its FWHM, a stated range that lands the default 3 T water
         #     linewidth in the excellent-to-good grades of Oz et al. 2021 (5 to 10 Hz,
         #     16 to 19 at 7 T) on top of the Lorentzian 1 / (pi T2); susceptibility
-        #     broadening scales with the field, so the range scales by B0 / 3 T.
-        lineshape=dict(gauss_hz=(2.0 * tesla / 3.0, 6.0 * tesla / 3.0)),
+        #     broadening scales with the field, so the range scales by B0 / 3 T. The
+        #     width read on the package's cohorts stands beside it as its measured source.
+        lineshape=dict(gauss_hz=_sourced("lineshape.gauss_hz", served, Uniform, literature=Uniform(2.0 * tesla / 3.0, 6.0 * tesla / 3.0),
+                                         cited="a stated range: the water linewidth grades of Oz et al. 2021 over the Lorentzian part")),
     )
     # instrumental and physiological imperfections and artifact signals
     imperfections = Params(
@@ -218,7 +227,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #   line at f hertz is exp(+i 2 pi f t): the plain transform puts NAA at
         #   2.01 ppm (a first calibration read the conjugate with a 4.65 ppm carrier,
         #   the multiplets near 2.64 ppm). tests/scan/test_scan TestNoiseModel gates it.
-        noise=dict(sigma=Sourced(measured=Uniform(*served["noise.sigma"].prior), chosen="measured")),
+        noise=dict(sigma=_sourced("noise.sigma", served, Uniform)),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
         b1_scale=Normal(1.0, 0.03),
@@ -243,11 +252,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #     back to the start: a Normal about zero whose sd is the record's, zero
         #     for a scanner without one; the time constant a stated range.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
-                         delay_s=Sourced(literature=Fixed(0.0), **_measured("acquisition.delay_s", served, Uniform)),
+                         delay_s=_sourced("acquisition.delay_s", served, Uniform) or Fixed(0.0),
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
                          eddy_seed=(0.0, 2.0 ** 31 - 1.0),
-                         eddy_transient_rad=Sourced(literature=Fixed(0.0), **_measured("acquisition.eddy_transient_rad", served,
-                                                                                        _transient_prior)),
+                         eddy_transient_rad=_sourced("acquisition.eddy_transient_rad", served, _transient_prior) or Fixed(0.0),
                          eddy_transient_tau_s=(0.005, 0.02)),
         # gradients: the eddy currents the design's own gradients induce (scan.eddy),
         #   two exponential terms per step of the gradient, shared by the three
@@ -262,8 +270,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
         #   readout they phase the FID (the Klose-type lineshape distortion) and
         #   dephase the voxel box; the ranges are stated so the strong end distorts
         #   a line visibly and the weak end is clean; the B0 terms carry either sign,
-        #   as the eddy phase on eighty water references does (scan.calibrations
-        #   EDDY_PHASE_BIG_GABA_SIEMENS_3T and _GE_3T, which set the acquisition's
+        #   as the eddy phase on eighty water references does (the package's cohorts,
+        #   scan.cohort, whose eddy transient rows set the acquisition's
         #   phase transient: these terms cannot reach that phase at any physical
         #   size, info/HANDOFF.md item 236). A scan with a measured
         #   response (VirtualScan girf) plays its gradients through that instead
@@ -347,9 +355,9 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
     contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
     tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections
-    # a scanner's own record of any leaf of the tree is its measured source, chosen (scan.profile),
-    # the tree's value its literature one; a record of the hardware outside the tree (the array's
-    # noise share) is the hardware's to read
+    # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its dataset
+    # source (a cohort subject's reading), chosen: a reading made on a given scan outranks the pool; a
+    # record of the hardware outside the tree (the array's noise share) is the hardware's to read
     for record in records:
         *branch, leaf = record.leaf.split(".")
         node = tree
@@ -357,8 +365,11 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=()):
             node = node.get(key, {})
         if leaf in node:
             measured = Uniform(*record.prior) if record.prior[0] < record.prior[1] else Fixed(record.value)
-            sourced = (dataclasses.replace(node[leaf], measured=measured, chosen="measured") if isinstance(node[leaf], Sourced)
-                       else Sourced(literature=node[leaf], measured=measured, chosen="measured"))
+            slot = "dataset" if str(record.source.get("dataset", "")).startswith("subject ") else "own"     # a cohort's subject names itself (Member.fixed)
+            told = {slot: _cited(record)}
+            sourced = (dataclasses.replace(node[leaf], **{slot: measured}, chosen=slot, provenance={**node[leaf].provenance, **told})
+                       if isinstance(node[leaf], Sourced)
+                       else Sourced(literature=node[leaf], **{slot: measured}, chosen=slot, provenance={"literature": "the package's stated prior", **told}))
             override = {leaf: sourced}
             for key in reversed(branch):
                 override = {key: override}
@@ -375,15 +386,33 @@ def _transient_prior(low, high):
     return Normal(0.0, high) if low < 0.0 < high else Uniform(low, high)
 
 
-#**************#
-#   measured   #
-#**************#
-def _measured(leaf, served, make):
-    """The measured source of a Sourced leaf from the record that serves it, chosen; none
-    without a record (the leaf then stays at its literature value)."""
-    if leaf not in served:
-        return {}
-    return dict(measured=make(*served[leaf].prior), chosen="measured")
+#*************#
+#   sourced   #
+#*************#
+def _sourced(leaf, served, make, literature=None, cited=None):
+    """A Sourced leaf: `literature` its published value (None where none is published: a
+    zero for want of a number is not literature) with `cited` as its provenance, the
+    pooled source made by `make` from the record that serves the leaf, its provenance the
+    record's dataset and date. The literature is chosen wherever it exists, the pooled one
+    otherwise; a leaf with neither is None."""
+    record = served.get(leaf)
+    if literature is None and record is None:
+        return None
+    provenance = {**({"literature": cited} if literature is not None else {}), **({"pooled": _cited(record)} if record is not None else {})}
+    return Sourced(literature=literature, pooled=None if record is None else _spread(record, make),
+                   chosen="literature" if literature is not None else "pooled", provenance=provenance)
+
+
+def _spread(record, make):
+    """The Value a record's population is drawn from: a pooled record (scan.cohort) carries
+    its rows' values and every draw is one subject's own (the rows fall into sites and
+    vendors, not about one middle); any other record gives `make` of its prior."""
+    values = record.measured.get("values") if isinstance(record.measured, dict) else None
+    return Empirical(values) if values else make(*record.prior)
+
+
+def _cited(record):
+    return f"{record.source['dataset']}, {record.date}"
 
 
 #**********************#

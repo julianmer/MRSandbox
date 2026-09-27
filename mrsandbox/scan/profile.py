@@ -64,12 +64,21 @@ class ScannerProfile:
     #   from preset   #
     #*****************#
     @classmethod
-    def preset(cls, name):
-        """The profile of a named scanner preset, served by the package's records, with
-        the vendor's receiver where the raw data showed one (hardware.receiver RECEIVERS)."""
+    def preset(cls, name, cohort=None):
+        """The profile of a named scanner preset, the hardware alone: its scans take the
+        package's rows pooled under its conditions (scan.cohort). With `cohort`, the name
+        of one of the package's cohorts, that cohort's rows alone are its records (one
+        dataset as the scanner's calibration). The vendor's receiver where the raw data
+        showed one (hardware.receiver RECEIVERS)."""
         from mrsandbox.hardware.receiver import RECEIVERS
+        from mrsandbox.scan import cohort as cohorts
 
-        return cls(Scanner.preset(name), receiver=RECEIVERS.get(name))
+        scanner = Scanner.preset(name)
+        records = ()
+        if cohort is not None:
+            records = tuple(record for record in (cohorts.pooled(leaf, scanner, within=(cohort,)) for leaf in cohorts.leaves())
+                            if record is not None)
+        return cls(scanner, records, receiver=RECEIVERS.get(name))
 
     #*********************#
     #   from a raw file   #
@@ -98,23 +107,29 @@ class ScannerProfile:
     #   from readings     #
     #*********************#
     @classmethod
-    def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None, load="a head", water=None):
+    def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None, load="a head", water=None, seeds=None):
         """The profile the readings of one acquisition give (`read` makes them from files; a
         cohort's builder from arrays): the spectrum's width first, then the noise against a
         twin as broad as that, with `covariance` and `array` the channels' own noise and the
         array so loaded, with `water` the residual, the receiver delay, the leaked water and
-        the eddy transient."""
-        shim = spectrum.record(voxel, dataset)
-        sigma = noise.record(voxel, dataset, gauss_hz=shim.value)
+        the eddy transient. `seeds` draws the twin that many times per reading in place of
+        the readers' own counts (fewer for a twin that plays shaped pulses)."""
+        few = {} if seeds is None else {"seeds": seeds}
+        shim = spectrum.record(voxel, dataset, **few)
+        sigma = noise.record(voxel, dataset, gauss_hz=shim.value, **few)
+        if shim.failed:                                          # what is read against the width fails with it
+            sigma = dataclasses.replace(sigma, failed="read against a failed width: " + shim.failed)
         records, coils = (sigma, shim), None
         if array is not None:
             share = dataclasses.replace(covariance.record(array, dataset, load=load), scanner=sigma.scanner)
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
         if water is not None:
+            delay = water.record_delay(voxel, dataset, gauss_hz=shim.value, **few)
+            if shim.failed:
+                delay = dataclasses.replace(delay, failed=sigma.failed)
             records += tuple(dataclasses.replace(record, scanner=sigma.scanner) for record in (
-                water.record_residual(voxel, dataset), water.record_delay(voxel, dataset, gauss_hz=shim.value),
-                water.record_leak(voxel, dataset), water.record_eddy(voxel, dataset)))
+                water.record_residual(voxel, dataset), delay, water.record_leak(voxel, dataset), water.record_eddy(voxel, dataset)))
         return cls(voxel.scan.scanner, records, coils=coils)
 
     #**********#

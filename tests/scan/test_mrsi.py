@@ -26,7 +26,7 @@ from mrsandbox import Brain, CoilArray, Params, PerTissue, Press, Scanner, Virtu
 pytestmark = pytest.mark.render
 
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
 
 #*************#

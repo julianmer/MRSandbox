@@ -311,7 +311,7 @@ class TestFieldGroups:
         # (no microscopic spread: the water alone plays it through the train, the whole sequence keeps it as an
         # envelope on the result, item 234)
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, lineshape=dict(gauss_hz=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
         def water(**groups):
             scan = VirtualScan(brain, Scanner.preset("generic_3t"), Chess(3) + Press(te1_s=0.011, te2_s=0.019),
@@ -342,7 +342,7 @@ class TestFieldGroups:
 
         def water(sequence, gauss_hz):
             quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, lineshape=dict(gauss_hz=gauss_hz),
-                           acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                           acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
             scan = VirtualScan(brain, Scanner.preset("generic_3t"), sequence, params=quiet, field=field, water=Unsuppressed(),
                                lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), water_groups=8)
             voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
@@ -369,7 +369,7 @@ class TestFieldGroups:
         conc = {name: 0.0 for name in VirtualScan.default_params().conc}
         conc["GABA"] = 2.0
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), conc=conc, b1_scale=1.0,
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         ppm = np.fft.fftshift(np.fft.fftfreq(1024, 1.0 / 4000.0)) / (3.0 * 42.5774785)
         window = (ppm > 2.6) & (ppm < 3.4)
 

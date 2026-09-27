@@ -32,7 +32,7 @@ class TestNoiseReading:
         # one subject of a virtual scan, four channels of known sensitivity, 48 transients of
         # white noise at a known reference sigma: read as raw data, the twin gives it back
         calm = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0,
-                                                                     eddy_std_rad=0.0))
+                                                                     eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
                            Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=calm)
         voxel = scan.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
@@ -66,7 +66,7 @@ class TestNoiseReading:
 
         # a phantom scan of known noise: unsuppressed water rings to the end of every FID, so
         # the tails do not serve and the noise comes from samples taken with the RF off
-        calm = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        calm = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         scan = VirtualScan(Phantom.spectre(temperature_c=21.0), Scanner.preset("generic_3t"),
                            Press(te1_s=0.011, te2_s=0.024, tr_s=5.0), params=calm, water=Unsuppressed())
         voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
@@ -180,7 +180,7 @@ class TestSpectrumReading:
         # reader finds in the raw data is what the twin shows for that subject, and a subject
         # with half the creatine reads half the ratio
         calm = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0,
-                                                                     eddy_std_rad=0.0))
+                                                                     eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         pieces = (Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.024, tr_s=2.0))
         voxel = VirtualScan(*pieces, params=calm).voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
         n, dwell_s = 2048, 1.0 / 2000.0

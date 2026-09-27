@@ -37,7 +37,7 @@ def spectra():
     brain = Brain.load("icbm152")
     pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
     quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                   acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                   acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
     def spectrum(level, mm=None):
         params = quiet | Params(mm=dict(level_mm=level))
@@ -232,7 +232,7 @@ class TestMeasured:
     def measured_background(te_s, seed=7, npoints=4096):
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         pieces = (Scanner.preset("generic_3t"), Press(te_s / 2.0, te_s / 2.0))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         with_mm = VirtualScan(brain, *pieces, params=tree, mm=MeasuredMM())
@@ -282,7 +282,7 @@ class TestMeasured:
 
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         pieces = (Scanner.preset("generic_3t"), PulseAcquire(tr_s=tr_s))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         with_mm = VirtualScan(brain, *pieces, params=tree, mm=MeasuredMM())
@@ -318,7 +318,7 @@ class TestCoupled:
     def background(sequence, seed=7, **params):
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                       mm=dict(kappa=7.0), **params)
         pieces = (Scanner.preset("generic_3t"), sequence)
         with_mm = VirtualScan(brain, *pieces, params=tree)
@@ -343,7 +343,7 @@ class TestCoupled:
     def test_short_te_fraction_in_the_consensus_ballpark(self):
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                       mm=dict(kappa=10.4), oov=dict(fraction=0.0))       # the leaked water's wings out of the window
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
         with_mm = VirtualScan(brain, *pieces, params=tree)
@@ -378,7 +378,7 @@ class TestCoupled:
         # empty line lists), and the render is the one without macromolecules exactly
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), mm=dict(kappa=0.0),
-                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         _, s1 = VirtualScan(brain, *pieces, params=tree).voxel(**kw).spectrum(seed=7, npoints=1024)

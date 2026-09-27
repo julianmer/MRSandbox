@@ -85,7 +85,7 @@ class TestScan:
         brain = Brain.load("icbm152")
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         ideal = VirtualScan(brain, *pieces, params=quiet).voxel(**kw)
         real = VirtualScan(brain, *pieces, params=quiet, receiver=Receiver()).voxel(**kw)

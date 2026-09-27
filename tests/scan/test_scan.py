@@ -204,9 +204,9 @@ class TestAcquisitionImperfections:
         # a physical offset-dependent residue the coherence filters let through)
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         clean = Params(noise=dict(sigma=0.0), b1_scale=1.0,
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, delay_s=0.0, eddy_transient_rad=0.0))
         bent = Params(noise=dict(sigma=0.0), b1_scale=1.0,
-                      acquisition=dict(shift_hz=5.0, phase_deg=90.0))
+                      acquisition=dict(shift_hz=5.0, phase_deg=90.0, delay_s=0.0, eddy_transient_rad=0.0))
         base = VirtualScan(brain, *pieces, params=clean).voxel(position_mm=(10, -20, 5), size_mm=20)
         warp = VirtualScan(brain, *pieces, params=bent).voxel(position_mm=(10, -20, 5), size_mm=20)
         _, fid0 = base.fid(seed=7, npoints=512)
@@ -246,7 +246,7 @@ class TestAcquisitionImperfections:
         # functions of the temperature, the measured backgrounds are untouched
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
         def parts(temperature_c):
             voxel = VirtualScan(brain, *pieces, params=Params(
@@ -277,7 +277,7 @@ class TestAcquisitionImperfections:
 
         def fid(delay_s, npoints, dwell_s=1.0 / 4000.0):
             params = Params(**quiet, acquisition=dict(shift_hz=5.0, phase_deg=30.0,
-                                                      eddy_std_rad=0.0, delay_s=delay_s))
+                                                      eddy_std_rad=0.0, eddy_transient_rad=0.0, delay_s=delay_s))
             voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
                                                                      size_mm=20)
             return voxel.fid(seed=7, npoints=npoints, dwell_s=dwell_s)[1]
@@ -295,7 +295,7 @@ class TestAcquisitionImperfections:
 
         def echo(delay_s, npoints):
             params = Params(noise=dict(sigma=0.0), spurious=ghost,
-                            acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                            acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, eddy_transient_rad=0.0,
                                              delay_s=delay_s))
             voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
                                                                      size_mm=20)
@@ -317,11 +317,11 @@ class TestAcquisitionImperfections:
 
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0))
-        still = Params(**quiet, acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+        still = Params(**quiet, acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
         def rung(seed, std=0.5):
-            return Params(**quiet, acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=std,
-                                                    eddy_lp_cut_hz=25.0, eddy_seed=float(seed)))
+            return Params(**quiet, acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=std, delay_s=0.0, eddy_transient_rad=0.0,
+                                                    eddy_lp_cut_hz=25.0, eddy_seed=float(seed)), oov=dict(fraction=0.0))
 
         def fid(params):
             voxel = VirtualScan(brain, *pieces, params=params).voxel(position_mm=(10, -20, 5),
@@ -343,7 +343,7 @@ class TestAcquisitionImperfections:
     def test_spurious_echo_rides_at_its_drawn_position(self, scan):
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         still = dict(noise=dict(sigma=0.0),
-                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                     acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         ghost = dict(tau_s=0.1, width_s2=2000.0, ppm=2.5, phase_deg=0.0)
         off = Params(**still, spurious=dict(amplitude=0.0, **ghost))
         on = Params(**still, spurious=dict(amplitude=0.1, **ghost))
@@ -509,7 +509,7 @@ class TestMaps:
 #**************************************************************************************************#
 class TestLineshape:
     STILL = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                 acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                 acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
     #*********************#
     #   exact envelope    #
@@ -585,10 +585,10 @@ class TestNoiseModel:
         from mrsandbox import SemiLaser
         from mrsandbox.scan.calibrations import calibrations
 
-        # the bare default and the generic 3 T take the systems' pool; the Trio its own record
-        assert calibrations()["noise.sigma"].scanner["vendor"] == "pooled"
+        # the generic 3 T pools every system's rows; the Trio its own rows
+        assert calibrations("generic_3t")["noise.sigma"].scanner["vendor"] == "pooled"
         record = calibrations("siemens_trio_3t")["noise.sigma"]
-        assert record.source["dataset"].startswith("Big GABA")
+        assert record.source["dataset"].startswith("pooled over") and record.source["dataset"].endswith("big_gaba_trio")
         brain = Brain.load("icbm152")
         same = VirtualScan(brain, Scanner.preset("siemens_trio_3t"), Press(0.011, 0.024))
         prior = same.params["noise"]["sigma"]
@@ -596,23 +596,22 @@ class TestNoiseModel:
         assert record.departures(same) == {}
         other = VirtualScan(brain, Scanner.preset("generic_7t"), Steam(te_s=0.01, tm_s=0.02))
         assert set(record.departures(other)) == {"field_t", "sequence"}
-        # the 7 T preset has its own record, so its field is no departure any more
+        # the 7 T preset has rows of its own, so its field is no departure any more
         seven = calibrations(other.scanner)["noise.sigma"]
         assert seven.scanner["field_t"] > 6.9 and set(seven.departures(other)) == {"sequence"}
         assert other.params["noise"]["sigma"].low < record.prior[0]  # quieter than the 3 T law gives
         philips = VirtualScan(brain, Scanner.preset("philips_elition_3t"), Press(0.011, 0.024))
         assert record.departures(philips) == {"vendor": ("siemens", "philips")}
-        # a preset with its own record takes it: the Prisma's is COWS, semi-LASER
+        # a preset with rows of its own takes them: the Prisma's are COWS, semi-LASER
         prisma = VirtualScan(brain, Scanner.preset("siemens_prisma_3t"), SemiLaser(te_s=0.026))
         served = calibrations(prisma.scanner)["noise.sigma"]
-        assert served.source["dataset"].startswith("COWS")
+        assert served.source["dataset"].endswith("cows_prisma")
         assert (prisma.params["noise"]["sigma"].low, prisma.params["noise"]["sigma"].high) == served.prior
         assert served.departures(prisma) == {}
         achieva = VirtualScan(brain, Scanner.preset("philips_achieva_3t"), Press(0.009, 0.013))
         birdcage = calibrations(achieva.scanner)["noise.sigma"]
         assert birdcage.coil["channels"] == (1,) and birdcage.departures(achieva) == {}
-        assert achieva.params["noise"]["sigma"].low > prisma.params["noise"]["sigma"].high
-        assert calibrations("siemens_trio_3t")["noise.sigma"] is record
+        assert calibrations("siemens_trio_3t")["noise.sigma"] == record
 
     def test_averages_volume_field_and_bandwidth_scale_the_noise(self, scan):
         from mrsandbox.scan.voxel import noise_scale
@@ -649,17 +648,19 @@ class TestNoiseModel:
     def test_the_default_noise_reproduces_the_in_vivo_naa_snr(self, scan):
         # the calibration of the noise prior (scan.defaults): at Big GABA's PRESS
         # conditions (3 T, TE 35 ms, TR 2 s, a 30 mm cube, 2048 points at 2 kHz, one
-        # transient) the default draws give the single-transient NAA SNR measured on
-        # its 36 Siemens subjects, 36.5 (28.8 to 43.6), by the consensus definition; the record's
-        # sigma is the mean of what the plain and the apodized reading imply, so the simulated
-        # SNR lies a little above the plain one and a little below the apodized one (the Trio
-        # preset: the bare default draws the systems' pool)
+        # transient) the Trio's pooled rows give the single-transient NAA SNR measured on
+        # its 36 Siemens subjects, 36.5 (28.8 to 43.6), by the consensus definition, when the
+        # twin is as wide as those subjects' lines (the measured width chosen: every row's sigma
+        # was read against its own run's width); at the literature width, narrower, the SNR
+        # lies above. The record's sigma is the apodized reading's, so the simulated SNR lies
+        # a little above the plain one and a little below the apodized one
         calm = Params(spurious=dict(amplitude=0.0),
-                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                       gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                                      linear_short=0.0, linear_long=0.0))
         calibration = VirtualScan(scan.brain, Scanner.preset("siemens_trio_3t"),
                                   Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=calm)
+        calibration.params = calibration.params.select(**{"lineshape.gauss_hz": "pooled"})
         voxel = calibration.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
         n, bw, cf = 2048, 2000.0, voxel._f0_mhz()
         # the FID is referenced to 0 ppm and a line at f hertz is exp(+i 2 pi f t): the
@@ -687,7 +688,7 @@ class TestNoiseModel:
         # singlet reaches 0.62 of the NAA singlet's height in vivo (0.56 to 0.63 over three
         # datasets); the de Graaf creatine range on top of phosphocreatine gave 0.79
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
         voxel = VirtualScan(scan.brain, scan.scanner, Press(te1_s=0.011, te2_s=0.024, tr_s=2.0),
                             params=quiet).voxel(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
         n, bw = 2048, 2000.0

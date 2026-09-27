@@ -32,7 +32,7 @@ from mrsandbox.sequences.timeline import gradient_waveforms
 
 GAMMA = 42.5774785
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                               linear_short=0.0, linear_long=0.0))
 

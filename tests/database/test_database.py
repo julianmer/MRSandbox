@@ -199,41 +199,51 @@ class TestFieldPriors:
     #********************#
     #   three sources    #
     #********************#
-    def test_the_recorded_leaves_carry_their_literature_and_measured_sources(self):
-        # every leaf a record serves is Sourced with the measured one chosen; the literature one is the typed or
-        # stated prior before any record (de Graaf's creatine, zero delay, transient and leak), or none (the noise,
-        # the adjusted residual: nothing in the literature), which a tree-wide "literature" then leaves measured
-        from mrsandbox import Fixed, Normal, Sourced, Uniform
-        from mrsandbox.database import concentrations
+    def test_the_literature_is_chosen_where_it_exists_and_the_pooled_readings_elsewhere(self):
+        # every leaf a reading serves is Sourced: the literature (de Graaf's creatine, the stated width) chosen where
+        # one is published, the pooled readings where none is (the noise, the residual, the delay, the transient, the
+        # leak: a zero for want of a number is not literature), each source with its provenance
+        from mrsandbox import Empirical, Sourced, Uniform
         from mrsandbox.scan.defaults import default_params
 
         tree = default_params(b0_t=3.0, scanner="siemens_trio_3t")
-        assert set(tree.sources()) == {"conc.Cr", "noise.sigma", "water.adjusted_residual", "acquisition.delay_s",
+        assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma", "water.adjusted_residual", "acquisition.delay_s",
                                        "acquisition.eddy_transient_rad", "oov.fraction"}
-        assert all(leaf.chosen == "measured" for leaf in tree.sources().values())
-        assert tree.noise.sigma.literature is None and tree.acquisition.delay_s.literature == Fixed(0.0)
+        assert {path: leaf.chosen for path, leaf in tree.sources().items()} == {
+            "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled", "water.adjusted_residual": "pooled",
+            "acquisition.delay_s": "pooled", "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled"}
+        assert tree.conc.Cr == Uniform(3.0, 5.5) and tree.lineshape.gauss_hz == Uniform(2.0, 6.0)
+        assert tree.noise.sigma.literature is None and tree.acquisition.delay_s.literature is None
+        assert isinstance(tree.acquisition.eddy_transient_rad.pooled, Empirical) and tree.acquisition.delay_s.high < 0.0
+        assert tree.conc.Cr.provenance["literature"].startswith("de Graaf") and "big_gaba_trio" in tree.noise.sigma.provenance["pooled"]
+        measured = tree.select("pooled")
+        assert measured.conc.Cr.chosen == "pooled" and measured.conc.Cr == tree.conc.Cr.pooled
+        assert isinstance(measured.lineshape.gauss_hz, Sourced) and measured.lineshape.gauss_hz.chosen == "pooled"
         literature = tree.select("literature")
-        assert literature.conc.Cr == Uniform(*concentrations.DE_GRAAF["Cr"]) and literature.acquisition.delay_s == Fixed(0.0)
-        assert literature.acquisition.eddy_transient_rad == Fixed(0.0) and literature.oov.fraction == Fixed(0.0)
-        assert literature.noise.sigma == tree.noise.sigma and isinstance(tree.acquisition.eddy_transient_rad.measured, Normal)
-        assert isinstance(literature.conc.Cr, Sourced) and literature.conc.Cr.chosen == "literature"
+        assert literature.noise.sigma == tree.noise.sigma and literature.acquisition.delay_s == tree.acquisition.delay_s
 
     #**********************#
     #   eddy transient     #
     #**********************#
-    def test_the_eddy_transient_is_the_records_and_zero_without_one(self):
-        # the phase transient at the FID's start: a Normal about zero with the vendor's record's sd (the Trio, GE),
-        # zero for a scanner without a record (the generic 3 T), the records of either sign in their 10 to 90
-        from mrsandbox import Fixed, Normal
-        from mrsandbox.scan.calibrations import CALIBRATIONS, EDDY_PHASE_BIG_GABA_GE_3T, EDDY_PHASE_BIG_GABA_SIEMENS_3T
+    def test_the_eddy_transient_is_the_pooled_rows_spread_about_zero(self):
+        # the phase transient at the FID's start: the package's rows of either sign pooled for the scanner, a Normal
+        # about zero with their 95th percentile as its spread; the failed readings (a half turn off) are not among them
+        import numpy as np
+
+        from mrsandbox import Empirical
+        from mrsandbox.scan import cohort
+        from mrsandbox.scan.calibrations import calibrations
         from mrsandbox.scan.defaults import default_params
 
-        assert default_params(b0_t=3.0, scanner="siemens_trio_3t").acquisition.eddy_transient_rad == Normal(0.0, 0.549)
-        assert default_params(b0_t=3.0, scanner="ge_mr750_3t").acquisition.eddy_transient_rad == Normal(0.0, 0.575)
-        assert default_params(b0_t=3.0, scanner="generic_3t").acquisition.eddy_transient_rad == Fixed(0.0)
-        for record in (EDDY_PHASE_BIG_GABA_SIEMENS_3T, EDDY_PHASE_BIG_GABA_GE_3T):
-            assert record.leaf == "acquisition.eddy_transient_rad" and record in CALIBRATIONS and not record.fallback
-            assert record.measured["at_5ms_10_90"][0] < 0.0 < record.measured["at_5ms_10_90"][1]
+        for scanner in ("siemens_trio_3t", "ge_mr750_3t", "generic_3t"):
+            record = calibrations(scanner)["acquisition.eddy_transient_rad"]
+            assert record.prior[0] < 0.0 < record.prior[1]
+            drawn = default_params(b0_t=3.0, scanner=scanner).acquisition.eddy_transient_rad
+            assert isinstance(drawn.current, Empirical) and (round(drawn.low, 7), round(drawn.high, 7)) == record.prior
+            assert drawn.value == record.value and list(drawn.current.values) == record.measured["values"]
+        assert all(abs(record.value) <= 0.5 * np.pi for _, _, record in cohort.rows("acquisition.eddy_transient_rad"))
+        assert any(record.failed for c in cohort.package() for m in c.members for record in m.profile.records
+                   if record.leaf == "acquisition.eddy_transient_rad")
 
 
 #**************************************************************************************************#

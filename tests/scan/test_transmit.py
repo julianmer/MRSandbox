@@ -94,7 +94,7 @@ class TestTransmitMap:
         ones = np.ones(shape, dtype=np.float32)
         brain = Brain.from_maps(gm=ones * 0.5, wm=ones * 0.5, csf=ones * 0.0, affine=affine)
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                        gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                                       linear_short=0.0, linear_long=0.0))
         return VirtualScan(brain, Scanner.preset("generic_7t"), sequence, params=quiet,

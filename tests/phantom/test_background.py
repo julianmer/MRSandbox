@@ -121,7 +121,7 @@ class TestWater:
         from mrsandbox.phantom.water import WaterSource
 
         def fid(fraction):
-            quiet = Params(acquisition=dict(shift_hz=0.0, spurious=dict(amplitude=0.0), phase_deg=0.0, eddy_std_rad=0.0),
+            quiet = Params(acquisition=dict(shift_hz=0.0, spurious=dict(amplitude=0.0), phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
                            spurious=dict(amplitude=0.0), lineshape=dict(gauss_hz=0.0), water=dict(t2_s=0.08),
                            oov=dict(fraction=fraction, t2star_s=0.02, offset_hz=0.0, phase_deg=180.0))
             scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019), params=quiet, water=Unsuppressed())

@@ -111,5 +111,5 @@ class Receiver:
 # Trio (36 runs) and the COWS Prisma (39): flat to the edges (1.0 to 1.1), because Siemens acquires at twice the
 # band and the reader crops the spectrum to its middle half, so the filter's roll-off never reaches the kept band:
 # no receiver is the right model of those files, stated. Philips: no raw noise read.
-RECEIVERS = {"ge_mr750_3t": Receiver(oversampling=8, span_dwells=5), "ge_mr750_32ch_3t": Receiver(oversampling=8, span_dwells=5)}
+RECEIVERS = {"ge_mr750_3t": Receiver(oversampling=8, span_dwells=5)}
 

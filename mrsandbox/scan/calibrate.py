@@ -21,7 +21,7 @@ import datetime
 import numpy as np
 
 from mrsandbox.phantom.solution import Phantom
-from mrsandbox.scan.calibrations import APODIZED, Calibration
+from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.voxel import noise_scale
 
 # what a NIfTI-MRS header says of the scanner, coil, and sequence
@@ -33,6 +33,10 @@ APODIZATION_HZ, NAA_PPM, WATER_PPM = 10.0, 2.008, 4.65
 # the lines a noise reading is taken on: where the line lies with the carrier on water, and how far
 # from there it is looked for (a phantom's water moves with its temperature)
 LINES = {"NAA": (NAA_PPM, 0.05), "water": (WATER_PPM, 0.4)}
+# the second reading of the noise: the plain single-transient NAA SNR follows the in vivo line, the apodized
+# one the broad signal under the singlet; they err in opposite directions and each gives a sigma
+APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodization of data and "
+            "simulation alike")
 
 
 #**************#
@@ -465,13 +469,18 @@ class SpectrumReading:
             middle = 0.5 * (low + high)
             low, high = (middle, high) if self.twin(voxel, seeds, middle)["naa_fwhm_hz"] < self.naa_fwhm_hz else (low, middle)
         value = round(0.5 * (low + high), 2)
+        bare = self.twin(voxel, seeds, 0.0)["naa_fwhm_hz"]
         sequence = voxel.scan.sequence
         return Calibration(
             leaf="lineshape.gauss_hz", value=value, prior=(round(0.75 * value, 2), round(1.25 * value, 2)),
             measured={"statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined "
                                    "spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
                       "naa_fwhm_hz": round(self.naa_fwhm_hz, 2),
-                      "twin_without_broadening_hz": round(self.twin(voxel, seeds, 0.0)["naa_fwhm_hz"], 2)},
+                      "twin_without_broadening_hz": round(bare, 2)},
+            # the rule: a twin already as wide as the line without any broadening leaves the bisection at its
+            # floor, and the line's width was not read
+            failed=("" if bare < self.naa_fwhm_hz else
+                    f"the twin without broadening ({bare:.1f} Hz) is already as wide as the measured line ({self.naa_fwhm_hz:.1f} Hz)"),
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),
@@ -939,13 +948,16 @@ class WaterReading:
                       "at_5ms_rad": round(value, 4)},
             processing="NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late "
                        "window, the model carried back to the start",
+            # the rule: a phase past a quarter turn 5 ms in is the late model landing a half turn off, not a transient
+            failed="" if abs(value) <= 0.5 * np.pi else f"the phase 5 ms in ({value:.2f} rad) is past a quarter turn: the late model's own wrap",
             presets=tuple(presets), fallback=False, **self._conditions(voxel, dataset, citation, url))
 
-    def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None):
+    def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None, seeds=3):
         """The Calibration of acquisition.delay_s: creatine's phase against NAA beyond the
-        twin's intrinsic one (the twin as broad as `gauss_hz`), over their distance, a
-        delay of the samples against the echo top; no fallback, this scanner's."""
-        intrinsic = self.intrinsic_phase_deg(voxel, gauss_hz)
+        twin's intrinsic one (the twin as broad as `gauss_hz`, drawn `seeds` times), over
+        their distance, a delay of the samples against the echo top; no fallback, this
+        scanner's."""
+        intrinsic = self.intrinsic_phase_deg(voxel, gauss_hz, seeds)
         delay = float(np.radians(self.creatine_phase_deg - intrinsic) / (2.0 * np.pi * self.creatine_offset_hz))
         return Calibration(
             leaf="acquisition.delay_s", value=float(round(delay, 7)),

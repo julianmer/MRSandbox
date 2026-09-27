@@ -1,0 +1,6320 @@
+{
+ "name": "fmrs_pain_achieva",
+ "members": [
+  {
+   "subject": "S01",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 11.31,
+      "prior": [
+       8.48,
+       14.13
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 11.2,
+       "implied_value": 10.27,
+       "naa_found_at_ppm": 1.998,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 41.1,
+        "implied_value": 11.31
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 5.46,
+      "prior": [
+       4.09,
+       6.83
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 8.71,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.00844,
+      "prior": [
+       0.00633,
+       0.01055
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.00844,
+       "over_dry_maximum": 0.705,
+       "phase_deg": 36.6,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -0.0002939,
+      "prior": [
+       -0.0003674,
+       -0.0002204
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -293.9,
+       "creatine_phase_deg": -8.9,
+       "intrinsic_phase_deg": 4.8,
+       "creatine_offset_hz": 130.3
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": -2.6346,
+      "prior": [
+       -3.2933,
+       -1.976
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -2.6346
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": "the phase 5 ms in (-2.63 rad) is past a quarter turn: the late model's own wrap"
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S02",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 8.99,
+      "prior": [
+       6.74,
+       11.24
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 13.7,
+       "implied_value": 8.61,
+       "naa_found_at_ppm": 1.975,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 52.0,
+        "implied_value": 8.99
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 5.17,
+      "prior": [
+       3.88,
+       6.46
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 8.35,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.002716,
+      "prior": [
+       -0.003395,
+       -0.002037
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.002716,
+       "over_dry_maximum": 0.234,
+       "phase_deg": -149.1,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 3.47e-05,
+      "prior": [
+       2.6e-05,
+       4.33e-05
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 34.7,
+       "creatine_phase_deg": -20.3,
+       "intrinsic_phase_deg": -21.9,
+       "creatine_offset_hz": 130.5
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.01187,
+      "prior": [
+       0.008903,
+       0.014838
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.01187,
+       "t2star_ms": 34.9,
+       "offset_hz": 0.59,
+       "phase_vs_residual_deg": -169.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": -0.1524,
+      "prior": [
+       -0.1905,
+       -0.1143
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.1524
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S03",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 10.09,
+      "prior": [
+       7.57,
+       12.62
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 12.3,
+       "implied_value": 9.71,
+       "naa_found_at_ppm": 1.982,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 46.4,
+        "implied_value": 10.09
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 5.1,
+      "prior": [
+       3.82,
+       6.38
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 8.23,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.025587,
+      "prior": [
+       0.019191,
+       0.031984
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.025587,
+       "over_dry_maximum": 3.041,
+       "phase_deg": -21.4,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -0.0004139,
+      "prior": [
+       -0.0005174,
+       -0.0003104
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -413.9,
+       "creatine_phase_deg": -3.0,
+       "intrinsic_phase_deg": 16.4,
+       "creatine_offset_hz": 130.1
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.010159,
+      "prior": [
+       0.007619,
+       0.012698
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.010159,
+       "t2star_ms": 1.9,
+       "offset_hz": 24.32,
+       "phase_vs_residual_deg": -71.7
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.4177,
+      "prior": [
+       0.3133,
+       0.5221
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.4177
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S04",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 9.71,
+      "prior": [
+       7.28,
+       12.14
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 15.3,
+       "implied_value": 8.9,
+       "naa_found_at_ppm": 1.967,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 49.2,
+        "implied_value": 9.71
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.02,
+      "prior": [
+       3.01,
+       5.02
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 6.98,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.007811,
+      "prior": [
+       -0.009763,
+       -0.005858
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.007811,
+       "over_dry_maximum": 0.789,
+       "phase_deg": 146.4,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 0.0008121,
+      "prior": [
+       0.000609,
+       0.0010151
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 812.1,
+       "creatine_phase_deg": -10.6,
+       "intrinsic_phase_deg": -48.6,
+       "creatine_offset_hz": 130.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.3707,
+      "prior": [
+       0.278,
+       0.4634
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.3707
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S05",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 10.2,
+      "prior": [
+       7.65,
+       12.75
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 11.0,
+       "implied_value": 9.53,
+       "naa_found_at_ppm": 1.975,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 45.2,
+        "implied_value": 10.2
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 6.35,
+      "prior": [
+       4.76,
+       7.94
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 9.82,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.001694,
+      "prior": [
+       -0.002117,
+       -0.00127
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.001694,
+       "over_dry_maximum": 0.146,
+       "phase_deg": 169.7,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 1.52e-05,
+      "prior": [
+       1.14e-05,
+       1.9e-05
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 15.2,
+       "creatine_phase_deg": -19.7,
+       "intrinsic_phase_deg": -20.4,
+       "creatine_offset_hz": 130.9
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": -0.0697,
+      "prior": [
+       -0.0871,
+       -0.0523
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.0697
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S06",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 12.14,
+      "prior": [
+       9.1,
+       15.17
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 12.5,
+       "implied_value": 10.65,
+       "naa_found_at_ppm": 1.982,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 39.2,
+        "implied_value": 12.14
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.18,
+      "prior": [
+       3.13,
+       5.22
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.16,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.002917,
+      "prior": [
+       -0.003646,
+       -0.002187
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.002917,
+       "over_dry_maximum": 0.229,
+       "phase_deg": -176.8,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 0.0001153,
+      "prior": [
+       8.65e-05,
+       0.0001442
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 115.3,
+       "creatine_phase_deg": -19.6,
+       "intrinsic_phase_deg": -25.0,
+       "creatine_offset_hz": 130.4
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.023865,
+      "prior": [
+       0.017899,
+       0.029831
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.023865,
+       "t2star_ms": 32.7,
+       "offset_hz": -0.91,
+       "phase_vs_residual_deg": -173.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.2043,
+      "prior": [
+       0.1532,
+       0.2553
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.2043
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S07",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 10.69,
+      "prior": [
+       8.02,
+       13.37
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 12.5,
+       "implied_value": 10.16,
+       "naa_found_at_ppm": 1.975,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 44.2,
+        "implied_value": 10.69
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.58,
+      "prior": [
+       3.44,
+       5.72
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.64,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.012939,
+      "prior": [
+       0.009704,
+       0.016174
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.012939,
+       "over_dry_maximum": 0.947,
+       "phase_deg": -2.2,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -0.0003312,
+      "prior": [
+       -0.0004139,
+       -0.0002484
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -331.2,
+       "creatine_phase_deg": -8.2,
+       "intrinsic_phase_deg": 7.3,
+       "creatine_offset_hz": 130.2
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.5201,
+      "prior": [
+       0.3901,
+       0.6502
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.5201
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S08",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 11.98,
+      "prior": [
+       8.99,
+       14.98
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 12.8,
+       "implied_value": 11.16,
+       "naa_found_at_ppm": 1.99,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 40.0,
+        "implied_value": 11.98
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 3.72,
+      "prior": [
+       2.79,
+       4.65
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 6.64,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.002569,
+      "prior": [
+       -0.003211,
+       -0.001927
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.002569,
+       "over_dry_maximum": 0.256,
+       "phase_deg": -136.4,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 0.0001915,
+      "prior": [
+       0.0001437,
+       0.0002394
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 191.5,
+       "creatine_phase_deg": -12.0,
+       "intrinsic_phase_deg": -21.0,
+       "creatine_offset_hz": 129.9
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.015894,
+      "prior": [
+       0.011921,
+       0.019868
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.015894,
+       "t2star_ms": 27.6,
+       "offset_hz": -1.05,
+       "phase_vs_residual_deg": 175.8
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": -1.4851,
+      "prior": [
+       -1.8564,
+       -1.1138
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -1.4851
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S09",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 12.05,
+      "prior": [
+       9.04,
+       15.06
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 11.8,
+       "implied_value": 11.18,
+       "naa_found_at_ppm": 1.99,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 39.5,
+        "implied_value": 12.05
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.23,
+      "prior": [
+       3.17,
+       5.29
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.24,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.013044,
+      "prior": [
+       0.009783,
+       0.016305
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.013044,
+       "over_dry_maximum": 1.64,
+       "phase_deg": 76.7,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -0.0002201,
+      "prior": [
+       -0.0002751,
+       -0.0001651
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -220.1,
+       "creatine_phase_deg": -4.8,
+       "intrinsic_phase_deg": 5.5,
+       "creatine_offset_hz": 129.8
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.008893,
+      "prior": [
+       0.00667,
+       0.011116
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.008893,
+       "t2star_ms": 1.6,
+       "offset_hz": -20.46,
+       "phase_vs_residual_deg": -86.4
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": -0.0594,
+      "prior": [
+       -0.0743,
+       -0.0446
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.0594
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S10",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 10.42,
+      "prior": [
+       7.82,
+       13.03
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 13.5,
+       "implied_value": 9.52,
+       "naa_found_at_ppm": 1.998,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 45.4,
+        "implied_value": 10.42
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.48,
+      "prior": [
+       3.36,
+       5.6
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.51,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.013081,
+      "prior": [
+       0.009811,
+       0.016351
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.013081,
+       "over_dry_maximum": 1.349,
+       "phase_deg": 43.1,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -8.92e-05,
+      "prior": [
+       -0.0001115,
+       -6.69e-05
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -89.2,
+       "creatine_phase_deg": -1.0,
+       "intrinsic_phase_deg": 3.1,
+       "creatine_offset_hz": 129.7
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.003566,
+      "prior": [
+       0.002675,
+       0.004458
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.003566,
+       "t2star_ms": 6.9,
+       "offset_hz": 1.03,
+       "phase_vs_residual_deg": 7.8
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.2605,
+      "prior": [
+       0.1954,
+       0.3257
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.2605
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S11",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 8.76,
+      "prior": [
+       6.57,
+       10.95
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 15.5,
+       "implied_value": 8.04,
+       "naa_found_at_ppm": 1.982,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 53.9,
+        "implied_value": 8.76
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.7,
+      "prior": [
+       3.53,
+       5.88
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.79,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.014098,
+      "prior": [
+       0.010574,
+       0.017623
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.014098,
+       "over_dry_maximum": 1.128,
+       "phase_deg": -4.9,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -0.0003194,
+      "prior": [
+       -0.0003993,
+       -0.0002396
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -319.4,
+       "creatine_phase_deg": -9.1,
+       "intrinsic_phase_deg": 5.9,
+       "creatine_offset_hz": 130.2
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.013621,
+      "prior": [
+       0.010216,
+       0.017026
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.013621,
+       "t2star_ms": 24.4,
+       "offset_hz": 0.69,
+       "phase_vs_residual_deg": -10.9
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.4608,
+      "prior": [
+       0.3456,
+       0.576
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.4608
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S12",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 9.89,
+      "prior": [
+       7.42,
+       12.37
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 14.2,
+       "implied_value": 8.83,
+       "naa_found_at_ppm": 1.998,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 47.7,
+        "implied_value": 9.89
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.65,
+      "prior": [
+       3.49,
+       5.81
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.71,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.014966,
+      "prior": [
+       0.011224,
+       0.018707
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.014966,
+       "over_dry_maximum": 1.694,
+       "phase_deg": -31.8,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -9e-05,
+      "prior": [
+       -0.0001125,
+       -6.75e-05
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -90.0,
+       "creatine_phase_deg": 1.2,
+       "intrinsic_phase_deg": 5.4,
+       "creatine_offset_hz": 129.6
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.003445,
+      "prior": [
+       0.002584,
+       0.004307
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.003445,
+       "t2star_ms": 3.9,
+       "offset_hz": 21.85,
+       "phase_vs_residual_deg": -46.8
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.1942,
+      "prior": [
+       0.1456,
+       0.2427
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.1942
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S13",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 10.47,
+      "prior": [
+       7.85,
+       13.09
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 13.1,
+       "implied_value": 9.53,
+       "naa_found_at_ppm": 1.982,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 45.0,
+        "implied_value": 10.47
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.7,
+      "prior": [
+       3.53,
+       5.88
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.78,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": 0.008704,
+      "prior": [
+       0.006528,
+       0.01088
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.008704,
+       "over_dry_maximum": 0.752,
+       "phase_deg": -12.4,
+       "inverted": false
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": -0.0004705,
+      "prior": [
+       -0.0005881,
+       -0.0003529
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": -470.5,
+       "creatine_phase_deg": -12.7,
+       "intrinsic_phase_deg": 9.3,
+       "creatine_offset_hz": 130.1
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.011035,
+      "prior": [
+       0.008277,
+       0.013794
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.011035,
+       "t2star_ms": 23.0,
+       "offset_hz": -1.98,
+       "phase_vs_residual_deg": 128.8
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": -0.5438,
+      "prior": [
+       -0.6798,
+       -0.4079
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.5438
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S14",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 11.53,
+      "prior": [
+       8.64,
+       14.41
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 11.6,
+       "implied_value": 11.07,
+       "naa_found_at_ppm": 1.975,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 41.1,
+        "implied_value": 11.53
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.46,
+      "prior": [
+       3.34,
+       5.58
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.48,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.013603,
+      "prior": [
+       -0.017004,
+       -0.010202
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.013603,
+       "over_dry_maximum": 0.976,
+       "phase_deg": -113.7,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 0.0001051,
+      "prior": [
+       7.89e-05,
+       0.0001314
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 105.1,
+       "creatine_phase_deg": -23.8,
+       "intrinsic_phase_deg": -28.8,
+       "creatine_offset_hz": 130.7
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.017401,
+      "prior": [
+       0.013051,
+       0.021751
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.017401,
+       "t2star_ms": 0.6,
+       "offset_hz": -14.05,
+       "phase_vs_residual_deg": 173.6
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.0919,
+      "prior": [
+       0.0689,
+       0.1149
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0919
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "S15",
+   "position_mm": [
+    0.0,
+    35.0,
+    20.0
+   ],
+   "size_mm": [
+    25.0,
+    30.0,
+    15.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "philips_achieva_3t",
+     "b0_t": 3.0,
+     "peak_b1_ut": 13.5,
+     "max_grad_mt_m": 40.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": "philips",
+     "model": "Achieva"
+    },
+    "records": [
+     {
+      "leaf": "noise.sigma",
+      "value": 10.68,
+      "prior": [
+       8.01,
+       13.35
+      ],
+      "measured": {
+       "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
+       "median": 13.6,
+       "implied_value": 9.74,
+       "naa_found_at_ppm": 1.998,
+       "apodized": {
+        "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
+        "median": 44.5,
+        "implied_value": 10.68
+       }
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": 1
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "lineshape.gauss_hz",
+      "value": 4.23,
+      "prior": [
+       3.17,
+       5.29
+      ],
+      "measured": {
+       "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+       "naa_fwhm_hz": 7.25,
+       "twin_without_broadening_hz": 3.51
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "measured_on": "the average"
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "water.adjusted_residual",
+      "value": -0.007186,
+      "prior": [
+       -0.008982,
+       -0.005389
+      ],
+      "measured": {
+       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.007186,
+       "over_dry_maximum": 0.562,
+       "phase_deg": -113.4,
+       "inverted": true
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.delay_s",
+      "value": 0.0005183,
+      "prior": [
+       0.0003887,
+       0.0006479
+      ],
+      "measured": {
+       "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
+       "delay_us": 518.3,
+       "creatine_phase_deg": -9.6,
+       "intrinsic_phase_deg": -33.9,
+       "creatine_offset_hz": 129.9
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "oov.fraction",
+      "value": 0.006199,
+      "prior": [
+       0.00465,
+       0.007749
+      ],
+      "measured": {
+       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.006199,
+       "t2star_ms": 17.6,
+       "offset_hz": -2.07,
+       "phase_vs_residual_deg": 13.0
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "acquisition.eddy_transient_rad",
+      "value": 0.2447,
+      "prior": [
+       0.1835,
+       0.3058
+      ],
+      "measured": {
+       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.2447
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "npoints": 2048,
+       "bandwidth_hz": 2000.0,
+       "transients": 320,
+       "reference_transients": 20,
+       "water_suppressed": true
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  }
+ ]
+}
