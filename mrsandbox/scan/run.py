@@ -53,9 +53,12 @@ def _rate(trace, sampling_hz, band):
 
 
 def _conditions(header, dataset, citation, url, what):
+    field = header.get("MagneticFieldStrength")
+    if field is None and header.get("SpectrometerFrequency"):
+        field = round(float(header["SpectrometerFrequency"]) / 42.5774785, 2)
     return dict(source={"dataset": dataset, "citation": citation, "url": url},
                 scanner={"vendor": str(header.get("Manufacturer", "")).lower() or None, "model": header.get("ManufacturersModelName"),
-                         "software": header.get("SoftwareVersions"), "field_t": header.get("MagneticFieldStrength")},
+                         "software": header.get("SoftwareVersions"), "field_t": None if field is None else float(field)},
                 coil={"channels": (), "name": header.get("ReceiveCoilName")},
                 sequence={"name": header.get("SequenceName") or what, "family": "", "te_s": header.get("EchoTime"), "tr_s": header.get("RepetitionTime")},
                 date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject", note=f"one {what}; made by scan.run")
@@ -298,8 +301,9 @@ class RunReading:
         """A NIfTI-MRS file with the coils and transients apart; `tr_s` from its header where not given."""
         from mrsandbox.scan.calibrate import _raw
 
-        x, dwell_s, _, header = _raw(source)
-        return cls.from_arrays(x, dwell_s, tr_s if tr_s is not None else float(header.get("RepetitionTime") or 2.0), header)
+        x, dwell_s, f0_mhz, header = _raw(source)
+        return cls.from_arrays(x, dwell_s, tr_s if tr_s is not None else float(header.get("RepetitionTime") or 2.0),
+                               {**header, "MagneticFieldStrength": round(f0_mhz / 42.5774785, 2)})
 
     #**************#
     #   the tracks #
@@ -374,10 +378,14 @@ class RunReading:
                   "run.phase_jitter_deg": (self.phase_jitter_deg, "the phase track's spread about its line"),
                   "run.amp_jitter_frac": (self.amp_jitter_frac, "the amplitude track's spread over its mean"),
                   "run.events_per_min": (self.events.size / self.minutes, "steps of the frequency or the phase past four times the median step, a minute")}
+        # the rule: a registration whose wander passes 10 Hz or whose phase jitter passes 60 degrees did not register the
+        # transients (the phase wraps within the window, or the stored transients carry a receiver cycle): every row fails
+        failed = ("" if self.ar_sigma_hz <= 10.0 and self.phase_jitter_deg <= 60.0 else
+                  f"the transients did not register: wander {self.ar_sigma_hz:.1f} Hz, phase jitter {self.phase_jitter_deg:.0f} degrees")
         made = []
         for leaf, (value, statistic) in values.items():
             value = float(round(value, 6))
-            made.append(Calibration(leaf=leaf, value=value, prior=tuple(sorted((round(0.75 * value, 6), round(1.25 * value, 6)))),
+            made.append(Calibration(leaf=leaf, value=value, prior=tuple(sorted((round(0.75 * value, 6), round(1.25 * value, 6)))), failed=failed,
                                     measured={"statistic": f"{statistic} (scan.run.RunReading)", "transients": int(self.frequency_hz.size), "minutes": round(self.minutes, 2)},
                                     acquisition={"tr_s": self.tr_s, "registration": "each transient to the mean on the first 100 ms"}, voxel={},
                                     processing="the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",

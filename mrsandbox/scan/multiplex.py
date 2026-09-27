@@ -361,7 +361,7 @@ class Multiplex:
              "phase_deg": [float(np.degrees(x)) for x in phase_rad],
              "amplitude": [float(x) for x in amplitude],
              "broadening_hz": [float(x) for x in broaden_hz],
-             "displacement_mm": (None if displacement_mm is None and motion_mm is None
+             "displacement_mm": (None if displacement_mm is None and not np.any(moved)          # a head that never moved: none
                                  else moved.tolist()),
              "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm],
              "rotation_deg": None if rotation_deg is None else turned.tolist(),

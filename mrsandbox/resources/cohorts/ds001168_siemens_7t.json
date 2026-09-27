@@ -1,0 +1,3016 @@
+{
+ "name": "ds001168_siemens_7t",
+ "members": [
+  {
+   "subject": "sub-01",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.3117,
+      "prior": [
+       0.2338,
+       0.3896
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 18.7,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.98,
+      "prior": [
+       0.735,
+       1.225
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 58.8,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 0.7,
+      "prior": [
+       0.525,
+       0.875
+      ],
+      "measured": {
+       "statistic": "volumes whose framewise displacement passes 0.5 mm, a minute (scan.run.MotionReading)",
+       "events": 7,
+       "volumes": 150,
+       "minutes": 10.0,
+       "median_displacement_mm": 0.1424
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.motion_mm",
+      "value": 0.7457,
+      "prior": [
+       0.6212,
+       2.452
+      ],
+      "measured": {
+       "statistic": "the framewise displacement of the motion events, median and range (scan.run.MotionReading)",
+       "events": 7,
+       "largest_mm": 2.452
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-02",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.32,
+      "prior": [
+       0.24,
+       0.4
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 19.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.175,
+      "prior": [
+       0.8813,
+       1.4688
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 70.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.2,
+      "prior": [
+       0.9,
+       1.5
+      ],
+      "measured": {
+       "statistic": "volumes whose framewise displacement passes 0.5 mm, a minute (scan.run.MotionReading)",
+       "events": 12,
+       "volumes": 150,
+       "minutes": 10.0,
+       "median_displacement_mm": 0.192
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.motion_mm",
+      "value": 0.5999,
+      "prior": [
+       0.5061,
+       0.8934
+      ],
+      "measured": {
+       "statistic": "the framewise displacement of the motion events, median and range (scan.run.MotionReading)",
+       "events": 12,
+       "largest_mm": 0.8934
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-03",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.115,
+      "prior": [
+       0.0863,
+       0.1438
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 6.9,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.0533,
+      "prior": [
+       0.79,
+       1.3166
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 63.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 7.7,
+      "prior": [
+       5.775,
+       9.625
+      ],
+      "measured": {
+       "statistic": "volumes whose framewise displacement passes 0.5 mm, a minute (scan.run.MotionReading)",
+       "events": 77,
+       "volumes": 150,
+       "minutes": 10.0,
+       "median_displacement_mm": 0.5187
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.motion_mm",
+      "value": 0.8611,
+      "prior": [
+       0.5044,
+       3.1061
+      ],
+      "measured": {
+       "statistic": "the framewise displacement of the motion events, median and range (scan.run.MotionReading)",
+       "events": 77,
+       "largest_mm": 3.1061
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-04",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.325,
+      "prior": [
+       0.2438,
+       0.4062
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 19.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.125,
+      "prior": [
+       0.8438,
+       1.4062
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 67.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "volumes whose framewise displacement passes 0.5 mm, a minute (scan.run.MotionReading)",
+       "events": 0,
+       "volumes": 150,
+       "minutes": 10.0,
+       "median_displacement_mm": 0.1786
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.motion_mm",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the framewise displacement of the motion events, median and range (scan.run.MotionReading)",
+       "events": 0,
+       "largest_mm": 0.4044
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-05",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.2767,
+      "prior": [
+       0.2075,
+       0.3459
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 16.6,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.0083,
+      "prior": [
+       0.7562,
+       1.2604
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 60.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 4.5,
+      "prior": [
+       3.375,
+       5.625
+      ],
+      "measured": {
+       "statistic": "volumes whose framewise displacement passes 0.5 mm, a minute (scan.run.MotionReading)",
+       "events": 45,
+       "volumes": 150,
+       "minutes": 10.0,
+       "median_displacement_mm": 0.3889
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.motion_mm",
+      "value": 0.6172,
+      "prior": [
+       0.5014,
+       1.5295
+      ],
+      "measured": {
+       "statistic": "the framewise displacement of the motion events, median and range (scan.run.MotionReading)",
+       "events": 45,
+       "largest_mm": 1.5295
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "image series",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "registration": "FSL mcflirt to the first volume",
+       "tr_s": 4.0
+      },
+      "voxel": {},
+      "processing": "framewise displacement (Power et al. 2012) from the six rigid parameters per volume",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one image series; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-06",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.3033,
+      "prior": [
+       0.2275,
+       0.3791
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 18.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.1667,
+      "prior": [
+       0.875,
+       1.4584
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 70.0,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-07",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.305,
+      "prior": [
+       0.2288,
+       0.3812
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 18.3,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.89,
+      "prior": [
+       0.6675,
+       1.1125
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 53.4,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-08",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.1417,
+      "prior": [
+       0.1063,
+       0.1771
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 8.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.97,
+      "prior": [
+       0.7275,
+       1.2125
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 58.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-09",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.27,
+      "prior": [
+       0.2025,
+       0.3375
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 16.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.9517,
+      "prior": [
+       0.7138,
+       1.1896
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 57.1,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-10",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.3217,
+      "prior": [
+       0.2413,
+       0.4021
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 19.3,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.9417,
+      "prior": [
+       0.7063,
+       1.1771
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 56.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-11",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.3417,
+      "prior": [
+       0.2563,
+       0.4271
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 20.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.1917,
+      "prior": [
+       0.8938,
+       1.4896
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 71.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-12",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.13,
+      "prior": [
+       0.0975,
+       0.1625
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 7.8,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.0367,
+      "prior": [
+       0.7775,
+       1.2959
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 62.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-13",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.265,
+      "prior": [
+       0.1988,
+       0.3313
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 15.9,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.3533,
+      "prior": [
+       1.015,
+       1.6916
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 81.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-14",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.37,
+      "prior": [
+       0.2775,
+       0.4625
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 22.2,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.0017,
+      "prior": [
+       0.7513,
+       1.2521
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 60.1,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-15",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.2617,
+      "prior": [
+       0.1963,
+       0.3271
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 15.7,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.075,
+      "prior": [
+       0.8062,
+       1.3438
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 64.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-16",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.3083,
+      "prior": [
+       0.2312,
+       0.3854
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 18.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.1967,
+      "prior": [
+       0.8975,
+       1.4959
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 71.8,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-17",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.19,
+      "prior": [
+       0.1425,
+       0.2375
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 11.4,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.005,
+      "prior": [
+       0.7537,
+       1.2562
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 60.3,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-18",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.3617,
+      "prior": [
+       0.2713,
+       0.4521
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 21.7,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.9683,
+      "prior": [
+       0.7262,
+       1.2104
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 58.1,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-20",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.1217,
+      "prior": [
+       0.0913,
+       0.1521
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 7.3,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.1433,
+      "prior": [
+       0.8575,
+       1.4291
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 68.6,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-21",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.2567,
+      "prior": [
+       0.1925,
+       0.3209
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 15.4,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 1.1417,
+      "prior": [
+       0.8563,
+       1.4271
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 68.5,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  },
+  {
+   "subject": "sub-22",
+   "position_mm": [
+    0.0,
+    40.0,
+    8.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "run.resp_freq_hz",
+      "value": 0.2433,
+      "prior": [
+       0.1825,
+       0.3041
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the respiratory trace between 0.1 and 0.6 Hz (scan.run.PhysioReading)",
+       "per_minute": 14.6,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a respiratory belt during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.cardiac_hz",
+      "value": 0.74,
+      "prior": [
+       0.555,
+       0.925
+      ],
+      "measured": {
+       "statistic": "the dominant frequency of the cardiac trace between 0.6 and 2.5 Hz (scan.run.PhysioReading)",
+       "per_minute": 44.4,
+       "duration_s": 600.0
+      },
+      "source": {
+       "dataset": "OpenNeuro ds001168, 7 T resting state with physiological recordings (session 1, the prefrontal run)",
+       "citation": "doi 10.18112/openneuro.ds001168.v1.0.0",
+       "url": "https://openneuro.org/datasets/ds001168"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": "Magnetom 7T",
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "physiological recording",
+       "family": "",
+       "te_s": 0.026,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "sampling": "a pulse oximeter during the scan"
+      },
+      "voxel": {},
+      "processing": "the trace detrended by a cubic, its power spectrum's peak in the band",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one physiological recording; made by scan.run",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  }
+ ]
+}

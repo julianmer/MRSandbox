@@ -145,8 +145,10 @@ class TestPooled:
         trio = Scanner.preset("siemens_trio_3t")
         served = ScannerProfile.preset("siemens_trio_3t").calibrations()
         for leaf in cohorts.leaves():
-            matching = [r.value for _, _, r in cohorts.rows(leaf) if cohorts._matches(r, trio.b0_t, trio.vendor, trio.model, None)]
+            on = served[leaf].measured["matched_on"]                                       # what the pool matched, as specific as it could
+            matching = [r.value for _, _, r in cohorts.rows(leaf) if cohorts._matches(r, on.get("field_t"), on.get("vendor"), on.get("model"), on.get("channels"))]
             assert served[leaf].value == round(float(np.median(matching)), 7) and served[leaf].measured["subjects"] == len(matching)
+        assert served["noise.sigma"].measured["matched_on"]["model"] == trio.model
         failed = [r for c in cohorts.package() for m in c.members for r in m.profile.records if r.failed]
         assert failed and all(r.value not in [row[2].value for row in cohorts.rows(r.leaf)] or r.failed for r in failed)
         assert all(abs(r.value) <= 0.5 * np.pi for _, _, r in cohorts.rows("acquisition.eddy_transient_rad"))

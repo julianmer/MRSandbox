@@ -22,7 +22,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -415,6 +416,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": "the phase 5 ms in (-2.63 rad) is past a quarter turn: the late model's own wrap"
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 0.655209,
+      "prior": [
+       0.491407,
+       0.819011
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 2.36438,
+      "prior": [
+       1.773285,
+       2.955475
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 5.375483,
+      "prior": [
+       4.031612,
+       6.719354
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.152398,
+      "prior": [
+       0.114298,
+       0.190498
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 2.484375,
+      "prior": [
+       1.863281,
+       3.105469
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -443,7 +720,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -836,6 +1114,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 0.110769,
+      "prior": [
+       0.083077,
+       0.138461
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 0.812696,
+      "prior": [
+       0.609522,
+       1.01587
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 5.95105,
+      "prior": [
+       4.463287,
+       7.438813
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.231487,
+      "prior": [
+       0.173615,
+       0.289359
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.96875,
+      "prior": [
+       1.476562,
+       2.460938
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -864,7 +1418,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -1257,6 +1812,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -0.02242,
+      "prior": [
+       -0.028025,
+       -0.016815
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 1.63341,
+      "prior": [
+       1.225058,
+       2.041762
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 4.465588,
+      "prior": [
+       3.349191,
+       5.581985
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.262242,
+      "prior": [
+       0.196681,
+       0.327802
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 0.515625,
+      "prior": [
+       0.386719,
+       0.644531
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -1285,7 +2116,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -1678,6 +2510,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -0.81834,
+      "prior": [
+       -1.022925,
+       -0.613755
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 20.348475,
+      "prior": [
+       15.261356,
+       25.435594
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 38.422462,
+      "prior": [
+       28.816847,
+       48.028078
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.050644,
+      "prior": [
+       0.037983,
+       0.063305
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.640625,
+      "prior": [
+       1.230469,
+       2.050781
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -1706,7 +2814,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -2099,6 +3208,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 0.006544,
+      "prior": [
+       0.004908,
+       0.00818
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 6.065088,
+      "prior": [
+       4.548816,
+       7.58136
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 186.606092,
+      "prior": [
+       139.954569,
+       233.257615
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.16851,
+      "prior": [
+       0.126383,
+       0.210637
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -2127,7 +3512,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -2520,6 +3906,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 0.50728,
+      "prior": [
+       0.38046,
+       0.6341
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 1.520077,
+      "prior": [
+       1.140058,
+       1.900096
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 24.688649,
+      "prior": [
+       18.516487,
+       30.860811
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.127196,
+      "prior": [
+       0.095397,
+       0.158995
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.125,
+      "prior": [
+       0.84375,
+       1.40625
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -2548,7 +4210,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -2941,6 +4604,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 1.9358,
+      "prior": [
+       1.45185,
+       2.41975
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 10.703817,
+      "prior": [
+       8.027863,
+       13.379771
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 40.877793,
+      "prior": [
+       30.658345,
+       51.097241
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.252871,
+      "prior": [
+       0.189653,
+       0.316089
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.5,
+      "prior": [
+       1.125,
+       1.875
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -2969,7 +4908,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -3362,6 +5302,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -1.59679,
+      "prior": [
+       -1.995988,
+       -1.197592
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 14.603622,
+      "prior": [
+       10.952716,
+       18.254527
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 170.186461,
+      "prior": [
+       127.639846,
+       212.733076
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.296484,
+      "prior": [
+       0.222363,
+       0.370605
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 0.046875,
+      "prior": [
+       0.035156,
+       0.058594
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -3390,7 +5606,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -3783,6 +6000,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 0.200447,
+      "prior": [
+       0.150335,
+       0.250559
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 0.889478,
+      "prior": [
+       0.667108,
+       1.111848
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 9.585309,
+      "prior": [
+       7.188982,
+       11.981636
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.126169,
+      "prior": [
+       0.094627,
+       0.157711
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.828125,
+      "prior": [
+       1.371094,
+       2.285156
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -3811,7 +6304,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -4204,6 +6698,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 0.048861,
+      "prior": [
+       0.036646,
+       0.061076
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 1.589882,
+      "prior": [
+       1.192411,
+       1.987353
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 12.622965,
+      "prior": [
+       9.467224,
+       15.778706
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.119277,
+      "prior": [
+       0.089458,
+       0.149096
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 1.5,
+      "prior": [
+       1.125,
+       1.875
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -4232,7 +7002,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -4625,6 +7396,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -0.0742,
+      "prior": [
+       -0.09275,
+       -0.05565
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 3.360673,
+      "prior": [
+       2.520505,
+       4.200841
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 10.387227,
+      "prior": [
+       7.79042,
+       12.984034
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.293925,
+      "prior": [
+       0.220444,
+       0.367406
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 4.734375,
+      "prior": [
+       3.550781,
+       5.917969
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -4653,7 +7700,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -5046,6 +8094,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -0.482664,
+      "prior": [
+       -0.60333,
+       -0.361998
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 2.309033,
+      "prior": [
+       1.731775,
+       2.886291
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 6.303935,
+      "prior": [
+       4.727951,
+       7.879919
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.239279,
+      "prior": [
+       0.179459,
+       0.299099
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 4.875,
+      "prior": [
+       3.65625,
+       6.09375
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -5074,7 +8398,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -5467,6 +8792,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -2.599551,
+      "prior": [
+       -3.249439,
+       -1.949663
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 27.792095,
+      "prior": [
+       20.844071,
+       34.740119
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 87.53082,
+      "prior": [
+       65.648115,
+       109.413525
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.233425,
+      "prior": [
+       0.175069,
+       0.291781
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 2.25,
+      "prior": [
+       1.6875,
+       2.8125
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -5495,7 +9096,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -5888,6 +9490,282 @@
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
       "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": 4.066293,
+      "prior": [
+       3.04972,
+       5.082866
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 26.798744,
+      "prior": [
+       20.099058,
+       33.49843
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 238.541851,
+      "prior": [
+       178.906388,
+       298.177314
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.383418,
+      "prior": [
+       0.287563,
+       0.479272
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 0.140625,
+      "prior": [
+       0.105469,
+       0.175781
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -5916,7 +9794,8 @@
      "max_grad_mt_m": 40.0,
      "max_slew_t_m_s": 200.0,
      "vendor": "philips",
-     "model": "Achieva"
+     "model": "Achieva",
+     "cited": "stated"
     },
     "records": [
      {
@@ -6308,6 +10187,282 @@
       "presets": [],
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "run.drift_hz_per_min",
+      "value": -5.028396,
+      "prior": [
+       -6.285495,
+       -3.771297
+      ],
+      "measured": {
+       "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.ar_sigma_hz",
+      "value": 15.809362,
+      "prior": [
+       11.857022,
+       19.761702
+      ],
+      "measured": {
+       "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.resp_amp_hz",
+      "value": 0.0,
+      "prior": [
+       0.0,
+       0.0
+      ],
+      "measured": {
+       "statistic": "the frequency track's amplitude in the 0.15 to 0.5 Hz band (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.phase_jitter_deg",
+      "value": 150.784401,
+      "prior": [
+       113.088301,
+       188.480501
+      ],
+      "measured": {
+       "statistic": "the phase track's spread about its line (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.amp_jitter_frac",
+      "value": 0.589026,
+      "prior": [
+       0.44177,
+       0.736283
+      ],
+      "measured": {
+       "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "run.events_per_min",
+      "value": 3.703125,
+      "prior": [
+       2.777344,
+       4.628906
+      ],
+      "measured": {
+       "statistic": "steps of the frequency or the phase past four times the median step, a minute (scan.run.RunReading)",
+       "transients": 320,
+       "minutes": 21.33
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs (with their water reference)",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [],
+       "name": "transmit-receive head coil"
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "",
+       "te_s": 0.022,
+       "tr_s": 4.0
+      },
+      "acquisition": {
+       "tr_s": 4.0,
+       "registration": "each transient to the mean on the first 100 ms"
+      },
+      "voxel": {},
+      "processing": "the coils combined as the readings are; the phase of transient times the mean's conjugate fitted by a weighted line",
+      "date": "27/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one run; made by scan.run",
       "failed": ""
      }
     ],

@@ -210,11 +210,11 @@ class TestFieldPriors:
         assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma", "water.adjusted_residual", "acquisition.delay_s",
                                        "acquisition.eddy_transient_rad", "oov.fraction", *(f"run.{key}" for key in (
                                            "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz", "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
-                                           "broaden_hz", "events_per_min"))}
+                                           "broaden_hz", "events_per_min", "motion_mm"))}
         assert {path: leaf.chosen for path, leaf in tree.sources().items() if not path.startswith("run.")} == {
             "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled", "water.adjusted_residual": "pooled",
             "acquisition.delay_s": "pooled", "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled"}
-        assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items() if path.startswith("run."))   # the run: the envelope until read
+        assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items() if path.startswith("run.") and path != "run.motion_mm")   # the run: the envelope until read; the head's move has no literature, the rows serve it
         assert tree.conc.Cr == Uniform(3.0, 5.5) and tree.lineshape.gauss_hz == Uniform(2.0, 6.0)
         assert tree.noise.sigma.literature is None and tree.acquisition.delay_s.literature is None
         assert isinstance(tree.acquisition.eddy_transient_rad.pooled, Empirical) and tree.acquisition.delay_s.high < 0.0

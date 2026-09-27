@@ -84,7 +84,7 @@ class ScannerProfile:
     #   from a raw file   #
     #*********************#
     @classmethod
-    def read(cls, source, voxel, dataset, array=None, load="a head", excitations=1, reference=None):
+    def read(cls, source, voxel, dataset, array=None, load="a head", excitations=1, reference=None, seeds=None):
         """The profile one raw acquisition gives: `source` is NIfTI-MRS with the coils and
         the transients apart, `voxel` its virtual twin (a Voxel of a scan set up as the
         acquisition was: field, sequence, timings, place, size; placed with
@@ -101,7 +101,7 @@ class ScannerProfile:
         (WaterReading)."""
         return cls.from_readings(SpectrumReading.from_nifti(source), NoiseReading.from_nifti(source, excitations), voxel, dataset,
                                  covariance=None if array is None else CovarianceReading.from_nifti(source), array=array, load=load,
-                                 water=None if reference is None else WaterReading.from_nifti(source, reference))
+                                 water=None if reference is None else WaterReading.from_nifti(source, reference), seeds=seeds)
 
     #*********************#
     #   from readings     #

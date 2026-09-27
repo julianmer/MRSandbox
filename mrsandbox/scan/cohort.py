@@ -108,14 +108,16 @@ class Cohort:
         <sequence> · N subjects", the conditions read off its members' records (`dataset` in place of
         the name)."""
         records = [r for m in self.members for r in m.profile.records]
-        tidy = {"ge": "GE", "TrioTim": "Trio", "Prisma_fit": "Prisma", "Discovery MR750": "MR750", "Investigational_Device_7T": ""}
+        tidy = {"ge": "GE", "TrioTim": "Trio", "Prisma_fit": "Prisma", "Discovery MR750": "MR750", "Investigational_Device_7T": "", "Magnetom 7T": "Magnetom",
+                "CBICMR30X": ""}
         vendors = sorted({tidy.get(r.scanner["vendor"], str(r.scanner["vendor"]).title()) for r in records if r.scanner.get("vendor")})
         models = sorted({tidy.get(r.scanner["model"], str(r.scanner["model"])) for r in records if r.scanner.get("model")} - {""})
-        fields = sorted({round(r.scanner["field_t"]) for r in records})
-        families = sorted({r.sequence.get("family", "") for r in records if r.sequence.get("family")})
+        fields = sorted({round(r.scanner["field_t"]) for r in records if r.scanner.get("field_t") is not None})
+        families = sorted({r.sequence.get("family", "") for r in records if r.sequence.get("family")}) or (
+            ["fMRI"] if any("series" in str(r.sequence.get("name", "")) or "physio" in str(r.sequence.get("name", "")) for r in records) else ["?"])
         names = {"Press": "PRESS", "SemiLaser": "semi-LASER", "Steam": "STEAM"}
         system = " ".join(vendors + models) or "unstated system"
-        return (f"{dataset or self.name} · {system} {' / '.join(str(f) for f in fields)} T · "
+        return (f"{dataset or self.name} · {system} {' / '.join(str(f) for f in fields) or '?'} T · "
                 f"{', '.join(names.get(f, f) for f in families)} · {len(self.members)} subjects")
 
     #**********#
@@ -190,7 +192,7 @@ def _plain(text):
 def _matches(record, field_t, vendor, model, channels):
     """Whether a row was read under the conditions asked (None asks nothing); a row that
     does not state a condition does not fail it."""
-    if field_t is not None and abs(record.scanner["field_t"] - field_t) > FIELD_T:
+    if field_t is not None and record.scanner.get("field_t") is not None and abs(record.scanner["field_t"] - field_t) > FIELD_T:
         return False
     if vendor is not None and record.scanner.get("vendor") and record.scanner["vendor"] != vendor:
         return False
@@ -213,12 +215,13 @@ def forget():
 
 
 def pooled(leaf, scanner, channels=None, within=()):
-    """See _pooled: the same, computed once per leaf and conditions (the package's rows do not change)."""
-    return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels, tuple(within))
+    """See _pooled: the same, computed once per leaf, conditions and database (the package's rows do
+    not change; a database stood in for it, as a test does, is another key)."""
+    return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels, tuple(within), id(package()))
 
 
 @functools.lru_cache(maxsize=4096)
-def _pooled(leaf, b0_t, vendor, model, channels, within):
+def _pooled(leaf, b0_t, vendor, model, channels, within, database):
     scanner = type("Asked", (), {"b0_t": b0_t, "vendor": vendor, "model": model})
     return _pool(leaf, scanner, channels, within)
 
@@ -275,7 +278,7 @@ def _pool(leaf, scanner, channels=None, within=()):
                            + ", ".join(cohorts), "citation": None, "url": None},
         scanner={"vendor": one(sorted({r.scanner.get("vendor") or "unstated" for r in records})),
                  "model": one(sorted({str(r.scanner.get("model") or "unstated") for r in records})),
-                 "software": None, "field_t": round(float(np.median([r.scanner["field_t"] for r in records])), 2)},
+                 "software": None, "field_t": round(float(np.median([r.scanner["field_t"] for r in records if r.scanner.get("field_t") is not None] or [float("nan")])), 2)},
         coil={"channels": tuple(sorted({int(c) for r in records for c in (r.coil.get("channels") or ())}))},
         sequence={"name": ", ".join(sorted({str(r.sequence.get("name")) for r in records})),
                   "family": one(sorted({r.sequence.get("family", "") for r in records})).replace("pooled", "")},
@@ -290,11 +293,11 @@ def _pool(leaf, scanner, channels=None, within=()):
 def holding(scanner):
     """The names of the package's cohorts with rows of `scanner`'s vendor and model at its
     field (its own systems); with none, those at its field (a generic scanner)."""
-    return _holding(float(scanner.b0_t), scanner.vendor, scanner.model)
+    return _holding(float(scanner.b0_t), scanner.vendor, scanner.model, id(package()))
 
 
 @functools.lru_cache(maxsize=None)
-def _holding(b0_t, vendor, model):
+def _holding(b0_t, vendor, model, database):
     scanner = type("Asked", (), {"b0_t": b0_t, "vendor": vendor, "model": model})
     for model in (scanner.model, None):
         found = sorted({cohort.name for cohort in package() for member in cohort.members for record in member.profile.records

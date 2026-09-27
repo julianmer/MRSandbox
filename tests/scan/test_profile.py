@@ -74,7 +74,8 @@ class TestScannerProfile:
     def test_one_cohorts_rows_alone_calibrate_a_scanner(self):
         # the scanner is hardware; what calibrates it is chosen apart: the pool, or one dataset's rows
         trio = ScannerProfile.preset("siemens_trio_3t", cohort="big_gaba_trio")
-        assert {record.leaf for record in trio.records} == set(cohorts.leaves())
+        held = {r.leaf for c in cohorts.package() if c.name == "big_gaba_trio" for m in c.members for r in m.profile.records if not r.failed}
+        assert {record.leaf for record in trio.records} == held < set(cohorts.leaves())      # the Trio's own leaves; the fMRI cohort's are not among them
         assert all(record.source["dataset"].endswith(": big_gaba_trio") for record in trio.records)
         assert trio.calibrations()["noise.sigma"] == cohorts.pooled("noise.sigma", Scanner.preset("siemens_trio_3t"), within=("big_gaba_trio",))
         assert "big_gaba_trio" in cohorts.holding(Scanner.preset("siemens_trio_3t"))

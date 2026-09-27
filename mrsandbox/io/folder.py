@@ -114,6 +114,8 @@ def survey(folder):
         elif suffix == ".seq":
             found.append(Found(path, "Pulseq", note="a Pulseq sequence file"))
         elif suffix == ".json":
+            if any((path.parent / (path.stem + ending)).exists() for ending in (".nii", ".nii.gz", ".tsv.gz", ".tsv")):
+                continue                                              # an image's or a recording's sidecar: read with it
             try:
                 stored = json.loads(path.read_text())
                 found.append(Found(path, "scanner file" if {"scanner", "records"} <= set(stored) else "unknown", note="JSON"))

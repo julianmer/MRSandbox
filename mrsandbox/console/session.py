@@ -102,13 +102,15 @@ SCANNERS = {"generic_1p5t": "Generic", "generic_3t": "Generic", "generic_7t": "G
 # the package's cohorts by name: the dataset each holds; the rest of a cohort's label comes off its rows (Cohort.label)
 COHORTS = {"big_gaba_trio": "Big GABA", "big_gaba_ge": "Big GABA", "big_gaba_philips": "Big GABA", "cows_prisma": "COWS ds006812",
            "fmrs_pain_achieva": "fMRS in pain", "ds006444_ge_mr750": "OpenNeuro ds006444", "ds005917_siemens_7t": "OpenNeuro ds005917",
-           "neuromet_siemens_7t": "NeuroMET"}
+           "neuromet_siemens_7t": "NeuroMET", "ds001168_siemens_7t": "OpenNeuro ds001168"}
 # a run's instabilities as the operator sets them (Augmentrum's TransientSynthesizer, scan.Multiplex.transients):
 # a name, the synthesizer's argument, and what switches it off; left alone, each is drawn from the 3 T envelope
 RUN = {"frequency drift (Hz per minute)": ("drift_hz_per_min", 0.0), "slow frequency wander (Hz)": ("ar_sigma_hz", 0.0),
        "breathing (Hz)": ("resp_amp_hz", 0.0), "phase jitter (degrees)": ("phase_jitter_deg", 0.0),
        "amplitude jitter (fraction)": ("amp_jitter_frac", 0.0), "broadening over the run (Hz)": ("broaden_hz", 0.0),
        "motion events (per minute)": ("events_per_min", 0.0)}
+# what a calibration's twin holds still: no spurious echoes, no frequency or phase error, no leaked water (the readings are of these)
+CALM = Params(spurious=dict(amplitude=0.0), acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0), oov=dict(fraction=0.0))
 # whose the run's instabilities are: the scanner's (its frequency and its receiver over time) or the subject's (a
 # body breathes and moves; a phantom does neither)
 RUN_OF = {"scanner": ("drift_hz_per_min", "ar_sigma_hz", "phase_jitter_deg", "amp_jitter_frac", "broaden_hz"),
@@ -1030,7 +1032,10 @@ class Session:
             try:
                 if item.kind == "T1w":
                     self.segment(str(item.path), folder.name)
-                    report.append((item.path.name, item.kind, "the anatomy, segmented"))
+                    self.subject = folder.name                                                     # the new anatomy on the floor
+                    self.position_mm = [0.0, 0.0, 0.0] if hasattr(self.body(), "contents") else list(self.position_mm)
+                    self.home()
+                    report.append((item.path.name, item.kind, "the anatomy, segmented, on the floor"))
                 elif item.kind == "B0":
                     self.field = str(self.onto(str(item.path)))
                     report.append((item.path.name, item.kind, "the B0 map"))
@@ -1282,8 +1287,8 @@ class Session:
         broadening become records of a profile saved under `name` in ~/MRSandbox/profiles, which
         stays on this machine and is then this scanner's calibration; returns its path. With `reference`, the
         same voxel's water reference file, the residual water and the receiver delay are read as well."""
-        twin = self.twin().voxel(
-            tuple(self.position_mm), tuple(self.size_mm), compiled=True)
+        card = dataclasses.replace(self.protocol, real=False)                   # the readers' twin plays ideal pulses, as the cohorts' did
+        twin = self.twin(card=card, params=self.params() | CALM).voxel(tuple(self.position_mm), tuple(self.size_mm), compiled=True)
         folder = pathlib.Path(folder) if folder is not None else pathlib.Path.home() / "MRSandbox" / "profiles"
         folder.mkdir(parents=True, exist_ok=True)
         import nibabel as nib
@@ -1292,8 +1297,8 @@ class Session:
         # channels' noise that is their own is read too, and the profile carries the array so loaded
         tags = json.loads(nib.load(str(source)).header.extensions[0].get_content())
         array = self.array() if "DIM_COIL" in (tags.get("dim_5"), tags.get("dim_6"), tags.get("dim_7")) else None
-        ScannerProfile.read(str(source), twin, dataset=name, array=array,
-                            reference=None if reference is None else str(reference)).save(folder / f"{name}.json")
+        ScannerProfile.read(str(source), twin, dataset=name, array=array, reference=None if reference is None else str(reference),
+                            seeds=3 if "LASER" in card.sequence.upper() else None).save(folder / f"{name}.json")      # a semi-LASER twin renders in a second
         self.calibration = str(folder / f"{name}.json")
         return folder / f"{name}.json"
 
