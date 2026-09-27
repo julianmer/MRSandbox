@@ -15,6 +15,7 @@
 #   imports   #
 #*************#
 import numpy as np
+import pytest
 
 from mrsandbox import Fixed, Press, Scanner
 from mrsandbox.scan import Cohort, Member, ScannerProfile
@@ -88,6 +89,11 @@ class TestCohort:
 class TestPooled:
     """The measured database pooled for a scanner: as specific as the scanner, failed rows out."""
 
+    @pytest.fixture(autouse=True)
+    def own_database(self):
+        yield
+        cohorts.forget()                                                             # the package's pool again for the tests after
+
     TRIO = [4.0, 4.4, 5.0, 5.5, 6.1]
     GE = [7.0, 7.5, 9.0]
 
@@ -96,6 +102,7 @@ class TestPooled:
             Member("S9", ScannerProfile(Scanner.preset("siemens_trio_3t"), (record("noise.sigma", 100.0, failed="a stated rule"),)), PLACE, SIZE),))
         ge = Cohort("ge", tuple(member(f"G{k}", sigma, 0.03, vendor="ge", model=None, field_t=3.0, channels=8) for k, sigma in enumerate(self.GE)))
         monkeypatch.setattr(cohorts, "package", lambda: (trio, ge))
+        cohorts.forget()                                                             # the pool is cached: this database is another
 
     def test_the_pool_is_the_median_over_the_matching_subjects_without_the_failed(self, monkeypatch):
         self.database(monkeypatch)

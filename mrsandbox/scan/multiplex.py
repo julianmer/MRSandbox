@@ -30,6 +30,10 @@ from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
 # Named acquisition conditions sharing one brain, scanner, parameter tree, and truth draw.         #
 #                                                                                                  #
 #**************************************************************************************************#
+# the run's leaves of the parameter tree (scan.defaults) that are the synthesizer's arguments
+RUN_KEYS = ("drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz", "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac", "broaden_hz", "events_per_min")
+
+
 class Multiplex:
     """Named acquisition conditions sharing one brain, scanner, parameter tree, and
     truth draw.
@@ -265,7 +269,11 @@ class Multiplex:
         seed, truth, rng = draw(self.params, seed, step)
 
         n = len(schedule)
-        synthesis = dict(synthesis or {})
+        # the run's leaves of the drawn truth are the synthesizer's arguments unless `synthesis` sets them
+        drawn = {key: float(truth["run"][key]) for key in RUN_KEYS if "run" in truth and key in truth["run"]}
+        synthesis = {**drawn, **dict(synthesis or {})}
+        if motion_mm is None and "run" in truth and float(truth["run"].get("motion_mm", 0.0)) > 0.0:
+            motion_mm = (float(truth["run"]["motion_mm"]), float(truth["run"]["motion_mm"]))
         synth_seed = int(rng.integers(2 ** 31))
         synth = TransientSynthesizer(n_transients=n, tr_s=float(tr_s), seed=synth_seed,
                                      **synthesis)

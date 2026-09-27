@@ -37,7 +37,21 @@ GIVES = {"MRS run": "the noise level, the line width; with its reference the res
          "T1w": "the anatomy: tissues and the lipid layer (segmented with FSL)", "B0": "the field map, shimmed per voxel", "B1+": "the transmit field the pulses see",
          "coils": "the receive array's sensitivity maps", "noise scan": "the channels' covariance and own noise share", "Pulseq": "the sequence as blocks",
          "scanner file": "a saved scanner with its records", "T2w": "nothing yet", "other image": "nothing yet", "DICOM series": "images by their series",
+         "physio": "the subject's breathing and heart rates over the run", "image series": "the head's motion over the run: events a minute and their size",
          "unknown": "nothing: not a kind the package knows"}
+
+
+# which kinds of file give which leaf of the parameter tree: what "yours" on a line can be read from
+READS = {"noise.sigma": ("MRS run",), "lineshape.gauss_hz": ("MRS run",), "coils.loaded.own_noise": ("MRS run", "noise scan"),
+         "water.adjusted_residual": ("MRS run", "MRS reference"), "acquisition.delay_s": ("MRS run", "MRS reference"),
+         "acquisition.eddy_transient_rad": ("MRS run", "MRS reference"), "oov.fraction": ("MRS run", "MRS reference"),
+         "run.resp_freq_hz": ("physio",), "run.cardiac_hz": ("physio",), "run.events_per_min": ("image series",), "run.motion_mm": ("image series",),
+         "contrast": ("T1w",), "lipids": ("T1w",)}
+
+
+def reads(leaf):
+    """The kinds of file a leaf can be read from, by its path or its group; empty where no reader exists yet."""
+    return READS.get(leaf) or READS.get(leaf.split(".")[0]) or ()
 
 
 #**************************************************************************************************#
@@ -77,7 +91,7 @@ def survey(folder):
     with a scanner and records). Returns [Found] in the folder's order."""
     folder = pathlib.Path(folder)
     found = []
-    for path in sorted(p for p in folder.rglob("*") if p.is_file() and not p.name.startswith(".")):
+    for path in ([folder] if folder.is_file() else sorted(p for p in folder.rglob("*") if p.is_file() and not p.name.startswith("."))):
         name = path.name.lower()
         suffix = "".join(path.suffixes[-2:]).lower() if name.endswith(".nii.gz") else path.suffix.lower()
         if suffix in (".nii", ".nii.gz"):
@@ -93,6 +107,10 @@ def survey(folder):
             found.append(Found(path, "DICOM series", note="DICOM: images through dcm2niix, spectroscopy through spec2nii"))
         elif suffix in (".mrd", ".h5"):
             found.append(Found(path, "noise scan", note="ISMRMRD"))
+        elif name.endswith("_physio.tsv.gz") or name.endswith("_physio.tsv"):
+            found.append(Found(path, "physio", note="a BIDS physiological recording"))
+        elif name.endswith("_bold.nii.gz") or name.endswith("_bold.nii"):
+            found.append(Found(path, "image series", note="a BIDS functional series"))
         elif suffix == ".seq":
             found.append(Found(path, "Pulseq", note="a Pulseq sequence file"))
         elif suffix == ".json":
@@ -115,7 +133,9 @@ def _says_reference(name):
 
 
 def _nifti(path):
-    """A NIfTI file: NIfTI-MRS by its extension header, else an image by its name."""
+    """A NIfTI file: NIfTI-MRS by its extension header, a functional series by its name, else an image by its name."""
+    if path.name.lower().endswith(("_bold.nii.gz", "_bold.nii")):
+        return Found(path, "image series", note="a BIDS functional series")
     try:
         import nibabel as nib
 

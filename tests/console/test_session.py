@@ -168,7 +168,7 @@ class TestSession:
         session.protocol.water_suppression = "assumed residual"    # the package's shortcut: no train played, as these gates were written
         session.protocol.real, session.protocol.averages, session.protocol.npoints, session.protocol.water_reference = False, 4, 512, 2
         session.size_mm = [30.0, 20.0, 15.0]                                # an anisotropic voxel
-        session.run_settings = {"events_per_min": 0.0}
+        session.overrides.update({"run.events_per_min": 0.0})
         session.plan()
         assert [exam.name for exam in session.queue] == ["1 PRESS water reference", "2 PRESS TE 30"]   # the reference first, the default
         water, scan = (session.run(exam) for exam in session.queue)
@@ -184,7 +184,7 @@ class TestSession:
         session.protocol.water_reference = 0
         session.protocol.water_suppression = "assumed residual"
         session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 30, 256
-        session.run_settings = {"ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "events_per_min": 0.0}     # the drift alone
+        session.overrides.update({"run.ar_sigma_hz": 0.0, "run.resp_amp_hz": 0.0, "run.events_per_min": 0.0})     # the drift alone
         session.prescan = False
         first, second = (session.run(session.plan()).tracks["frequency_hz"] for _ in range(2))
         rate = session.drift_hz_per_min
@@ -204,7 +204,7 @@ class TestSession:
         session.protocol.water_reference = 0
         session.protocol.water_suppression = "assumed residual"
         session.field, session.protocol.real, session.protocol.averages, session.seed = "uniform", False, 32, 4
-        session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
+        session.overrides.update({"run.drift_hz_per_min": 0.0, "run.ar_sigma_hz": 0.0, "run.resp_amp_hz": 0.0, "run.broaden_hz": 0.0, "run.events_per_min": 0.0})
         session.protocol.water_reference = 2                                   # its water reference exam runs first
         session.plan()
         reference, exam = (session.run(planned) for planned in session.queue)
@@ -276,8 +276,8 @@ class TestSession:
         session.overrides = {"noise.sigma": 0.0, "acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0, "acquisition.eddy_std_rad": 0.0,
                              "spurious.amplitude": 0.0, "b1_scale": 1.0, "acquisition.delay_s": 0.0, "acquisition.eddy_transient_rad": 0.0,
                              "oov.fraction": 0.0}                       # the scanner's state is drawn anew per run: held still here
-        session.run_settings = {"drift_hz_per_min": 0.0, "ar_sigma_hz": 0.0, "resp_amp_hz": 0.0, "phase_jitter_deg": 0.0,
-                                "amp_jitter_frac": 0.0, "broaden_hz": 0.0, "events_per_min": 0.0}
+        session.overrides.update({"run.drift_hz_per_min": 0.0, "run.ar_sigma_hz": 0.0, "run.resp_amp_hz": 0.0, "run.phase_jitter_deg": 0.0,
+                                "run.amp_jitter_frac": 0.0, "run.broaden_hz": 0.0, "run.events_per_min": 0.0})
         # a spin echo without any filter or crusher, its refocusing pulse 40 degrees short: the 140 leaves a free induction
         # decay of its own and unrefocused signal beside the echo
         echo = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)), ("hard pulse", dict(flip_deg=140.0, phase_deg=90.0)), ("delay", dict(ms=15.0))]
@@ -320,7 +320,7 @@ class TestSession:
         session = Session(ICBM)
         session.protocol.water_reference = 0
         session.protocol.real, session.protocol.averages, session.protocol.npoints, session.seed = False, 4, 512, 4
-        session.run_settings = {"events_per_min": 0.0}
+        session.overrides.update({"run.events_per_min": 0.0})
         default = session.protocol.water_suppression
         assert default == "COWS(7;236)"                                             # the console's default: the train is played
         heights, truths = {}, []

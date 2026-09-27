@@ -205,7 +205,25 @@ def _matches(record, field_t, vendor, model, channels):
 #************#
 #   pooled   #
 #************#
+def forget():
+    """Drop what was pooled and matched so far: for a test that stands in another database, or a package
+    whose cohorts were rebuilt in this process."""
+    _pooled.cache_clear()
+    _holding.cache_clear()
+
+
 def pooled(leaf, scanner, channels=None, within=()):
+    """See _pooled: the same, computed once per leaf and conditions (the package's rows do not change)."""
+    return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels, tuple(within))
+
+
+@functools.lru_cache(maxsize=4096)
+def _pooled(leaf, b0_t, vendor, model, channels, within):
+    scanner = type("Asked", (), {"b0_t": b0_t, "vendor": vendor, "model": model})
+    return _pool(leaf, scanner, channels, within)
+
+
+def _pool(leaf, scanner, channels=None, within=()):
     """The Calibration of `leaf` for `scanner` (a hardware.Scanner) pooled over the package's
     cohort rows read under its conditions: the median over subjects is the value, their
     5th to 95th percentile the prior (the range over fewer than five, one row's own prior

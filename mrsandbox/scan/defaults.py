@@ -34,6 +34,11 @@ from mrsandbox.params import Clipped, Empirical, Fixed, Normal, Params, PerTissu
 #****************#
 # the typed fields; a scan at any other field takes the nearest one (stated)
 FIELDS_T = (1.5, 3.0, 7.0)
+RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about 0.3 Hz a minute at 3 T, either sign; Augmentrum's envelope",
+             "breathing": "van de Moortele et al. 2002, Magn Reson Med 47:888: breathing at about 0.3 Hz modulates the field; the range stated",
+             "jitter": "Near et al. 2015, Magn Reson Med 73:44: the phase partly follows the frequency; the spreads stated",
+             "events": "Rowland et al. 2017 and Hess et al. 2011: motion as sparse events; the rate stated",
+             "stated": "a stated range (Augmentrum's TransientSynthesizer default)"}
 CREATINE = ("de Graaf, In Vivo NMR Spectroscopy, 3rd ed.: total creatine 4.5 to 10.5 mM with the phosphocreatine "
             "3.0 to 5.5 mM inside it taken out, the free creatine (database.concentrations DE_GRAAF)")
 
@@ -352,9 +357,26 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     # gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn value
     # and pure tissues realize the published contrast.
     rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0)) for name in names}
+    # run: what happens over the transients of a run (Augmentrum's TransientSynthesizer plays them, scan.Multiplex):
+    #   the scanner's frequency drift (Hui et al. 2021: about 0.3 Hz a minute at 3 T, either sign), its slow wander
+    #   (an AR process, a stated spread), the subject's breathing (its rate, and the field modulation it makes, van
+    #   de Moortele et al. 2002), the receiver's phase and amplitude jitter (Near et al. 2015), broadening over the
+    #   run, motion events (Rowland et al. 2017) and how far the head moves in one (zero: the events kick the
+    #   frequency, phase and amplitude alone). Each takes the package's readings where a dataset or a scan of the
+    #   operator's gives them (scan.run: breathing, motion; the spectra's transients: the rest).
+    run = Params(run=dict(
+        drift_hz_per_min=_sourced("run.drift_hz_per_min", served, Uniform, literature=Normal(0.0, 0.3), cited=RUN_CITED["drift"]),
+        ar_sigma_hz=_sourced("run.ar_sigma_hz", served, Uniform, literature=Uniform(0.05, 0.3), cited=RUN_CITED["stated"]),
+        resp_freq_hz=_sourced("run.resp_freq_hz", served, Uniform, literature=Uniform(0.2, 0.35), cited=RUN_CITED["breathing"]),
+        resp_amp_hz=_sourced("run.resp_amp_hz", served, Uniform, literature=Uniform(0.05, 0.3), cited=RUN_CITED["breathing"]),
+        phase_jitter_deg=_sourced("run.phase_jitter_deg", served, Uniform, literature=Uniform(0.5, 3.0), cited=RUN_CITED["jitter"]),
+        amp_jitter_frac=_sourced("run.amp_jitter_frac", served, Uniform, literature=Uniform(0.005, 0.02), cited=RUN_CITED["jitter"]),
+        broaden_hz=_sourced("run.broaden_hz", served, Uniform, literature=Uniform(0.0, 2.0), cited=RUN_CITED["stated"]),
+        events_per_min=_sourced("run.events_per_min", served, Uniform, literature=Uniform(0.1, 0.5), cited=RUN_CITED["events"]),
+        motion_mm=_sourced("run.motion_mm", served, Uniform) or Fixed(0.0)))
     contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
-    tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections
+    tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections | run
     # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its dataset
     # source (a cohort subject's reading), chosen: a reading made on a given scan outranks the pool; a
     # record of the hardware outside the tree (the array's noise share) is the hardware's to read

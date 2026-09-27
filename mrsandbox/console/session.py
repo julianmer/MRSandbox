@@ -36,6 +36,7 @@ from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
 from mrsandbox.io import read_seq
 from mrsandbox.scan.calibrate import CovarianceReading
+from mrsandbox.scan.run import MotionReading, PhysioReading
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.cohort import holding, package
 from mrsandbox.scan import Multiplex, ScannerProfile
@@ -111,7 +112,7 @@ RUN = {"frequency drift (Hz per minute)": ("drift_hz_per_min", 0.0), "slow frequ
 # whose the run's instabilities are: the scanner's (its frequency and its receiver over time) or the subject's (a
 # body breathes and moves; a phantom does neither)
 RUN_OF = {"scanner": ("drift_hz_per_min", "ar_sigma_hz", "phase_jitter_deg", "amp_jitter_frac", "broaden_hz"),
-          "subject": ("resp_amp_hz", "events_per_min")}
+          "subject": ("resp_freq_hz", "resp_amp_hz", "events_per_min", "motion_mm")}
 # the measured B0 field a subject lies in unless the operator chooses another (phantom.FieldMap.PRESETS); a
 # sphere of solution has none
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr", "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
@@ -473,7 +474,7 @@ class Session:
             drift has taken the scanner by then.
         processing: How far the display processes the transients before it shows them (`display`): COMBINE,
             ALIGN, or PROCESS; the export stays raw.
-        run, motion_mm: A run's instabilities the operator set, {synthesizer argument: value}
+        run: What the operator set of the run beyond the tree (empty: the tree's run leaves are drawn)
             (RUN), and the step in mm a motion event moves the head by, (low, high) or None.
         view_mm: The point the three planes cut through, which the operator scrolls
             without moving the voxel.
@@ -527,10 +528,12 @@ class Session:
         self.hardware = {}                      # {field of hardware.Scanner: value}: the operator's own limits (custom)
         self.files = {}                         # {path: label}: scanner files chosen from anywhere on this machine
         self.reports = {}                       # what the last folder gave, shown on the scanner card
+        self.uploads = []                       # every file read this session, (path, kind, what it gave)
+        self.run_records = ()                   # the run's readings of the subject's own files (scan.run), records like a profile's
         self.cohort = None                      # a package cohort on the floor: every exam scans one of its real subjects
         self.seed = int(np.random.default_rng().integers(2 ** 31))
-        self.run_settings, self.motion_mm = {}, None
         self._sequence_memo = (None, None)         # the last design built, by what it depends on (Session.sequence)
+        self._linewidth_memo = (None, None)        # the last voxel's width from the field (Session.linewidth)
         self.processing = ALIGN
         self.prescan, self.clock_s, self._drift = True, 0.0, None
         self.unfitted = ""
@@ -761,7 +764,7 @@ class Session:
     def reset(self):
         """Everything the operator set about the simulation back to how the console starts: the parameters' own
         sources, the run drawn, the linear shim over the voxel, the prescan, the measured field, real pulses."""
-        self.overrides, self.run_settings, self.motion_mm = {}, {}, None
+        self.overrides = {}
         self.shim, self.shim_mm, self.prescan, self.processing = "linear", None, True, ALIGN
         self.field, self.protocol.real = FIELDS.get(self.subject, "uniform"), True
 
@@ -899,10 +902,14 @@ class Session:
         field = self.fields()["field"]
         if field is None:
             return None
+        key = (id(field), tuple(self.position_mm), tuple(self.size_mm), self.shim, self.shim_mm)     # the same voxel in the same field: the same width
+        if self._linewidth_memo[0] == key:
+            return self._linewidth_memo[1]
         t = np.arange(8192) / 1000.0
         line = np.fft.fft(field.kernel(tuple(self.position_mm), tuple(self.size_mm), t) * np.exp(-np.pi * t), 8 * t.size).real
         above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())    # between the outermost crossings: a coarse map's
-        return float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size))    # cells give a comb of lines, one width
+        self._linewidth_memo = (key, float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size)))    # cells give a comb of lines, one width
+        return self._linewidth_memo[1]
 
     def array(self):
         """The receive array on the subject, made from the operator's settings of it; None is the
@@ -983,6 +990,7 @@ class Session:
         work = pathlib.Path.home() / "MRSandbox" / "converted" / folder.name
         found = scans.survey(folder)
         report = []
+        folder = folder if folder.is_dir() else folder.parent
         if any(item.kind == "DICOM series" for item in found):
             from mrsandbox.io import read_dicom
 
@@ -1041,13 +1049,29 @@ class Session:
                 elif item.kind == "scanner file":
                     self.load_scanner(item.path)
                     report.append((item.path.name, item.kind, "the scanner's calibration"))
+                elif item.kind == "physio":
+                    reading = PhysioReading.from_bids(item.path)
+                    self.run_records += tuple(r for r in (reading.record_breathing(folder.name) if reading.resp_hz else None,
+                                                          reading.record_heart(folder.name) if reading.cardiac_hz else None) if r is not None)
+                    report.append((item.path.name, item.kind, f"the subject's breathing at {60 * (reading.resp_hz or 0):.0f} and heart at {60 * (reading.cardiac_hz or 0):.0f} a minute"))
+                elif item.kind == "image series":
+                    reading = MotionReading.from_series(item.path)
+                    self.run_records += (reading.record_events(folder.name), reading.record_size(folder.name))
+                    report.append((item.path.name, item.kind, f"the head's motion: {reading.events.size} events in {reading.minutes:.1f} minutes"))
                 elif item.kind in ("MRS run", "MRS reference"):
                     report.append((item.path.name, item.kind, "read but not used: one run calibrates" if item.converted or item.path.suffix.lower() in (".nii", ".gz") else item.note))
                 else:
                     report.append((item.path.name, item.kind, item.note))
             except Exception as error:
                 report.append((item.path.name, item.kind, f"not read: {error}"[:160]))
+        self.uploads += [(str(pathlib.Path(folder) / file) if not pathlib.Path(file).is_absolute() else file, kind, gave) for file, kind, gave in report]
         return report
+
+    def uploads_for(self, leaf):
+        """The files read this session that can give `leaf`, [(path, kind, what it gave)]."""
+        from mrsandbox.io.folder import reads
+
+        return [(path, kind, gave) for path, kind, gave in self.uploads if kind in reads(leaf)]
 
     def reset_room(self):
         """The room back to the package's: every setting, choice and hardware number of the operator's gone, the
@@ -1564,6 +1588,8 @@ class Session:
         the card's fields, with the operator's source choices applied to its tree (`choices`:
         a leaf's literature or measured source in place of the default's)."""
         profile = profile if profile is not None else self.profile()
+        if self.run_records:
+            profile = dataclasses.replace(profile, records=profile.records + self.run_records)
         scan = profile.scan(self.body(), sequence if sequence is not None else self.sequence(card),
                             params=params if params is not None else self.params(), **self.fields(card))
         if self.choices:
@@ -1798,7 +1824,7 @@ class Session:
         number = len(self.queue) + 1 if instead_of is None else self.queue.index(instead_of) + 1
         name = f"{number} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm), size_mm=tuple(self.size_mm),
-                    overrides=dict(self.overrides), run=dict(synthesis=dict(self.run_settings), motion_mm=self.motion_mm),
+                    overrides=dict(self.overrides), run={},
                     room={name: getattr(self, name) for name in self.ROOM},
                     records=self.outlook()["records"], sequence=self.sequence(card))
         if card.sequence in EDITING:
@@ -1834,13 +1860,10 @@ class Session:
     def drift_hz_per_min(self):
         """The rate the scanner's frequency drifts at in this session: the operator's, or one draw of
         Augmentrum's 3 T envelope, read off a still synthesizer's two transients a minute apart."""
-        if "drift_hz_per_min" in self.run_settings:
-            return float(self.run_settings["drift_hz_per_min"])
+        if "run.drift_hz_per_min" in self.overrides and not isinstance(self.overrides["run.drift_hz_per_min"], (tuple, str)):
+            return float(self.overrides["run.drift_hz_per_min"])
         if self._drift is None:
-            from augmentrum.augmentation import TransientSynthesizer
-
-            still = TransientSynthesizer(n_transients=2, tr_s=60.0, seed=self.seed, ar_sigma_hz=0.0, resp_amp_hz=0.0, events_per_min=0.0)
-            self._drift = float(np.diff(still.tracks(still.rng.numpy_rng())[0])[0])
+            self._drift = float(self.twin().params.sample(np.random.default_rng(self.seed))["run"]["drift_hz_per_min"])
         return self._drift
 
     def showcase(self):
@@ -1854,7 +1877,7 @@ class Session:
         clean.designs, clean.condition, clean.weights = self.designs, self.condition, self.weights
         clean.protocol = dataclasses.replace(self.protocol, sequence="Custom", averages=2 * len(self.designs), water_reference=0, water_suppression="off", ovs=False)
         clean.overrides = {path: value for leaves in IDEALS.values() for path, value in leaves.items()}
-        clean.run_settings = {argument: off for argument, off in RUN.values()}
+        clean.overrides.update({f"run.{argument}": off for argument, off in RUN.values()})
         exam = clean.run(clean.plan(queued=False), seed=0)
         shown = (exam.ppm > 0.2) & (exam.ppm < 4.2)
         return exam.ppm[shown], exam.frames[-1][1][shown]

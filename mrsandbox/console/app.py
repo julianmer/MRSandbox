@@ -32,6 +32,7 @@ import numpy as np
 from nicegui import Client, run, ui
 from PIL import Image
 
+from mrsandbox.io.folder import reads
 from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED, GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS, REAL, RUN, RUN_OF, SCANNERS, TARGETS, adjusted, named,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.hardware.scanners import PRESETS
@@ -110,10 +111,10 @@ GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)", "t2"
           "contrast": "Grey to white matter concentration ratio", "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
           "mm": "Macromolecules", "downfield": "Downfield peaks", "lineshape": "Line shape (Hz)", "noise": "Noise",
           "b1_scale": "B1 scale", "acquisition": "Acquisition: shifts, phases, eddy currents", "gradients": "Gradient eddy currents",
-          "spurious": "Spurious echoes", "oov": "Water outside the voxel, leaked"}
+          "spurious": "Spurious echoes", "oov": "Water outside the voxel, leaked", "run": "The run: drift, breathing, jitter, motion"}
 WAYS = ["as its source gives it", "set to", "vary between", "from a map (a NIfTI on the anatomy's grid)"]
 # what the water suppression leaves: the scanner's, though the leaf lives under water (the leaked water's oov is the scanner's group)
-SUPPRESSION = ("water.adjusted_residual",)
+RESIDUAL = ("water.adjusted_residual",)
 # the four sources a value can come from, the same word and colour on every chip; a cohort subject's reading is "own"
 # in the tree and says "cohort" on its chip
 SOURCE_WORDS = {"literature": "literature", "stated": "stated", "pooled": "pooled", "dataset": "dataset", "own": "yours", "custom": "custom"}
@@ -148,7 +149,11 @@ NAMES = {"noise.sigma": "noise level (one transient, 8 mL, 3 T)", "lineshape.gau
          "acquisition.eddy_transient_tau_s": "its time constant (s)", "acquisition.shift_hz": "frequency offset (Hz)",
          "acquisition.phase_deg": "zero-order phase (deg)", "acquisition.eddy_std_rad": "eddy phase over the FID (rad, std)",
          "acquisition.eddy_lp_cut_hz": "its bandwidth (Hz)", "acquisition.eddy_seed": "its seed", "water.adjusted_residual": "residual water the suppression leaves (of the full water)",
-         "oov.fraction": "water leaked from outside the voxel (of the full water)", "b1_scale": "transmit scale (of nominal)", "spurious.amplitude": "spurious echo size"}
+         "oov.fraction": "water leaked from outside the voxel (of the full water)", "b1_scale": "transmit scale (of nominal)", "spurious.amplitude": "spurious echo size",
+         "run.drift_hz_per_min": "frequency drift over the run (Hz per minute)", "run.ar_sigma_hz": "slow frequency wander (Hz)",
+         "run.resp_freq_hz": "breathing rate (Hz)", "run.resp_amp_hz": "breathing's field modulation (Hz)", "run.phase_jitter_deg": "phase jitter (degrees)",
+         "run.amp_jitter_frac": "amplitude jitter (fraction)", "run.broaden_hz": "broadening over the run (Hz)", "run.events_per_min": "motion events (per minute)",
+         "run.motion_mm": "a motion event moves the head by (mm; zero: the events kick frequency, phase and amplitude alone)"}
 SHOWN = {"fixed": "{0:g}", "range": "{0:g} to {1:g}", "normal": "{0:.4g} ± {1:.2g}", "empirical": "{0:.4g}, one of {3:.0f} measured subjects ({1:.3g} to {2:.3g})"}
 OWN = "your own file ..."      # on top of every drop-down of stored maps
 # the package's stored maps by one name each, the same on every line
@@ -725,9 +730,46 @@ async def console(client: Client):
         middle = numbers[0] if kind in ("fixed", "normal", "empirical") else 0.5 * (numbers[0] + numbers[1]) if kind == "range" else 0.0
         spread = (numbers if kind == "range" else numbers[1:3] if kind == "empirical"
                   else (numbers[0] - 2.0 * numbers[1], numbers[0] + 2.0 * numbers[1]) if kind == "normal" else (0.9 * middle, 1.1 * middle))
-        options = {**({name: SOURCE_WORDS[name] for name in info["sources"]} if info else {plain_word(path): SOURCE_WORDS[plain_word(path)]}),
+        available = set(info["sources"]) if info else {plain_word(path)}
+        options = {**{name: SOURCE_WORDS[name] for name in SOURCE_WORDS if name != "custom"},
                    **({"set": "set to", "vary": "vary between", "map": "from a map"} if kind != "other" else {"map": "from a map"})}
         way = ("map" if isinstance(own, str) else "vary" if isinstance(own, tuple) else "set") if own is not None else chosen
+
+        def why_not(name):
+            """Why a line cannot take a source, in words."""
+            kinds = reads(path)
+            if name == "own":
+                return "no scan of yours read for it yet: " + (f"a {' or a '.join(kinds)} gives it" if kinds else "no reader exists for this line yet")
+            if name == "pooled":
+                return "no dataset the package read gives it yet" + (f" (a {' or a '.join(kinds)} would)" if kinds else " and no reader exists for it")
+            if name == "dataset":
+                return "no dataset on the floor (the scanner card's dataset line), or it holds no reading of this line"
+            if name == "literature":
+                return "nothing published gives it: the package's range is stated"
+            return "the package assumed no range here: it is typed from the literature"
+
+        async def provide():
+            """A file of yours for this line: one read this session that gives it, or a new one."""
+            with ui.dialog() as picker, ui.card().classes("pane").style("min-width: 640px"):
+                ui.label(f"yours, for {NAMES.get(path, path)}").classes("label")
+                kinds = reads(path)
+                ui.label(("read from a " + " or a ".join(kinds)) if kinds else "no reader exists for this line yet").classes("label").style("text-transform: none; letter-spacing: 0")
+                for file, kind_, gave in session.uploads_for(path):
+                    with ui.row().classes("w-full items-center no-wrap").style("gap: 10px"):
+                        ui.label(pathlib.Path(file).name).classes("value").style("width: 300px")
+                        ui.label(f"{kind_}: {gave}").classes("label").style("text-transform: none; letter-spacing: 0; flex: 1")
+                if kinds:
+                    async def chosen_file():
+                        chosen_path = await run.io_bound(choose_file, f"A {' or a '.join(kinds)} for {NAMES.get(path, path)}")
+                        if chosen_path is None:
+                            return
+                        report = await run.io_bound(session.replicate, chosen_path)
+                        ui.notify("; ".join(f"{file}: {gave}" for file, _, gave in report), multi_line=True)
+                        picker.close()
+                        redraw()
+                    ui.button("choose a file", icon="folder_open", on_click=chosen_file).props("outline dense no-caps").style("width: 150px")
+                ui.button("Close", on_click=picker.close).props("flat dense no-caps")
+            picker.open()
 
         def redraw():
             line(holder, path, priors, sources, after)
@@ -735,6 +777,13 @@ async def console(client: Client):
                 after()
 
         def switch(event):
+            if event.value in SOURCE_WORDS and event.value not in available:
+                if event.value == "own":
+                    asyncio.ensure_future(provide())
+                else:
+                    ui.notify(f"{SOURCE_WORDS[event.value]}: {why_not(event.value)}", type="warning", multi_line=True)
+                line(holder, path, priors, sources, after)                               # the select back to what holds
+                return
             session.overrides.pop(path, None)
             if event.value in SOURCE_WORDS and info:
                 session.choices[path] = event.value
@@ -800,19 +849,25 @@ async def console(client: Client):
                             line(ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}"),
                                  path, priors, sources, after)
                         continue
-                    sourced = [path for path in paths if path in sources]
                     words = {(sources[path]["chosen"] if path in sources else plain_word(path)) if session.overrides.get(path) is None else "custom"
                              for path in paths}
                     common = next(iter(words)) if len(words) == 1 else None
-                    offered = {name: SOURCE_WORDS[name] for name in SOURCE_WORDS if any(name in sources[path]["sources"] for path in sourced)}
+                    offered = {name: SOURCE_WORDS[name] for name in SOURCE_WORDS if name != "custom"}
 
-                    def for_all(event, paths=sourced):
-                        if event.value in ("literature", "pooled", "dataset", "own"):
-                            session.choose_all(paths, event.value)
-                            build(wanted)
-                            draw()
-                            if after is not None:
-                                after()
+                    def for_all(event, paths=paths):
+                        if event.value not in ("literature", "stated", "pooled", "dataset", "own"):
+                            return
+                        taking = [path for path in paths if event.value in (set(sources[path]["sources"]) if path in sources else {plain_word(path)})]
+                        for path in taking:
+                            session.overrides.pop(path, None)
+                        session.choose_all(taking, event.value)
+                        if len(taking) < len(paths):
+                            ui.notify(f"{SOURCE_WORDS[event.value]}: {len(taking)} of {len(paths)} lines have it; the others keep theirs",
+                                      type="warning" if not taking else "info")
+                        build(wanted)
+                        draw()
+                        if after is not None:
+                            after()
 
                     def fill(event, paths=paths, done=[]):
                         if event.value and not done:
@@ -828,55 +883,12 @@ async def console(client: Client):
                             chip(common or "custom", "" if common else "the lines differ: open the group")
                             if not common:
                                 ui.label("mixed").classes("label")
-                            if sourced:
-                                ui.select(offered, value=common if common in offered else None, label="for all lines", on_change=for_all).props(
-                                    "dense outlined dark options-dense").style("width: 150px")
+                            ui.select(offered, value=common if common in offered else None, label="for all lines", on_change=for_all).props(
+                                "dense outlined dark options-dense").style("width: 150px")
                         if wanted:
                             fold.value = True
 
         return build
-
-    def run_lines(body, keys=None):
-        """The run's instabilities (drift, wander, breathing, jitter, broadening, motion events) as lines, `keys`
-        or all: each drawn from the 3 T envelope until set, off, or a number (Session.run_settings)."""
-        ways = {"drawn": "drawn, as at 3 T", "off": "off", "set": "set to"}
-
-        def one(holder, caption, key, off):
-            now = session.run_settings.get(key)
-            way = "drawn" if now is None else "off" if now == off else "set"
-
-            def switch(event):
-                session.run_settings.pop(key, None)
-                if event.value == "off":
-                    session.run_settings[key] = off
-                elif event.value == "set":
-                    session.run_settings[key] = 1.0
-                one(holder, caption, key, off)
-
-            holder.clear()
-            with holder:
-                ui.label(caption).style(f"width: 250px; font-size: 13px; color: {SAND if now is not None else INK}").tooltip(
-                    "over the transients of a run (Augmentrum's synthesis of instabilities, its envelope from Big Drift, Hui et al. 2021)")
-                ui.label(ways["drawn"] if now is None else "off" if now == off else f"{now:g}").classes("value").style("width: 260px")
-                chip("literature" if now is None else "custom", "Augmentrum's 3 T envelope (Big Drift, Hui et al. 2021)" if now is None else "set by you")
-                ui.select(ways, value=way, on_change=switch).props("dense outlined dark options-dense").style("width: 150px")
-                if way == "set":
-                    ui.number(value=now, format="%.4g", on_change=lambda e: e.value is not None and session.run_settings.__setitem__(key, float(e.value))).props(
-                        "dense outlined dark").style("width: 110px")
-
-        with body:
-            for caption, (key, off) in RUN.items():
-                if keys is None or key in keys:
-                    one(ui.row().classes("w-full items-center no-wrap").style(f"gap: 10px; min-height: 40px; border-bottom: 1px solid {LINE}"), caption, key, off)
-            if keys is None or "events_per_min" in keys:
-                with row("a motion event moves the head by (mm)", "empty: the head stays and the events kick the frequency, the phase and the amplitude alone; "
-                                                                   "a moved head is scanned where it then lies, under the shim of the planned place"):
-                    low = ui.number("from", value=None if session.motion_mm is None else session.motion_mm[0], min=0.0).props("dense outlined dark clearable").style("width: 110px")
-                    high = ui.number("to", value=None if session.motion_mm is None else session.motion_mm[1], min=0.0).props("dense outlined dark clearable").style("width: 110px")
-                    for field in (low, high):
-                        field.on_value_change(lambda: setattr(session, "motion_mm", None if low.value is None or high.value is None
-                                                              else (float(min(low.value, high.value)), float(max(low.value, high.value)))))
-                    chip("custom" if session.motion_mm else "stated", "the head stays unless set")
 
     def gear(panel=None):
         """Every setting of the simulation as lines, grouped (the top bar's "all settings"); the search
@@ -895,9 +907,6 @@ async def console(client: Client):
             ui.label(SAID).classes("label").style("text-transform: none; letter-spacing: 0; white-space: normal")
             with ui.scroll_area().style("height: 620px; width: 100%"):
                 body = ui.column().classes("w-full").style("gap: 0")
-                with ui.expansion("the run: drift, breathing, jitter, motion   ·   " + str(len(RUN))).props("dense dark").classes("w-full") as fold:
-                    run_lines(ui.column().classes("w-full").style("gap: 0; margin-left: 20px"))
-                fold.value = False
             build = lines(body, priors, session.sources())
             build()
         dialog.open()
@@ -1470,12 +1479,12 @@ async def console(client: Client):
                 ui.button("Apply", icon="check", on_click=apply).mark("apply the maps").props("unelevated dense no-caps").style("width: 120px")
             if values:
                 ui.label(SAID).classes("label").style(f"margin-top: 10px; border-top: 1px solid {LINE}; padding-top: 8px; text-transform: none; letter-spacing: 0; white-space: normal")
+                body_moves = not hasattr(session.body(), "contents")                                      # a body breathes and moves; a phantom does not
                 priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
-                          if path.split(".")[0] in GEARS["subject"] and path not in SUPPRESSION}
+                          if (path.split(".")[0] in GEARS["subject"] and path not in RESIDUAL)
+                          or (body_moves and path in {f"run.{key}" for key in RUN_OF["subject"]})}
                 with ui.scroll_area().style("height: calc(100vh - 640px); min-height: 220px; width: 100%"):
                     body = ui.column().classes("w-full").style("gap: 0")
-                    if not hasattr(session.body(), "contents"):                                            # a body breathes and moves; a phantom does not
-                        run_lines(ui.column().classes("w-full").style("gap: 0"), RUN_OF["subject"])
                 build = lines(body, priors, session.sources())
                 build()
         dialog.open()
@@ -1493,9 +1502,9 @@ async def console(client: Client):
 
         def running(key, off):
             def handle(event):
-                session.run_settings.pop(key, None)
+                session.overrides.pop(f"run.{key}", None)
                 if not event.value:
-                    session.run_settings[key] = off
+                    session.overrides[f"run.{key}"] = off
                 draw()
             return handle
 
@@ -1527,7 +1536,7 @@ async def console(client: Client):
                 "text-transform: none; letter-spacing: 0")
             for caption, (key, off) in RUN.items():
                 with ui.row().classes("w-full items-center no-wrap"):
-                    ui.switch(caption, value=session.run_settings.get(key) != off, on_change=running(key, off)).props("dense color=accent").style("width: 230px")
+                    ui.switch(caption, value=session.overrides.get(f"run.{key}") != off, on_change=running(key, off)).props("dense color=accent").style("width: 230px")
                     ui.label("the scanner's" if key in RUN_OF["scanner"] else "the subject's; a phantom has none").classes("label").style("text-transform: none; letter-spacing: 0")
             ui.label("Every number stays open in the cards: the scanner's over a run on the scanner card, the subject's on the anatomy card.").classes(
                 "label").style("text-transform: none; letter-spacing: 0")
@@ -1540,9 +1549,10 @@ async def console(client: Client):
         held, status = session.reports, {}
         sources = session.sources()
         priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
-                  if path.split(".")[0] in GEARS["scanner"] or path in SUPPRESSION}
+                  if path.split(".")[0] in GEARS["scanner"] or path in RESIDUAL or path in {f"run.{key}" for key in RUN_OF["scanner"]}}
         lined = [path for path in ("noise.sigma", "lineshape.gauss_hz", "acquisition.delay_s", "acquisition.eddy_transient_rad",
-                                   "water.adjusted_residual", "oov.fraction", "spurious.amplitude", "b1_scale") if path in priors]
+                                   "water.adjusted_residual", "oov.fraction", "spurious.amplitude", "b1_scale",
+                                   *(f"run.{key}" for key in RUN_OF["scanner"])) if path in priors]
 
         def reopen():
             dialog.close()
@@ -1696,7 +1706,6 @@ async def console(client: Client):
                     build()
                     told = ui.column().classes("w-full").style("gap: 0; padding: 6px 0")
                     departures()
-                    run_lines(ui.column().classes("w-full").style("gap: 0"), RUN_OF["scanner"])          # the scanner over a run: drift, wander, jitter
                     # your scans
                     with row("your scans", "raw NIfTI-MRS with the transients apart (spec2nii writes it); set the card, the voxel and the room as the scan was acquired first: they are its twin"):
                         named = ui.input("name of the calibration").props("dense outlined dark").style("width: 260px")
