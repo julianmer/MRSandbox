@@ -41,7 +41,8 @@ class TestOperators:
     def test_single_spin_commutation_relations(self, lac):
         op = lac.operators()
         for i in range(lac.n):
-            np.testing.assert_allclose(op.ix[i] @ op.iy[i] - op.iy[i] @ op.ix[i], 1j * op.iz[i], atol=1e-6)
+            np.testing.assert_allclose(op.ix[i] @ op.iy[i] - op.iy[i] @ op.ix[i], 1j * op.iz[i],
+                                       atol=1e-6)
 
     #******************#
     #   independence   #
@@ -59,7 +60,8 @@ class TestOperators:
         np.testing.assert_array_equal(op.coherence_order, -op.coherence_order.T)
         assert op.coherence_order.max() == lac.n and op.coherence_order.min() == -lac.n
         support = np.abs(op.fplus) > 1e-9
-        assert np.all(op.coherence_order[support] == +1)  # F+ pairs with (detects) the -1 coherences
+        # F+ pairs with (detects) the -1 coherences
+        assert np.all(op.coherence_order[support] == +1)
 
     #**********************#
     #   transverse basis   #
@@ -155,8 +157,9 @@ class TestHigherSpin:
     def test_two_deuterons_share_the_product_space(self):
         from mrsandbox.database import Database
 
-        pair = SpinSystem(name="pair", nucleus="2H", shifts_ppm=(1.0, 2.0), j_hz=((0.0, 0.0), (0.0, 0.0)),
-                          scale=1.0, gamma_mhz_t=Database().gamma("2H"), spin=1.0)
+        pair = SpinSystem(name="pair", nucleus="2H", shifts_ppm=(1.0, 2.0),
+                          j_hz=((0.0, 0.0), (0.0, 0.0)), scale=1.0,
+                          gamma_mhz_t=Database().gamma("2H"), spin=1.0)
         op = pair.operators()
         assert pair.dim == 9
         comm = op.ix[0] @ op.iy[1] - op.iy[1] @ op.ix[0]
@@ -223,7 +226,8 @@ class TestConnectedParts:
         # a coupled group stays whole, its uncoupled amide leaves it
         gsh = {s.name: s for s in SpinSystem.from_database("GSH")}
         assert len(gsh["GSH.cyst.0"].shifts_ppm) == 3 and gsh["GSH.cyst.1"].shifts_ppm == (8.177,)
-        assert all(s.dim <= 2 ** 6 or s.name.startswith("Glc") for name in ("NAA", "Cr", "PCr", "GSH")
+        assert all(s.dim <= 2 ** 6 or s.name.startswith("Glc")
+                   for name in ("NAA", "Cr", "PCr", "GSH")
                    for s in SpinSystem.from_database(name))
 
     def test_the_split_renders_the_record_as_one_system_would(self):

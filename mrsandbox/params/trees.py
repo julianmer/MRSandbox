@@ -73,7 +73,8 @@ class Params(dict):
         try:
             return self[key]
         except KeyError:
-            raise AttributeError(f"no parameter {key!r}; known: {', '.join(sorted(self))}") from None
+            raise AttributeError(f"no parameter {key!r}; "
+                                 f"known: {', '.join(sorted(self))}") from None
 
     def __setattr__(self, key, value):
         self[key] = value
@@ -94,8 +95,10 @@ class Params(dict):
         for key, value in Params(other).items():
             if key in merged and isinstance(merged[key], Params) and isinstance(value, Params):
                 merged[key] = merged[key] | value
-            elif key in merged and isinstance(merged[key], Sourced) and not isinstance(value, (Params, Sourced)):
-                merged[key] = merged[key].with_custom(value)         # the user's value, its sources kept
+            elif (key in merged and isinstance(merged[key], Sourced)
+                  and not isinstance(value, (Params, Sourced))):
+                # the user's value, its sources kept
+                merged[key] = merged[key].with_custom(value)
             else:
                 merged[key] = value.copy() if isinstance(value, Params) else value
         return merged

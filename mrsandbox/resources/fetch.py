@@ -49,8 +49,8 @@ class Resources:
 
     # one dict per data source, each in its own cited module
     REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO,
-                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE,
-                **qsm.QSM_RC2}
+                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **girf.REVERSE_DEPOSIT,
+                **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2}
 
     #*************#
     #   lookup    #
@@ -61,7 +61,8 @@ class Resources:
         try:
             entry = cls.REGISTRY[name]
         except KeyError:
-            raise KeyError(f"unknown resource {name!r}; known: {', '.join(sorted(cls.REGISTRY))}") from None
+            raise KeyError(f"unknown resource {name!r}; known: "
+                           f"{', '.join(sorted(cls.REGISTRY))}") from None
         local = cls.cache_dir() / entry["filename"]
         if not local.exists():
             if "url" not in entry:

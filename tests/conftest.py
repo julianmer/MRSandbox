@@ -23,11 +23,14 @@ import numpy as np
 import pytest
 
 if os.environ["KERAS_BACKEND"] == "jax":
-    # the engine's graphs compile once per machine, not once per run, as the console has it (console.app.main):
-    # the same cache directory, so a test and the console share what either compiled
+    # the engine's graphs compile once per machine, not once per run, as the console has it
+    # (console.app.main): the same cache directory, so a test and the console share what either
+    # compiled
     import jax
 
-    jax.config.update("jax_compilation_cache_dir", str(pathlib.Path.home() / ".cache" / "mrsandbox" / "jax"))
+    jax.config.update(
+        "jax_compilation_cache_dir", str(pathlib.Path.home() / ".cache" / "mrsandbox" / "jax")
+    )
     jax.config.update("jax_persistent_cache_min_compile_time_secs", 0.0)
     jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
 

@@ -34,21 +34,26 @@ def read_dicom(source, folder=None):
     series named by its number and protocol ("301_T1W_3D_TFE"). The volumes land in `folder`
     (a temporary one unless given) as .nii.gz with dcm2niix's JSON sidecars, anonymized. A
     spectroscopy series is no image and is left to spec2nii."""
-    tool = shutil.which("dcm2niix") or shutil.which("dcm2niix", path=str(pathlib.Path(sys.executable).parent))
+    tool = (shutil.which("dcm2niix")
+            or shutil.which("dcm2niix", path=str(pathlib.Path(sys.executable).parent)))
     if tool is None:
-        raise ImportError("reading DICOM needs dcm2niix (pip install dcm2niix; the mrsandbox[console] extra brings it)")
-    folder = pathlib.Path(folder) if folder is not None else pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_"))
+        raise ImportError("reading DICOM needs dcm2niix (pip install dcm2niix; the "
+                          "mrsandbox[console] extra brings it)")
+    folder = (pathlib.Path(folder) if folder is not None
+              else pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_")))
     folder.mkdir(parents=True, exist_ok=True)
 
     def convert(where):
-        done = subprocess.run([tool, "-z", "y", "-b", "y", "-ba", "y", "-f", "%s_%p", "-o", str(folder), str(where)],
-                              capture_output=True, text=True)
-        return {path.name[:-len(".nii.gz")]: path for path in sorted(folder.glob("*.nii.gz"))}, done.stdout.strip()[-300:]
+        done = subprocess.run([tool, "-z", "y", "-b", "y", "-ba", "y", "-f", "%s_%p", "-o",
+                               str(folder), str(where)], capture_output=True, text=True)
+        return ({path.name[:-len(".nii.gz")]: path for path in sorted(folder.glob("*.nii.gz"))},
+                done.stdout.strip()[-300:])
 
     source = pathlib.Path(source)
     if source.is_file():
-        # one file alone: an enhanced multi-frame file is its whole series (Philips, newer Siemens and GE). A classic file
-        # is one slice, and its series is then taken from the folder it lies in, by the series number dcm2niix names it by
+        # one file alone: an enhanced multi-frame file is its whole series (Philips, newer Siemens
+        # and GE). A classic file is one slice, and its series is then taken from the folder it
+        # lies in, by the series number dcm2niix names it by
         alone = pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_one_"))
         (alone / source.name).symlink_to(source.resolve())
         found, said = convert(alone)

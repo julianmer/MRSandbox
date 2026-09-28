@@ -39,11 +39,10 @@ class Generator(keras.utils.PyDataset):
     generator, so any sample is reproducible on its own, the iteration order never
     matters, and a quiet and a noisy stream of one seed draw the same truths (the
     noise draw of one sample never shifts the next). Each batch is (x, y) with x of
-    shape (batch, 2, npoints)
-    float32 holding the real and imaginary FID channels, and y of shape
-    (batch, n_metabolites) float32 holding the drawn concentrations in the order of
-    the `metabolites` attribute. `batches(n)` yields n of them; `truths` of the
-    latest batch are kept for inspection.
+    shape (batch, 2, npoints) float32 holding the real and imaginary FID channels, and
+    y of shape (batch, n_metabolites) float32 holding the drawn concentrations in the
+    order of the `metabolites` attribute. `batches(n)` yields n of them; `truths` of
+    the latest batch are kept for inspection.
 
     Args:
         voxel: A placed scan.Voxel.
@@ -80,9 +79,11 @@ class Generator(keras.utils.PyDataset):
     def __getitem__(self, index):
         x = np.empty((self.batch_size, 2, self.npoints), dtype=np.float32)
         y = np.empty((self.batch_size, len(self.metabolites)), dtype=np.float32)
-        rngs = [np.random.default_rng(np.random.SeedSequence([self.root, int(index), i])) for i in range(self.batch_size)]
+        rngs = [np.random.default_rng(np.random.SeedSequence([self.root, int(index), i]))
+                for i in range(self.batch_size)]
         truths = [self.voxel.scan.params.sample(rng) for rng in rngs]
-        self.voxel.prepare(truths, self.npoints, self.dwell_s)     # the batch's metabolite lines and FIDs in one replay and one render
+        # the batch's metabolite lines and FIDs in one replay and one render
+        self.voxel.prepare(truths, self.npoints, self.dwell_s)
         for i, (rng, truth) in enumerate(zip(rngs, truths)):
             _, fid = self.voxel._render(truth, rng, self.npoints, self.dwell_s)
             x[i, 0], x[i, 1] = fid.real, fid.imag

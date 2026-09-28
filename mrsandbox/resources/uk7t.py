@@ -9,7 +9,7 @@
 # Purpose: The UK7T Network travelling-head deposit: one subject scanned with the harmonised       #
 #          protocol on five Siemens 7 T scanners, shipped as one NIfTI archive. The archive is one #
 #          checksummed resource, the members of a site are extracted on demand, and the 7 T maps   #
-#          (DREAM transmit field, dual-echo B0, multi-echo R2*) are derived once and cached.        #
+#          (DREAM transmit field, dual-echo B0, multi-echo R2*) are derived once and cached.       #
 #                                                                                                  #
 ####################################################################################################
 
@@ -37,27 +37,28 @@ from mrsandbox.resources.hmri import HMRI
 #         field map as the vendor's phase difference on -4096..4095 for -pi..pi.
 UK7T_DEPOSIT = {
     "uk7t/nifti_zip": {
-        "url": "https://ora.ox.ac.uk/objects/uuid:55ca977f-62df-4cbf-b300-2dc893e36647/files/rz890rv14v",
+        "url": "https://ora.ox.ac.uk/objects/uuid:55ca977f-62df-4cbf-b300-2dc893e36647/"
+               "files/rz890rv14v",
         "md5": "eb5aa69b68a4cddbbec9dde7c2aba87a",
         "filename": "uk7t/NIfTI.zip",
     },
 }
 
 # Source: the Siemens Magnetom 7 T structural protocol of the same deposit (Protocols.zip,
-#         Structural_Siemens_Magnetom7T.pdf, read 17/09/26): 3DREAM_B1_250V,
-#         gre_field_mapping_4mm_250V, T2star_1.4_8echo, MP2RAGE_0.7 (page 11: 224 partitions,
-#         no partial Fourier in either direction, GRAPPA 3 in plane and none along the
-#         partitions, so every inversion is followed by the full 224-echo train, and the
-#         timing closes: 19 ms from the inversion to the first block, 14 ms between the
-#         blocks, 644 ms after the second). The MP2RAGE phase is stored on 0..4095 for
+#         Structural_Siemens_Magnetom7T.pdf): 3DREAM_B1_250V, gre_field_mapping_4mm_250V,
+#         T2star_1.4_8echo, MP2RAGE_0.7 (page 11: 224 partitions, no partial Fourier in either
+#         direction, GRAPPA 3 in plane and none along the partitions, so every inversion is
+#         followed by the full 224-echo train). The MP2RAGE phase is stored on 0..4095 for
 #         0..2 pi; the inversion efficiency is the Marques 2010 value (stated).
 # Units:  s, degrees.
 UK7T_ACQUISITION = {
     "dream": {"prep_flip_deg": 60.0, "te_s": (0.00090, 0.00155), "tenths": 10.0},
     "b0": {"te_s": (0.00408, 0.00510), "phase_range": 4096.0},
-    "t2star": {"te_s": tuple(0.004 + 0.005 * k for k in range(8)), "flip_deg": 15.0, "tr_s": 0.043},
-    "mp2rage": {"ti_s": (0.725, 2.150), "tr_s": 3.5, "flip_deg": (5.0, 2.0), "echo_spacing_s": 0.0063,
-                "train": 224, "te_s": 0.00264, "efficiency": 0.96, "phase_range": 4096.0},
+    "t2star": {"te_s": tuple(0.004 + 0.005 * k for k in range(8)), "flip_deg": 15.0,
+               "tr_s": 0.043},
+    "mp2rage": {"ti_s": (0.725, 2.150), "tr_s": 3.5, "flip_deg": (5.0, 2.0),
+                "echo_spacing_s": 0.0063, "train": 224, "te_s": 0.00264, "efficiency": 0.96,
+                "phase_range": 4096.0},
     "support": 0.15,
 }
 
@@ -162,7 +163,8 @@ class UK7T:
             raise KeyError(f"unknown space {space!r}; known: bigbrain_mr")
         cache = Resources.cache_dir() / "uk7t" / f"{site}_to_bigbrain_mr.npy"
         if not cache.exists():
-            np.save(cache, register(cls.volume("T1map", site), Volume.load("bigbrain_mr/t1map_800um")))
+            np.save(cache, register(cls.volume("T1map", site),
+                                    Volume.load("bigbrain_mr/t1map_800um")))
         return np.load(cache)
 
     #**************#
@@ -221,7 +223,8 @@ class UK7T:
         ta = ti1 - n * tr_flash / 2.0
         tb = ti2 - ti1 - n * tr_flash
         tc = mp2rage["tr_s"] - ti2 - n * tr_flash / 2.0
-        a1, a2 = (np.radians(flip) * np.asarray(b1, dtype=np.float64) for flip in mp2rage["flip_deg"])
+        a1, a2 = (np.radians(flip) * np.asarray(b1, dtype=np.float64)
+                  for flip in mp2rage["flip_deg"])
         eff = mp2rage["efficiency"]
         e1, ea, eb, ec = (np.exp(-t / t1) for t in (tr_flash, ta, tb, tc))
         c1, c2 = np.cos(a1) * e1, np.cos(a2) * e1

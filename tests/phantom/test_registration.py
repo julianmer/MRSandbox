@@ -52,7 +52,8 @@ class TestRegistration:
         source = Volume(self.blob((94, 94, 94), truth @ source_affine, (0.0, 0.0, 0.0), 3),
                         source_affine)
         matrix = register(source, target, coarse_mm=4.0)
-        corners = np.array([[x, y, z, 1.0] for x in (-40.0, 40.0) for y in (-40.0, 40.0) for z in (-40.0, 40.0)]).T
+        corners = np.array([[x, y, z, 1.0] for x in (-40.0, 40.0) for y in (-40.0, 40.0)
+                            for z in (-40.0, 40.0)]).T
         error = np.linalg.norm((matrix @ corners - truth @ corners)[:3], axis=0)
         assert error.max() < 1.0, error  # mm at the object's corners
         assert overlap(source, target, matrix) > 0.97

@@ -27,8 +27,10 @@ from mrsandbox.sequences.events import CoherenceFilter
 
 GAMMA = 42.5774785
 F0 = GAMMA * 3.0
-QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, oov=dict(fraction=0.0),     # the leaked water is not the fat's
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
+QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
+               oov=dict(fraction=0.0),  # the leaked water is not the fat's
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                eddy_transient_rad=0.0),
                gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                               linear_short=0.0, linear_long=0.0))
 
@@ -70,7 +72,8 @@ class TestShift:
         args = [ops.convert_to_tensor(np.float32(v)) for v in (1.3, 0.25, 1.0, 0.0)]
         _, shifted = engine.compiled(design, lac, shift_mm={"x": 7.5})(*args)
         ctx = engine.context(lac.with_relaxation(t1_s=1.3, t2_s=0.25))
-        moved = dataclasses.replace(ctx, gradient_x=ops.convert_to_tensor(engine.positions(design)["x"] + 7.5))
+        moved = dataclasses.replace(ctx, gradient_x=ops.convert_to_tensor(
+            engine.positions(design)["x"] + 7.5))
         _, manual = engine._system_lines(design, moved)
         np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(shifted)),
                                    np.asarray(ops.convert_to_numpy(manual)), atol=1e-5)
@@ -83,7 +86,8 @@ class TestShift:
         # a box from -15 to 5 mm: the quarter beyond x = 0 has its centroid at 2.5 mm,
         # 7.5 mm from the voxel centre
         assert brain.lipid_weight((-5.0, 0.0, 0.0), 20.0) == pytest.approx(0.25, abs=0.05)
-        np.testing.assert_allclose(brain.lipid_offset((-5.0, 0.0, 0.0), 20.0), [7.5, 0.0, 0.0], atol=0.6)
+        np.testing.assert_allclose(brain.lipid_offset((-5.0, 0.0, 0.0), 20.0), [7.5, 0.0, 0.0],
+                                   atol=0.6)
         np.testing.assert_array_equal(brain.lipid_offset((-15.0, 0.0, 0.0), 10.0), [0.0, 0.0, 0.0])
 
     def test_without_a_fat_map_the_scalp_lies_a_centimetre_beyond_the_brain(self):
@@ -95,7 +99,8 @@ class TestShift:
         bare = Brain.from_maps(gm=plain.gm, wm=plain.wm, csf=plain.csf, affine=plain.affine)
         assert bare.lipid_weight((-5.0, 0.0, 0.0), 20.0) == 0.0
         assert bare.lipid_weight((5.0, 0.0, 0.0), 20.0) == pytest.approx(0.3, abs=0.02)
-        np.testing.assert_allclose(bare.lipid_offset((5.0, 0.0, 0.0), 20.0), [6.0, 0.0, 0.0], atol=0.1)
+        np.testing.assert_allclose(bare.lipid_offset((5.0, 0.0, 0.0), 20.0), [6.0, 0.0, 0.0],
+                                   atol=0.1)
         assert bare.lipid_weight((12.0, 0.0, 0.0), 6.0) == 0.0  # no brain in the box: not a voxel
 
 
@@ -108,7 +113,8 @@ class TestLipids:
     def lipid_amplitude(sequence, position_mm=(-5.0, 0.0, 0.0)):
         from mrsandbox import NoLipids
 
-        kw = dict(brain=half_brain(), scanner=Scanner.preset("generic_3t"), params=QUIET, isochromats=16)
+        kw = dict(brain=half_brain(), scanner=Scanner.preset("generic_3t"), params=QUIET,
+                  isochromats=16)
         with_fat = VirtualScan(sequence=sequence, **kw)
         without = VirtualScan(sequence=sequence, lipids=NoLipids(), **kw)
         seed, n = 3, 1024
@@ -135,8 +141,9 @@ class TestLipids:
         assert 0.45 < expected < 0.8
         # the acquisition's lipids follow it: the shifted render against a centred one
         shifted, _ = self.lipid_amplitude(design)
-        unlocalized = Sequence(Pulse(90.0), CoherenceFilter(+1), Delay(0.010), Gradient(0.15, 20.0, axis="x"),
-                               Pulse(180.0, phase_deg=90.0), Gradient(0.15, 20.0, axis="x"), Delay(0.0115))
+        unlocalized = Sequence(Pulse(90.0), CoherenceFilter(+1), Delay(0.010),
+                               Gradient(0.15, 20.0, axis="x"), Pulse(180.0, phase_deg=90.0),
+                               Gradient(0.15, 20.0, axis="x"), Delay(0.0115))
         centred, _ = self.lipid_amplitude(unlocalized)
         assert abs(shifted / centred - expected) < 0.1 * expected
 
@@ -188,7 +195,8 @@ class TestProfiledLipids:
 
     @staticmethod
     def lipids(brain, design):
-        scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=QUIET, isochromats=32)
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=QUIET,
+                           isochromats=32)
         voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
         truth = voxel.sample(seed=3)
         lines = scan.lipids.lines(scan.engine, voxel.design(truth), voxel, truth, F0)

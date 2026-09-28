@@ -97,10 +97,12 @@ class DataList:
         the list's sign, the receiver's phase cycle, is applied."""
         rows = self.rows(typ, mix)
         pairs = [self._raw[row["offset"] // 4:(row["offset"] + row["size"]) // 4] for row in rows]
-        vectors = np.stack([(pair[0::2] + 1j * pair[1::2]) * (row["sign"] if signed and typ == "STD" else 1)
+        vectors = np.stack([(pair[0::2] + 1j * pair[1::2])
+                            * (row["sign"] if signed and typ == "STD" else 1)
                             for pair, row in zip(pairs, rows)], axis=-1)
         each = [vectors[:, rows["chan"] == channel] for channel in np.unique(rows["chan"])]
-        complete = min(channel.shape[1] for channel in each)  # a scan stopped mid-average leaves some channels one short
+        # a scan stopped mid-average leaves some channels one short
+        complete = min(channel.shape[1] for channel in each)
         return np.stack([channel[:, :complete] for channel in each], axis=1)
 
     def rows(self, typ="STD", mix=0):
@@ -196,7 +198,8 @@ class LabRaw:
         # the blocks follow a 512-byte header one after another, by their stored size
         stored = labels["size"].astype(np.int64)
         if packed:  # a bit-packed block takes its coded size, every other one is stored as it is
-            stored = np.where(np.isin(labels["raw_format"], (4, 6)), labels["coded_size"].astype(np.int64), stored)
+            stored = np.where(np.isin(labels["raw_format"], (4, 6)),
+                              labels["coded_size"].astype(np.int64), stored)
         self._offsets = 512 + np.concatenate([[0], np.cumsum(stored[:-1])])
 
     #**********#
@@ -210,7 +213,8 @@ class LabRaw:
                   for name, word, shift, mask in cls.FIELDS}
         with open(_sibling(path, ".sin")) as handle:
             sin = handle.read()
-        channels = next(int(line.split()[-1]) for line in sin.splitlines() if "nr_measured_channels" in line)
+        channels = next(int(line.split()[-1]) for line in sin.splitlines()
+                        if "nr_measured_channels" in line)
         return cls(labels, channels, "enable_pda" not in sin, _sibling(path, ".raw"))
 
     #************#
@@ -248,7 +252,8 @@ class LabRaw:
         elif self.labels["raw_format"][k] not in (4, 6):
             values = np.fromfile(self._raw_path, dtype="<i4", count=size // 4, offset=offset)
         else:
-            coded = np.fromfile(self._raw_path, dtype="u1", count=int(self.labels["coded_size"][k]), offset=offset)
+            coded = np.fromfile(self._raw_path, dtype="u1", count=int(self.labels["coded_size"][k]),
+                                offset=offset)
             values, at = np.zeros(size // 4, dtype=np.int64), 0
             while at < coded.size:
                 # a chunk: decoded bytes, coded bytes, and where its values go; then 32-bit
@@ -256,15 +261,20 @@ class LabRaw:
                 decoded, length = (int(v) for v in coded[at:at + 4].view("<u2"))
                 start = int(coded[at + 4:at + 8].view("<u4")[0]) // 4
                 words = coded[at + 8:at + 8 + length]
-                bits = np.unpackbits(words[:words.size // 4 * 4].view("<u4").astype(">u4").view("u1"))
+                bits = np.unpackbits(
+                    words[:words.size // 4 * 4].view("<u4").astype(">u4").view("u1"))
                 bit, done, count = 0, 0, decoded // 4
                 while done < count:
                     width, shift = (int(bits[b:b + 5] @ (16, 8, 4, 2, 1)) for b in (bit, bit + 5))
                     group = min(16, count - done)
-                    field = bits[bit + 10:bit + 10 + group * width].reshape(group, width).astype(np.int64)
-                    number = field @ (1 << np.arange(width - 1, -1, -1, dtype=np.int64)) if width else np.zeros(group, np.int64)
-                    number = number - (field[:, 0] << width) if width else number        # two's complement
-                    values[start + done:start + done + group] = (number << shift) + ((1 << shift) >> 1)
+                    field = (bits[bit + 10:bit + 10 + group * width].reshape(group, width)
+                             .astype(np.int64))
+                    number = (field @ (1 << np.arange(width - 1, -1, -1, dtype=np.int64)) if width
+                              else np.zeros(group, np.int64))
+                    # two's complement
+                    number = number - (field[:, 0] << width) if width else number
+                    values[start + done:start + done + group] = (
+                        (number << shift) + ((1 << shift) >> 1))
                     bit, done = bit + 10 + group * width, done + group
                 at += 8 + length
         pairs = values.astype(np.float32).reshape(self.channels, -1, 2)

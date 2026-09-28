@@ -6,10 +6,9 @@
 #                                                                                                  #
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Lipid sources: swappable strategies for subcutaneous fat entering the voxel. The v1     #
-#          Skull source weighs lipids by the head-but-not-brain fraction of the voxel box (a       #
-#          stated proxy for the fat layer read straight off the tissue maps); donor-registered and #
-#          SimnTG-parametric sources join later.                                                   #
+# Purpose: Lipid sources: swappable strategies for the subcutaneous fat that enters the voxel.     #
+#          The Skull source weighs lipids by the head-but-not-brain fraction of the voxel box      #
+#          (a stated proxy for the fat layer read straight off the tissue maps).                   #
 #                                                                                                  #
 ####################################################################################################
 
@@ -113,7 +112,8 @@ class Skull(LipidSource):
     #   lines   #
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
-        if voxel.scan.brain.fat is not None and any(isinstance(e, Projection) for e in sequence.events):
+        if (voxel.scan.brain.fat is not None
+                and any(isinstance(e, Projection) for e in sequence.events)):
             return self._profiled(engine, sequence, voxel, truth, f0_mhz)
         weight = voxel.scan.brain.lipid_weight(voxel.position_mm, voxel.size_mm)
         if weight == 0.0:

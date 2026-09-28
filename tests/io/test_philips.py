@@ -7,8 +7,8 @@
 # Created: 19/09/26                                                                                #
 #                                                                                                  #
 # Purpose: Gates of io.philips on files written here in the three formats' layouts: data/list,     #
-#          sdat/spar, and lab/raw/sin. Checked against spec2nii and loadLABRAW on real files by     #
-#          hand (info/HANDOFF.md), which a test cannot ship.                                       #
+#          sdat/spar, and lab/raw/sin. Checked against spec2nii and loadLABRAW on real files by    #
+#          hand, which a test cannot ship.                                                         #
 #                                                                                                  #
 ####################################################################################################
 
@@ -29,7 +29,8 @@ def test_data_list_keeps_channels_transients_signs_and_noise_apart(tmp_path):
     vectors = rng.standard_normal((channels + channels * transients, n, 2)).astype("<f4")
     vectors.tofile(tmp_path / "raw_001.data")
     lines = ["# Scan name   : test", ".    0    0    0  number_of_mixes                    :     1"]
-    rows = [("NOI", c, 0, 1) for c in range(channels)] + [("STD", c, t, (-1) ** t) for t in range(transients)
+    rows = [("NOI", c, 0, 1) for c in range(channels)] + [("STD", c, t, (-1) ** t)
+                                                           for t in range(transients)
                                                            for c in range(channels)]
     for k, (typ, chan, aver, sign) in enumerate(rows):
         fields = [0, 0, 0, 0, 0, chan, 0, 0, 0, 0, 0, aver, sign, 0, 0, 0, 0, 0, n * 8, k * n * 8]
@@ -43,22 +44,27 @@ def test_data_list_keeps_channels_transients_signs_and_noise_apart(tmp_path):
     data = scan.vectors("STD")
     assert data.shape == (n, channels, transients)
     assert np.array_equal(data[:, 1, 3], -stored[channels + 3 * channels + 1])
-    assert np.array_equal(scan.vectors("STD", signed=False)[:, 1, 3], stored[channels + 3 * channels + 1])
+    assert np.array_equal(scan.vectors("STD", signed=False)[:, 1, 3],
+                          stored[channels + 3 * channels + 1])
 
 
 #*****************#
 #   sdat / spar   #
 #*****************#
 def test_sdat_reads_vax_floats(tmp_path):
-    # 1.0 and -0.75 as VAX F floats (excess-128 exponent on a 0.1f mantissa, 16-bit halves swapped)
+    # 1.0 and -0.75 as VAX F floats (excess-128 exponent on a 0.1f mantissa, 16-bit halves
+    # swapped)
     def vax(value):
         mantissa, exponent = np.frexp(abs(value))
-        word = (int(value < 0) << 31) | ((int(exponent) + 128) << 23) | (int((mantissa - 0.5) * 2 ** 24) & 0x7FFFFF)
+        word = ((int(value < 0) << 31) | ((int(exponent) + 128) << 23)
+                | (int((mantissa - 0.5) * 2 ** 24) & 0x7FFFFF))
         return ((word << 16) | (word >> 16)) & 0xFFFFFFFF
     np.array([vax(1.0), vax(-0.75), vax(0.15625), 0], dtype="<u4").tofile(tmp_path / "scan.SDAT")
-    (tmp_path / "scan.SPAR").write_text("!comment : no\nsamples : 2\nrows : 1\nsample_frequency : 2000\n")
+    (tmp_path / "scan.SPAR").write_text("!comment : no\nsamples : 2\nrows : 1\n"
+                                        "sample_frequency : 2000\n")
     fids, parameters = SdatSpar.load(tmp_path / "scan.SDAT")
-    assert np.allclose(fids, [[1.0 - 0.75j, 0.15625 + 0.0j]]) and parameters["sample_frequency"] == "2000"
+    assert (np.allclose(fids, [[1.0 - 0.75j, 0.15625 + 0.0j]])
+            and parameters["sample_frequency"] == "2000")
 
 
 #*******************#
@@ -67,17 +73,18 @@ def test_sdat_reads_vax_floats(tmp_path):
 def test_lab_raw_reads_the_older_plain_and_the_newer_bit_packed_stream(tmp_path):
     rng = np.random.default_rng(1)
     channels, samples = 2, 24
-    blocks = rng.integers(-1000, 1000, (3, channels, samples, 2))                   # noise, two normal
+    blocks = rng.integers(-1000, 1000, (3, channels, samples, 2))   # noise, two normal
     labels = np.zeros((3, 16), dtype="<u4")
     labels[:, 3] = LabRaw.STANDARD_LABEL << 16
     labels[0, 4] = LabRaw.NOISE_DATA
-    labels[2, 4] = (2 << 16) | (1 << 24)                                           # half a turn, reversed
+    labels[2, 4] = (2 << 16) | (1 << 24)                            # half a turn, reversed
     stored = blocks[..., 0] + 1j * blocks[..., 1]
 
     # the older generation: int16 as they are, the .sin file names enable_pda
     labels[:, 0] = channels * samples * 4
     labels.tofile(tmp_path / "old.lab")
-    (tmp_path / "old.sin").write_text(" 01 00 00: nr_measured_channels  :  2\n 01 00 00: enable_pda  :  1\n")
+    (tmp_path / "old.sin").write_text(" 01 00 00: nr_measured_channels  :  2\n"
+                                      " 01 00 00: enable_pda  :  1\n")
     with open(tmp_path / "old.raw", "wb") as handle:
         handle.write(bytes(512) + blocks.astype("<i2").tobytes())
 
@@ -85,19 +92,22 @@ def test_lab_raw_reads_the_older_plain_and_the_newer_bit_packed_stream(tmp_path)
     coded = []
     for block in blocks:
         values, stream = block.ravel(), b""
-        for first in range(0, values.size, 40):                                    # chunks of 40 values
+        for first in range(0, values.size, 40):                     # chunks of 40 values
             chunk, bits = values[first:first + 40], ""
             for g in range(0, chunk.size, 16):
                 group = chunk[g:g + 16]
                 width = int(max(abs(int(v)) for v in group)).bit_length() + 1
-                bits += format(width, "05b") + format(0, "05b") + "".join(format(int(v) % (1 << width), f"0{width}b") for v in group)
+                bits += format(width, "05b") + format(0, "05b") + "".join(
+                    format(int(v) % (1 << width), f"0{width}b") for v in group)
             bits += "0" * (-len(bits) % 32)
-            words = np.array([int(bits[k:k + 32], 2) for k in range(0, len(bits), 32)], dtype="<u4").tobytes()
-            stream += np.array([chunk.size * 4, len(words)], dtype="<u2").tobytes() + np.array([first * 4], dtype="<u4").tobytes() + words
+            words = np.array([int(bits[k:k + 32], 2) for k in range(0, len(bits), 32)],
+                             dtype="<u4").tobytes()
+            stream += (np.array([chunk.size * 4, len(words)], dtype="<u2").tobytes()
+                       + np.array([first * 4], dtype="<u4").tobytes() + words)
         coded.append(stream)
     labels[:, 0] = channels * samples * 8
     labels[:, 1] = [len(stream) for stream in coded]
-    labels[:, 5] = 6 << 8                                                          # raw format 6
+    labels[:, 5] = 6 << 8                                           # raw format 6
     labels.tofile(tmp_path / "new.lab")
     (tmp_path / "new.sin").write_text(" 01 00 00: nr_measured_channels  :  2\n")
     with open(tmp_path / "new.raw", "wb") as handle:

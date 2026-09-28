@@ -26,7 +26,8 @@ from mrsandbox import Brain, CoilArray, Params, PerTissue, Press, Scanner, Virtu
 pytestmark = pytest.mark.render
 
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
 
 #*************#
@@ -119,7 +120,8 @@ class TestContrast:
         mrsi, data = acquisition
         volume = np.asarray(data[:])[:, :, 0]
         spec = np.abs(np.fft.fft(volume[4, 4]))
-        ppm = 4.65 + np.fft.fftfreq(128, d=1.0 / 4000.0) / (42.5774785 * 3.0)      # the file's frame: the centre at 4.65 ppm
+        # the file's frame: the centre at 4.65 ppm
+        ppm = 4.65 + np.fft.fftfreq(128, d=1.0 / 4000.0) / (42.5774785 * 3.0)
         naa = spec[np.abs(ppm - 2.008) < 0.3].max()
         empty = spec[(ppm > 6.0) & (ppm < 8.0)].max()
         # at 128 points the broad MM components leak across the short spectrum, so the
@@ -354,7 +356,8 @@ class TestSliceProfile:
         scan = self.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
         kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2), voxel_mm=4.0)
         box = np.asarray(scan.mrsi(**kw).acquire(seed=3, npoints=32)[:])[:, :, 0]
-        flat = np.asarray(scan.mrsi(**kw, profile=np.ones(3)).acquire(seed=3, npoints=32)[:])[:, :, 0]
+        flat = np.asarray(scan.mrsi(**kw, profile=np.ones(3)).acquire(
+            seed=3, npoints=32)[:])[:, :, 0]
         np.testing.assert_allclose(flat, box, rtol=1e-5, atol=1e-6 * np.abs(box).max())
         soft = scan.mrsi(**kw, profile="gaussian")
         data = soft.acquire(seed=3, npoints=32)
@@ -537,7 +540,8 @@ class TestTrajectory:
 
     def acquired(self, scan, npoints=64, **kw):
         data = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0, **kw)
-        # back in the engine's frame (0 ppm on the carrier), where the singlet falls on a bin and its ghost half the band away
+        # back in the engine's frame (0 ppm on the carrier), where the singlet falls on a bin and
+        # its ghost half the band away
         turn = np.exp(2j * np.pi * 4.65 * 3.0 * 42.5774785 * np.arange(npoints) / 4000.0)
         return data, np.asarray(data.acquire(seed=3, npoints=npoints)[:])[:, :, 0] * turn
 
@@ -584,7 +588,8 @@ class TestTrajectory:
         mrsi, off = self.acquired(scan, trajectory="epsi-bidirectional",
                                   odd_sweeps=dict(gain=0.9, phase_deg=40.0))
         np.testing.assert_array_equal(off[..., 0::2], plain[..., 0::2])
-        np.testing.assert_allclose(off[..., 1::2], 0.9 * np.exp(1j * np.radians(40.0)) * plain[..., 1::2],
+        np.testing.assert_allclose(off[..., 1::2],
+                                   0.9 * np.exp(1j * np.radians(40.0)) * plain[..., 1::2],
                                    atol=1e-5 * np.abs(plain).max())
         peak = int(np.argmax(np.abs(np.fft.fft(plain[2, 2]))))
         ghost = (peak + 32) % 64
@@ -628,7 +633,8 @@ class TestTrajectory:
         peak = int(np.argmax(np.abs(np.fft.fft(tight[2, 2]))))
         ghost = (peak + 32) % 64
         assert np.abs(np.fft.fft(loose[2, 2]))[ghost] < np.abs(np.fft.fft(tight[2, 2]))[ghost]
-        assert np.abs(np.fft.fft(loose[2, 2]))[ghost] > 5.0 * np.abs(np.fft.fft(flyback[2, 2]))[ghost]
+        assert (np.abs(np.fft.fft(loose[2, 2]))[ghost]
+                > 5.0 * np.abs(np.fft.fft(flyback[2, 2]))[ghost])
 
     #*****************#
     #   slab sweeps   #
@@ -785,6 +791,7 @@ class TestBasis:
 #                                                                                                  #
 # A localized design on the scan is the box the lattice is excited in: every cell plays it at      #
 # its own place.                                                                                   #
+#                                                                                                  #
 #**************************************************************************************************#
 class TestExcitedBox:
 
@@ -804,12 +811,15 @@ class TestExcitedBox:
             b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0, linear_short=0.0, linear_long=0.0))
         f0_mhz = 3.0 * 42.5774785
         design = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(20.0, 20.0, 15.0))
-        scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=params, water=NoWater(),
-                           lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), isochromats=4)      # four: the gate holds, a quarter of the time
+        # four isochromats: the gate holds, in a quarter of the time
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), design, params=params,
+                           water=NoWater(), lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(),
+                           isochromats=4)
         mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=10.0, thickness_mm=15.0)
         data = mrsi.acquire(seed=3, npoints=64)
         first = np.abs(np.asarray(data[:])[:, :, 0, 0])
-        inner, outer = first[1:3, 1:3], np.concatenate([first[0], first[3], first[1:3, 0], first[1:3, 3]])
+        inner, outer = first[1:3, 1:3], np.concatenate([first[0], first[3], first[1:3, 0],
+                                                        first[1:3, 3]])
         # the four cells inside the 20 mm box hold the scyllo line, each its own share
         # (its 3.34 ppm slab sits a little off the 3.0 ppm box), the twelve beyond hold
         # what the transition bands leave
@@ -818,13 +828,16 @@ class TestExcitedBox:
         # a cell is the box's voxel at that place
         cell = scan.voxel((5.0, 5.0, 0.0), (10.0, 10.0, 15.0), box_center_mm=(0.0, 0.0, 0.0),
                           box_axes="xy").fid(seed=3, npoints=64)[1]
-        turn = np.exp(-2j * np.pi * 4.65 * f0_mhz * np.arange(64) / 4000.0)      # the file has its centre at 4.65 ppm, the FID at 0
-        np.testing.assert_allclose(np.asarray(data[:])[2, 2, 0], cell * turn, atol=1e-4 * np.abs(cell).max())
+        # the file has its centre at 4.65 ppm, the FID at 0
+        turn = np.exp(-2j * np.pi * 4.65 * f0_mhz * np.arange(64) / 4000.0)
+        np.testing.assert_allclose(np.asarray(data[:])[2, 2, 0], cell * turn,
+                                   atol=1e-4 * np.abs(cell).max())
         grid = data.hdr_ext["SimulationGrid"]
         assert grid["box_center_mm"] == [0.0, 0.0, 0.0] and sum(grid["cells"].values()) == 16
-        # a design without a localization excites every cell alike, as before
+        # a design without a localization excites every cell alike
         plain = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.015, te2_s=0.015),
                             params=params, water=NoWater(), lipids=NoLipids(), mm=NoMM(),
                             downfield=NoDownfield())
-        lattice = plain.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=10.0, thickness_mm=15.0)
+        lattice = plain.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=10.0,
+                             thickness_mm=15.0)
         assert lattice.box_center_mm is None and lattice.cells["whole"] == 16

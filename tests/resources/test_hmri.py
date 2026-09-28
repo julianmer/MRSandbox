@@ -48,8 +48,10 @@ class TestFormulas:
         tr, a, b = 0.025, np.radians(6.0), np.radians(21.0)
         pdw, t1w = self.flash(1000.0, r1, b1 * a, tr), self.flash(1000.0, r1, b1 * b, tr)
         np.testing.assert_allclose(HMRI.r1(pdw, t1w, a, b, tr, tr, b1), r1, rtol=1e-3)
-        np.testing.assert_allclose(HMRI.proton_density(pdw, t1w, a, b, tr, tr, b1), 1000.0, rtol=1e-3)
-        np.testing.assert_allclose(HMRI.r1(pdw, t1w, a, b, tr, tr, b1, small_angle=True), r1, rtol=0.03)
+        np.testing.assert_allclose(HMRI.proton_density(pdw, t1w, a, b, tr, tr, b1), 1000.0,
+                                   rtol=1e-3)
+        np.testing.assert_allclose(HMRI.r1(pdw, t1w, a, b, tr, tr, b1, small_angle=True), r1,
+                                   rtol=0.03)
         assert HMRI.r1(np.zeros(3), t1w[0], a, b, tr, tr)[0] == 0.0  # silent voxels stay zero
 
     #*******************#
@@ -62,7 +64,8 @@ class TestFormulas:
             mtw = self.flash(1000.0, r1, a, tr, saturation=delta)
             got = HMRI.mt_saturation(
                 np.full(2, mtw), a, tr,
-                HMRI.proton_density(np.full(2, pdw), np.full(2, t1w), a, b, tr, tr, small_angle=True),
+                HMRI.proton_density(np.full(2, pdw), np.full(2, t1w), a, b, tr, tr,
+                                    small_angle=True),
                 HMRI.r1(np.full(2, pdw), np.full(2, t1w), a, b, tr, tr, small_angle=True))
             assert abs(got[0] - 100.0 * delta) < 0.05 * 100.0 * delta
         # the heuristic correction is the identity at nominal B1 and is the toolbox's
@@ -100,7 +103,8 @@ class TestFormulas:
     #   field     #
     #*************#
     def test_field_is_the_phase_over_the_echo_spacing(self):
-        assert HMRI.field_hz(np.float32(np.pi), 0.00246) == pytest.approx(1.0 / (2.0 * 0.00246), rel=1e-5)
+        assert HMRI.field_hz(np.float32(np.pi), 0.00246) == pytest.approx(1.0 / (2.0 * 0.00246),
+                                                                           rel=1e-5)
 
     #*******************#
     #   grid helpers    #
@@ -164,7 +168,8 @@ class TestStack:
         grid = np.array(np.nonzero(labels.data > 0))[:, ::7]
         world = labels.affine[:3, :3] @ grid + labels.affine[:3, 3:4]
         index = np.linalg.solve(t1.affine[:3, :3], world - t1.affine[:3, 3:4])
-        sampled = scipy.ndimage.map_coordinates(np.clip(t1.data, 0.0, 5.0), index, order=1, cval=0.0)
+        sampled = scipy.ndimage.map_coordinates(np.clip(t1.data, 0.0, 5.0), index, order=1,
+                                                cval=0.0)
         tissue = labels.data[tuple(grid)]
         white = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["wm"])])
         grey = np.median(sampled[np.isin(tissue, Brain.BIGBRAIN_TISSUES["gm"])])
@@ -173,5 +178,6 @@ class TestStack:
         # follow (stated)
         assert 0.9 < white < 1.3 and 1.2 < grey < 1.8 and grey - white > 0.2, (white, grey)
         transmit = HMRI.volume("TB1map", space="bigbrain_mr")
-        np.testing.assert_allclose(transmit.affine, HMRI.registration() @ HMRI.volume("TB1map").affine)
+        np.testing.assert_allclose(transmit.affine,
+                                   HMRI.registration() @ HMRI.volume("TB1map").affine)
         assert 0.7 < transmit.mean((0.0, 0.0, 0.0), 20.0) < 1.3

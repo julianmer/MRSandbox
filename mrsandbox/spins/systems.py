@@ -67,7 +67,7 @@ class SpinSystem:
     @classmethod
     def from_database(cls, metabolite, database=None, source="govindaraju", temperature_c=37.0,
                       ph=7.0):
-        """All coupled groups of `metabolite` as SpinSystems - simulate each, sum the
+        """All coupled groups of `metabolite` as SpinSystems: simulate each, sum the
         lines. `source` names the table (the 1H Govindaraju set, or "dmi" for the
         deuterium set); the nucleus comes from the record. Away from 37 C and pH 7,
         where the values are typed, every proton moves by the published change of its
@@ -214,9 +214,9 @@ class Operators:
     Attributes:
         ix, iy, iz: Per-spin operators, (n, d, d) complex64.
         fx, fy, fz: Total-spin operators, (d, d) complex64.
-        fplus: Detection operator Fx + i Fy, (d, d) complex64 - its support lies on
+        fplus: Detection operator Fx + i Fy, (d, d) complex64; its support lies on
             coherence order +1, so Tr(F+ rho) reads out the -1 coherences of rho.
-        coherence_order: Integer matrix q[a, b] = m_a - m_b, (d, d) - a coherence filter
+        coherence_order: Integer matrix q[a, b] = m_a - m_b, (d, d); a coherence filter
             is a boolean mask on it.
         mz: Per-spin magnetic quantum numbers on the product basis, (n, d) float32: the
             diagonals of iz, which are also the eigenvalues of ix in the hadamard basis.
@@ -269,8 +269,8 @@ class Operators:
         hadamard = np.array([[1.0]], dtype=np.complex64)
         for _ in range(system.n):
             hadamard = np.kron(hadamard, basis)
-        return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy, coherence_order=order,
-                   mz=mz, hadamard=hadamard)
+        return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy,
+                   coherence_order=order, mz=mz, hadamard=hadamard)
 
 
     #***************#

@@ -31,13 +31,16 @@ class TestArrays:
     def test_every_preset_builds_its_channels_and_names_its_sources(self):
         for key, preset in PRESETS.items():
             array = preset.array()
-            assert len(array) == preset.channels and len(array.sensitivities(PLACES[0])) == preset.channels, key
-            assert preset.cited and preset.stated and preset.vendor in ("siemens", "ge", "philips", "research")
+            assert (len(array) == preset.channels
+                    and len(array.sensitivities(PLACES[0])) == preset.channels), key
+            assert preset.cited and preset.stated and preset.vendor in ("siemens", "ge", "philips",
+                                                                        "research")
 
     def test_the_triple_mode_carries_what_the_loops_do(self):
-        # Reykowski and Blasche 2004: primary, secondary and tertiary together are the raw loops' signals: a unitary
-        # combiner, so the optimum combination's noise is the loops' own everywhere; the primary alone (CP) loses
-        # where the loops differ most, away from the centre it was phased for
+        # Reykowski and Blasche 2004: primary, secondary and tertiary together are the raw loops'
+        # signals: a unitary combiner, so the optimum combination's noise is the loops' own
+        # everywhere; the primary alone (CP) loses where the loops differ most, away from the
+        # centre it was phased for
         triple = PRESETS["siemens_head_matrix_12_triple"].array()
         assert np.allclose(triple.modes @ triple.modes.conj().T, np.eye(12), atol=1e-12)
         loops = CoilArray(triple.loops).loaded()
@@ -53,9 +56,11 @@ class TestArrays:
         assert np.iscomplexobj(array.noise_resistance)
         ScannerProfile(Scanner.preset("generic_3t"), coils=array).save(tmp_path / "scanner.json")
         back = ScannerProfile.load(tmp_path / "scanner.json").coils
-        assert len(back) == 16 and np.allclose(back.modes, array.modes) and np.allclose(back.noise_resistance, array.noise_resistance)
+        assert (len(back) == 16 and np.allclose(back.modes, array.modes)
+                and np.allclose(back.noise_resistance, array.noise_resistance))
         assert back.noise_gain(PLACES[0]) == pytest.approx(array.noise_gain(PLACES[0]), rel=1e-6)
-        # an array without modes is saved as before, its resistance real
-        ScannerProfile(Scanner.preset("generic_3t"), coils=CoilArray.helmet().loaded()).save(tmp_path / "plain.json")
+        # an array without modes is saved plain, its resistance real
+        ScannerProfile(Scanner.preset("generic_3t"),
+                       coils=CoilArray.helmet().loaded()).save(tmp_path / "plain.json")
         plain = ScannerProfile.load(tmp_path / "plain.json").coils
         assert plain.modes is None and not np.iscomplexobj(plain.noise_resistance)

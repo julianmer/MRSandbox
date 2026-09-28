@@ -76,11 +76,10 @@ class Phantom(Brain):
     The relaxation times are NOT in vivo numbers: a doped solution's depend on its dose
     and the gadolinium relaxes the metabolites unequally (database.phantoms
     BRAINO_RELAXATION: choline's T1 a third of the NAA singlet's at 7 T). The defaults:
-    the water T1 of 0.4 s is what two groups measured in a Braino near 3 T (0.39 and
-    0.45 s); the metabolite T2 of 0.5 s and the water T2 of 0.5 s are bounds read off
-    the linewidths of one SPECTRE session (Philips Ingenia CX, 3 T, 21.7 C: singlets
-    0.6 to 1.1 Hz wide, the water line 0.7 Hz); the metabolite T1 of 1.5 s is a stated
-    assumption. Give the phantom's own where they are known, per metabolite if need be.
+    the water T1 of 0.4 s is what two groups measured in a Braino near 3 T; the
+    metabolite and water T2 of 0.5 s are bounds set by the linewidths of a SPECTRE
+    phantom at 3 T; the metabolite T1 of 1.5 s is a stated assumption. Give the
+    phantom's own where they are known, per metabolite if need be.
 
     A phantom is in vitro: a scan of it may calibrate what belongs to the hardware
     (receiver noise, array correlation, drift, the digital filter, the gradients'
@@ -106,8 +105,9 @@ class Phantom(Brain):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, contents, diameter_mm=180.0, ph=7.0, temperature_c=20.0, t1_s=T1_S, t2_s=T2_S,
-                 water_t1_s=0.4, water_t2_s=0.5, vials=(), name="phantom", cell_mm=4.0):
+    def __init__(self, contents, diameter_mm=180.0, ph=7.0, temperature_c=20.0, t1_s=T1_S,
+                 t2_s=T2_S, water_t1_s=0.4, water_t2_s=0.5, vials=(), name="phantom",
+                 cell_mm=4.0):
         half = np.ceil(diameter_mm / 2.0 / cell_mm) * cell_mm + cell_mm
         axis = np.arange(-half, half + cell_mm / 2.0, cell_mm)
         self._grid = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
@@ -118,8 +118,8 @@ class Phantom(Brain):
             solution[self._inside(vial)] = vial.water
         affine = np.diag([cell_mm, cell_mm, cell_mm, 1.0])
         affine[:3, 3] = -half
-        super().__init__(gm=solution, wm=0.0 * solution, csf=0.0 * solution, affine=affine, name=name,
-                         fat=0.0 * solution)
+        super().__init__(gm=solution, wm=0.0 * solution, csf=0.0 * solution, affine=affine,
+                         name=name, fat=0.0 * solution)
         self.contents = dict(contents)
         self.diameter_mm = float(diameter_mm)
         self.ph, self.temperature_c = float(ph), float(temperature_c)
@@ -127,7 +127,8 @@ class Phantom(Brain):
         self.water_t1_s, self.water_t2_s = float(water_t1_s), float(water_t2_s)
 
     def _inside(self, vial):
-        return np.linalg.norm(self._grid - np.asarray(vial.center_mm, dtype=float), axis=-1) <= vial.diameter_mm / 2.0
+        return (np.linalg.norm(self._grid - np.asarray(vial.center_mm, dtype=float), axis=-1)
+                <= vial.diameter_mm / 2.0)
 
     #*************#
     #   recipes   #
@@ -137,13 +138,15 @@ class Phantom(Brain):
         """The SPECTRE phantom of Gold Standard Phantoms (database.phantoms SPECTRE):
         seven metabolites at pH 7.4, 180 mm across, 110 mm as the Pico."""
         return cls(phantoms.SPECTRE, diameter_mm=110.0 if pico else 180.0, ph=7.4,
-                   temperature_c=temperature_c, name="spectre_pico" if pico else "spectre", **kwargs)
+                   temperature_c=temperature_c, name="spectre_pico" if pico else "spectre",
+                   **kwargs)
 
     @classmethod
     def braino(cls, temperature_c=20.0, **kwargs):
         """GE's Braino sphere as the literature reports it (database.phantoms BRAINO): six
         metabolites, 169 mm across; its pH is in no source and stays at 7 (stated)."""
-        return cls(phantoms.BRAINO, diameter_mm=169.0, temperature_c=temperature_c, name="braino", **kwargs)
+        return cls(phantoms.BRAINO, diameter_mm=169.0, temperature_c=temperature_c, name="braino",
+                   **kwargs)
 
     @classmethod
     def nist(cls, b0_t=3.0, commercial=False, temperature_c=20.0, cell_mm=2.5):
@@ -156,18 +159,23 @@ class Phantom(Brain):
         water takes its own measured rates at 3 T and 20 C throughout (stated); the
         fiducial spheres, the plates, and the resolution inset are not modelled."""
         table, field = phantoms.NIST_SYSTEM, 3 if b0_t > 2.25 else 2
-        relaxation = {array: [row[field] for row in table[array]] for array in ("t1_array", "t2_array", "pd_array")}
+        relaxation = {array: [row[field] for row in table[array]]
+                      for array in ("t1_array", "t2_array", "pd_array")}
         if commercial:
             if field == 2:
                 raise ValueError("the model 130's certificate holds 3 T only")
             for array, rows in phantoms.NIST_MODEL_130.items():
-                relaxation[array] = [values[min(values, key=lambda t: abs(t - temperature_c))] for _, values in rows]
-        vials = [Vial(row[0], table["sphere_inner_diameter_mm"], water_t1_s=t1_ms / 1000.0, water_t2_s=t2_ms / 1000.0,
+                relaxation[array] = [values[min(values, key=lambda t: abs(t - temperature_c))]
+                                     for _, values in rows]
+        vials = [Vial(row[0], table["sphere_inner_diameter_mm"], water_t1_s=t1_ms / 1000.0,
+                      water_t2_s=t2_ms / 1000.0,
                       water=1.0 - row[1] / 100.0 if array == "pd_array" else 1.0)
-                 for array in relaxation for row, (t1_ms, t2_ms) in zip(table[array], relaxation[array])]
+                 for array in relaxation
+                 for row, (t1_ms, t2_ms) in zip(table[array], relaxation[array])]
         r1, r2 = table["water_r1_r2_3t"]
-        return cls({}, diameter_mm=table["inner_diameter_mm"], temperature_c=temperature_c, water_t1_s=1.0 / r1,
-                   water_t2_s=1.0 / r2, vials=vials, name="nist_model_130" if commercial else "nist_system", cell_mm=cell_mm)
+        return cls({}, diameter_mm=table["inner_diameter_mm"], temperature_c=temperature_c,
+                   water_t1_s=1.0 / r1, water_t2_s=1.0 / r2, vials=vials,
+                   name="nist_model_130" if commercial else "nist_system", cell_mm=cell_mm)
 
     #************#
     #   params   #
@@ -181,13 +189,15 @@ class Phantom(Brain):
         the in vivo ones (stated: a free solution's are larger, which a design without
         diffusion weighting does not see)."""
         names = list(defaults.conc)
-        names += [name for holder in (self, *self.vials) for name in (holder.contents or {}) if name not in names]
+        names += [name for holder in (self, *self.vials) for name in (holder.contents or {})
+                  if name not in names]
         adc = defaults.diffusion.adc
 
         def leaf(of, fallback):
             """One leaf over the phantom: `of(holder)` is a holder's value or None."""
             here = of(self) if of(self) is not None else fallback
-            changed = [(vial, of(vial)) for vial in self.vials if of(vial) is not None and of(vial) != here]
+            changed = [(vial, of(vial)) for vial in self.vials
+                       if of(vial) is not None and of(vial) != here]
             if not changed:
                 return float(here)
             values = np.full(self.gm.shape, here, dtype=np.float32)
@@ -196,14 +206,17 @@ class Phantom(Brain):
             return Mapped(Volume(values, self.affine, name=self.name))
 
         per = lambda attribute, name: lambda holder: (
-            getattr(holder, attribute).get(name) if isinstance(getattr(holder, attribute), dict) else getattr(holder, attribute))
+            getattr(holder, attribute).get(name) if isinstance(getattr(holder, attribute), dict)
+            else getattr(holder, attribute))
         return Params(
-            conc={name: leaf(lambda h, name=name: None if h.contents is None else h.contents.get(name, 0.0), 0.0)
+            conc={name: leaf(lambda h, name=name: (None if h.contents is None
+                                                   else h.contents.get(name, 0.0)), 0.0)
                   for name in names},
             t1={name: leaf(per("t1_s", name), self.T1_S) for name in names},
             t2={name: leaf(per("t2_s", name), self.T2_S) for name in names},
             contrast={name: 1.0 for name in names},
             diffusion=dict(adc={name: adc[name] if name in adc else adc.NAA for name in names}),
-            water=dict(t1_s=leaf(lambda h: h.water_t1_s, None), t2_s=leaf(lambda h: h.water_t2_s, None)),
+            water=dict(t1_s=leaf(lambda h: h.water_t1_s, None),
+                       t2_s=leaf(lambda h: h.water_t2_s, None)),
             lineshape=dict(gauss_hz=0.0),
         )

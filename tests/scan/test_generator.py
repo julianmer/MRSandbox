@@ -31,7 +31,8 @@ VOXEL = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 #*****************#
 @pytest.fixture(scope="module")
 def scan():
-    return VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+    return VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                       Press(te1_s=0.011, te2_s=0.019))
 
 
 #**************************************************************************************************#
@@ -116,8 +117,9 @@ class TestGenerator:
             assert abs(np.std(loud[i] - quiet[i]) - 2.0 * np.sqrt(0.8)) < 0.2  # 4 kHz
 
     def test_a_batch_equals_its_draws_rendered_one_by_one(self, scan):
-        # the batch's metabolite lines come from one replay mapped over the draws; every draw's FID is the one its
-        # own replay renders (the same truths, the same noise: the rng draws the truth, then the noise)
+        # the batch's metabolite lines come from one replay mapped over the draws; every draw's
+        # FID is the one its own replay renders (the same truths, the same noise: the rng draws
+        # the truth, then the noise)
         gen = scan.generator(batch_size=6, seed=11, npoints=512, **VOXEL)
         x, _ = gen[3]
         alone = scan.voxel(compiled=True, **VOXEL)

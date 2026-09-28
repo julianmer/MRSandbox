@@ -59,12 +59,11 @@ class Brain:
 
     # QSM challenge 2.0 head labels (resources.qsm LABELS) grouped by tissue. Stated:
     # the deep nuclei count as gray matter, blood and calcification as no tissue, and
-    # the extracranial soft tissue (the deposit's "muscle"; its "fat" label holds no
-    # voxels, so scalp fat and muscle are one class) is the fat-bearing layer, beyond
-    # the bone only: over the calvarium the same label also lines the brain (the first
-    # 3 mm, the meninges), then come 6 mm of bone, and the scalp fills 9 to 15 mm from
-    # the brain (measured on the head's labels). SCALP_FROM_MM parts the two sheets and
-    # SCALP_MM is where a brain without a fat map takes its scalp to lie.
+    # the extracranial soft tissue (the deposit's "muscle"; its "fat" label is empty, so
+    # scalp fat and muscle are one class) is the fat-bearing layer, beyond the bone only:
+    # the same label also lines the brain as the meninges. SCALP_FROM_MM parts the two
+    # sheets and SCALP_MM is where a brain without a fat map takes its scalp to lie, both
+    # in mm from the brain as the head's labels place them.
     QSM_TISSUES = {"gm": (1, 2, 3, 4, 5, 6, 7, 9), "wm": (8,), "csf": (10,), "fat": (15,)}
     SCALP_FROM_MM, SCALP_MM = 6.0, (9.0, 15.0)
 
@@ -153,7 +152,8 @@ class Brain:
         labels = np.asarray(volume.data, dtype=np.uint8)
         masks = {tissue: np.isin(labels, members).astype(np.float32)
                  for tissue, members in cls.QSM_TISSUES.items()}
-        masks["fat"] = cls.scalp(masks["fat"], masks["gm"] + masks["wm"] + masks["csf"], volume.affine)
+        masks["fat"] = cls.scalp(masks["fat"], masks["gm"] + masks["wm"] + masks["csf"],
+                                 volume.affine)
         return cls(affine=volume.affine, name="qsm_rc2", **masks)
 
     #***********#
@@ -218,7 +218,8 @@ class Brain:
         """
         if self.fat is None:
             values, weights = self.maps.box(position_mm, size_mm)
-            if weights.sum() <= 0.0 or not bool((values.sum(axis=-1)[weights > 0.0] > 0.5).any()):
+            if (weights.sum() <= 0.0
+                    or not bool((values.sum(axis=-1)[weights > 0.0] > 0.5).any())):
                 return 0.0
         mean = self.layer.mean(position_mm, size_mm)
         return 0.0 if mean is None else float(mean)
@@ -233,9 +234,11 @@ class Brain:
             import scipy.ndimage
 
             cell = np.linalg.norm(self.affine[:3, :3], axis=0)
-            distance = scipy.ndimage.distance_transform_edt(self.maps.data.sum(axis=-1) < 0.5, sampling=cell)
+            distance = scipy.ndimage.distance_transform_edt(self.maps.data.sum(axis=-1) < 0.5,
+                                                            sampling=cell)
             shell = (distance >= self.SCALP_MM[0]) & (distance <= self.SCALP_MM[1])
-            self._shell = Volume(shell.astype(np.float32), self.affine, name=self.name + "/scalp")
+            self._shell = Volume(shell.astype(np.float32), self.affine,
+                                 name=self.name + "/scalp")
         return self._shell
 
     def lipid_cells(self, position_mm, size_mm):
@@ -263,4 +266,5 @@ class Brain:
         if outside.sum() <= 0.0:
             return np.zeros(3)
         centres = source.centres(position_mm, size_mm).reshape(-1, 3)
-        return np.average(centres, axis=0, weights=outside.ravel()) - np.asarray(position_mm, dtype=np.float64)
+        return (np.average(centres, axis=0, weights=outside.ravel())
+                - np.asarray(position_mm, dtype=np.float64))

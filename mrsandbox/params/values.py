@@ -126,6 +126,7 @@ class Normal(Value):
 #**************************************************************************************************#
 #                                                                                                  #
 # A quantity drawn as one of the values measured on a population, however that is shaped.          #
+#                                                                                                  #
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class Empirical(Value):
@@ -147,7 +148,8 @@ class Empirical(Value):
 
     @property
     def bandwidth(self):
-        """The kernel's width: the median distance of a value to its nearest neighbour; zero for one value."""
+        """The kernel's width: the median distance of a value to its nearest neighbour;
+        zero for one value."""
         values = np.sort(np.asarray(self.values))
         if values.size < 2:
             return 0.0
@@ -159,7 +161,8 @@ class Empirical(Value):
     #   sample   #
     #************#
     def sample(self, rng):
-        drawn = self.values[int(rng.integers(len(self.values)))] + self.bandwidth * float(rng.standard_normal())
+        drawn = (self.values[int(rng.integers(len(self.values)))]
+                 + self.bandwidth * float(rng.standard_normal()))
         return float(min(max(drawn, min(self.values)), max(self.values)))
 
     @property
@@ -290,7 +293,8 @@ class Sourced(Value):
 
     @property
     def available(self):
-        """The sources this leaf has a value for, in the order literature, pooled, dataset, own, custom."""
+        """The sources this leaf has a value for, in the order literature, pooled, dataset,
+        own, custom."""
         return tuple(name for name in SOURCES if getattr(self, name) is not None)
 
     def choose(self, source, strict=False):
@@ -298,7 +302,8 @@ class Sourced(Value):
         it stands, or raises with `strict`."""
         if getattr(self, source, None) is None:
             if strict:
-                raise ValueError(f"no {source} value for this leaf; it has {', '.join(self.available)}")
+                raise ValueError(f"no {source} value for this leaf; "
+                                 f"it has {', '.join(self.available)}")
             return self
         return dataclasses.replace(self, chosen=source)
 
@@ -321,7 +326,8 @@ class Sourced(Value):
         return self.current == other
 
     def __hash__(self):
-        return hash((self.literature, self.pooled, self.dataset, self.own, self.custom, self.chosen))
+        return hash((self.literature, self.pooled, self.dataset, self.own, self.custom,
+                     self.chosen))
 
 
 #**************************************************************************************************#

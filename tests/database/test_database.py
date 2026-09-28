@@ -183,56 +183,73 @@ class TestFieldPriors:
         from mrsandbox.scan.defaults import default_params
 
         assert default_params(b0_t=3.0).lineshape.gauss_hz == Uniform(2.0, 6.0)
-        assert default_params(b0_t=7.0).lineshape.gauss_hz == Uniform(2.0 * 7.0 / 3.0, 6.0 * 7.0 / 3.0)
+        assert default_params(b0_t=7.0).lineshape.gauss_hz == Uniform(
+            2.0 * 7.0 / 3.0, 6.0 * 7.0 / 3.0
+        )
 
     #*****************************#
     #   signed eddy field terms   #
     #*****************************#
     def test_the_gradient_eddy_field_terms_carry_either_sign(self):
-        # the eddy phase read on eighty water references shows both signs (scan.calibrations EDDY_PHASE records)
+        # the eddy phase read on the water references shows both signs (scan.calibrations
+        # EDDY_PHASE records)
         from mrsandbox import Uniform
         from mrsandbox.scan.defaults import default_params
 
         gradients = default_params(b0_t=3.0).gradients
-        assert gradients.b0_short_hz_per_mt_m == Uniform(-0.5, 0.5) and gradients.b0_long_hz_per_mt_m == Uniform(-0.2, 0.2)
+        assert (gradients.b0_short_hz_per_mt_m == Uniform(-0.5, 0.5)
+                and gradients.b0_long_hz_per_mt_m == Uniform(-0.2, 0.2))
 
     #********************#
     #   three sources    #
     #********************#
     def test_the_literature_is_chosen_where_it_exists_and_the_pooled_readings_elsewhere(self):
-        # every leaf a reading serves is Sourced: the literature (de Graaf's creatine, the stated width) chosen where
-        # one is published, the pooled readings where none is (the noise, the residual, the delay, the transient, the
-        # leak: a zero for want of a number is not literature), each source with its provenance
+        # every leaf a reading serves is Sourced: the literature (de Graaf's creatine, the stated
+        # width) chosen where one is published, the pooled readings where none is (the noise, the
+        # residual, the delay, the transient, the leak: a zero for want of a number is not
+        # literature), each source with its provenance
         from mrsandbox import Empirical, Sourced, Uniform
         from mrsandbox.scan.defaults import default_params
 
         tree = default_params(b0_t=3.0, scanner="siemens_trio_3t")
-        assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma", "water.adjusted_residual", "acquisition.delay_s",
-                                       "acquisition.eddy_transient_rad", "oov.fraction", *(f"run.{key}" for key in (
-                                           "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz", "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
+        assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma",
+                                       "water.adjusted_residual", "acquisition.delay_s",
+                                       "acquisition.eddy_transient_rad", "oov.fraction", "water.t1_s",
+                                       *(f"run.{key}" for key in (
+                                           "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz",
+                                           "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
                                            "broaden_hz", "events_per_min", "motion_mm"))}
-        assert {path: leaf.chosen for path, leaf in tree.sources().items() if not path.startswith("run.")} == {
-            "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled", "water.adjusted_residual": "pooled",
-            "acquisition.delay_s": "pooled", "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled"}
-        assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items() if path.startswith("run.") and path != "run.motion_mm")   # the run: the envelope until read; the head's move has no literature, the rows serve it
+        assert {path: leaf.chosen for path, leaf in tree.sources().items()
+                if not path.startswith("run.")} == {
+            "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled",
+            "water.adjusted_residual": "pooled", "acquisition.delay_s": "pooled",
+            "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled",
+            "water.t1_s": "literature"}
+        # the run: the envelope until read; the head's move has no literature, the rows serve it
+        assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items()
+                   if path.startswith("run.") and path != "run.motion_mm")
         assert tree.conc.Cr == Uniform(3.0, 5.5) and tree.lineshape.gauss_hz == Uniform(2.0, 6.0)
         assert tree.noise.sigma.literature is None and tree.acquisition.delay_s.literature is None
-        # the rows themselves, one subject per draw (the Trio's delays span zero since the readers' twin plays the console's
-        # macromolecules, info/HANDOFF.md item 244)
-        assert isinstance(tree.acquisition.eddy_transient_rad.pooled, Empirical) and isinstance(tree.acquisition.delay_s.pooled, Empirical)
-        assert tree.conc.Cr.provenance["literature"].startswith("de Graaf") and "big_gaba_trio" in tree.noise.sigma.provenance["pooled"]
+        # the rows themselves, one subject per draw
+        assert (isinstance(tree.acquisition.eddy_transient_rad.pooled, Empirical)
+                and isinstance(tree.acquisition.delay_s.pooled, Empirical))
+        assert (tree.conc.Cr.provenance["literature"].startswith("de Graaf")
+                and "big_gaba_trio" in tree.noise.sigma.provenance["pooled"])
         measured = tree.select("pooled")
         assert measured.conc.Cr.chosen == "pooled" and measured.conc.Cr == tree.conc.Cr.pooled
-        assert isinstance(measured.lineshape.gauss_hz, Sourced) and measured.lineshape.gauss_hz.chosen == "pooled"
+        assert (isinstance(measured.lineshape.gauss_hz, Sourced)
+                and measured.lineshape.gauss_hz.chosen == "pooled")
         literature = tree.select("literature")
-        assert literature.noise.sigma == tree.noise.sigma and literature.acquisition.delay_s == tree.acquisition.delay_s
+        assert (literature.noise.sigma == tree.noise.sigma
+                and literature.acquisition.delay_s == tree.acquisition.delay_s)
 
     #**********************#
     #   eddy transient     #
     #**********************#
     def test_the_eddy_transient_is_the_pooled_rows_spread_about_zero(self):
-        # the phase transient at the FID's start: the package's rows of either sign pooled for the scanner, a Normal
-        # about zero with their 95th percentile as its spread; the failed readings (a half turn off) are not among them
+        # the phase transient at the FID's start: the package's rows of either sign pooled for the
+        # scanner, a Normal about zero with their 95th percentile as its spread; the failed readings
+        # (a half turn off) are not among them
         import numpy as np
 
         from mrsandbox import Empirical
@@ -244,10 +261,14 @@ class TestFieldPriors:
             record = calibrations(scanner)["acquisition.eddy_transient_rad"]
             assert record.prior[0] < 0.0 < record.prior[1]
             drawn = default_params(b0_t=3.0, scanner=scanner).acquisition.eddy_transient_rad
-            assert isinstance(drawn.current, Empirical) and (round(drawn.low, 7), round(drawn.high, 7)) == record.prior
-            assert drawn.value == record.value and list(drawn.current.values) == record.measured["values"]
-        assert all(abs(record.value) <= 0.5 * np.pi for _, _, record in cohort.rows("acquisition.eddy_transient_rad"))
-        assert any(record.failed for c in cohort.package() for m in c.members for record in m.profile.records
+            assert (isinstance(drawn.current, Empirical)
+                    and (round(drawn.low, 7), round(drawn.high, 7)) == record.prior)
+            assert (drawn.value == record.value
+                    and list(drawn.current.values) == record.measured["values"])
+        assert all(abs(record.value) <= 0.5 * np.pi
+                   for _, _, record in cohort.rows("acquisition.eddy_transient_rad"))
+        assert any(record.failed for c in cohort.package() for m in c.members
+                   for record in m.profile.records
                    if record.leaf == "acquisition.eddy_transient_rad")
 
 
@@ -259,12 +280,14 @@ class TestScannerSurvey:
     def test_the_survey_names_the_scanners_the_presets_stand_for(self):
         from mrsandbox.database.scanners import OPENNEURO_SURVEY
 
-        prisma, trio = OPENNEURO_SURVEY[("siemens", "Prisma", 3.0)], OPENNEURO_SURVEY[("siemens", "TrioTim", 3.0)]
+        prisma, trio = (OPENNEURO_SURVEY[("siemens", "Prisma", 3.0)],
+                        OPENNEURO_SURVEY[("siemens", "TrioTim", 3.0)])
         assert prisma["datasets"] > 100 and "HeadNeck_64" in prisma["receive_coils"]
         # the reference amplitude: the Prisma's body coil needs three quarters of the Trio's
         assert prisma["tx_ref_amp_v"]["median"] < 0.8 * trio["tx_ref_amp_v"]["median"]
         assert len(prisma["shim_setting"]["median"]) == 8
-        assert any("DV24" in release for release in OPENNEURO_SURVEY[("ge", "DISCOVERY MR750", 3.0)]["software"])
+        assert any("DV24" in release
+                   for release in OPENNEURO_SURVEY[("ge", "DISCOVERY MR750", 3.0)]["software"])
         for (vendor, model, field), row in OPENNEURO_SURVEY.items():
             assert vendor in ("siemens", "ge", "philips", "bruker") and row["datasets"] >= 3
 
@@ -285,7 +308,8 @@ class TestShifts:
         assert database.shift_change("NAA", 2.008, 37.0, 7.0) == 0.0
         assert database.shift_change("GPC", 3.212, 32.0, 6.5) == 0.0  # not in the table
         assert database.shift_change("NAA", 5.0, 32.0, 7.0) == 0.0    # no group near 5 ppm
-        warm, typed = SpinSystem.from_database("Glu", temperature_c=37.0), SpinSystem.from_database("Glu")
+        warm, typed = (SpinSystem.from_database("Glu", temperature_c=37.0),
+                       SpinSystem.from_database("Glu"))
         assert [s.shifts_ppm for s in warm] == [s.shifts_ppm for s in typed]
 
     def test_the_functions_carry_the_2017_difference_slopes(self):
@@ -313,7 +337,8 @@ class TestShifts:
         # the function itself at 37 C and pH 7 is the typed coupling to a tenth of a hertz
         from mrsandbox.database.shifts import WERMTER_2026_J
 
-        assert database._titration(WERMTER_2026_J["NAA"]["2-3"], 37.0, 7.0) == pytest.approx(3.861, abs=0.12)
+        assert database._titration(WERMTER_2026_J["NAA"]["2-3"], 37.0, 7.0) == pytest.approx(
+            3.861, abs=0.12)
         assert database.coupling_change("NAA", 4.3817, 2.6727, 37.0, 7.0) == 0.0
         assert database.coupling_change("Glu", 3.7433, 2.0375, 32.0, 7.0) == 0.0  # not in the table
         assert database.coupling_change("NAA", 7.8205, 4.3817, 32.0, 7.0) == 0.0  # the NH's is not
@@ -330,11 +355,12 @@ class TestShifts:
     def test_a_scan_moves_its_systems_and_its_water_with_the_temperature(self):
         from mrsandbox import Brain, Press, Scanner, VirtualScan
 
-        brain = Brain.from_maps(*(3 * [[[[1.0]]]]), affine=[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0],
-                                                          [0, 0, 0, 1]])
+        brain = Brain.from_maps(*(3 * [[[[1.0]]]]),
+                                affine=[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
         pieces = (brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         fever, body = VirtualScan(*pieces, temperature_c=40.0, ph=6.8), VirtualScan(*pieces)
         assert fever.params.water.temperature_c.value == 40.0
         assert body.params.water.temperature_c.value == 37.0
         moved = fever.systems("Lac")[0].shifts_ppm[0] - body.systems("Lac")[0].shifts_ppm[0]
-        assert abs(moved - Database().shift_change("Lac", 4.0974, 40.0, 6.8)) < 1e-12 and moved != 0.0
+        assert (abs(moved - Database().shift_change("Lac", 4.0974, 40.0, 6.8)) < 1e-12
+                and moved != 0.0)

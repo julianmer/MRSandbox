@@ -6,9 +6,10 @@
 #                                                                                                  #
 # Created: 17/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Phase cycling as physics: an EXORCYCLE on the two refocusing pulses of a PRESS reproduces #
-#          the coherence-filter idealization exactly, a per-step phase error leaks what the cycle  #
-#          cancels, and the cycle replays through the compiled graph with the jitter as a timing.  #
+# Purpose: Phase cycling as physics: an EXORCYCLE on the two refocusing pulses of a PRESS          #
+#          reproduces the coherence-filter idealization exactly, a per-step phase error leaks what #
+#          the cycle cancels, and the cycle replays through the compiled graph with the jitter as  #
+#          a timing.                                                                               #
 #                                                                                                  #
 ####################################################################################################
 
@@ -129,6 +130,7 @@ class TestCycling:
                                    atol=1e-5 * np.abs(eager).max())
         # the design's other faces survive the wrapping
         assert design.duration_s == pytest.approx(0.030)
-        assert Cycled(Press(te1_s=0.011, te2_s=0.019), table, receiver).feasible.__self__ is not None
+        assert (Cycled(Press(te1_s=0.011, te2_s=0.019), table, receiver).feasible.__self__
+                is not None)
         with pytest.raises(ValueError):
             Cycled(bare_press(), table[:, :2], receiver)

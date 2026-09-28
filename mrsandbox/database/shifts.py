@@ -25,14 +25,9 @@
 # Units:  ppm for a and b, pH units for c.
 # Notes:  the table was read from the deposit's .docx by script, no digit retyped; repeated
 #         group names of one compound (the two NH2 protons of Gln, the two NH of PCr) carry a
-#         prime per repeat. At 37 C and pH 7 the functions return the Govindaraju shifts to a
-#         few thousandths of a ppm, except two Gln rows as printed: 3'CH2 gives 1.938 ppm
-#         (2.109 expected; its c2 of a reads -0.13e-3 where the neighbours carry e-5 to e-6) and
-#         the second NH2 gives 8.447 (7.529; c2 of a reads 0.73e-3), both look like a misprinted
-#         exponent; and the GABA 4CH2 gives 2.955 (3.013) with a slope against 3CH2 of -9.1e-4
-#         ppm/K where the authors' own 2017 paper (MAGMA 30:579, Table 1) measured +7.28e-4: with
-#         the sign of b's c1 turned (+8.10e-4) it gives 3.015 and +8.1e-4, so a misprinted sign.
-#         All three are left as published; a nearest-shift match within 0.05 ppm never picks them.
+#         prime per repeat. Three rows look misprinted in the source: the exponent of a's c2 in
+#         Gln 3'CH2 and in the second Gln NH2, and the sign of b's c1 in GABA 4CH2. All three are
+#         left as published; a nearest-shift match within 0.05 ppm never picks them.
 WERMTER_2026 = {
     "NAA": {
         "2CH3": ((3.0586, 9.99e-3, -0.10e-3), (2.0073, 1.01e-4, -0.25e-5),
@@ -181,7 +176,7 @@ WERMTER_2026 = {
 #         (2-3' couples the 2CH with the 3'CH2 proton); a comma lists couplings sharing one
 #         function.
 # Units:  Hz for a and b, pH units for c.
-# Notes:  read from the .docx by script. At 37 C and pH 7: NAA 2-3 3.95 Hz (Govindaraju 3.861).
+# Notes:  read from the .docx by script.
 WERMTER_2026_J = {
     "NAA": {
         "2-3": ((5.05, 9.41e-3, -0.83e-4), (3.59, 1.00e-2, -0.91e-5),

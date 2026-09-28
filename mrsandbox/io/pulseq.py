@@ -227,11 +227,14 @@ def write_seq(sequence, path, npoints, dwell_s, f0_mhz, center_ppm=4.65,
                 amplitude = envelope * (float(event.flip_deg) / 360.0) / (envelope.sum() * dt)
             phase = np.full(envelope.size, math.radians(float(event.phase_deg)))
             if event.frequency_hz is not None:
-                phase = phase + 2.0 * math.pi * np.cumsum(np.asarray(event.frequency_hz, dtype=np.float64)) * dt
-            offsets = event.offset_ppm if isinstance(event.offset_ppm, tuple) else (event.offset_ppm,)
+                phase = phase + 2.0 * math.pi * np.cumsum(
+                    np.asarray(event.frequency_hz, dtype=np.float64)) * dt
+            offsets = (event.offset_ppm if isinstance(event.offset_ppm, tuple)
+                       else (event.offset_ppm,))
             if len(offsets) != 1:
                 raise ValueError("multi-band pulses have no single carrier to export")
-            signal, freq_offset = amplitude * np.exp(1j * phase), (float(offsets[0]) - center_ppm) * f0_mhz
+            signal, freq_offset = (amplitude * np.exp(1j * phase),
+                                   (float(offsets[0]) - center_ppm) * f0_mhz)
             use = "refocusing" if (event.peak_hz is not None
                                    or float(event.flip_deg) >= 135.0) else "excitation"
             rf = pypulseq.make_arbitrary_rf(

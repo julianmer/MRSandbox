@@ -26,7 +26,9 @@ from mrsandbox import (Brain, CoherenceFilter, Engine, Hercules, Hermes, MegaPre
                        Params, Scanner, SelectivePulse, Sequence, SpinSystem)
 
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                eddy_transient_rad=0.0),
+               oov=dict(fraction=0.0))
 
 
 #*************#
@@ -209,7 +211,8 @@ class TestMultiplex:
         volume = np.asarray(acquisition[:])[0, 0, 0]
         diff_fid = volume[:, 0] - volume[:, 1]
         spec = np.abs(np.fft.fft(diff_fid))
-        ppm = 4.65 + np.fft.fftfreq(2048, d=1.0 / 4000.0) / 127.73               # the file's frame: the centre at 4.65 ppm
+        # the file's frame: the centre at 4.65 ppm
+        ppm = 4.65 + np.fft.fftfreq(2048, d=1.0 / 4000.0) / 127.73
         at_gaba = spec[np.abs(ppm - 3.01) < 0.15].max()
         at_quiet = spec[(ppm > 8.0) & (ppm < 9.5)].max()
         # co-edited neighbours (NAA at 2.008 sits inside the ON band, as in vivo) put
@@ -371,7 +374,8 @@ class TestTransients:
                                    atol=1e-5 * np.abs(volume).max())
         assert np.abs(volume[:, 1] - volume[:, 0]).max() > 1e-3 * np.abs(volume).max()
         record = turned.hdr_ext["SimulationSchedule"]
-        assert record["rotation_deg"][1] == [0.0, 0.0, 90.0] and record["pivot_mm"] == [0.0, 0.0, 0.0]
+        assert (record["rotation_deg"][1] == [0.0, 0.0, 90.0]
+                and record["pivot_mm"] == [0.0, 0.0, 0.0])
 
     def test_motion_events_move_the_head_with_their_kicks(self):
         from augmentrum.augmentation import TransientSynthesizer
@@ -380,7 +384,7 @@ class TestTransients:
             pytest.skip("this Augmentrum does not record its motion events yet")
         # one event process: where Augmentrum's tracks kick, the head steps by the
         # asked size, for good after a persistent event; the header carries the path,
-        # and a run without motion_mm is the run it always was
+        # and a run without motion_mm is the plain run
         multiplex = self.multiplex()
         kw = dict(schedule=24, seed=3, npoints=128, synthesis=self.still(events_per_min=6.0))
         plain = multiplex.transients((10, -20, 5), 20.0, **kw)
@@ -406,7 +410,8 @@ class TestTransients:
         ghost = dict(tau_s=0.1, width_s2=2000.0, ppm=2.5, phase_deg=0.0, spread=0.0)
 
         def run(**spur):
-            multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"), MegaPress.pair(),
+            multiplex = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                                  MegaPress.pair(),
                                   params=QUIET | Params(spurious=dict(**ghost, **spur)))
             return multiplex.transients((10, -20, 5), 20.0, schedule=8, seed=3, npoints=512,
                                         synthesis=self.still())
@@ -420,8 +425,8 @@ class TestTransients:
         volume = np.asarray(some[:])[0, 0, 0]
         np.testing.assert_array_equal(volume[:, ~carried], clean[:, ~carried])
         assert np.abs(volume[:, carried] - clean[:, carried]).max() > 1e-3 * np.abs(clean).max()
-        # every transient carries it: the same echo (a Gaussian about 100 ms, the drawn size) turned to
-        # each transient's own phase
+        # every transient carries it: the same echo (a Gaussian about 100 ms, the drawn size)
+        # turned to each transient's own phase
         every = run(amplitude=0.1, rate=1.0)
         echoes = np.asarray(every[:])[0, 0, 0] - clean
         phases = np.radians(every.hdr_ext["SimulationSchedule"]["spurious"]["phase_deg"])
@@ -496,7 +501,8 @@ class TestLoopSurface:
         assert on.shape == (1, 1, 1, 512, 1)
         assert on.hdr_ext["SimulationConditions"]["names"] == ["on"]
         later = multiplex.acquire(**kw, conditions=("on",), step=1)
-        assert on.hdr_ext["SimulationGroundTruth"]["params"] == later.hdr_ext["SimulationGroundTruth"]["params"]
+        assert (on.hdr_ext["SimulationGroundTruth"]["params"]
+                == later.hdr_ext["SimulationGroundTruth"]["params"])
         assert np.abs(np.asarray(on[:]) - np.asarray(later[:])).max() > 0.0
         both = multiplex.acquire(**kw, step=0)
         np.testing.assert_array_equal(np.asarray(both[:]).reshape(512, 2)[:, 0],
@@ -535,7 +541,8 @@ class TestLocalizedMegaPress:
 
         gaba, naa = SpinSystem.from_database("GABA"), SpinSystem.from_database("NAA")
         edited = {}
-        for label, pair in (("ideal", MegaPress.pair()), ("localized", LocalizedMegaPress.pair(f0_mhz))):
+        for label, pair in (("ideal", MegaPress.pair()),
+                            ("localized", LocalizedMegaPress.pair(f0_mhz))):
             ppm, on = spectrum(pair["on"], gaba)
             edited[label] = np.real(on - spectrum(pair["off"], gaba)[1])
         window = (ppm > 2.8) & (ppm < 3.2)
@@ -549,7 +556,8 @@ class TestLocalizedMegaPress:
         pair = LocalizedMegaPress.pair(f0_mhz)
         ppm, on = spectrum(pair["on"], naa)
         methyl = (ppm > 1.9) & (ppm < 2.1)
-        assert np.real(on)[methyl].max() < 0.05 * np.real(spectrum(pair["off"], naa)[1])[methyl].max()
+        assert (np.real(on)[methyl].max()
+                < 0.05 * np.real(spectrum(pair["off"], naa)[1])[methyl].max())
         with pytest.raises(ValueError):
             LocalizedMegaPress(1.88, f0_mhz, taus_s=(0.003, 0.017, 0.017, 0.017, 0.012))
 
@@ -563,7 +571,8 @@ class TestLocalizedMegaPress:
         engine = Engine(3.0, isochromats=32)
         schemes = {"ideal": Hermes.scheme(), "localized": LocalizedMegaPress.scheme(Hermes, f0_mhz)}
         assert list(schemes["localized"]) == ["a", "b", "c", "d"]
-        for name, target, other, centre in (("GABA", "gaba", "gsh", 3.01), ("GSH", "gsh", "gaba", 2.95)):
+        for name, target, other, centre in (("GABA", "gaba", "gsh", 3.01),
+                                            ("GSH", "gsh", "gaba", 2.95)):
             edited = {}
             for label, scheme in schemes.items():
                 spectra = {}
@@ -573,7 +582,8 @@ class TestLocalizedMegaPress:
                 edited[label] = {k: sum(w[c] * spectra[c] for c in spectra)[window]
                                  for k, w in Hermes.combinations.items()}
             kept = edited["localized"][target].sum() / edited["ideal"][target].sum()
-            leak = np.abs(edited["localized"][other]).max() / np.abs(edited["localized"][target]).max()
+            leak = (np.abs(edited["localized"][other]).max()
+                    / np.abs(edited["localized"][target]).max())
             assert 0.5 < kept < 1.0 and leak < 0.05, (name, kept, leak)
         with pytest.raises(ValueError):
             LocalizedMegaPress((1.9, 4.56, 7.2), f0_mhz)
@@ -590,14 +600,15 @@ class TestLocalizedMegaPress:
         assert abs(sum(design.taus_s) - 0.080) < 1e-12
         assert abs((design.taus_s[3] + design.taus_s[4]) - 0.040) < 1e-12  # the edits TE/2 apart
         assert design.feasible(Scanner.preset("siemens_prisma_3t"))
-        water = SpinSystem(name="water", nucleus="1H", shifts_ppm=(4.65,), j_hz=((0.0,),), scale=2.0,
-                           gamma_mhz_t=42.5774785)
+        water = SpinSystem(name="water", nucleus="1H", shifts_ppm=(4.65,), j_hz=((0.0,),),
+                           scale=2.0, gamma_mhz_t=42.5774785)
         off = np.asarray(ops.convert_to_numpy(engine.lines(
             LocalizedMegaSemiLaser(7.5, f0_mhz, reference_ppm=4.65), water)[1]))
         plain = np.asarray(ops.convert_to_numpy(engine.lines(
             Sequence(Pulse(90.0), CoherenceFilter(-1)), water)[1]))
         k = np.argmax(np.abs(plain))
-        assert 0.75 < abs(off[k] / plain[k]) < 0.95 and abs(np.degrees(np.angle(off[k] / plain[k]))) < 1.0
+        assert (0.75 < abs(off[k] / plain[k]) < 0.95
+                and abs(np.degrees(np.angle(off[k] / plain[k]))) < 1.0)
         taus = (0.005, 0.015, 0.025, 0.015, 0.020)
         edited = {}
         for label, pair in (("ideal", MegaPress.pair(taus_s=taus)),

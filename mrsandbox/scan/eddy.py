@@ -28,10 +28,9 @@ from mrsandbox.sequences.events import InducedKick, ShapedPulse
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 TIME_STEP_S = 1e-5
-# the band the fields before the readout are taken in: a measured response's integrals
-# over the design are stable from 4 to 20 kHz and pick up the measurement's noise
-# above (checked on the NWS deposit 17/09/26), and 20 kHz is about what its authors'
-# own filter passes (stated)
+# the band the fields before the readout are taken in: above it a measured response's
+# integrals over the design pick up the measurement's noise, and 20 kHz is about what
+# its authors' own filter passes (stated)
 INDUCED_BANDWIDTH_HZ = 20000.0
 
 
@@ -122,7 +121,8 @@ def induced_sequence(sequence, scanner, response, position_mm, gamma_mhz_t=42.57
         return sequence
     def since(start, at):
         # [uniform cycles, moment x, y, z] built up from `start` to the times `at`
-        rows = [np.interp(at, t, moments[axis]) - np.interp(start, t, moments[axis]) for axis in "xyz"]
+        rows = [np.interp(at, t, moments[axis]) - np.interp(start, t, moments[axis])
+                for axis in "xyz"]
         uniform = np.interp(at, t, cycles) - np.interp(start, t, cycles)
         return np.stack([uniform + sum(row * float(p) for row, p in zip(rows, position_mm))] + rows)
 
@@ -156,8 +156,8 @@ def readout_kernel(sequence, scanner, position_mm, size_mm, npoints, dwell_s, re
     sincs multiply where one of their sum would be exact, stated). `response` as in
     `induced_phase`, a measured one band-limited to the readout's receiver band; the
     points sit `start_s` after the readout's start (the receiver delay). None for a
-    design that plays no gradient (an ideal localization): nothing is induced, and the
-    kernel of ones would cost a draw three milliseconds of interpolation."""
+    design that plays no gradient (an ideal localization): nothing is induced, and a
+    kernel of ones would only cost interpolation."""
     start = float(sequence.duration_s)
     if not gradient_waveforms(sequence, scanner, TIME_STEP_S, start, gamma_mhz_t)[1]:
         return None

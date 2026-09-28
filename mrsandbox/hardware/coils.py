@@ -153,7 +153,8 @@ class CoilArray:
     def _resistance(n, noise_resistance):
         """The (n, n) noise resistance matrix, the identity when none is given."""
         matrix = np.asarray(noise_resistance) if noise_resistance is not None else np.eye(n)
-        matrix = matrix.astype(np.complex128 if np.iscomplexobj(matrix) else float)     # a mode matrix mixes the loops' noise with phase
+        # a mode matrix mixes the loops' noise with phase
+        matrix = matrix.astype(np.complex128 if np.iscomplexobj(matrix) else float)
         if matrix.shape != (n, n):
             raise ValueError(f"noise_resistance must be {n}x{n} for {n} channels")
         return matrix
@@ -174,9 +175,8 @@ class CoilArray:
             loops.append(Loop(loop_radius_mm, center, normal=(-np.cos(phi), -np.sin(phi), 0.0)))
         return cls(loops)
 
-    # the centre of the brain in the phantoms' world (the box of the ICBM152 brain runs
-    # from -106 to 74 mm in y and -70 to 82 mm in z): a head array sits around the head,
-    # not around the world origin near the anterior commissure
+    # the centre of the ICBM152 brain's box in the phantoms' world: a head array sits around the
+    # head, not around the world origin near the anterior commissure
     HEAD_CENTER_MM = (0.0, -16.0, 6.0)
 
     #************#
@@ -191,20 +191,16 @@ class CoilArray:
         10, and 15 at 35, 65, and 95 degrees from the top, make 32 channels; stated
         layout, the vendors' differ in detail). `rows` is ((polar angle in degrees
         from +z, loops in the ring), ...); alternate rings are turned by half a loop.
-
-        Checked on the COWS data (scan.calibrations, 10 subjects, a Prisma 32-channel
-        array, the voxels placed through each subject's T1): the apodized SNR of the
-        prefrontal, occipital, and posterior frontal voxels runs 1 : 0.91 : 0.69, this
-        helmet gives 1 : 0.81 : 0.57, the right order and too steep (a sphere of 110 mm
-        gives 1 : 0.77 : 0.50, and about the world origin 1 : 2.31 : 0.81). `radius_mm` is
-        one radius or the (x, y, z) semi-axes of an ellipsoid; the default follows a
-        head that is longer than wide (the brain's box plus 35 mm, rounded; stated)."""
+        `radius_mm` is one radius or the (x, y, z) semi-axes of an ellipsoid; the default
+        follows a head that is longer than wide (the brain's box plus 35 mm, rounded;
+        stated)."""
         loops = []
         for index, (polar_deg, count) in enumerate(rows):
             theta = np.radians(polar_deg)
             for k in range(count):
                 phi = 2.0 * np.pi * (k + 0.5 * (index % 2)) / count
-                out = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
+                out = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi),
+                                np.cos(theta)])
                 radii = np.broadcast_to(np.asarray(radius_mm, dtype=float), (3,))
                 inward = -(out / radii) / np.linalg.norm(out / radii)  # the ellipsoid's normal
                 loops.append(Loop(loop_radius_mm, tuple(np.asarray(center_mm) + radii * out),
@@ -231,19 +227,19 @@ class CoilArray:
         the size of a head on a `step_mm` grid, scaled to a mean diagonal of one.
         Neighbouring loops then share noise, as they do on a scanner. `own_noise` is
         the share of a channel's noise power that is its own (conductor and
-        preamplifier) and correlates with no other channel. The default is measured:
-        the noise adjustment of a 32-channel head array on a head at 3 T has a
-        strongest partner per channel of 0.41 on average where the sample alone
-        gives 0.61 (scan.calibrations COIL_OWN_NOISE_PRISMA_3T). A small phantom loads
-        the loops less and the share grows: 0.21 measured in a 32-channel array."""
+        preamplifier) and correlates with no other channel. The default is measured on
+        the noise adjustment of a 32-channel head array on a head at 3 T
+        (scan.calibrations COIL_OWN_NOISE_PRISMA_3T); a small phantom loads the loops
+        less, and the share grows."""
         axis = np.arange(-radius_mm, radius_mm + step_mm / 2.0, step_mm)
         grid = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1).reshape(-1, 3)
-        points = grid[np.linalg.norm(grid, axis=1) <= radius_mm] + np.asarray(center_mm, dtype=float)
+        points = (grid[np.linalg.norm(grid, axis=1) <= radius_mm]
+                  + np.asarray(center_mm, dtype=float))
         potentials = np.stack([loop.potential(points) for loop in self.loops])
         resistance = np.einsum("ipk,jpk->ij", potentials, potentials)
         resistance = resistance / np.mean(np.diag(resistance))
         resistance = (1.0 - own_noise) * resistance + own_noise * np.eye(len(self.loops))
-        if self.modes is not None:                       # the combiner mixes the loops' noise as it mixes their signals
+        if self.modes is not None:  # the combiner mixes the loops' noise as it mixes their signals
             resistance = self.modes @ resistance @ self.modes.conj().T
         return type(self)(self.loops, resistance, gain=self.gain, modes=self.modes)
 
@@ -309,7 +305,8 @@ class CoilArray:
     def noise(self, rng, sigma, npoints):
         """Correlated complex Gaussian noise (n_coils, npoints) with covariance sigma^2 R."""
         chol = np.linalg.cholesky(self.noise_resistance)
-        eps = rng.standard_normal((len(self), npoints)) + 1j * rng.standard_normal((len(self), npoints))
+        eps = (rng.standard_normal((len(self), npoints))
+               + 1j * rng.standard_normal((len(self), npoints)))
         return (sigma * (chol @ eps)).astype(np.complex64)
 
 
@@ -419,7 +416,8 @@ class MappedCoilArray(CoilArray):
                 from augmentrum.utils import download
             except ImportError:
                 return False
-            return (download.cache_root() / "csm" / f"t2star_move_{subject or 'first'}.npz").exists()
+            return (download.cache_root() / "csm"
+                    / f"t2star_move_{subject or 'first'}.npz").exists()
         from mrsandbox.resources import Resources
 
         return (Resources.cache_dir() / f"bigbrain_mr/coil_sens_stride{stride}.npz").exists()

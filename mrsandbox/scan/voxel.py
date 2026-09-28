@@ -73,8 +73,11 @@ def nifti_mrs(data, dwell_s, hdr, **kwargs):
     from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
 
     data = np.asarray(data)
-    turn = np.exp(-2j * np.pi * 4.65 * float(hdr.to_dict()["SpectrometerFrequency"][0]) * np.arange(data.shape[3]) * dwell_s)
-    return gen_nifti_mrs_hdr_ext((data * turn.reshape((1, 1, 1, -1) + (1,) * (data.ndim - 4))).astype(np.complex64), dwell_s, hdr, **kwargs)
+    turn = np.exp(-2j * np.pi * 4.65 * float(hdr.to_dict()["SpectrometerFrequency"][0])
+                  * np.arange(data.shape[3]) * dwell_s)
+    return gen_nifti_mrs_hdr_ext(
+        (data * turn.reshape((1, 1, 1, -1) + (1,) * (data.ndim - 4))).astype(np.complex64),
+        dwell_s, hdr, **kwargs)
 
 
 #**********************#
@@ -145,7 +148,8 @@ class Voxel:
         # played confined to the cell, its ensemble shifted from the box's centre
         # (along `box_axes`; the design keeps its own extent along the others, a slab
         # the lattice does not resolve)
-        self.box_center_mm = None if box_center_mm is None else tuple(float(x) for x in box_center_mm)
+        self.box_center_mm = (None if box_center_mm is None
+                              else tuple(float(x) for x in box_center_mm))
         self.box_axes = box_axes
         # a head that moved after the shim: the shim of the planned place stays
         self.shim_at_mm = None if shim_at_mm is None else tuple(float(x) for x in shim_at_mm)
@@ -212,7 +216,8 @@ class Voxel:
         offsets = np.zeros((count, 3), dtype=np.float64)
         for axis, values in positions.items():
             offsets[:, "xyz".index(axis)] = values
-        local = [self.scan.transmit.nearest(np.asarray(self.position_mm) + offset) for offset in offsets]
+        local = [self.scan.transmit.nearest(np.asarray(self.position_mm) + offset)
+                 for offset in offsets]
         values = np.asarray([self._transmit if v is None else float(v) for v in local])
         return (self.resolve(truth.b1_scale) * values).astype(np.float32)
 
@@ -239,7 +244,8 @@ class Voxel:
         by this tuple."""
         names = tuple(truth.conc)
         profile = self.b1_profile(truth)
-        transmit = self.b1_scale(truth) if profile is None else (self.b1_scale(truth), profile.tobytes())
+        transmit = (self.b1_scale(truth) if profile is None
+                    else (self.b1_scale(truth), profile.tobytes()))
         return (tuple(float(self.resolve(truth.t1[name])) for name in names),
                 tuple(float(self.resolve(truth.t2[name])) for name in names),
                 transmit, self.offset_hz(truth))
@@ -308,7 +314,8 @@ class Voxel:
         # the water line moves with the temperature, fourteen times more than the metabolites
         # (which take their systems at the same temperature, `_metabolite_lines`)
         warm = self.resolve(truth.water.temperature_c) - 37.0
-        return [(w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz), w_amps * np.complex64(faded(truth.diffusion.water)),
+        return [(w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz),
+                 w_amps * np.complex64(faded(truth.diffusion.water)),
                  1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s in water]
 
     def _grouped(self, truth, metabolites=True):
@@ -337,19 +344,24 @@ class Voxel:
         water = self._water_parts(truth, engine, sequence, f0_mhz, faded)
         if water is not None:
             groups["water"] = water
-            residual = sum(complex(np.sum(np.asarray(ops.convert_to_numpy(a)))) for _, a, _, _ in water)
+            residual = sum(complex(np.sum(np.asarray(ops.convert_to_numpy(a))))
+                           for _, a, _, _ in water)
             if truth.oov.fraction > 0.0 and residual != 0.0:
-                # the water outside the voxel that the localization leaks: one broad line at the water's frequency
-                # (its own offset), a fraction of the full water at t = 0 after the echo's decay, at a drawn phase
-                # against the voxel's own residual at t = 0 (info/HANDOFF.md item 238); a residual forced to nothing
-                # takes the leak with it (the console's switch, the silent gates)
+                # the water outside the voxel that the localization leaks: one broad line at
+                # the water's frequency (its own offset), a fraction of the full water at
+                # t = 0 after the echo's decay, at a drawn phase against the voxel's own
+                # residual at t = 0; a residual forced to nothing takes the leak with it (the
+                # console's switch, the silent gates)
                 from mrsandbox.phantom.macromolecules import _echo_time_s
                 from mrsandbox.phantom.water import WaterSource
 
                 freqs, amps = (np.asarray(ops.convert_to_numpy(v)) for v in water[0][:2])
-                at = float(np.sum(freqs * np.abs(amps)) / np.sum(np.abs(amps))) + float(truth.oov.offset_hz)
-                full = WaterSource.full_amplitude_mm(self) * np.exp(-(_echo_time_s(sequence) or 0.0) / self.resolve(truth.water.t2_s))
-                amplitude = float(truth.oov.fraction) * full * np.exp(1j * (np.angle(residual) + np.radians(float(truth.oov.phase_deg))))
+                at = (float(np.sum(freqs * np.abs(amps)) / np.sum(np.abs(amps)))
+                      + float(truth.oov.offset_hz))
+                full = WaterSource.full_amplitude_mm(self) * np.exp(
+                    -(_echo_time_s(sequence) or 0.0) / self.resolve(truth.water.t2_s))
+                amplitude = float(truth.oov.fraction) * full * np.exp(
+                    1j * (np.angle(residual) + np.radians(float(truth.oov.phase_deg))))
                 groups["oov"] = [(np.array([at], np.float32), np.array([amplitude], np.complex64),
                                   1.0 / (np.pi * float(truth.oov.t2star_s)), 0.0)]
         lipid = self.scan.lipids.lines(engine, sequence, self, truth, f0_mhz)
@@ -537,8 +549,9 @@ class Voxel:
         metabolites, water, lipids, mm, downfield, spurious (silent ones left out):
         each source's lines rendered on their own, with the B0 dephasing, the drawn
         eddy-current phase, frequency shift, and zero-order phase applied to every
-        one alike, and the spurious echo (drawn relative to the maximum of the summed FID without the water)
-        as its own entry, so the components sum to the clean FID exactly.
+        one alike, and the spurious echo (drawn relative to the maximum of the summed
+        FID without the water) as its own entry, so the components sum to the clean FID
+        exactly.
 
         With `basis` (the per-truth metabolite unit FIDs of `metabolite_basis`) the
         metabolites enter as `metabolite_weights` @ basis and only the other sources
@@ -566,18 +579,21 @@ class Voxel:
         # the microscopic field distribution: a Gaussian envelope on the spin-system
         # components (the measured MM and downfield widths already carry theirs)
         gauss_hz = self.resolve(truth.lineshape.gauss_hz)
-        envelope = np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0)) * grid * grid).astype(np.float32)
+        envelope = np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
+                          * grid * grid).astype(np.float32)
         def sources(basis):
             fids = {}
             if basis is not None:
-                fids["metabolites"] = (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope
+                fids["metabolites"] = (
+                    (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope)
             held = {} if self._field_offset_hz else self._lines_cache(truth)
             ready = held.get(("metabolite fid", npoints, float(dwell_s), start_s))
             if ready is not None:               # rendered with the batch (`prepare`)
                 fids["metabolites"] = ready
             if ready is not None and held.get(("every source", npoints, float(dwell_s), start_s)):
                 for name in ("water", "oov", "lipids", "mm", "downfield"):
-                    if (name, npoints, float(dwell_s), start_s) in [key[1:] for key in held if key[0] == "fid"]:
+                    if (name, npoints, float(dwell_s), start_s) in [
+                            key[1:] for key in held if key[0] == "fid"]:
                         fids[name] = held[("fid", name, npoints, float(dwell_s), start_s)]
                 grouped = {}
             else:
@@ -608,18 +624,20 @@ class Voxel:
                 # field is off its band, which the voxel's mean cannot show. The microscopic
                 # spread goes into the groups, not onto the result: a train is a band-stop a
                 # few hertz wide, so what it leaves is narrower than the water's distribution
-                # (info/HANDOFF.md item 234)
-                engine, sequence, faded = self.scan.engine, self.design(truth), self._diffusion_factor(truth)
+                engine, sequence, faded = (self.scan.engine, self.design(truth),
+                                           self._diffusion_factor(truth))
                 water = np.zeros(npoints, dtype=np.complex64)
                 for mean_hz, weight, part_kernel in self.scan.field.groups(
-                        self.position_mm, self.size_mm, grid, self.scan.water_groups, shim_at_mm=self.shim_at_mm,
-                        spread_hz=float(gauss_hz)):
+                        self.position_mm, self.size_mm, grid, self.scan.water_groups,
+                        shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz)):
                     self._field_offset_hz = mean_hz
                     try:
-                        lorentzian, _ = self._flat_lines(self._water_parts(truth, engine, sequence, self._f0_mhz(), faded))
+                        lorentzian, _ = self._flat_lines(self._water_parts(
+                            truth, engine, sequence, self._f0_mhz(), faded))
                     finally:
                         self._field_offset_hz = 0.0
-                    water = water + np.float32(weight) * self._render_lines(lorentzian, npoints, dwell_s, start_s) * part_kernel
+                    water = water + np.float32(weight) * self._render_lines(
+                        lorentzian, npoints, dwell_s, start_s) * part_kernel
                 fids["water"] = water
         else:
             # the field inside the pulses: every group of the voxel's field distribution
@@ -649,17 +667,21 @@ class Voxel:
                 T2=1.0 / np.sqrt(2.0 * spur.width_s2), freq_hz=spur.ppm * self._f0_mhz(),
                 phase_deg=spur.phase_deg + 360.0 * spur.ppm * self._f0_mhz() * start_s,
                 gaussian_env=True)])
-            # relative to the voxel's signal WITHOUT its water: signal from outside the voxel does not grow with the water
-            # a suppression train leaves inside it (the source's own FIDs carry next to none)
-            total = sum((fid for name, fid in fids.items() if name != "water"), np.zeros(npoints, dtype=np.complex64))
-            fids["spurious"] = np.asarray(echo.process_tensor(total[None, :], sw_hz=sw_hz)[0][0]) - total
+            # relative to the voxel's signal WITHOUT its water: signal from outside the voxel
+            # does not grow with the water a suppression train leaves inside it (the source's
+            # own FIDs carry next to none)
+            total = sum((fid for name, fid in fids.items() if name != "water"),
+                        np.zeros(npoints, dtype=np.complex64))
+            fids["spurious"] = (np.asarray(echo.process_tensor(total[None, :], sw_hz=sw_hz)[0][0])
+                                - total)
         modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
                                   + np.radians(acquisition.phase_deg)))
         if acquisition.eddy_transient_rad:
-            # the phase transient at the FID's start (the records' phase 5 ms after the first sample, decaying from there)
+            # the phase transient at the FID's start (the records' phase 5 ms after the first
+            # sample, decaying from there)
             since_start = np.arange(npoints) * dwell_s
-            modulation = modulation * np.exp(1j * float(acquisition.eddy_transient_rad)
-                                             * np.exp((0.005 - since_start) / float(acquisition.eddy_transient_tau_s)))
+            modulation = modulation * np.exp(1j * float(acquisition.eddy_transient_rad) * np.exp(
+                (0.005 - since_start) / float(acquisition.eddy_transient_tau_s)))
         if acquisition.eddy_std_rad > 0.0:
             key = (int(acquisition.eddy_seed), float(acquisition.eddy_std_rad),
                    float(acquisition.eddy_lp_cut_hz), npoints, float(dwell_s))
@@ -698,7 +720,8 @@ class Voxel:
             if gauss is not None:
                 g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
                 phase = phase - g[:, None] * t[None, :] ** 2
-            return (amps.astype(np.complex128)[:, None] * np.exp(phase)).sum(axis=0).astype(np.complex64)
+            return ((amps.astype(np.complex128)[:, None] * np.exp(phase)).sum(axis=0)
+                    .astype(np.complex64))
         if start_s:
             amps = amps * self._advance(freqs, lw, start_s)
             if gauss is not None:
@@ -712,7 +735,8 @@ class Voxel:
             _, fid = self.scan.engine.render_fid(tensors[0], tensors[1], npoints=npoints,
                                                  dwell_s=dwell_s, lw_hz=tensors[2])
         else:
-            padded = ops.convert_to_tensor(np.pad(gauss, (0, -(-freqs.size // 512) * 512 - freqs.size)))
+            padded = ops.convert_to_tensor(
+                np.pad(gauss, (0, -(-freqs.size // 512) * 512 - freqs.size)))
             _, fid = self.scan.engine.render_fid(tensors[0], tensors[1], npoints=npoints,
                                                  dwell_s=dwell_s, lw_hz=tensors[2],
                                                  gauss_hz=padded)
@@ -799,7 +823,8 @@ class Voxel:
             # and of one size share their lines
             placed = ("cell", self.size_mm) + tuple(round(v, 6) for v in self.shift_mm.values())
             return placed + ((self.position_mm,) if kicked else ())
-        return (self.position_mm,) if kicked and self.design(truth) is not self.scan.sequence else ()
+        return ((self.position_mm,) if kicked and self.design(truth) is not self.scan.sequence
+                else ())
 
     def _gradient_kernel(self, truth, npoints, dwell_s, start_s=0.0):
         """The cached eddy-current kernel of this voxel's readout (scan.eddy), the
@@ -812,9 +837,9 @@ class Voxel:
             return None
         key = ("kernel", npoints, dwell_s, start_s) + response[0]
         if key not in self._kernels:
-            self._kernels[key] = readout_kernel(self.scan.sequence, self._scanner(), self.position_mm,
-                                                self.size_mm, npoints, dwell_s, response[1],
-                                                start_s=start_s)
+            self._kernels[key] = readout_kernel(self.scan.sequence, self._scanner(),
+                                                self.position_mm, self.size_mm, npoints, dwell_s,
+                                                response[1], start_s=start_s)
         return self._kernels[key]
 
     #*****************#
@@ -899,7 +924,8 @@ class Voxel:
         hdr = Hdr_Ext(self._f0_mhz(), "1H")
         timings = {k: float(v) for k, v in vars(self.scan.sequence).items()
                    if k.endswith("_s") and isinstance(v, (int, float))}
-        timings["tr_s"] = None if self.scan.sequence.tr_s is None else float(self.scan.sequence.tr_s)
+        timings["tr_s"] = (None if self.scan.sequence.tr_s is None
+                           else float(self.scan.sequence.tr_s))
         hdr.set_user_def(
             "SimulationGroundTruth",
             {"seed": seed, "step": int(step), "averages": int(averages), "params": truth.to_dict(),
@@ -922,7 +948,8 @@ class Voxel:
              else dataclasses.asdict(self.scan.receiver),
              "noise_place": float(self.noise_place()),
              "calibrations": {leaf: c.record(self.scan)
-                              for leaf, c in calibrations(self.scan.scanner, self.scan.records).items()}},
+                              for leaf, c in calibrations(self.scan.scanner,
+                                                          self.scan.records).items()}},
             "MRSandbox: the virtual brain, the transmit map, the receiver, and the voxel "
             "placement.",
         )
@@ -989,8 +1016,8 @@ class Voxel:
         if self.compiled:
             # one graph for all metabolites, or, where shaped pulses play on an
             # isochromat ensemble, one per metabolite: a graph holds its intermediates,
-            # and the step propagators of an ensemble of every system at once run to
-            # tens of GB
+            # and the step propagators of an ensemble of every system at once outgrow
+            # memory
             engine = self.scan.engine
             heavy = engine.positions(sequence) and any(
                 isinstance(event, ShapedPulse) for event in sequence.events)
@@ -999,13 +1026,16 @@ class Voxel:
             for batch in batches:
                 fn, kept = engine.compiled_batch(sequence, tuple(groups[i] for i in batch),
                                                  shift_mm=self.shift_mm, pruned=True)
-                f, a = fn(ops.convert_to_tensor(np.asarray([t1[i] for i in batch], dtype=np.float32)),
-                          ops.convert_to_tensor(np.asarray([t2[i] for i in batch], dtype=np.float32)),
+                f, a = fn(ops.convert_to_tensor(np.asarray([t1[i] for i in batch],
+                                                           dtype=np.float32)),
+                          ops.convert_to_tensor(np.asarray([t2[i] for i in batch],
+                                                           dtype=np.float32)),
                           ops.convert_to_tensor(np.asarray(b1_scale, dtype=np.float32)),
                           ops.convert_to_tensor(np.float32(offset_hz)))
                 freqs.append(np.asarray(ops.convert_to_numpy(f)))
                 amps.append(np.asarray(ops.convert_to_numpy(a)))
-                bounds.extend(bounds[-1] + kept[1:])       # the kept elements per group, the graph pruned to what carries signal
+                # the kept elements per group, the graph pruned to what carries signal
+                bounds.extend(bounds[-1] + kept[1:])
             freqs, amps = np.concatenate(freqs), np.concatenate(amps)
         else:
             parts = [self.scan.engine.lines(
@@ -1041,7 +1071,7 @@ class Voxel:
         own render: what a generator does with its batch before rendering it. Draws
         sharing their systems (the temperature step) and their design replay together;
         a draw with a transmit profile, or under a played design on an ensemble (a graph
-        per metabolite), renders on its own as before, as does a plain voxel. Given the
+        per metabolite), renders on its own, as does a plain voxel. Given the
         grid, the draws' metabolite FIDs are rendered in one call too (Engine.render_fids,
         a width per line and row) and left for `_rendered_fids`, where the field plays
         as one group."""
@@ -1057,26 +1087,36 @@ class Voxel:
             temperature_c = float(self.resolve(truth.water.temperature_c))
             key = (self.compiled, temperature_c) + self.frame(truth) + self._design_key(truth)
             if key not in self._lines_cache(truth):
-                batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design)), []).append((truth, key, design))
+                batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design)), []).append(
+                    (truth, key, design))
         for (temperature_c, _), members in batches.items():
             names, design = tuple(members[0][0].conc), members[0][2]
-            replay, bounds = engine.replay_draws(design, tuple(self.scan.systems(name, temperature_c) for name in names),
-                                                 shift_mm=self.shift_mm)
-            t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
-                [[self.resolve(truth.t1[name]) for name in names] for truth, _, _ in members],
-                [[self.resolve(truth.t2[name]) for name in names] for truth, _, _ in members],
-                [self.b1_scale(truth) for truth, _, _ in members], [self.offset_hz(truth) for truth, _, _ in members]))
-            freqs, amps = (np.asarray(ops.convert_to_numpy(value)) for value in replay(t1, t2, b1, offset))
+            replay, bounds = engine.replay_draws(
+                design, tuple(self.scan.systems(name, temperature_c) for name in names),
+                shift_mm=self.shift_mm)
+            t1, t2, b1, offset = (
+                ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+                    [[self.resolve(truth.t1[name]) for name in names] for truth, _, _ in members],
+                    [[self.resolve(truth.t2[name]) for name in names] for truth, _, _ in members],
+                    [self.b1_scale(truth) for truth, _, _ in members],
+                    [self.offset_hz(truth) for truth, _, _ in members]))
+            freqs, amps = (np.asarray(ops.convert_to_numpy(value))
+                           for value in replay(t1, t2, b1, offset))
             for row, (truth, key, _) in enumerate(members):
-                self._lines_cache(truth)[key] = {name: (freqs[row, bounds[i]:bounds[i + 1]], amps[row, bounds[i]:bounds[i + 1]])
-                                                 for i, name in enumerate(names)}
-            self.scan.mm.prepare(engine, design, self, [truth for truth, _, _ in members], self._f0_mhz())
-            self.scan.water.prepare(engine, design, self, [truth for truth, _, _ in members], self._f0_mhz())
+                self._lines_cache(truth)[key] = {
+                    name: (freqs[row, bounds[i]:bounds[i + 1]], amps[row, bounds[i]:bounds[i + 1]])
+                    for i, name in enumerate(names)}
+            self.scan.mm.prepare(engine, design, self, [truth for truth, _, _ in members],
+                                 self._f0_mhz())
+            self.scan.water.prepare(engine, design, self, [truth for truth, _, _ in members],
+                                    self._f0_mhz())
             if npoints is None or self.scan.field_groups != 1:
                 continue
-            # the draws' metabolite FIDs as `_grouped` and `_render_lines` would make them one by one: each line's
-            # weight, the downfield cutoff, the draw's widths and receiver delay, the Gaussian envelope after
-            n, dwell = (npoints, dwell_s) if self.scan.receiver is None else self.scan.receiver.grid(npoints, dwell_s)
+            # the draws' metabolite FIDs as `_grouped` and `_render_lines` would make them one
+            # by one: each line's weight, the downfield cutoff, the draw's widths and receiver
+            # delay, the Gaussian envelope after
+            n, dwell = ((npoints, dwell_s) if self.scan.receiver is None
+                        else self.scan.receiver.grid(npoints, dwell_s))
             f, cutoff = freqs[0], self.scan.downfield.replaces_above_ppm
             keep = f <= cutoff * self._f0_mhz() if cutoff is not None else np.ones(f.size, bool)
             pad = -(-f.size // 512) * 512 - f.size
@@ -1086,54 +1126,78 @@ class Voxel:
                 rows_amps = np.zeros((len(chunk), f.size + pad), np.complex64)
                 rows_lw = np.ones((len(chunk), f.size + pad), np.float32)
                 for row, (truth, _, _) in enumerate(chunk):
-                    weights, start_s = self.metabolite_weights(truth), float(truth.acquisition.delay_s)
+                    weights, start_s = (self.metabolite_weights(truth),
+                                        float(truth.acquisition.delay_s))
                     for i, name in enumerate(names):
-                        part, lw = slice(bounds[i], bounds[i + 1]), 1.0 / (np.pi * self.resolve(truth.t2[name]))
+                        part, lw = (slice(bounds[i], bounds[i + 1]),
+                                    1.0 / (np.pi * self.resolve(truth.t2[name])))
                         rows_lw[row, part] = lw
-                        rows_amps[row, part] = amps[first + row, part] * weights[i] * self._advance(f[part], lw, start_s)
+                        rows_amps[row, part] = (amps[first + row, part] * weights[i]
+                                                * self._advance(f[part], lw, start_s))
                     rows_amps[row, :f.size] *= keep
-                _, fids = self.scan.engine.render_fids(ops.convert_to_tensor(np.pad(f, (0, pad))), ops.convert_to_tensor(rows_amps),
+                _, fids = self.scan.engine.render_fids(ops.convert_to_tensor(np.pad(f, (0, pad))),
+                                                       ops.convert_to_tensor(rows_amps),
                                                        npoints=n, dwell_s=dwell, lw_hz=rows_lw)
                 fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
                 for row, (truth, _, _) in enumerate(chunk):
-                    start_s, gauss = float(truth.acquisition.delay_s), self.resolve(truth.lineshape.gauss_hz)
-                    envelope = np.exp(-(np.pi * gauss) ** 2 / (4.0 * np.log(2.0)) * (start_s + grid) ** 2).astype(np.float32)
-                    self._lines_cache(truth)[("metabolite fid", n, float(dwell), start_s)] = fids[row] * envelope
-            # the other sources the same way: their parts per draw (the engine parts cached above), the draws with one
-            # line list rendered as rows, Lorentzian lines through the factorized graph, Voigt ones densely; a draw's
-            # `_rendered_fids` then takes every source from the cache and skips its own grouping and renders
+                    start_s, gauss = (float(truth.acquisition.delay_s),
+                                      self.resolve(truth.lineshape.gauss_hz))
+                    envelope = np.exp(-(np.pi * gauss) ** 2 / (4.0 * np.log(2.0))
+                                      * (start_s + grid) ** 2).astype(np.float32)
+                    self._lines_cache(truth)[("metabolite fid", n, float(dwell), start_s)] = (
+                        fids[row] * envelope)
+            # the other sources the same way: their parts per draw (the engine parts cached
+            # above), the draws with one line list rendered as rows, Lorentzian lines through
+            # the factorized graph, Voigt ones densely; a draw's `_rendered_fids` then takes
+            # every source from the cache and skips its own grouping and renders
             alike = {}
             for truth, _, _ in members:
                 start_s = float(truth.acquisition.delay_s)
                 for name, parts in self._grouped(truth, metabolites=False).items():
-                    freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _, _, _ in parts])
-                    amps = np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a, _, _ in parts])
-                    lw = np.concatenate([np.full(f.shape[0], w, np.float32) for f, _, w, _ in parts])
-                    gauss = np.concatenate([np.asarray(ops.convert_to_numpy(g), np.float32) * np.ones(f.shape[0], np.float32) for f, _, _, g in parts])
-                    alike.setdefault((name, freqs.tobytes(), bool(gauss.any())), (freqs, []))[1].append((truth, amps, lw, gauss, start_s))
+                    freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f))
+                                            for f, _, _, _ in parts])
+                    amps = np.concatenate([np.asarray(ops.convert_to_numpy(a))
+                                           for _, a, _, _ in parts])
+                    lw = np.concatenate([np.full(f.shape[0], w, np.float32)
+                                         for f, _, w, _ in parts])
+                    gauss = np.concatenate([np.asarray(ops.convert_to_numpy(g), np.float32)
+                                            * np.ones(f.shape[0], np.float32)
+                                            for f, _, _, g in parts])
+                    alike.setdefault((name, freqs.tobytes(), bool(gauss.any())),
+                                     (freqs, []))[1].append((truth, amps, lw, gauss, start_s))
             for (name, _, voigt), (f, draws) in alike.items():
                 for first in range(0, len(draws), 32):
                     chunk = draws[first:first + 32]
                     pad = -(-f.size // (64 if voigt else 512)) * (64 if voigt else 512) - f.size
-                    rows_amps, rows_lw = np.zeros((len(chunk), f.size + pad), np.complex64), np.ones((len(chunk), f.size + pad), np.float32)
+                    rows_amps, rows_lw = (np.zeros((len(chunk), f.size + pad), np.complex64),
+                                          np.ones((len(chunk), f.size + pad), np.float32))
                     rows_gauss = np.zeros((len(chunk), f.size + pad), np.float32)
                     for row, (truth, amps, lw, gauss, start_s) in enumerate(chunk):
                         amps = amps * self._advance(f, lw, start_s)
-                        if voigt:               # a Gaussian line's cross term over the delay is a Lorentzian width (as `_render_lines`)
+                        if voigt:
+                            # a Gaussian line's cross term over the delay is a Lorentzian
+                            # width (as `_render_lines`)
                             g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
-                            amps, lw = (amps * np.exp(-g * start_s ** 2)).astype(np.complex64), (lw + 2.0 * g * start_s / np.pi).astype(np.float32)
-                        rows_amps[row, :f.size], rows_lw[row, :f.size], rows_gauss[row, :f.size] = amps, lw, gauss
+                            amps, lw = ((amps * np.exp(-g * start_s ** 2)).astype(np.complex64),
+                                        (lw + 2.0 * g * start_s / np.pi).astype(np.float32))
+                        (rows_amps[row, :f.size], rows_lw[row, :f.size],
+                         rows_gauss[row, :f.size]) = amps, lw, gauss
                     padded = ops.convert_to_tensor(np.pad(f, (0, pad)))
-                    _, fids = self.scan.engine.render_fids(padded, ops.convert_to_tensor(rows_amps), npoints=n, dwell_s=dwell, lw_hz=rows_lw,
+                    _, fids = self.scan.engine.render_fids(padded, ops.convert_to_tensor(rows_amps),
+                                                           npoints=n, dwell_s=dwell, lw_hz=rows_lw,
                                                            gauss_hz=rows_gauss if voigt else None)
                     fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
                     for row, (truth, _, _, _, start_s) in enumerate(chunk):
                         if not voigt:
                             gauss_hz = self.resolve(truth.lineshape.gauss_hz)
-                            fids[row] = fids[row] * np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0)) * (start_s + grid) ** 2).astype(np.float32)
-                        self._lines_cache(truth)[("fid", name, n, float(dwell), start_s)] = fids[row]
+                            fids[row] = fids[row] * np.exp(
+                                -(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
+                                * (start_s + grid) ** 2).astype(np.float32)
+                        self._lines_cache(truth)[("fid", name, n, float(dwell), start_s)] = (
+                            fids[row])
             for truth, _, _ in members:
-                self._lines_cache(truth)[("every source", n, float(dwell), float(truth.acquisition.delay_s))] = True
+                self._lines_cache(truth)[("every source", n, float(dwell),
+                                          float(truth.acquisition.delay_s))] = True
 
     def _f0_mhz(self):
         return self.scan.database.gamma("1H") * self.scan.engine.b0_t

@@ -87,7 +87,8 @@ class TestStack:
         assert r2star.data.shape == (120, 156, 192)
         assert 20.0 < np.median(r2star.data[r2star.data > 0.0]) < 80.0
         # the maps answer box queries in the session's scanner space: the grid centre
-        middle = transmit.affine[:3, :3] @ ((np.asarray(transmit.data.shape) - 1) / 2.0) + transmit.affine[:3, 3]
+        middle = (transmit.affine[:3, :3] @ ((np.asarray(transmit.data.shape) - 1) / 2.0)
+                  + transmit.affine[:3, 3])
         assert transmit.mean(middle, 20.0) is not None
         # the MP2RAGE T1 map: 0.7 mm, the head's T1 values bimodal at the 7 T white and
         # grey matter values (Marques 2010: 1.15 and 1.92 s), zero outside the head
@@ -97,8 +98,10 @@ class TestStack:
         assert 0.4 < inside.size / t1.data.size < 0.8 or inside.size > 1e6
         counts, edges = np.histogram(inside, bins=np.arange(0.7, 3.0, 0.05))
         centres = 0.5 * (edges[1:] + edges[:-1])
-        white = centres[(centres > 0.9) & (centres < 1.5)][np.argmax(counts[(centres > 0.9) & (centres < 1.5)])]
-        grey = centres[(centres > 1.5) & (centres < 2.4)][np.argmax(counts[(centres > 1.5) & (centres < 2.4)])]
+        white = centres[(centres > 0.9) & (centres < 1.5)][
+            np.argmax(counts[(centres > 0.9) & (centres < 1.5)])]
+        grey = centres[(centres > 1.5) & (centres < 2.4)][
+            np.argmax(counts[(centres > 1.5) & (centres < 2.4)])]
         assert 1.0 < white < 1.4 and 1.7 < grey < 2.2, (white, grey)
 
     @pytest.mark.skipif(not Resources.cached("bigbrain_mr/t1map_800um")
@@ -122,5 +125,6 @@ class TestStack:
         assert 1.0 < white < 1.35 and 1.5 < grey < 2.1 and grey - white > 0.3, (white, grey)
         # every map of the site shares the one transform, and a mid-brain box reads it
         transmit = UK7T.volume("TB1map", "oxf", space="bigbrain_mr")
-        np.testing.assert_allclose(transmit.affine, UK7T.registration("oxf") @ UK7T.volume("TB1map", "oxf").affine)
+        np.testing.assert_allclose(transmit.affine,
+                                   UK7T.registration("oxf") @ UK7T.volume("TB1map", "oxf").affine)
         assert 0.7 < transmit.mean((0.0, 0.0, 0.0), 20.0) < 1.3

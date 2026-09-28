@@ -22,7 +22,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Chess, CoherenceFilter, Cows, Engine, Press, PulseAcquire, Sequence, ShapedPulse, SiemensChess, SpinSystem, Vapor, Wet
+from mrsandbox import (Chess, CoherenceFilter, Cows, Engine, Press, PulseAcquire, Sequence,
+                       ShapedPulse, SiemensChess, SpinSystem, Vapor, Wet)
 from mrsandbox.database import suppression
 from mrsandbox.phantom.water import WaterSource
 
@@ -53,7 +54,8 @@ class TestSuppression:
     def test_chess_kills_water_and_spares_naa(self, engine):
         water = WaterSource.system(gamma_mhz_t=42.5774785)
         press, chess_press = Press(TE1, TE2), Chess(3) + Press(TE1, TE2)
-        assert total_amplitude(engine, chess_press, water) < 1e-6 * total_amplitude(engine, press, water)
+        assert (total_amplitude(engine, chess_press, water)
+                < 1e-6 * total_amplitude(engine, press, water))
         for system in SpinSystem.from_database("NAA"):
             plain = total_amplitude(engine, press, system)
             suppressed = total_amplitude(engine, chess_press, system)
@@ -124,10 +126,12 @@ class TestNamedSchemes:
     #   siemens product   #
     #*********************#
     def test_siemens_train_nulls_water_across_t1_until_its_adjustment_is_off(self, engine):
-        # the header's ratios and band; the overtipping third pulse crosses zero at the excitation whatever
-        # the T1, and a scale the adjustment did not take out (10 percent low) leaves water
+        # the header's ratios and band; the overtipping third pulse crosses zero at the
+        # excitation whatever the T1, and a scale the adjustment did not take out (10 percent
+        # low) leaves water
         train = SiemensChess()
-        assert train.flips_deg == tuple(90.0 * r for r in suppression.SIEMENS_SVS_SE["amplitude_ratios"])
+        assert train.flips_deg == tuple(
+            90.0 * r for r in suppression.SIEMENS_SVS_SE["amplitude_ratios"])
         assert train.bandwidth_hz == 50.0 and train.delays_s == (0.030,) * 3
         assert train.scaled(0.9).flips_deg == pytest.approx(tuple(0.9 * f for f in train.flips_deg))
         assert train.scaled(0.9).delays_s == train.delays_s
@@ -142,12 +146,13 @@ class TestNamedSchemes:
     #***************************#
     def test_vapor_is_b1_and_t1_insensitive(self, engine):
         # the published claim: water stays nulled for nominal flips from 65 to 125
-        # degrees and water T1 from 1 to 2 seconds (measured worst case 1.9 percent)
+        # degrees and water T1 from 1 to 2 seconds
         for t1 in (1.0, 2.0):
             water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
             full = total_amplitude(engine, PulseAcquire(), water)
             for flip in (65.0, 90.0, 125.0):
-                residual = total_amplitude(engine, Vapor(nominal_flip_deg=flip) + PulseAcquire(), water)
+                residual = total_amplitude(engine, Vapor(nominal_flip_deg=flip) + PulseAcquire(),
+                                           water)
                 assert residual < 0.025 * full
 
     #**************************#
@@ -164,43 +169,51 @@ class TestNamedSchemes:
     #   cows tables and the headers   #
     #*********************************#
     def test_cows_series_match_the_tables_and_the_dataset_headers(self):
-        # Table 1 of Igwe et al. 2025: each scheme's delays sum to the duration in its name, and the flips are what
-        # the dataset's headers played (OpenNeuro ds006812, sub-01, the amplitudes of ss_rf_ws1 to ss_rf_ws12 in
-        # volts, 11.7936 V the 90 degree pulse; the study calibrated no flip per voxel)
+        # Table 1 of Igwe et al. 2025: each scheme's delays sum to the duration in its name, and the
+        # flips are what the dataset's headers played (OpenNeuro ds006812, sub-01, the amplitudes of
+        # ss_rf_ws1 to ss_rf_ws12 in volts, 11.7936 V the 90 degree pulse; the study calibrated no
+        # flip per voxel)
         volts = {"VAPOR7": (11.7936, 11.7936, 20.9926, 11.7936, 20.9926, 11.7936, 20.9926),
                  "COWS(7;236)": (9.8712, 11.2865, 11.3219, 9.4939, 10.7912, 15.2845, 21.0516),
-                 "COWS(12;626)": (9.9279, 0.4411, 14.4873, 18.4853, 23.5872, 2.6288, 11.7464, 9.9951, 15.3506,
-                                  10.4326, 16.7375, 21.9656)}
-        for scheme, duration_s in (("COWS(7;236)", 0.236), ("COWS(12;626)", 0.626), ("VAPOR7", 0.626)):
+                 "COWS(12;626)": (9.9279, 0.4411, 14.4873, 18.4853, 23.5872, 2.6288, 11.7464,
+                                  9.9951, 15.3506, 10.4326, 16.7375, 21.9656)}
+        for scheme, duration_s in (("COWS(7;236)", 0.236), ("COWS(12;626)", 0.626),
+                                   ("VAPOR7", 0.626)):
             train = Cows(scheme)
             assert train.flips_deg == suppression.COWS[scheme]["flips_deg"]
             assert sum(train.delays_s) == pytest.approx(duration_s, abs=0.0005)
             assert train.bandwidth_hz == 68.0
-            assert train.flips_deg == pytest.approx(tuple(90.0 * v / 11.7936 for v in volts[scheme]), abs=0.1)
+            assert train.flips_deg == pytest.approx(
+                tuple(90.0 * v / 11.7936 for v in volts[scheme]), abs=0.1)
 
     #**********************************#
     #   cows nulls across t1 and b1    #
     #**********************************#
     def test_cows_nulls_water_across_t1_and_b1_in_the_steady_state(self, engine):
-        # the paper's design range, T1 0.5 to 5 s and a B1 factor 0.75 to 1.25, in the spoiled steady state of its
-        # TR 2 s (COWS assumes no equilibrium): both COWS schemes leave under 0.3 percent of the unsuppressed water at
-        # the excitation everywhere in it (ideal 68 Hz boxes on resonance), VAPOR7 under 0.7 within 10 percent of B1
+        # the paper's design range, T1 0.5 to 5 s and a B1 factor 0.75 to 1.25, in the spoiled
+        # steady state of its TR 2 s (COWS assumes no equilibrium): both COWS schemes leave under
+        # 0.3 percent of the unsuppressed water at the excitation everywhere in it (ideal 68 Hz
+        # boxes on resonance), VAPOR7 under 0.7 within 10 percent of B1
         for t1 in (0.5, 1.3, 4.5):
             water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
             full = total_amplitude(engine, PulseAcquire(tr_s=2.0), water)
-            for scheme, b1s, bound in (("COWS(7;236)", (0.75, 1.0, 1.25), 0.003), ("COWS(12;626)", (0.75, 1.0, 1.25), 0.003),
+            for scheme, b1s, bound in (("COWS(7;236)", (0.75, 1.0, 1.25), 0.003),
+                                       ("COWS(12;626)", (0.75, 1.0, 1.25), 0.003),
                                        ("VAPOR7", (0.9, 1.0, 1.1), 0.007)):
                 for b1 in b1s:
-                    assert total_amplitude(engine, Cows(scheme).scaled(b1) + PulseAcquire(tr_s=2.0), water) < bound * full
+                    assert total_amplitude(
+                        engine, Cows(scheme).scaled(b1) + PulseAcquire(tr_s=2.0), water
+                    ) < bound * full
 
     #*************************#
     #   played trains        #
     #*************************#
     def test_a_played_train_carries_its_sources_pulse_and_still_nulls(self, engine):
-        # played real, COWS's pulses are the paper's 17.92 ms Gaussians (their saturation, 1 - Mz, at half at 34 Hz
-        # from the water: the paper's 68 Hz), the train's gaps follow the peak-to-peak table (the first pulse starts
-        # half a pulse before its peak), VAPOR's are the 35 ms three-lobe sincs of Tkac and Gruetter 2000, and the
-        # played COWS(7;236) still leaves under 0.1 percent of the water at the nominal flips over T1
+        # played real, COWS's pulses are the paper's 17.92 ms Gaussians (their saturation, 1 - Mz,
+        # at half at 34 Hz from the water: the paper's 68 Hz), the train's gaps follow the
+        # peak-to-peak table (the first pulse starts half a pulse before its peak), VAPOR's are the
+        # 35 ms three-lobe sincs of Tkac and Gruetter 2000, and the played COWS(7;236) still leaves
+        # under 0.1 percent of the water at the nominal flips over T1
         from mrsandbox.sequences.timeline import event_spans
 
         train = Cows(real=True)
@@ -208,14 +221,18 @@ class TestNamedSchemes:
         assert isinstance(pulse, ShapedPulse) and pulse.duration_s == 0.01792 and not train.adjusted
         assert float(event_spans(train)[-1][1]) == pytest.approx(0.236157 + 0.01792 / 2.0, abs=1e-4)
         assert Vapor(real=True).events[0].duration_s == 0.035 and not Vapor(real=True).adjusted
-        assert SiemensChess(real=True).events[0].duration_s == pytest.approx(0.01792 * 68.0 / 50.0) and SiemensChess(real=True).adjusted
+        assert (SiemensChess(real=True).events[0].duration_s == pytest.approx(0.01792 * 68.0 / 50.0)
+                and SiemensChess(real=True).adjusted)
         water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=1.3, t2_s=0.05)
         full = total_amplitude(engine, PulseAcquire(), water)
-        ninety = ShapedPulse.gaussian(90.0, pulse.duration_s, offset_ppm=4.65, truncation=train.truncation)
+        ninety = ShapedPulse.gaussian(90.0, pulse.duration_s, offset_ppm=4.65,
+                                      truncation=train.truncation)
         for offset_hz, saturation in ((0.0, 1.0), (34.0, 0.5), (100.0, 0.0)):
-            _, amps = engine.lines(Sequence(ninety, CoherenceFilter(-1)), water, offset_hz=offset_hz)
+            _, amps = engine.lines(Sequence(ninety, CoherenceFilter(-1)), water,
+                                   offset_hz=offset_hz)
             response = float(np.abs(ops.convert_to_numpy(amps)).sum()) / full
-            assert 1.0 - math.cos(math.asin(min(response, 1.0))) == pytest.approx(saturation, abs=0.1)
+            assert (1.0 - math.cos(math.asin(min(response, 1.0)))
+                    == pytest.approx(saturation, abs=0.1))
         for t1 in (0.5, 1.3, 4.5):
             water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
             full = total_amplitude(engine, PulseAcquire(tr_s=2.0), water)

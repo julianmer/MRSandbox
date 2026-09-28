@@ -57,7 +57,9 @@ class TestPropagator:
         h64 = random_hermitian(8, seed=3).astype(np.complex128)
         lam, v = np.linalg.eigh(h64)
         u_ref = v @ np.diag(np.exp(-2j * math.pi * lam * 0.0042)) @ v.conj().T
-        u = ops.convert_to_numpy(Backend.expm_herm(ops.convert_to_tensor(h64.astype(np.complex64)), 0.0042))
+        u = ops.convert_to_numpy(
+            Backend.expm_herm(ops.convert_to_tensor(h64.astype(np.complex64)), 0.0042)
+        )
         np.testing.assert_allclose(u, u_ref, atol=3e-5)
 
     #****************#
@@ -68,7 +70,9 @@ class TestPropagator:
         u_batch = ops.convert_to_numpy(Backend.expm_herm(h, np.float32([0.001, 0.002, 0.005])))
         assert u_batch.shape == (3, 4, 4)
         for i, dt in enumerate([0.001, 0.002, 0.005]):
-            np.testing.assert_allclose(u_batch[i], ops.convert_to_numpy(Backend.expm_herm(h, dt)), atol=2e-5)
+            np.testing.assert_allclose(
+                u_batch[i], ops.convert_to_numpy(Backend.expm_herm(h, dt)), atol=2e-5
+            )
 
 
 #**************************************************************************************************#
@@ -108,7 +112,10 @@ class TestGradients:
         dt0 = 0.013
         value, grad = value_and_grad(loss)(ops.convert_to_tensor(np.float32(dt0)))
         assert abs(float(ops.convert_to_numpy(value)) - math.cos(2 * math.pi * 10.0 * dt0)) < 1e-5
-        assert abs(float(ops.convert_to_numpy(grad)) + 2 * math.pi * 10.0 * math.sin(2 * math.pi * 10.0 * dt0)) < 1e-2
+        assert abs(
+            float(ops.convert_to_numpy(grad))
+            + 2 * math.pi * 10.0 * math.sin(2 * math.pi * 10.0 * dt0)
+        ) < 1e-2
 
 
 #**************************************************************************************************#

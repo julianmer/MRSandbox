@@ -48,11 +48,10 @@ QSM_RC2 = {
         ("r2star", "data/maps/R2star.nii.gz", "1/s"),
         ("m0", "data/maps/M0.nii.gz", "arbitrary"),
         ("chi", "data/chimodel/Chi.nii.gz", "ppm"),
-        # the MEASURED total field of the same head at 7 T (MP2RAGE-ME, the dataset's raw folder),
-        # resampled by the authors onto the R2* map's grid: its own header carries another origin
-        # and zooms 0.1 percent off, but its cells are the model's (checked 24/09/26: every
-        # nonzero cell lies inside the head labels; the field covers 83 percent of the head, the
-        # rest is zero), so it takes the model's origin like the others (info/HANDOFF.md item 218)
+        # the MEASURED total field of the same head at 7 T (MP2RAGE-ME, the dataset's raw
+        # folder), resampled by the authors onto the R2* map's grid: its own header carries
+        # another origin and zooms, but its cells are the model's, so it takes the model's
+        # origin like the others
         ("total_field", "data/raw/MP2RAGEME_total-field_ppm_head_r2s-header.nii.gz", "ppm"),
     )
 }
@@ -89,7 +88,8 @@ class QSMHead:
         volume = Volume.load(cls.MAPS[name])
         data = volume.data
         if name == "T1map":
-            data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0), 0.0).astype(np.float32)
+            data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0),
+                            0.0).astype(np.float32)
         return Volume(data, volume.affine, name="qsm_rc2/" + name)
 
     #************#
@@ -105,11 +105,10 @@ class QSMHead:
         microscopic field distribution, R2' / pi with R2' = R2* - R2 floored at zero,
         R2 being the 7 T water T2 of the scan defaults (database.relaxation
         WATER_FIELDS, 47 ms in tissue, and the CSF value) weighted by each cell's
-        tissue: 3.8 Hz in grey and 5.5 Hz in white matter by the maps' medians, inside
-        the default 7 T range. R2' is a Lorentzian rate and the leaf a Gaussian width;
-        the two are matched by their full width at half maximum (stated). The head
-        is one subject at 7 T: at another field the T1 does not hold, and R2' scales
-        with the field (stated, not applied).
+        tissue. R2' is a Lorentzian rate and the leaf a Gaussian width; the two are
+        matched by their full width at half maximum (stated). The head is one subject
+        at 7 T: at another field the T1 does not hold, and R2' scales with the field
+        (stated, not applied).
         """
         from mrsandbox.database.relaxation import WATER, WATER_FIELDS
         from mrsandbox.params import Mapped, Params
@@ -119,7 +118,8 @@ class QSMHead:
         brain, r2star = Brain.load("qsm_rc2"), cls.volume("R2starmap")
         t2 = {**WATER["t2_s"], **WATER_FIELDS[7.0]["t2_s"]}
         tissue = brain.gm + brain.wm + brain.csf
-        r2 = (brain.gm / t2["gm"] + brain.wm / t2["wm"] + brain.csf / t2["csf"]) / np.where(tissue > 0.0, tissue, 1.0)
+        r2 = ((brain.gm / t2["gm"] + brain.wm / t2["wm"] + brain.csf / t2["csf"])
+              / np.where(tissue > 0.0, tissue, 1.0))
         width = np.maximum(r2star.data - r2, 0.0) / np.pi
         t1 = cls.volume("T1map").data
         # a voxel reads a map as its box mean, so the cells that hold no brain (and the few
@@ -129,7 +129,8 @@ class QSMHead:
         t1 = np.where(inside, t1, np.median(t1[inside])).astype(np.float32)
         width = np.where(inside, width, np.median(width[inside])).astype(np.float32)
         return Params(water=dict(t1_s=Mapped(Volume(t1, r2star.affine, name="qsm_rc2/T1map"))),
-                      lineshape=dict(gauss_hz=Mapped(Volume(width, r2star.affine, name="qsm_rc2/R2primewidth"))))
+                      lineshape=dict(gauss_hz=Mapped(Volume(width, r2star.affine,
+                                                            name="qsm_rc2/R2primewidth"))))
 
     #******************#
     #   registration   #
@@ -168,12 +169,10 @@ class QSMHead:
         """The head's fat-bearing layer (label 15, Brain.QSM_TISSUES) carried into
         another brain preset's world and resampled there, linearly, onto an
         axis-aligned grid of `cell_mm` cells (so box queries stay exact), as a Volume
-        of fractions, less what the preset's own tissue already fills there (two heads
-        under one affine overlap by a few percent of the layer; a place is tissue or
-        fat, and the brain is the preset's); derived once and cached beside the head's
-        files, never shipped.
-        It lends the presets without a scalp, ICBM152 and BigBrain-MR, the geometry
-        of a fat layer: `Brain.load(space, fat="qsm_rc2")`."""
+        of fractions, less what the preset's own tissue already fills there (a place is
+        tissue or fat, and the brain is the preset's); derived once and cached beside
+        the head's files, never shipped. It lends the presets without a scalp, ICBM152
+        and BigBrain-MR, the geometry of a fat layer: `Brain.load(space, fat="qsm_rc2")`."""
         import scipy.ndimage
 
         from mrsandbox.phantom.brain import Brain
@@ -184,11 +183,13 @@ class QSMHead:
         if not cache.exists():
             labels = Volume.load("qsm_rc2/labels")
             layer = np.isin(labels.data, Brain.QSM_TISSUES["fat"]).astype(np.float32)
-            inside = np.isin(labels.data, sum((Brain.QSM_TISSUES[t] for t in ("gm", "wm", "csf")), ()))
+            inside = np.isin(labels.data,
+                             sum((Brain.QSM_TISSUES[t] for t in ("gm", "wm", "csf")), ()))
             layer = Brain.scalp(layer, inside.astype(np.float32), labels.affine)
             carried = cls.registration(space) @ labels.affine
             corners = np.array([[i, j, k, 1.0] for i in (0, labels.shape[0] - 1)
-                                for j in (0, labels.shape[1] - 1) for k in (0, labels.shape[2] - 1)])
+                                for j in (0, labels.shape[1] - 1)
+                                for k in (0, labels.shape[2] - 1)])
             world = (carried @ corners.T)[:3]
             low, high = np.floor(world.min(axis=1)), np.ceil(world.max(axis=1))
             shape = tuple(int(n) for n in np.rint((high - low) / cell_mm) + 1)

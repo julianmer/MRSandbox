@@ -9,8 +9,8 @@
 # Purpose: The hMRI toolbox demonstration subject: one healthy volunteer, one 3 T Prisma session,  #
 #          raw multi-echo FLASH (PDw, T1w, MTw), an SE/STE B1+ series, and a dual-echo B0 map,     #
 #          registered as fetch-on-demand resources, and the quantitative maps derived from them    #
-#          once in cited numpy (the hMRI toolbox formulas, never the toolbox) and cached: the       #
-#          coherent one-subject 3 T stack of R1, PD, MT saturation, R2*, relative B1+, and B0.      #
+#          once in cited numpy (the hMRI toolbox formulas, never the toolbox) and cached: the      #
+#          coherent one-subject 3 T stack of R1, PD, MT saturation, R2*, relative B1+, and B0.     #
 #                                                                                                  #
 ####################################################################################################
 
@@ -197,17 +197,20 @@ HMRI_DEMO = {
         "filename": "hmri/b1_ste_11.nii",
     },
     "hmri/b0_mag_e1": {
-        "url": BASE + "gre_field_mapping_1acq_rl_0005/anon_s2018-02-28_18-26-185100-00001-00001-1.nii",
+        "url": BASE + "gre_field_mapping_1acq_rl_0005/"
+                      "anon_s2018-02-28_18-26-185100-00001-00001-1.nii",
         "md5": "48ec224055e62226264e9ee7d129d690",
         "filename": "hmri/b0_mag_e1.nii",
     },
     "hmri/b0_mag_e2": {
-        "url": BASE + "gre_field_mapping_1acq_rl_0005/anon_s2018-02-28_18-26-185101-00001-00001-2.nii",
+        "url": BASE + "gre_field_mapping_1acq_rl_0005/"
+                      "anon_s2018-02-28_18-26-185101-00001-00001-2.nii",
         "md5": "e2fa4d6b53a1289408ad83b632d40660",
         "filename": "hmri/b0_mag_e2.nii",
     },
     "hmri/b0_phase": {
-        "url": BASE + "gre_field_mapping_1acq_rl_0006/anon_s2018-02-28_18-26-185101-00001-00001-2.nii",
+        "url": BASE + "gre_field_mapping_1acq_rl_0006/"
+                      "anon_s2018-02-28_18-26-185101-00001-00001-2.nii",
         "md5": "cfa0ee99a8a25b25601795b629dee27e",
         "filename": "hmri/b0_phase.nii",
     },
@@ -300,7 +303,8 @@ class HMRI:
         stored = np.load(cache)
         data, affine = stored[name], stored[name + "_affine"]
         if name == "T1map":
-            data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0), 0.0).astype(np.float32)
+            data = np.where(data > 0.0, 1.0 / np.where(data > 0.0, data, 1.0),
+                            0.0).astype(np.float32)
         if space is not None:
             affine = cls.registration(space) @ affine
         return Volume(data, affine, name="hmri/" + name)
@@ -317,11 +321,10 @@ class HMRI:
         white matter (R1 below and above 0.85 1/s inside that tissue, median
         filtered) as a two-level image against the atlas's two-level labels. The R1
         values themselves are too speckled to hold a 12-parameter fit (stated); the
-        classes are not, and the second stage turns the shape fit by a few degrees
-        and a millimetre. An affine between two subjects cannot follow the cortex,
-        so the classes still overlap only in part (stated). Every map
-        of the session shares the transform: the MPM, B1, and B0 grids are
-        co-registered by acquisition (stated)."""
+        classes are not. An affine between two subjects cannot follow the cortex, so
+        the classes still overlap only in part (stated). Every map of the session
+        shares the transform: the MPM, B1, and B0 grids are co-registered by
+        acquisition (stated)."""
         import scipy.ndimage
 
         from mrsandbox.phantom.brain import Brain
@@ -390,19 +393,22 @@ class HMRI:
         flash = acq["flash"]
         b1_on_mpm = cls.resampled(transmit, b1_affine, mpm_affine, pdw.shape)
         b1_on_mpm = np.where(b1_on_mpm > 0.0, b1_on_mpm, 1.0)
-        pdw_flip, t1w_flip = np.radians(flash["flip_deg"]["pdw"]), np.radians(flash["flip_deg"]["t1w"])
+        pdw_flip, t1w_flip = (np.radians(flash["flip_deg"]["pdw"]),
+                              np.radians(flash["flip_deg"]["t1w"]))
         tr = flash["tr_s"]
         r1 = cls.r1(pdw, t1w, pdw_flip, t1w_flip, tr, tr, b1_on_mpm)
         pd = cls.proton_density(pdw, t1w, pdw_flip, t1w_flip, tr, tr, b1_on_mpm)
         # MT saturation in the Helms convention: the small-angle A and R1 at nominal
         # B1, then the heuristic B1 correction of the saturation itself
         mt = cls.mt_saturation(mtw, np.radians(flash["flip_deg"]["mtw"]), tr,
-                               cls.proton_density(pdw, t1w, pdw_flip, t1w_flip, tr, tr, small_angle=True),
+                               cls.proton_density(pdw, t1w, pdw_flip, t1w_flip, tr, tr,
+                                                  small_angle=True),
                                cls.r1(pdw, t1w, pdw_flip, t1w_flip, tr, tr, small_angle=True))
         mt = cls.mt_corrected(mt, b1_on_mpm)
         echoes = np.stack([image(f"pdw_e{k}")[0] for k in range(1, 9)])
         r2star = cls.r2star(echoes, flash["te_s"])
-        r1, pd, mt, r2star = (np.where(head, m, 0.0).astype(np.float32) for m in (r1, pd, mt, r2star))
+        r1, pd, mt, r2star = (np.where(head, m, 0.0).astype(np.float32)
+                              for m in (r1, pd, mt, r2star))
         phase, b0_affine = image("b0_phase")
         b0 = acq["b0"]
         radians = phase / b0["phase_range"] * np.pi
@@ -423,11 +429,11 @@ class HMRI:
         approximation of the Ernst equation (Helms et al. 2008, MRM 59:667; the hMRI
         toolbox's hmri_calc_R1), the nominal flips scaled by the relative transmit
         field `b1`. The flip enters as 2 tan(alpha / 2) (Edwards et al. 2026, MRM,
-        doi 10.1002/mrm.70174: 1e-4 relative at the demo's 6 and 21 degrees where
-        the small-angle form is off by 2.6 percent), or as alpha itself with
-        `small_angle`, the form the MT saturation of Helms is defined on. Zero where
-        either image is zero."""
-        a, b = _flip_term(b1 * pdw_flip_rad, small_angle), _flip_term(b1 * t1w_flip_rad, small_angle)
+        doi 10.1002/mrm.70174), accurate at the demo's 6 and 21 degrees where the
+        small-angle form is not, or as alpha itself with `small_angle`, the form the
+        MT saturation of Helms is defined on. Zero where either image is zero."""
+        a, b = (_flip_term(b1 * pdw_flip_rad, small_angle),
+                _flip_term(b1 * t1w_flip_rad, small_angle))
         valid = (pdw > 0.0) & (t1w > 0.0)
         pdw, t1w = np.where(valid, pdw, 1.0), np.where(valid, t1w, 1.0)
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -440,7 +446,8 @@ class HMRI:
         """The signal amplitude A (an unnormalized proton density, arbitrary units) from
         the same pair (Helms et al. 2008, MRM 59:667; hmri_calc_A), the flip term as
         for `r1`."""
-        a, b = _flip_term(b1 * pdw_flip_rad, small_angle), _flip_term(b1 * t1w_flip_rad, small_angle)
+        a, b = (_flip_term(b1 * pdw_flip_rad, small_angle),
+                _flip_term(b1 * t1w_flip_rad, small_angle))
         valid = (pdw > 0.0) & (t1w > 0.0)
         pdw, t1w = np.where(valid, pdw, 1.0), np.where(valid, t1w, 1.0)
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -481,7 +488,8 @@ class HMRI:
         valid = np.all(echoes > 0.0, axis=0)
         logs = np.log(np.where(valid, echoes, 1.0))
         te_centred = te - te.mean()
-        slope = np.tensordot(te_centred, logs - logs.mean(axis=0), axes=(0, 0)) / np.sum(te_centred ** 2)
+        slope = (np.tensordot(te_centred, logs - logs.mean(axis=0), axes=(0, 0))
+                 / np.sum(te_centred ** 2))
         return np.where(valid, -slope, 0.0).astype(np.float32)
 
     #*****************#
@@ -509,7 +517,8 @@ class HMRI:
             picked = np.stack([second[k] if flag else first[k] for k, flag in enumerate(choice)])
             std = picked.std(axis=0)
             better = std < spread
-            best, spread = np.where(better, picked.mean(axis=0), best), np.where(better, std, spread)
+            best, spread = (np.where(better, picked.mean(axis=0), best),
+                            np.where(better, std, spread))
         return np.where(valid, best, 0.0).astype(np.float32)
 
     @staticmethod
@@ -523,7 +532,8 @@ class HMRI:
         support = (volume > 0.0).astype(np.float64)
         blurred = scipy.ndimage.gaussian_filter(volume * support, sigma)
         weight = scipy.ndimage.gaussian_filter(support, sigma)
-        return np.where(support > 0.0, blurred / np.where(weight > 0.0, weight, 1.0), 0.0).astype(np.float32)
+        return np.where(support > 0.0, blurred / np.where(weight > 0.0, weight, 1.0),
+                        0.0).astype(np.float32)
 
     @staticmethod
     def resampled(volume, affine, target_affine, target_shape):

@@ -103,7 +103,8 @@ class TestInSequenceRelaxation:
         # macromolecule at 2.04, the water tail) decays on its own T2 and would drift
         # the 2.008 ppm bin, so the gate on the NAA law reads NAA by itself
         alone = {name: 0.0 for name in VirtualScan.default_params().conc if name != "NAA"}
-        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
+        quiet = Params(acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                        delay_s=0.0, eddy_transient_rad=0.0),
                        spurious=dict(amplitude=0.0), conc=alone)
         heights, truth = [], None
         for te in (0.03, 0.06):
@@ -166,8 +167,9 @@ class TestRepetition:
                             Gradient(30.0), Delay(tau), tr_s=tr)
 
         def filtered(tr):
-            return Sequence(Pulse(90.0), CoherenceFilter(+1), Delay(tau), Pulse(180.0, phase_deg=90.0),
-                            CoherenceFilter(-1), Delay(tau), tr_s=tr)
+            return Sequence(Pulse(90.0), CoherenceFilter(+1), Delay(tau),
+                            Pulse(180.0, phase_deg=90.0), CoherenceFilter(-1), Delay(tau),
+                            tr_s=tr)
 
         for tr in (0.5, 2.0):
             exact = 1.0 - 2.0 * math.exp(-(tr - tau) / t1) + math.exp(-tr / t1)
@@ -200,7 +202,8 @@ class TestRepetition:
     #*****************#
     def test_tr_is_a_timing_of_the_design(self):
         # two repetition times of one design share the graph; None is another design
-        assert Press(0.011, 0.019, tr_s=1.0).structure() == Press(0.011, 0.019, tr_s=2.0).structure()
+        assert (Press(0.011, 0.019, tr_s=1.0).structure()
+                == Press(0.011, 0.019, tr_s=2.0).structure())
         assert Press(0.011, 0.019, tr_s=1.0).structure() != Press(0.011, 0.019).structure()
         assert Press(0.011, 0.019, tr_s=2.0).timings()[-1] == (2.0,)
         assert Press(0.011, 0.019).timings()[-1] == ()

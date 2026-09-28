@@ -76,10 +76,10 @@ class VirtualScan:
             every voxel runs its pulses at the drawn b1_scale times its local value.
             None gives the nominal field everywhere.
         mm: A phantom.MMSource; defaults to the measured 3 T shape (MeasuredMM, the
-            console's: one raw Trio run beside it put the whole background right where the
-            coupled systems fell two to three short, info/HANDOFF.md item 216), and to the
-            coupled systems (CoupledMM) for an editing design, whose pulses act on them
-            where the measured shape carries no editing response; none in vitro.
+            console's, which carries the whole background where the coupled systems fall
+            short), and to the coupled systems (CoupledMM) for an editing design, whose
+            pulses act on them where the measured shape carries no editing response; none
+            in vitro.
         downfield: A phantom.DownfieldSource; defaults to the nine-peak
             parameterization, presaturated along with the default suppressed water.
         girf: A resources.GIRF, the scanner's measured gradient impulse response;
@@ -110,8 +110,8 @@ class VirtualScan:
     def __init__(self, brain, scanner, sequence, params=None, database=None, water=None,
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
-                 ph=None, field_groups=1, water_groups=1, noise_map=None, noise_reference_mm=(0.0, -45.0, 35.0),
-                 records=()):
+                 ph=None, field_groups=1, water_groups=1, noise_map=None,
+                 noise_reference_mm=(0.0, -45.0, 35.0), records=()):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -120,7 +120,8 @@ class VirtualScan:
         self.water = water if water is not None else Suppressed()
         in_vitro = isinstance(brain, Phantom)
         self.lipids = lipids if lipids is not None else NoLipids() if in_vitro else Skull()
-        self.mm = mm if mm is not None else NoMM() if in_vitro else CoupledMM() if hasattr(sequence, "edit_ppm") else MeasuredMM()
+        self.mm = (mm if mm is not None else NoMM() if in_vitro
+                   else CoupledMM() if hasattr(sequence, "edit_ppm") else MeasuredMM())
         self.downfield = (downfield if downfield is not None
                           else NoDownfield() if in_vitro else ParameterizedDownfield())
         self.coils = coils
@@ -136,7 +137,8 @@ class VirtualScan:
         self.temperature_c = float(temperature_c if temperature_c is not None
                                    else brain.temperature_c if in_vitro else 37.0)
         self.ph = float(ph if ph is not None else brain.ph if in_vitro else 7.0)
-        defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner, records=self.records,
+        defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner,
+                                  records=self.records,
                                   channels=None if coils is None else len(coils))
         self.params = (defaults
                        | (brain.params(defaults) if in_vitro else Params())
@@ -158,7 +160,8 @@ class VirtualScan:
         temperature, in steps of a quarter of a degree (the shifts move by 0.0001 to
         0.001 ppm a degree; database.shifts), each step built once; a compiled scan
         compiles each step it meets."""
-        temperature_c = round(4.0 * float(self.temperature_c if temperature_c is None else temperature_c)) / 4.0
+        temperature_c = round(4.0 * float(self.temperature_c if temperature_c is None
+                                          else temperature_c)) / 4.0
         key = (metabolite, temperature_c)
         if key not in self._systems:
             self._systems[key] = SpinSystem.from_database(
@@ -221,7 +224,8 @@ class VirtualScan:
     #*****************#
     #   training      #
     #*****************#
-    def generator(self, position_mm, size_mm, batch_size=16, seed=None, npoints=2048, dwell_s=1.0 / 4000.0):
+    def generator(self, position_mm, size_mm, batch_size=16, seed=None, npoints=2048,
+                  dwell_s=1.0 / 4000.0):
         """A seeded on-the-fly training stream for this voxel; see scan.generator.Generator."""
         from mrsandbox.scan.generator import Generator
 

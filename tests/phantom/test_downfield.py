@@ -54,7 +54,8 @@ class TestDownfieldLines:
     #*****************#
     def test_nine_peaks_at_their_published_positions(self):
         truth = realize(presaturated=False)
-        freqs, amps, gauss = ParameterizedDownfield().lines(None, AT_LEVEL_TE, FakeVoxel(), truth, F0_MHZ)
+        freqs, amps, gauss = ParameterizedDownfield().lines(None, AT_LEVEL_TE, FakeVoxel(), truth,
+                                                            F0_MHZ)
         expected = sorted(peak["ppm"] * F0_MHZ for peak in downfield.OZDEMIR.values())
         np.testing.assert_allclose(sorted(freqs), expected, rtol=1e-6)
         assert amps.size == 9 and np.all(amps.real > 0.0)
@@ -73,8 +74,10 @@ class TestDownfieldLines:
         truth = realize(presaturated=False)
         source = ParameterizedDownfield()
         _, at, _ = source.lines(None, AT_LEVEL_TE, FakeVoxel(), truth, F0_MHZ)
-        _, later, _ = source.lines(None, Press(te1_s=0.022, te2_s=0.030), FakeVoxel(), truth, F0_MHZ)
-        _, earlier, _ = source.lines(None, Press(te1_s=0.006, te2_s=0.006), FakeVoxel(), truth, F0_MHZ)
+        _, later, _ = source.lines(None, Press(te1_s=0.022, te2_s=0.030), FakeVoxel(), truth,
+                                   F0_MHZ)
+        _, earlier, _ = source.lines(None, Press(te1_s=0.006, te2_s=0.006), FakeVoxel(), truth,
+                                     F0_MHZ)
         names = list(downfield.OZDEMIR)
         ratio = (later / at).real
         assert abs(ratio[names.index("df683")] - np.exp(-30.0 / 24.4)) < 1e-6
@@ -108,7 +111,8 @@ class TestDownfieldLines:
         _, half, _ = source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.3, wm=0.2), truth, F0_MHZ)
         _, full, _ = source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.6, wm=0.4), truth, F0_MHZ)
         np.testing.assert_allclose(2.0 * half.real, full.real, rtol=1e-6)
-        assert source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.0, wm=0.0, csf=1.0), truth, F0_MHZ) is None
+        assert source.lines(None, AT_LEVEL_TE, FakeVoxel(gm=0.0, wm=0.0, csf=1.0), truth,
+                            F0_MHZ) is None
         assert NoDownfield().lines(None, AT_LEVEL_TE, FakeVoxel(), truth, F0_MHZ) is None
 
 
@@ -124,7 +128,9 @@ class TestDownfieldInScan:
     def test_downfield_replaces_the_nh_lines_and_presaturates_exactly(self):
         brain = Brain.load("icbm152")
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                        delay_s=0.0, eddy_transient_rad=0.0),
+                       oov=dict(fraction=0.0))
         pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
 
         def spectrum(**kwargs):
@@ -147,7 +153,8 @@ class TestDownfieldInScan:
         # the source; presaturation then scales the amides by exactly their retention
         gain_full = (full - base)[window]
         gain_sat = (saturated - base)[window]
-        assert np.abs(gain_full).max() > 3.0 * np.abs((full - base)[(ppm > 9.5) & (ppm < 11.0)]).max()
+        assert (np.abs(gain_full).max()
+                > 3.0 * np.abs((full - base)[(ppm > 9.5) & (ppm < 11.0)]).max())
         amides = (ppm[window] > 8.05) & (ppm[window] < 8.30)
         at = np.argmax(np.abs(gain_full) * amides)
         ratio = (gain_sat[at] / gain_full[at]).real

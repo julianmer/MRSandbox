@@ -26,7 +26,8 @@ from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
 from mrsandbox.hardware.scanners import Scanner
 from mrsandbox.scan.calibrations import calibrations
-from mrsandbox.params import Clipped, Empirical, Fixed, Normal, Params, PerTissue, Priors, Sourced, Uniform
+from mrsandbox.params import (Clipped, Empirical, Fixed, Normal, Params, PerTissue, Priors, Sourced,
+                              Uniform)
 
 
 #****************#
@@ -35,15 +36,21 @@ from mrsandbox.params import Clipped, Empirical, Fixed, Normal, Params, PerTissu
 # the typed fields; a scan at any other field takes the nearest one (stated)
 FIELDS_T = (1.5, 3.0, 7.0)
 TISSUES = ("gm", "wm", "csf")
-WATER_CITED = ("Boudreau et al. 2024 (the ISMRM T1 challenge, 3 T cortex and genu), Rooney et al. 2007 (CSF), Wansapura et al. 1999 "
-               "(T2); at 1.5 and 7 T Ethofer et al. 2003, Xin et al. 2013, Marjanska et al. 2012 (database.relaxation)")
-RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about 0.3 Hz a minute at 3 T, either sign; Augmentrum's envelope",
-             "breathing": "van de Moortele et al. 2002, Magn Reson Med 47:888: breathing at about 0.3 Hz modulates the field; the range stated",
-             "jitter": "Near et al. 2015, Magn Reson Med 73:44: the phase partly follows the frequency; the spreads stated",
-             "events": "Rowland et al. 2017 and Hess et al. 2011: motion as sparse events; the rate stated",
+WATER_CITED = ("Boudreau et al. 2024 (the ISMRM T1 challenge, 3 T cortex and genu), "
+               "Rooney et al. 2007 (CSF), Wansapura et al. 1999 (T2); at 1.5 and 7 T "
+               "Ethofer et al. 2003, Xin et al. 2013, Marjanska et al. 2012 (database.relaxation)")
+RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about 0.3 Hz a minute "
+                      "at 3 T, either sign; Augmentrum's envelope",
+             "breathing": "van de Moortele et al. 2002, Magn Reson Med 47:888: breathing at about "
+                          "0.3 Hz modulates the field; the range stated",
+             "jitter": "Near et al. 2015, Magn Reson Med 73:44: the phase partly follows the "
+                       "frequency; the spreads stated",
+             "events": "Rowland et al. 2017 and Hess et al. 2011: motion as sparse events; "
+                       "the rate stated",
              "stated": "a stated range (Augmentrum's TransientSynthesizer default)"}
-CREATINE = ("de Graaf, In Vivo NMR Spectroscopy, 3rd ed.: total creatine 4.5 to 10.5 mM with the phosphocreatine "
-            "3.0 to 5.5 mM inside it taken out, the free creatine (database.concentrations DE_GRAAF)")
+CREATINE = ("de Graaf, In Vivo NMR Spectroscopy, 3rd ed.: total creatine 4.5 to 10.5 mM with the "
+            "phosphocreatine 3.0 to 5.5 mM inside it taken out, the free creatine "
+            "(database.concentrations DE_GRAAF)")
 
 # the consensus MM T1 study per field beyond 3 T and the default components it covers
 # (the only human rows the consensus table carries off 3 T; the rest keep the 3 T values)
@@ -101,16 +108,19 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
     names = [name for name in db.metabolites() if name in concentrations.DE_GRAAF]
     conc = Priors.de_graaf(metabolites=names, database=db)
-    # creatine: de Graaf's 4.5 to 10.5 mM is the total creatine and his 3.0 to 5.5 the phosphocreatine
-    # inside it; stacked on the PCr leaf the total range would count the phosphocreatine twice, so the
-    # creatine leaf's literature is the total with the phosphocreatine taken out, 3.0 to 5.5 in the
-    # ranges' own numbers (a total of 6 to 11 mM); three in vivo datasets put the total at 0.8 to 1.0
-    # of NAA, which the measured source says (scan.calibrations CREATINE_THREE_DATASETS_3T)
-    served = calibrations(scanner if scanner is not None else Scanner("unnamed", float(b0_t)), records, channels)   # the measured source of every leaf a record serves
+    # creatine: de Graaf's 4.5 to 10.5 mM is the total creatine and his 3.0 to 5.5 the
+    # phosphocreatine inside it; stacked on the PCr leaf the total range would count the
+    # phosphocreatine twice, so the creatine leaf's literature is the total with the
+    # phosphocreatine taken out, 3.0 to 5.5 in the ranges' own numbers (a total of 6 to 11 mM);
+    # the measured source is scan.calibrations CREATINE_THREE_DATASETS_3T
+    served = calibrations(scanner if scanner is not None else Scanner("unnamed", float(b0_t)),
+                          records, channels)  # the measured source of every leaf a record serves
     if "Cr" in conc:
-        conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5), cited=CREATINE))
+        conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5),
+                                         cited=CREATINE))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
-    water_t1, water_t2 = (_per_tissue(f"water.{leaf}", served, value) for leaf, value in zip(("t1_s", "t2_s"), _water_relaxation(tesla)))
+    water_t1, water_t2 = (_per_tissue(f"water.{leaf}", served, value)
+                          for leaf, value in zip(("t1_s", "t2_s"), _water_relaxation(tesla)))
     # background signal inherent to the voxel: residual water, lipids, and the
     # macromolecules are signal, never baseline or nuisance (Kreis et al. 2021)
     background = Params(
@@ -145,14 +155,12 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         # oov: the water outside the voxel that the localization leaks (the refocusing
         #   pulses' stopbands, the crushers' incomplete dephasing), one broad line at the
         #   water's frequency at the FID's start, read on the raw as the broad part of
-        #   the residual (the package's cohorts, scan.cohort: on the Trio T2* 15 to 28
-        #   ms, a fraction of the full water at t = 0, of a phase mostly opposite to the
-        #   voxel's own residual; info/HANDOFF.md item 238).
+        #   the residual (the package's cohorts, scan.cohort).
         #   fraction: of the full water at t = 0 after the echo's decay, the record's.
-        #   t2star_s, offset_hz: its decay and its frequency from the water's, the
-        #     twelve subjects' 10 to 90.
-        #   phase_deg: against the voxel's own residual at t = 0, the twelve's median
-        #     and a stated spread (their 10 to 90 runs from -169 to +104).
+        #   t2star_s, offset_hz: its decay and its frequency from the water's, the 10th
+        #     to 90th percentile read off the Trio cohort's subjects.
+        #   phase_deg: against the voxel's own residual at t = 0, the Trio subjects'
+        #     median and a stated spread.
         oov=dict(fraction=_sourced("oov.fraction", served, Uniform) or Fixed(0.0),
                  t2star_s=(0.015, 0.028),
                  offset_hz=(-3.2, 7.3), phase_deg=Normal(-153.0, 45.0)),
@@ -161,9 +169,9 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     (the CoupledMM default). The challenge's own 0.4 normalizes its
         #     measured basis, not concentration units, so kappa is recalibrated
         #     (stated) to land the short-TE MM area fraction in the consensus
-        #     10 to 25 percent ballpark. It rose by 11.75 / 8.5 with the calibrated
-        #     creatine range (the middle of total creatine fell by that much), so
-        #     the background stayed where it was.
+        #     10 to 25 percent ballpark. It carries the factor 11.75 / 8.5 by which
+        #     the calibrated creatine range lowers the middle of total creatine, so
+        #     the background does not move with the creatine range.
         #   level_mm: drives the ParameterizedMM alternative.
         #   t1, t2: per component, typed from the consensus Appendix S1 3 T human
         #     columns (T2: Landheer 2020, else Hoefemann 2020; T1: Hoefemann 2020,
@@ -216,8 +224,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     16 to 19 at 7 T) on top of the Lorentzian 1 / (pi T2); susceptibility
         #     broadening scales with the field, so the range scales by B0 / 3 T. The
         #     width read on the package's cohorts stands beside it as its measured source.
-        lineshape=dict(gauss_hz=_sourced("lineshape.gauss_hz", served, Uniform, literature=Uniform(2.0 * tesla / 3.0, 6.0 * tesla / 3.0),
-                                         cited="a stated range: the water linewidth grades of Oz et al. 2021 over the Lorentzian part")),
+        lineshape=dict(gauss_hz=_sourced("lineshape.gauss_hz", served, Uniform,
+                                         literature=Uniform(2.0 * tesla / 3.0, 6.0 * tesla / 3.0),
+                                         cited="a stated range: the water linewidth grades of "
+                                               "Oz et al. 2021 over the Lorentzian part")),
     )
     # instrumental and physiological imperfections and artifact signals
     imperfections = Params(
@@ -225,16 +235,13 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #   acquisition, a 20 mm cube (8 mL) at 3 T sampled at 5 kHz (scan.voxel
         #   NOISE_REFERENCE); every acquisition scales it by its volume, field,
         #   receiver bandwidth, and averages. The range is calibrated on raw in vivo
-        #   data, coils and transients apart, and belongs to the receive chain:
-        #   scan.calibrations holds one record per scanner preset with its exact
-        #   conditions (the Trio of Big GABA's Siemens sites, which every scanner
-        #   without its own record falls back to; the Prisma, the GE, the Achieva with
-        #   its one-channel coil, 7 T), scan.calibrate makes such a record from a
-        #   scanner's own data, and every acquisition's header names the record it got
-        #   and the conditions it departs from. `Voxel.fid` is referenced to 0 ppm, a
-        #   line at f hertz is exp(+i 2 pi f t): the plain transform puts NAA at
-        #   2.01 ppm (a first calibration read the conjugate with a 4.65 ppm carrier,
-        #   the multiplets near 2.64 ppm). tests/scan/test_scan TestNoiseModel gates it.
+        #   data, coils and transients apart, and belongs to the receive chain: the
+        #   package's cohorts hold the readings with their exact conditions, pooled per
+        #   scanner (scan.cohort), scan.calibrate makes such a record from a scanner's
+        #   own data, and every acquisition's header names the record it got and the
+        #   conditions it departs from. `Voxel.fid` is referenced to 0 ppm, a line at
+        #   f hertz is exp(+i 2 pi f t): the plain transform puts NAA at 2.01 ppm.
+        #   tests/scan/test_scan TestNoiseModel gates it.
         noise=dict(sigma=_sourced("noise.sigma", served, Uniform)),
         # b1_scale: every pulse flip is multiplied by the drawn transmit scale;
         #   a few percent calibration scatter at 3 T is a stated assumption.
@@ -249,28 +256,28 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     is drawn so the trajectory regenerates from the truth.
         #   delay_s: the receiver delay, every sample taken that long after the
         #     readout's start (the first-order phase of the spectrum, exactly): a
-        #     record per scanner where one was read (scan.calibrations, negative on
-        #     the Trio and on GE: the first sample before the echo top), zero for a
-        #     scanner without one.
+        #     record per scanner where one was read (scan.calibrations; negative when
+        #     the first sample comes before the echo top), zero for a scanner without
+        #     one.
         #   eddy_transient_rad, eddy_transient_tau_s: the phase transient at the
-        #     FID's start that the water references show (scan.calibrations
-        #     EDDY_PHASE records: small in the median, of either sign, past half a
-        #     radian in a tenth of the subjects, dead by 30 ms), as the phase 5 ms
-        #     after the first sample, decaying as exp(-t / tau) from there and grown
-        #     back to the start: a Normal about zero whose sd is the record's, zero
-        #     for a scanner without one; the time constant a stated range.
+        #     FID's start that the water references show (the package's cohorts,
+        #     scan.cohort), as the phase 5 ms after the first sample, decaying as
+        #     exp(-t / tau) from there and grown back to the start: a Normal about
+        #     zero whose sd is the record's, zero for a scanner without one; the time
+        #     constant a stated range.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
                          delay_s=_sourced("acquisition.delay_s", served, Uniform) or Fixed(0.0),
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),
                          eddy_seed=(0.0, 2.0 ** 31 - 1.0),
-                         eddy_transient_rad=_sourced("acquisition.eddy_transient_rad", served, _transient_prior) or Fixed(0.0),
+                         eddy_transient_rad=_sourced("acquisition.eddy_transient_rad", served,
+                                                     _transient_prior) or Fixed(0.0),
                          eddy_transient_tau_s=(0.005, 0.02)),
         # gradients: the eddy currents the design's own gradients induce (scan.eddy),
         #   two exponential terms per step of the gradient, shared by the three
         #   axes (stated): a short one of a few to a hundred milliseconds and a long
         #   one of a fraction of a second to seconds (the residuals of a pre-emphasized
-        #   system, de Graaf 2019 section 10.5; the constants are the PLAN's stated
-        #   ranges, unverified against a measured response), each with a uniform
+        #   system, de Graaf 2019 section 10.5; the constants are stated ranges,
+        #   unverified against a measured response), each with a uniform
         #   B0 term in hertz per mT/m of step and a fraction of the step opposing it
         #   along the axis. Their integrals before the readout phase the coherences
         #   and unbalance the crusher pairs (scan.eddy.induced_sequence, a zero-order
@@ -278,12 +285,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #   readout they phase the FID (the Klose-type lineshape distortion) and
         #   dephase the voxel box; the ranges are stated so the strong end distorts
         #   a line visibly and the weak end is clean; the B0 terms carry either sign,
-        #   as the eddy phase on eighty water references does (the package's cohorts,
-        #   scan.cohort, whose eddy transient rows set the acquisition's
-        #   phase transient: these terms cannot reach that phase at any physical
-        #   size, info/HANDOFF.md item 236). A scan with a measured
-        #   response (VirtualScan girf) plays its gradients through that instead
-        #   and leaves these terms unread.
+        #   as the eddy phase on the cohorts' water references does (those rows set
+        #   the acquisition's phase transient, which these terms cannot reach at any
+        #   physical size). A scan with a measured response (VirtualScan girf) plays
+        #   its gradients through that instead and leaves these terms unread.
         gradients=dict(tau_short_s=(0.002, 0.100), tau_long_s=(0.3, 3.0),
                        b0_short_hz_per_mt_m=(-0.5, 0.5), b0_long_hz_per_mt_m=(-0.2, 0.2),
                        linear_short=(0.0, 0.005), linear_long=(0.0, 0.002)),
@@ -294,28 +299,17 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #   a Gaussian envelope echo a exp(-W (t - tau)^2) exp(i (2 pi f t + phi)),
         #   rendered by Augmentrum's SpuriousEchoes (scan.Voxel), its amplitude
         #   relative to the maximum of the voxel's FID without its water. The ranges
-        #   are COUNTED in raw data with the transients apart, 24/09/26
-        #   (info/analysis/echo_count.py: Big GABA PRESS, 31 GE and 36 Siemens runs,
-        #   and 89 COWS sLASER runs of 32 to 64 transients, 6912 transients; every
-        #   transient without its own water, aligned, held against the run's median;
-        #   an echo is a late bump of the residual that the average does not carry).
-        #   Per run the echo keeps its timing and place (within a run tau spreads
-        #   8 ms and the place 0.12 ppm, across runs 47 ms and 1.3 ppm), so tau,
-        #   width and ppm are drawn once per subject and exam, and the transients
-        #   carry it or not (scan.Multiplex.transients): rate is the share of
-        #   transients that carry it (no echo in 24 percent of runs, median 0.12,
-        #   upper quartile 0.34, above half in 12 percent), spread the half-width of
-        #   a carrying transient's size about the run's amplitude (a factor of
-        #   1 - spread to 1 + spread; measured 10th to 90th percentile 0.79 to 1.28
-        #   of the run's median), amplitude the run's typical size (per-run medians
-        #   1.4 to 6.2 percent of the dry maximum, GE the largest, Siemens the
-        #   smallest), tau 30 to 96 ms per run (the count sees nothing before 30 ms,
-        #   the largest 332 ms), the width 15 to 34 ms FWHM (W = 4 ln 2 / FWHM^2),
-        #   and the phase free (its resultant over a run 0.25). The place is the
-        #   lipid band in 73 percent of runs (0.9 to 1.7 ppm, typed); the rest lie
-        #   at 1.7 to 4.2 (17 percent) or above 4.2 ppm (9 percent) and are NOT
-        #   modelled (one uniform range; a mixture prior is open). amplitude=0.0
-        #   switches the echo off; a single acquisition carries it whole.
+        #   are read off raw data with the transients apart (Big GABA PRESS and COWS
+        #   sLASER runs; an echo is a late bump of the residual that the average does
+        #   not carry). A run's echo keeps its timing and place, so tau, width and
+        #   ppm are drawn once per subject and exam, and the transients carry it or
+        #   not (scan.Multiplex.transients): rate is the share of transients that
+        #   carry it, spread the half-width of a carrying transient's size about the
+        #   run's amplitude (a factor of 1 - spread to 1 + spread), amplitude the
+        #   run's typical size, tau and the width (W = 4 ln 2 / FWHM^2) per run, and
+        #   the phase free. The place is the lipid band (0.9 to 1.7 ppm), where most
+        #   runs put it; echoes elsewhere are not modelled. amplitude=0.0 switches
+        #   the echo off; a single acquisition carries it whole.
         spurious=dict(amplitude=(0.01, 0.07), tau_s=(0.020, 0.150),
                       width_s2=(2000.0, 12000.0), ppm=(0.9, 1.7),
                       phase_deg=(0.0, 360.0),
@@ -359,49 +353,70 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     # row stay at 1.0, both stated). The render splits the drawn concentration as
     # gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn value
     # and pure tissues realize the published contrast.
-    rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0)) for name in names}
-    # run: what happens over the transients of a run (Augmentrum's TransientSynthesizer plays them, scan.Multiplex):
-    #   the scanner's frequency drift (Hui et al. 2021: about 0.3 Hz a minute at 3 T, either sign), its slow wander
-    #   (an AR process, a stated spread), the subject's breathing (its rate, and the field modulation it makes, van
-    #   de Moortele et al. 2002), the receiver's phase and amplitude jitter (Near et al. 2015), broadening over the
-    #   run, motion events (Rowland et al. 2017) and how far the head moves in one (zero: the events kick the
-    #   frequency, phase and amplitude alone). Each takes the package's readings where a dataset or a scan of the
-    #   operator's gives them (scan.run: breathing, motion; the spectra's transients: the rest).
+    rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0))
+            for name in names}
+    # run: what happens over the transients of a run (Augmentrum's TransientSynthesizer plays
+    #   them, scan.Multiplex): the scanner's frequency drift (Hui et al. 2021: about 0.3 Hz a
+    #   minute at 3 T, either sign), its slow wander (an AR process, a stated spread), the
+    #   subject's breathing (its rate, and the field modulation it makes, van de Moortele et al.
+    #   2002), the receiver's phase and amplitude jitter (Near et al. 2015), broadening over the
+    #   run, motion events (Rowland et al. 2017) and how far the head moves in one (zero: the
+    #   events kick the frequency, phase and amplitude alone). Each takes the package's readings
+    #   where a dataset or a scan of the operator's gives them (scan.run: breathing, motion; the
+    #   spectra's transients: the rest).
     run = Params(run=dict(
-        drift_hz_per_min=_sourced("run.drift_hz_per_min", served, Uniform, literature=Normal(0.0, 0.3), cited=RUN_CITED["drift"]),
-        ar_sigma_hz=_sourced("run.ar_sigma_hz", served, Uniform, literature=Uniform(0.05, 0.3), cited=RUN_CITED["stated"]),
-        resp_freq_hz=_sourced("run.resp_freq_hz", served, Uniform, literature=Uniform(0.2, 0.35), cited=RUN_CITED["breathing"]),
-        resp_amp_hz=_sourced("run.resp_amp_hz", served, Uniform, literature=Uniform(0.05, 0.3), cited=RUN_CITED["breathing"]),
-        phase_jitter_deg=_sourced("run.phase_jitter_deg", served, Uniform, literature=Uniform(0.5, 3.0), cited=RUN_CITED["jitter"]),
-        amp_jitter_frac=_sourced("run.amp_jitter_frac", served, Uniform, literature=Uniform(0.005, 0.02), cited=RUN_CITED["jitter"]),
-        broaden_hz=_sourced("run.broaden_hz", served, Uniform, literature=Uniform(0.0, 2.0), cited=RUN_CITED["stated"]),
-        events_per_min=_sourced("run.events_per_min", served, Uniform, literature=Uniform(0.1, 0.5), cited=RUN_CITED["events"]),
+        drift_hz_per_min=_sourced("run.drift_hz_per_min", served, Uniform,
+                                  literature=Normal(0.0, 0.3), cited=RUN_CITED["drift"]),
+        ar_sigma_hz=_sourced("run.ar_sigma_hz", served, Uniform,
+                             literature=Uniform(0.05, 0.3), cited=RUN_CITED["stated"]),
+        resp_freq_hz=_sourced("run.resp_freq_hz", served, Uniform,
+                              literature=Uniform(0.2, 0.35), cited=RUN_CITED["breathing"]),
+        resp_amp_hz=_sourced("run.resp_amp_hz", served, Uniform,
+                             literature=Uniform(0.05, 0.3), cited=RUN_CITED["breathing"]),
+        phase_jitter_deg=_sourced("run.phase_jitter_deg", served, Uniform,
+                                  literature=Uniform(0.5, 3.0), cited=RUN_CITED["jitter"]),
+        amp_jitter_frac=_sourced("run.amp_jitter_frac", served, Uniform,
+                                 literature=Uniform(0.005, 0.02), cited=RUN_CITED["jitter"]),
+        broaden_hz=_sourced("run.broaden_hz", served, Uniform,
+                            literature=Uniform(0.0, 2.0), cited=RUN_CITED["stated"]),
+        events_per_min=_sourced("run.events_per_min", served, Uniform,
+                                literature=Uniform(0.1, 0.5), cited=RUN_CITED["events"]),
         motion_mm=_sourced("run.motion_mm", served, Uniform) or Fixed(0.0)))
-    contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()})
+    contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0
+                                for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
     tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections | run
-    # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its dataset
-    # source (a cohort subject's reading), chosen: a reading made on a given scan outranks the pool; a
-    # record of the hardware outside the tree (the array's noise share) is the hardware's to read
+    # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its
+    # dataset source (a cohort subject's reading), chosen: a reading made on a given scan outranks
+    # the pool; a record of the hardware outside the tree (the array's noise share) is the
+    # hardware's to read
     for record in records:
         *branch, leaf = record.leaf.split(".")
         nodes = [tree]
         for key in branch:
             nodes.append(nodes[-1].get(key, {}))
         node = nodes[-1]
-        measured = Uniform(*record.prior) if record.prior[0] < record.prior[1] else Fixed(record.value)
-        slot = "dataset" if str(record.source.get("dataset", "")).startswith("subject ") else "own"     # a cohort's subject names itself (Member.fixed)
+        measured = (Uniform(*record.prior) if record.prior[0] < record.prior[1]
+                    else Fixed(record.value))
+        # a cohort's subject names itself (Member.fixed)
+        slot = "dataset" if str(record.source.get("dataset", "")).startswith("subject ") else "own"
         if leaf in TISSUES and isinstance(node, (PerTissue, Sourced)):
-            # one tissue of a PerTissue leaf (a map read per tissue, scan.maps): the slot's PerTissue takes the record's
-            # tissue, its others as the leaf gives them (a tissue already read into the slot stays)
+            # one tissue of a PerTissue leaf (a map read per tissue, scan.maps): the slot's
+            # PerTissue takes the record's tissue, its others as the leaf gives them (a tissue
+            # already read into the slot stays)
             held = getattr(node, slot, None) if isinstance(node, Sourced) else None
-            measured = dataclasses.replace(held if held is not None else node.current if isinstance(node, Sourced) else node, **{leaf: measured})
+            measured = dataclasses.replace(
+                held if held is not None else node.current if isinstance(node, Sourced) else node,
+                **{leaf: measured})
             leaf, node = branch.pop(), nodes[-2]
         if leaf in node:
             told = {slot: _cited(record)}
-            sourced = (dataclasses.replace(node[leaf], **{slot: measured}, chosen=slot, provenance={**node[leaf].provenance, **told})
+            sourced = (dataclasses.replace(node[leaf], **{slot: measured}, chosen=slot,
+                                           provenance={**node[leaf].provenance, **told})
                        if isinstance(node[leaf], Sourced)
-                       else Sourced(literature=node[leaf], **{slot: measured}, chosen=slot, provenance={"literature": "the package's stated prior", **told}))
+                       else Sourced(literature=node[leaf], **{slot: measured}, chosen=slot,
+                                    provenance={"literature": "the package's stated prior",
+                                                **told}))
             override = {leaf: sourced}
             for key in reversed(branch):
                 override = {key: override}
@@ -430,9 +445,11 @@ def _sourced(leaf, served, make, literature=None, cited=None):
     record = served.get(leaf)
     if literature is None and record is None:
         return None
-    provenance = {**({"literature": cited} if literature is not None else {}), **({"pooled": _cited(record)} if record is not None else {})}
+    provenance = {**({"literature": cited} if literature is not None else {}),
+                  **({"pooled": _cited(record)} if record is not None else {})}
     return Sourced(literature=literature, pooled=None if record is None else _spread(record, make),
-                   chosen="literature" if literature is not None else "pooled", provenance=provenance)
+                   chosen="literature" if literature is not None else "pooled",
+                   provenance=provenance)
 
 
 def _spread(record, make):
@@ -458,9 +475,13 @@ def _per_tissue(leaf, served, literature):
     records = {tissue: served.get(f"{leaf}.{tissue}") for tissue in TISSUES}
     if not any(records.values()):
         return literature
-    pooled = PerTissue(**{tissue: getattr(literature, tissue) if record is None else _spread(record, Uniform) for tissue, record in records.items()})
+    pooled = PerTissue(**{tissue: getattr(literature, tissue) if record is None
+                          else _spread(record, Uniform) for tissue, record in records.items()})
     return Sourced(literature=literature, pooled=pooled, chosen="literature",
-                   provenance={"literature": WATER_CITED, "pooled": "; ".join(f"{tissue}: {_cited(record)}" for tissue, record in records.items() if record)})
+                   provenance={"literature": WATER_CITED,
+                               "pooled": "; ".join(f"{tissue}: {_cited(record)}"
+                                                   for tissue, record in records.items()
+                                                   if record)})
 
 
 #**********************#

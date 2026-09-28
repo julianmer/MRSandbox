@@ -47,7 +47,8 @@ class Priors:
         """
         db = database if database is not None else Database()
         names = metabolites if metabolites is not None else sorted(concentrations.DE_GRAAF)
-        return Params({name: Uniform(*db.concentration(name, source="de_graaf")) for name in names})
+        return Params({name: Uniform(*db.concentration(name, source="de_graaf"))
+                       for name in names})
 
     #*******************#
     #   gudmundson t2   #
@@ -96,7 +97,8 @@ class Priors:
         source = Gudmundson() if Gudmundson.available() else None
         leaves = {}
         for name in metabolites:
-            pooled = source.pooled_concentration(name, groups=groups, tesla=tesla) if source else None
+            pooled = (source.pooled_concentration(name, groups=groups, tesla=tesla) if source
+                      else None)
             if pooled is not None:
                 leaves[name] = Normal(pooled.mean_s, pooled.sd_s)
         return Params(leaves)

@@ -31,9 +31,9 @@ def _sample(volume, world):
     return scipy.ndimage.map_coordinates(volume.data, index, order=1, mode="constant", cval=0.0)
 
 
-#**************#
-#   parameters #
-#**************#
+#****************#
+#   parameters   #
+#****************#
 def _matrix(params, centre):
     """The 4x4 world transform of twelve parameters about `centre`: translation (mm),
     rotation (degrees about x, y, z), scale, and shear."""
@@ -72,10 +72,12 @@ def register(source, target, coarse_mm=2.4, smooth_mm=2.0):
     """
     def smoothed(volume):
         sigma = smooth_mm / np.linalg.norm(volume.affine[:3, :3], axis=0)
-        return Volume(scipy.ndimage.gaussian_filter(volume.data.astype(np.float32), sigma), volume.affine)
+        return Volume(scipy.ndimage.gaussian_filter(volume.data.astype(np.float32), sigma),
+                      volume.affine)
 
     source_fit, target_fit = smoothed(source), smoothed(target)
-    step = np.maximum(np.rint(coarse_mm / np.linalg.norm(target.affine[:3, :3], axis=0)), 1).astype(int)
+    step = np.maximum(np.rint(coarse_mm / np.linalg.norm(target.affine[:3, :3], axis=0)),
+                      1).astype(int)
     grid = np.array(np.nonzero(target.data[::step[0], ::step[1], ::step[2]] > 0.0)) * step[:, None]
     world = target.affine[:3, :3] @ grid + target.affine[:3, 3:4]
     values = target_fit.data[tuple(grid)].astype(np.float64)
@@ -96,7 +98,8 @@ def register(source, target, coarse_mm=2.4, smooth_mm=2.0):
         full = np.array(base)
         full[free] = params
         matrix = _matrix(full, centre)
-        sampled = _sample(source_fit, np.linalg.solve(matrix, np.vstack([world, np.ones((1, world.shape[1]))]))[:3])
+        sampled = _sample(source_fit, np.linalg.solve(
+            matrix, np.vstack([world, np.ones((1, world.shape[1]))]))[:3])
         sampled = sampled - sampled.mean()
         norm = np.linalg.norm(sampled) * np.linalg.norm(values)
         outside = np.maximum(low - full, 0.0) + np.maximum(full - high, 0.0)

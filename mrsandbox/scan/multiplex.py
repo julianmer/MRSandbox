@@ -25,6 +25,14 @@ from mrsandbox.scan.virtual_scan import VirtualScan
 from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
 
 
+#**************#
+#   run keys   #
+#**************#
+# the run's leaves of the parameter tree (scan.defaults) that are the synthesizer's arguments
+RUN_KEYS = ("drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz", "resp_amp_hz", "phase_jitter_deg",
+            "amp_jitter_frac", "broaden_hz", "events_per_min")
+
+
 #**************************************************************************************************#
 #                                         Class Multiplex                                          #
 #**************************************************************************************************#
@@ -32,10 +40,6 @@ from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
 # Named acquisition conditions sharing one brain, scanner, parameter tree, and truth draw.         #
 #                                                                                                  #
 #**************************************************************************************************#
-# the run's leaves of the parameter tree (scan.defaults) that are the synthesizer's arguments
-RUN_KEYS = ("drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz", "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac", "broaden_hz", "events_per_min")
-
-
 class Multiplex:
     """Named acquisition conditions sharing one brain, scanner, parameter tree, and
     truth draw.
@@ -68,12 +72,16 @@ class Multiplex:
         self.compiled = compiled
         self.brain = brain
         self.scanner = scanner
-        # one engine for every condition: designs of one structure share its graphs; a caller that builds room after room
-        # (the console, exam after exam) passes its own, so the graphs outlive the room
+        # one engine for every condition: designs of one structure share its graphs; a caller
+        # that builds room after room (the console, exam after exam) passes its own, so the
+        # graphs outlive the room
         isochromats = kwargs.pop("isochromats", 32)
         if self.combinations and "mm" not in kwargs and not isinstance(brain, Phantom):
-            kwargs["mm"] = CoupledMM()          # a weighted difference edits: the coupled systems, as VirtualScan gives an editing design
-        self._kwargs = dict(kwargs, engine=kwargs.pop("engine", None) or Engine(scanner, isochromats=isochromats))
+            # a weighted difference edits: the coupled systems, as VirtualScan gives an
+            # editing design
+            kwargs["mm"] = CoupledMM()
+        self._kwargs = dict(kwargs, engine=kwargs.pop("engine", None)
+                            or Engine(scanner, isochromats=isochromats))
         self.scans = {}
         for name, sequence in sequences.items():
             self.add(name, sequence)
@@ -275,8 +283,10 @@ class Multiplex:
         seed, truth, rng = draw(self.params, seed, step)
 
         n = len(schedule)
-        # the run's leaves of the drawn truth are the synthesizer's arguments unless `synthesis` sets them
-        drawn = {key: float(truth["run"][key]) for key in RUN_KEYS if "run" in truth and key in truth["run"]}
+        # the run's leaves of the drawn truth are the synthesizer's arguments unless
+        # `synthesis` sets them
+        drawn = {key: float(truth["run"][key]) for key in RUN_KEYS
+                 if "run" in truth and key in truth["run"]}
         synthesis = {**drawn, **dict(synthesis or {})}
         if motion_mm is None and "run" in truth and float(truth["run"].get("motion_mm", 0.0)) > 0.0:
             motion_mm = (float(truth["run"]["motion_mm"]), float(truth["run"]["motion_mm"]))
@@ -329,7 +339,8 @@ class Multiplex:
         carries = ghosts.random(n) < spur.rate
         for event in getattr(synth, "last_events_", ()):
             carries[event["start"]:event["stop"]] = True
-        size = np.where(carries, spur.amplitude * ghosts.uniform(1.0 - spur.spread, 1.0 + spur.spread, n), 0.0)
+        size = np.where(carries, spur.amplitude * ghosts.uniform(1.0 - spur.spread,
+                                                                 1.0 + spur.spread, n), 0.0)
         turn = ghosts.uniform(0.0, 360.0, n)
 
         grid = np.arange(npoints) * dwell_s
@@ -338,7 +349,8 @@ class Multiplex:
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
             fid = clean[name, places[k]]
-            if size[k] > 0.0:      # the rendered echo, scaled to this transient's size and turned to its phase
+            if size[k] > 0.0:
+                # the rendered echo, scaled to this transient's size and turned to its phase
                 fid = fid + echo[name, places[k]] * (size[k] / spur.amplitude) * np.exp(
                     1j * np.radians(turn[k] - spur.phase_deg))
             fid = fid * modulation
@@ -367,7 +379,8 @@ class Multiplex:
              "phase_deg": [float(np.degrees(x)) for x in phase_rad],
              "amplitude": [float(x) for x in amplitude],
              "broadening_hz": [float(x) for x in broaden_hz],
-             "displacement_mm": (None if displacement_mm is None and not np.any(moved)          # a head that never moved: none
+             # a head that never moved: none
+             "displacement_mm": (None if displacement_mm is None and not np.any(moved)
                                  else moved.tolist()),
              "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm],
              "rotation_deg": None if rotation_deg is None else turned.tolist(),

@@ -51,9 +51,9 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
     (starting where the kick sits when a delay follows, ending there when a pulse
     follows, so a crusher pair straddles its refocusing pulse); a ShapedPulse's slice
     gradient is flat for the pulse (or follows its gradient_shape) with its ramps
-    just before and after (borrowed from the surrounding delays); ideal pulses and coherence filters take no time
-    and play no gradient; the readout, from `sequence.duration_s` on, is
-    ungradiented. Overlapping trapezoids add.
+    just before and after (borrowed from the surrounding delays); ideal pulses and
+    coherence filters take no time and play no gradient; the readout, from
+    `sequence.duration_s` on, is ungradiented. Overlapping trapezoids add.
     """
     max_grad, max_slew = scanner.max_grad_mt_m * 1e-3, scanner.max_slew_t_m_s
     n = int(np.ceil(until_s / dt_s)) + 1

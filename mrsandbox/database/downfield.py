@@ -51,13 +51,12 @@ OZDEMIR = {
 #*************************#
 # Source: Povazan 2022 (above), Supporting Information Figure S1 A: the nine AMARES
 #         Gaussians of the 1331-selref downfield spectrum at 3 T. The supporting
-#         information tabulates no widths, so the drawn curves were digitized here
-#         (11/09/26): nine Gaussians fitted to the curve pixels with the ppm axis
-#         calibrated from the tick marks and the centres free within 0.06 ppm of the
-#         nominal positions; residual 1.2 pixels, one pixel being 1.1 Hz, so the widths
-#         carry about 2 Hz of digitizing uncertainty. Table S2 of the same document
-#         reports the LCModel linewidth of the quantified resonances as 12.0 +- 2.4 Hz
-#         across subjects (the resolved, narrower peaks; the amides near 7 ppm are broader).
+#         information tabulates no widths, so the drawn curves are digitized: nine
+#         Gaussians fitted to the curve pixels, the centres free within 0.06 ppm of the
+#         nominal positions; the widths carry about 2 Hz of digitizing uncertainty. Table S2
+#         of the same document reports the LCModel linewidth of the quantified resonances as
+#         12.0 +- 2.4 Hz across subjects (the resolved, narrower peaks; the amides near 7 ppm
+#         are broader).
 # Data:   per peak: the fitted centre and the full width at half maximum of the basis
 #         Gaussian, the observed 3 T width (intrinsic plus field).
 # Units:  ppm; Hz FWHM at 127.76 MHz.

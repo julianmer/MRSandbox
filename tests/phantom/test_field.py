@@ -73,11 +73,15 @@ class TestKernel:
     def test_a_shim_box_larger_than_the_voxel_shims_it_worse(self):
         field = centred_map(quadratic_field())
         own = field.offsets(**BOX, shim="linear").std()
-        field.shim_box = (BOX["position_mm"], 40.0)                        # the parabola's linear fit over a wider box
-        assert field.offsets(**BOX, shim="linear").std() == pytest.approx(own, rel=1e-6)   # symmetric about the voxel: the same slope
-        field.shim_box = ((12.0, 0.0, 0.0), 20.0)                          # a box off to the side fits the parabola's flank
+        # the parabola's linear fit over a wider box
+        field.shim_box = (BOX["position_mm"], 40.0)
+        # symmetric about the voxel: the same slope
+        assert field.offsets(**BOX, shim="linear").std() == pytest.approx(own, rel=1e-6)
+        # a box off to the side fits the parabola's flank
+        field.shim_box = ((12.0, 0.0, 0.0), 20.0)
         assert field.offsets(**BOX, shim="linear").std() > 2.0 * own
-        field.shim_box = (BOX["position_mm"], BOX["size_mm"])              # the voxel's own box is the default's fit
+        # the voxel's own box is the default's fit
+        field.shim_box = (BOX["position_mm"], BOX["size_mm"])
         assert field.offsets(**BOX, shim="linear").std() == pytest.approx(own, rel=1e-9)
 
     #*********************#
@@ -136,7 +140,8 @@ class TestScan:
 
         def naa_height(field_map):
             scan = VirtualScan(brain, *pieces, field=field_map)
-            ppm, spec = scan.voxel(position_mm=(10, -20, 5), size_mm=20).spectrum(seed=7, npoints=8192)
+            ppm, spec = scan.voxel(position_mm=(10, -20, 5), size_mm=20).spectrum(
+                seed=7, npoints=8192)
             ppm, mag = np.asarray(ppm), np.abs(spec)
             return mag[np.abs(ppm - 2.008) < 0.1].max()
 
@@ -147,7 +152,8 @@ class TestScan:
 #                                     Class TestBigBrainField                                      #
 #**************************************************************************************************#
 @pytest.mark.skipif(not Resources.cached("bigbrain_mr/background_field_400um"),
-                    reason="background field not cached; FieldMap.load('bigbrain_mr') fetches it once")
+                    reason="background field not cached; "
+                           "FieldMap.load('bigbrain_mr') fetches it once")
 class TestBigBrainField:
 
     #*******************#
@@ -212,18 +218,23 @@ class TestQsmField:
                                    spread((0.0, 45.0, -5.0)) * 7.0 / 3.0, rtol=1e-4)
 
     @pytest.mark.skipif(not Resources.cached("qsm_rc2/total_field"),
-                        reason="the head's measured total field is not redistributed; place it by hand")
+                        reason="the head's measured total field is not redistributed; "
+                               "place it by hand")
     def test_the_measured_field_is_the_same_head_with_its_texture(self):
-        # the measured total field lies on the model's grid (its zero cells outside the head's labels) and
-        # carries texture the susceptibility model lacks: wider tails in a deep parietal cube (6.5 against
-        # 4.7 Hz between the 2.5th and 97.5th percentile at 3 T), a few hertz in the core all the same
-        measured, model = FieldMap.load("qsm_rc2_measured", b0_t=3.0), FieldMap.load("qsm_rc2", b0_t=3.0)
+        # the measured total field lies on the model's grid (its zero cells outside the head's
+        # labels) and carries texture the susceptibility model lacks: wider tails in a deep parietal
+        # cube, a few hertz in the core all the same
+        measured, model = (FieldMap.load("qsm_rc2_measured", b0_t=3.0),
+                           FieldMap.load("qsm_rc2", b0_t=3.0))
         assert measured.volume.shape == Volume.load("qsm_rc2/labels").shape
         outside = np.asarray(measured.volume.data == 0.0) & (Volume.load("qsm_rc2/labels").data > 0)
-        assert (np.asarray(measured.volume.data != 0.0) & (Volume.load("qsm_rc2/labels").data == 0)).sum() == 0
+        assert (np.asarray(measured.volume.data != 0.0)
+                & (Volume.load("qsm_rc2/labels").data == 0)).sum() == 0
         assert outside.mean() < 0.2
-        tails = lambda field: np.subtract(*np.percentile(field.offsets((0.0, -35.0, 20.0), 30.0, shim="linear"), [97.5, 2.5]))
-        core = lambda field: np.subtract(*np.percentile(field.offsets((0.0, -35.0, 20.0), 30.0, shim="linear"), [84.0, 16.0]))
+        tails = lambda field: np.subtract(*np.percentile(
+            field.offsets((0.0, -35.0, 20.0), 30.0, shim="linear"), [97.5, 2.5]))
+        core = lambda field: np.subtract(*np.percentile(
+            field.offsets((0.0, -35.0, 20.0), 30.0, shim="linear"), [84.0, 16.0]))
         assert tails(measured) > 1.2 * tails(model) and core(measured) < 8.0
 
 
@@ -247,8 +258,9 @@ class TestFieldGroups:
                                                 shim="mean")
 
     def test_cells_without_signal_do_not_dephase(self):
-        # a box reaching into bone or air: with `weights` (what holds signal per cell) the cells with none
-        # neither broaden the distribution nor pull the shim; here the half of the ramp above zero is silenced
+        # a box reaching into bone or air: with `weights` (what holds signal per cell) the cells
+        # with none neither broaden the distribution nor pull the shim; here the half of the ramp
+        # above zero is silenced
         shape, affine, field = self.ramp(40.0)
         x = (np.arange(40) - 19.5)[:, None, None] * np.ones(shape)
         t = np.arange(512) / 4000.0
@@ -269,9 +281,10 @@ class TestFieldGroups:
                                    field.kernel((0.0, 0.0, 0.0), 20.0, t), atol=1e-6)
 
     def test_groups_with_a_spread_carry_it_and_sum_to_the_kernel_times_its_envelope(self):
-        # the microscopic field below the map's resolution (lineshape.gauss_hz) smears every cell's offset: the
-        # split reaches beyond the map's own offsets and the weighted kernels sum to the map's kernel times the
-        # Gaussian's envelope, so a sequence played per group sees the spread where it plays (item 234)
+        # the microscopic field below the map's resolution (lineshape.gauss_hz) smears every cell's
+        # offset: the split reaches beyond the map's own offsets and the weighted kernels sum to the
+        # map's kernel times the Gaussian's envelope, so a sequence played per group sees the
+        # spread where it plays
         _, _, field = self.ramp(40.0)
         t = np.arange(512) / 4000.0
         plain = field.groups((0.0, 0.0, 0.0), 20.0, t, 8)
@@ -287,7 +300,8 @@ class TestFieldGroups:
         # times the move, one frequency, and a second-order field leaves its gradient
         _, _, field = self.ramp(40.0)  # 4 Hz per mm along x
         linear = FieldMap.from_map(field.offsets_hz, field.affine, shim="linear")
-        here, there = (0.0, 0.0, 0.0), (-3.0, 0.0, 0.0)  # the head moved +3 mm: the voxel reads x - 3
+        # the head moved +3 mm: the voxel reads x - 3
+        here, there = (0.0, 0.0, 0.0), (-3.0, 0.0, 0.0)
         assert np.abs(linear.offsets(here, 10.0)).max() < 1e-6
         assert np.abs(linear.offsets(there, 10.0)).max() < 1e-6  # reshimmed there
         kept = linear.offsets(there, 10.0, shim_at_mm=here)
@@ -299,24 +313,28 @@ class TestFieldGroups:
 
     @pytest.mark.render
     def test_the_water_alone_per_group_is_the_whole_sequence_per_group(self):
-        # under a CHESS train the water of the part of the voxel the field moves out of the 60 Hz band
-        # survives: VirtualScan(water_groups=8) plays the water alone per field group and gives the water
-        # component the field_groups=8 render gives, at the cost of the water alone; at the mean offset
-        # (one group) the train takes it all
+        # under a CHESS train the water of the part of the voxel the field moves out of the 60 Hz
+        # band survives: VirtualScan(water_groups=8) plays the water alone per field group and gives
+        # the water component the field_groups=8 render gives, at the cost of the water alone; at
+        # the mean offset (one group) the train takes it all
         from mrsandbox import Chess, NoDownfield, NoLipids, NoMM, Params, Unsuppressed
 
         shape, affine, field = self.ramp(60.0)
         ones = np.ones(shape, dtype=np.float32)
         brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
-        # (no microscopic spread: the water alone plays it through the train, the whole sequence keeps it as an
-        # envelope on the result, item 234)
-        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, lineshape=dict(gauss_hz=0.0),
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+        # (no microscopic spread: the water alone plays it through the train, the whole sequence
+        # keeps it as an envelope on the result)
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
+                       lineshape=dict(gauss_hz=0.0),
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                        delay_s=0.0, eddy_transient_rad=0.0),
+                       oov=dict(fraction=0.0))
 
         def water(**groups):
-            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Chess(3) + Press(te1_s=0.011, te2_s=0.019),
-                               params=quiet, field=field, water=Unsuppressed(), lipids=NoLipids(), mm=NoMM(),
-                               downfield=NoDownfield(), **groups)
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"),
+                               Chess(3) + Press(te1_s=0.011, te2_s=0.019),
+                               params=quiet, field=field, water=Unsuppressed(), lipids=NoLipids(),
+                               mm=NoMM(), downfield=NoDownfield(), **groups)
             voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
             return voxel._component_fids(voxel.sample(seed=3), 512, 1.0 / 4000.0)["water"]
 
@@ -326,11 +344,12 @@ class TestFieldGroups:
 
     @pytest.mark.render
     def test_the_water_plays_its_microscopic_spread_through_the_train(self):
-        # the microscopic field (lineshape.gauss_hz) is a spread of frequencies and a train suppresses each at its
-        # own: without a train the spread is the Gaussian envelope on the unspread water exactly (nothing the water
-        # meets depends on its frequency); Siemens' train played at its null (the flips scaled by 1.1, item 231)
-        # leaves parts of the spread water at phases apart, and half of what an envelope on the unspread residual
-        # would say cancels (item 234). The ideal train cannot show it: its box takes every spin alike.
+        # the microscopic field (lineshape.gauss_hz) is a spread of frequencies and a train
+        # suppresses each at its own: without a train the spread is the Gaussian envelope on the
+        # unspread water exactly (nothing the water meets depends on its frequency); Siemens' train
+        # played at its null (the flips scaled by 1.1) leaves parts of the spread water at phases
+        # apart, and half of what an envelope on the unspread residual would say cancels. The ideal
+        # train cannot show it: its box takes every spin alike.
         from mrsandbox import NoDownfield, NoLipids, NoMM, Params, Unsuppressed
         from mrsandbox.sequences import SiemensChess
 
@@ -341,10 +360,14 @@ class TestFieldGroups:
         envelope = np.exp(-(np.pi * 6.0) ** 2 / (4.0 * np.log(2.0)) * t * t)
 
         def water(sequence, gauss_hz):
-            quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0, lineshape=dict(gauss_hz=gauss_hz),
-                           acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
-            scan = VirtualScan(brain, Scanner.preset("generic_3t"), sequence, params=quiet, field=field, water=Unsuppressed(),
-                               lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), water_groups=8)
+            quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
+                           lineshape=dict(gauss_hz=gauss_hz),
+                           acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                            delay_s=0.0, eddy_transient_rad=0.0),
+                           oov=dict(fraction=0.0))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"), sequence, params=quiet,
+                               field=field, water=Unsuppressed(), lipids=NoLipids(), mm=NoMM(),
+                               downfield=NoDownfield(), water_groups=8)
             voxel = scan.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=20.0)
             return voxel._component_fids(voxel.sample(seed=3), 512, 1.0 / 4000.0)["water"]
 
@@ -354,7 +377,7 @@ class TestFieldGroups:
         np.testing.assert_allclose(spread, sharp * envelope, atol=2e-3 * full)
         train = SiemensChess(real=True).scaled(1.1)
         sharp, spread = water(train + press, 0.0), water(train + press, 6.0)
-        assert np.abs(sharp).max() < 2e-3 * full                                     # at the null
+        assert np.abs(sharp).max() < 2e-3 * full  # at the null
         assert np.abs(spread).max() < 0.75 * np.abs(sharp * envelope).max()
 
     @pytest.mark.render
@@ -369,7 +392,9 @@ class TestFieldGroups:
         conc = {name: 0.0 for name in VirtualScan.default_params().conc}
         conc["GABA"] = 2.0
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), conc=conc, b1_scale=1.0,
-                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                        delay_s=0.0, eddy_transient_rad=0.0),
+                       oov=dict(fraction=0.0))
         ppm = np.fft.fftshift(np.fft.fftfreq(1024, 1.0 / 4000.0)) / (3.0 * 42.5774785)
         window = (ppm > 2.6) & (ppm < 3.4)
 
@@ -377,10 +402,11 @@ class TestFieldGroups:
             shape, affine, field = self.ramp(half_hz)
             ones = np.ones(shape, dtype=np.float32)
             brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
-            multiplex = Multiplex(brain, Scanner.preset("generic_3t"), MegaPress.pair(), params=quiet,
-                                  field=field, field_groups=groups, water=NoWater(),
+            multiplex = Multiplex(brain, Scanner.preset("generic_3t"), MegaPress.pair(),
+                                  params=quiet, field=field, field_groups=groups, water=NoWater(),
                                   lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield())
-            data = np.asarray(multiplex.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=1024)[:])[0, 0, 0]
+            data = np.asarray(multiplex.acquire((0.0, 0.0, 0.0), 20.0, seed=3,
+                                                npoints=1024)[:])[0, 0, 0]
             # the FID is referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
             return np.real(np.fft.fftshift(np.fft.fft(data[:, 0] - data[:, 1])))[window].sum()
 

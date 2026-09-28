@@ -98,7 +98,7 @@ class Engine:
 
     Args:
         b0: Field strength in tesla, or anything with a `b0_t` attribute (e.g. a
-            hardware.Scanner preset) - the field stays a free parameter either way.
+            hardware.Scanner preset); the field stays a free parameter either way.
         receiver_phase_deg: Receiver phase applied to all detected lines. The default of
             90 makes a simple 90x pulse-acquire render as a positive real absorption
             spectrum (the convention every fitting tool expects); 0 gives raw physics.
@@ -238,7 +238,8 @@ class Engine:
                           tr_s=sequence.tr_s, cycles=sequence.cycles)
         ctx = dataclasses.replace(
             self.context(system, b1_scale=b1_scale, offset_hz=offset_hz),
-            **{"gradient_" + axis: ops.convert_to_tensor(np.asarray(positions_mm, dtype=np.float32))})
+            **{"gradient_" + axis:
+               ops.convert_to_tensor(np.asarray(positions_mm, dtype=np.float32))})
         rho = played.run(ctx.rho_eq, ctx)
         rho_e = ops.einsum("ai,...ab,bj->...ij", ops.conj(ctx.v), rho, ctx.v)
         det_e = ops.einsum("ai,ab,bj->ij", ops.conj(ctx.v), ctx.fplus, ctx.v)
@@ -336,7 +337,8 @@ class Engine:
                 design = sequence.bound(timings)
                 freqs, amps = [], []
                 for index, ctx0 in contexts:
-                    moved = {"gradient_" + axis: getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
+                    moved = {"gradient_" + axis:
+                             getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
                              for axis in axes}
                     ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
                                               b1_scale=b1_scale, offset_hz=offset_hz, **moved)
@@ -363,13 +365,16 @@ class Engine:
         keep = np.zeros(int(bounds[-1]), dtype=bool)
         for b1 in (0.8, 1.0, 1.25):
             for offset in (0.0, 7.0):
-                _, amps = full(ops.convert_to_tensor(np.full(n, 1.5, np.float32)), ops.convert_to_tensor(np.full(n, 0.2, np.float32)),
-                               ops.convert_to_tensor(np.float32(b1)), ops.convert_to_tensor(np.float32(offset)), timings, shift)
+                _, amps = full(ops.convert_to_tensor(np.full(n, 1.5, np.float32)),
+                               ops.convert_to_tensor(np.full(n, 0.2, np.float32)),
+                               ops.convert_to_tensor(np.float32(b1)),
+                               ops.convert_to_tensor(np.float32(offset)), timings, shift)
                 amps = np.abs(np.asarray(ops.convert_to_numpy(amps)))
                 for g in range(n):
                     part = amps[bounds[g]:bounds[g + 1]]
                     keep[bounds[g]:bounds[g + 1]] |= part > 1e-9 * part.max()
-        kept = np.concatenate([[0], np.cumsum([int(keep[bounds[g]:bounds[g + 1]].sum()) for g in range(n)])])
+        kept = np.concatenate([[0], np.cumsum([int(keep[bounds[g]:bounds[g + 1]].sum())
+                                               for g in range(n)])])
         return ops.convert_to_tensor(np.flatnonzero(keep)), kept
 
     @staticmethod
@@ -419,7 +424,8 @@ class Engine:
         graph with this sequence's own timings; see `graph` (`pruned` keeps the
         output to the elements that carry signal)."""
         fn, bounds = self.graph(sequence, groups, isochromats, pruned)
-        timings = self.tensors(sequence.timings())      # read anew each call: an event set by hand replays its new physics
+        # read anew each call: an event set by hand replays its new physics
+        timings = self.tensors(sequence.timings())
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings,
@@ -439,7 +445,8 @@ class Engine:
         signature = (groups, isochromats, tuple(sorted((shift_mm or {}).items())))
         if held is None or held[0] is not sequence or held[1] != signature:
             fn, bounds = self.compiled_batch(sequence, groups, isochromats, shift_mm, pruned=True)
-            held = self._draws[id(sequence)] = (sequence, signature, Backend.vmap(fn, in_axes=(0, 0, 0, 0)), bounds)
+            held = self._draws[id(sequence)] = (sequence, signature,
+                                                Backend.vmap(fn, in_axes=(0, 0, 0, 0)), bounds)
         return held[2], held[3]
 
     #**************#
@@ -459,13 +466,15 @@ class Engine:
             (ppm, spec): ascending ppm axis (float) and the complex spectrum.
         """
         freqs, amps = self.lines(sequence, *systems)
-        return self.render_spectrum(freqs, amps, self.f0_mhz(*systems), npoints=npoints, sw_hz=sw_hz, lw_hz=lw_hz)
+        return self.render_spectrum(freqs, amps, self.f0_mhz(*systems), npoints=npoints,
+                                    sw_hz=sw_hz, lw_hz=lw_hz)
 
     #*********#
     #   fid   #
     #*********#
     def fid(self, sequence, *systems, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0):
-        """Complex FID on a freely choosable time grid: s(t) = sum_k amp_k e^{(i 2 pi f_k - r) t}."""
+        """Complex FID on a freely choosable time grid:
+        s(t) = sum_k amp_k e^{(i 2 pi f_k - r) t}."""
         freqs, amps = self.lines(sequence, *systems)
         return self.render_fid(freqs, amps, npoints=npoints, dwell_s=dwell_s, lw_hz=lw_hz)
 
@@ -486,7 +495,8 @@ class Engine:
         return grid / f0_mhz, spec
 
     def render_fid(self, freqs, amps, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0, gauss_hz=0.0):
-        """Render any line list to a complex FID: s(t) = sum_k amp_k e^{(i 2 pi f_k - r) t - g t^2}.
+        """Render any line list to a complex FID:
+        s(t) = sum_k amp_k e^{(i 2 pi f_k - r) t - g t^2}.
 
         `lw_hz` and `gauss_hz` are scalars, or one value per line, so heterogeneous
         compositions render in a single call. `lw_hz` is the Lorentzian FWHM; `gauss_hz`
@@ -499,10 +509,10 @@ class Engine:
         so the cost is a BLAS product instead of L x N exponentials. The phases of
         both tables come from cycle counts folded on the host in float64, f dwell mod
         1 and f P dwell mod 1, so inside the float32 graph a folded phase only ever
-        multiplies a small integer: the tail phase error stays near 5e-5 rad at 8192
-        points, where any float32 product of f and t (the dense fold, or a power
-        table built in the graph) sits at 3e-3. The frequencies are therefore
-        constants to the graph (they are the Hamiltonian's, never a timing's).
+        multiplies a small integer, and the tail phase stays far more accurate than any
+        float32 product of f and t (the dense fold, or a power table built in the
+        graph). The frequencies are therefore constants to the graph (they are the
+        Hamiltonian's, never a timing's).
         Voigt lines take the dense graph. Both replay jitted graphs cached per
         (npoints, dwell); the callers' stable line-bucket shapes keep retracing
         rare, so training draws render at replay speed.
@@ -522,7 +532,8 @@ class Engine:
         gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
         return self._renderers[key](freqs, amps, lw, gauss)
 
-    def render_fids(self, freqs, amps, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0, gauss_hz=None):
+    def render_fids(self, freqs, amps, npoints=2048, dwell_s=1.0 / 4000.0, lw_hz=1.0,
+                    gauss_hz=None):
         """Render K amplitude rows over one line list to K FIDs in one call: `amps` is
         (K, L), the result (K, npoints). Lorentzian lines take the factorized graph of
         `render_fid` with a batched matmul; what a multi-voxel acquisition uses to render
@@ -534,9 +545,11 @@ class Engine:
             key = (npoints, float(dwell_s), "voigt rows")
             if key not in self._renderers:
                 self._renderers[key] = self._fid_renderer(npoints, dwell_s, True, rows=True)
-            lw = ops.convert_to_tensor(lw_hz, dtype=ops.dtype(freqs)) * ops.ones_like(gauss_hz, dtype=ops.dtype(freqs))
+            lw = (ops.convert_to_tensor(lw_hz, dtype=ops.dtype(freqs))
+                  * ops.ones_like(gauss_hz, dtype=ops.dtype(freqs)))
             fids = [self._renderers[key](freqs, amps[first:first + 8], lw[first:first + 8],
-                                         ops.convert_to_tensor(gauss_hz[first:first + 8], dtype=ops.dtype(freqs)))[1]
+                                         ops.convert_to_tensor(gauss_hz[first:first + 8],
+                                                               dtype=ops.dtype(freqs)))[1]
                     for first in range(0, int(amps.shape[0]), 8)]
             return None, ops.concatenate(fids, axis=0)
         rows = np.ndim(lw_hz) == 2
@@ -544,10 +557,12 @@ class Engine:
         if key not in self._renderers:
             self._renderers[key] = self._fid_renderer(npoints, dwell_s, False, many=True, rows=rows)
         dtype = ops.dtype(freqs)
-        lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * (ops.ones_like(amps, dtype=dtype) if rows else ops.ones_like(freqs))
+        lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * (
+            ops.ones_like(amps, dtype=dtype) if rows else ops.ones_like(freqs))
         cycles = np.asarray(ops.convert_to_numpy(freqs), dtype=np.float64) * dwell_s
         within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(np.float32))
-        across = ops.convert_to_tensor(np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
+        across = ops.convert_to_tensor(
+            np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
         return self._renderers[key](amps, lw, within, across)
 
     @staticmethod
@@ -575,9 +590,11 @@ class Engine:
                 p = ops.arange(0, blocks, dtype=ops.dtype(lw_hz))
                 decay = -math.pi * lw_hz * dwell_s
                 if rows:
-                    # every row its own decay: the tables are (K, L, count) and each row multiplies its own
+                    # every row its own decay: the tables are (K, L, count) and each row
+                    # multiplies its own
                     inside = ops.exp(nops.complex_from(
-                        ops.expand_dims(decay, 2) * q, 2.0 * math.pi * ops.expand_dims(ops.expand_dims(within, 0), 2) * q))
+                        ops.expand_dims(decay, 2) * q,
+                        2.0 * math.pi * ops.expand_dims(ops.expand_dims(within, 0), 2) * q))
                     stride = ops.exp(nops.complex_from(
                         ops.expand_dims(decay * block, 2) * p,
                         2.0 * math.pi * ops.expand_dims(ops.expand_dims(across, 0), 2) * p))
@@ -602,7 +619,8 @@ class Engine:
             t = n * dwell_s
             r = math.pi * lw_hz
             g = (math.pi * gauss_hz) ** 2 / (4.0 * math.log(2.0))
-            if rows:                # (K, L) widths: the table is (K, L, N) and each row sums its own lines
+            if rows:
+                # (K, L) widths: the table is (K, L, N) and each row sums its own lines
                 decay = (-ops.expand_dims(r, 2) * t - ops.expand_dims(g, 2) * (t * t))
                 cycles = ops.mod(ops.expand_dims(freqs * dwell_s, 1) * ops.expand_dims(n, 0), 1.0)
                 phase = nops.complex_from(decay, 2.0 * math.pi * ops.expand_dims(cycles, 0))
@@ -627,5 +645,6 @@ class Engine:
         """Spectrometer frequency in MHz (= Hz per ppm) of the systems' shared nucleus."""
         nuclei = {system.nucleus for system in systems}
         if len(nuclei) != 1:
-            raise ValueError(f"systems span multiple nuclei {sorted(nuclei)}; simulate them separately")
+            raise ValueError(f"systems span multiple nuclei {sorted(nuclei)}; "
+                             "simulate them separately")
         return systems[0].gamma_mhz_t * self.b0_t

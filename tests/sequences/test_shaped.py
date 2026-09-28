@@ -25,7 +25,8 @@ import pytest
 import scipy.linalg
 from keras import ops
 
-from mrsandbox import CoherenceFilter, Engine, Pulse, PulseAcquire, Sequence, ShapedPulse, SpinSystem
+from mrsandbox import (CoherenceFilter, Engine, Pulse, PulseAcquire, Sequence, ShapedPulse,
+                       SpinSystem)
 from mrsandbox.database import pulses
 from mrsandbox.phantom.water import WaterSource
 
@@ -162,7 +163,8 @@ class TestShapedPulse:
 
         system = SpinSystem(name="parity", nucleus="1H", shifts_ppm=tuple(shifts),
                             j_hz=tuple(map(tuple, j.tolist())), scale=1.0, gamma_mhz_t=GAMMA)
-        sequence = acquire(ShapedPulse(flip_deg, duration, env.astype(np.float32), offset_ppm=offset_ppm))
+        sequence = acquire(ShapedPulse(flip_deg, duration, env.astype(np.float32),
+                                       offset_ppm=offset_ppm))
         freqs, amps = engine.lines(sequence, system)
         _, ours = engine.render_fid(freqs, amps, npoints=NPOINTS, dwell_s=1.0 / SW_HZ, lw_hz=LW_HZ)
         ours = np.asarray(ops.convert_to_numpy(ours), dtype=np.complex128)
@@ -343,9 +345,8 @@ class TestAdiabatic:
 
     def test_adiabatic_profile_is_symmetric_in_offset(self, engine):
         # the sweep phase is sampled at the same step midpoints as the envelope; a
-        # half-step lead of the frequency over the amplitude skews the profile
-        # (3e-3 at 256 steps on this probe and 5e-2 at 64; midpoint sampled it is
-        # below 4e-4 and 8e-3, the remaining discretization error)
+        # half-step lead of the frequency over the amplitude skews the profile, and what
+        # remains is the discretization error
         for steps, bound in ((64, 1e-2), (256, 1e-3)):
             for offset_hz in (300.0, 500.0):
                 mz = [self.inversion(engine, ShapedPulse.hyperbolic_secant(
@@ -382,13 +383,15 @@ class TestAdiabatic:
         one_eighty = ShapedPulse.slr(180.0, 0.0065, 6.24, "refocusing", offset_ppm=4.65,
                                      phase_deg=90.0, steps=128, gradient_hz_per_mm=slope,
                                      gradient_axis="x", extent_mm=50.0)
-        refocused = profile(Sequence(Pulse(90.0), CoherenceFilter(+1), one_eighty, CoherenceFilter(-1)))
+        refocused = profile(Sequence(Pulse(90.0), CoherenceFilter(+1), one_eighty,
+                                     CoherenceFilter(-1)))
         for kept in (excited, refocused):
             assert kept[100 - 28:100 + 29].min() > 0.95            # to 7 mm: the passband
             assert 0.4 < kept[140] < 0.6 and 0.4 < kept[60] < 0.6  # the edge at 10 mm
             assert kept[:40].max() < 0.02 and kept[161:].max() < 0.02  # beyond 15 mm
             assert abs(kept[:-1].mean() * 2.5 - 1.0) < 0.05
-        assert abs(ninety.peak_hz / GAMMA - 13.9) < 0.5 and abs(one_eighty.peak_hz / GAMMA - 24.5) < 0.5
+        assert (abs(ninety.peak_hz / GAMMA - 13.9) < 0.5
+                and abs(one_eighty.peak_hz / GAMMA - 24.5) < 0.5)
         # the minimum-phase 90: the same slab in magnitude, its main lobe late, less to
         # rephase, and a tenth of the slab integral lost to its nonlinear phase
         late = ShapedPulse.slr(90.0, 0.0026, 6.0, "excitation", offset_ppm=4.65, steps=128,
@@ -423,11 +426,12 @@ class TestAdiabatic:
             return float(np.real(ops.convert_to_numpy(amps)).sum())
 
         full = mz(ShapedPulse.gaussian(1e-4, 0.001, offset_ppm=4.65))
-        goia = lambda extent: ShapedPulse.goia_wurst(0.0045, 10000.0, GAMMA * 15.0, extent_mm=extent,
-                                                     **slab)
+        goia = lambda extent: ShapedPulse.goia_wurst(0.0045, 10000.0, GAMMA * 15.0,
+                                                     extent_mm=extent, **slab)
         assert mz(goia(16.0)) / full < -0.97
         assert abs(mz(goia(60.0)) / full - 1.0 / 3.0) < 0.03
-        secant = ShapedPulse.hyperbolic_secant(0.0045, 10000.0, GAMMA * 15.0, extent_mm=16.0, **slab)
+        secant = ShapedPulse.hyperbolic_secant(0.0045, 10000.0, GAMMA * 15.0, extent_mm=16.0,
+                                               **slab)
         assert mz(secant) / full > -0.7
         # the gradient dips to 1 - f where the B1 peaks, and both are timings
         pulse = goia(16.0)

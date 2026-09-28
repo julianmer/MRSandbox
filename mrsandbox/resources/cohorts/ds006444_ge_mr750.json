@@ -28,20 +28,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.71,
+      "value": 7.57,
       "prior": [
-       6.54,
-       10.89
+       5.68,
+       9.46
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.5,
-       "implied_value": 8.66,
+       "median": 30.6,
+       "implied_value": 7.7,
        "naa_found_at_ppm": 1.965,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 107.5,
-        "implied_value": 8.71
+        "median": 107.7,
+        "implied_value": 7.57
        }
       },
       "source": {
@@ -84,7 +84,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -93,15 +93,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.5,
+      "value": 5.64,
       "prior": [
-       4.12,
-       6.88
+       4.23,
+       7.05
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 9.23,
-       "twin_without_broadening_hz": 3.57
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -141,11 +141,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.327,
+      "prior": [
+       0.327,
+       0.327
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.327,
+       "strongest_pair": 0.389,
+       "median_pair": 0.068,
+       "level_spread": 1.302,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -192,7 +243,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -241,7 +292,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -290,7 +341,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -339,7 +390,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -388,7 +439,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -437,7 +488,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -486,62 +537,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.327,
-      "prior": [
-       0.327,
-       0.327
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.327,
-       "strongest_pair": 0.389,
-       "median_pair": 0.068,
-       "level_spread": 1.302,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -2054,7 +2054,8 @@
        1.690295989937555
       ]
      ],
-     "gain": 967.4306117346791
+     "gain": 967.4306117346791,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -2087,20 +2088,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 6.72,
+      "value": 5.91,
       "prior": [
-       5.04,
-       8.4
+       4.44,
+       7.39
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 35.2,
-       "implied_value": 6.99,
+       "implied_value": 6.45,
        "naa_found_at_ppm": 1.946,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 137.9,
-        "implied_value": 6.72
+        "median": 136.9,
+        "implied_value": 5.91
        }
       },
       "source": {
@@ -2143,7 +2144,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2152,15 +2153,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.12,
+      "value": 5.95,
       "prior": [
-       4.59,
-       7.65
+       4.46,
+       7.44
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.01,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.54,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -2200,11 +2201,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.328,
+      "prior": [
+       0.328,
+       0.328
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.328,
+       "strongest_pair": 0.389,
+       "median_pair": 0.072,
+       "level_spread": 1.278,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -2251,7 +2303,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2300,7 +2352,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2349,7 +2401,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2398,7 +2450,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2447,7 +2499,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2496,7 +2548,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2545,62 +2597,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.328,
-      "prior": [
-       0.328,
-       0.328
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.328,
-       "strongest_pair": 0.389,
-       "median_pair": 0.072,
-       "level_spread": 1.278,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -4113,7 +4114,8 @@
        1.690295989937555
       ]
      ],
-     "gain": 967.4306117346791
+     "gain": 967.4306117346791,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -4146,20 +4148,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.55,
+      "value": 6.64,
       "prior": [
-       5.66,
-       9.44
+       4.98,
+       8.3
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 32.3,
-       "implied_value": 7.65,
-       "naa_found_at_ppm": 1.965,
+       "median": 32.8,
+       "implied_value": 6.99,
+       "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 122.8,
-        "implied_value": 7.55
+        "median": 122.1,
+        "implied_value": 6.64
        }
       },
       "source": {
@@ -4202,7 +4204,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4211,15 +4213,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.09,
+      "value": 5.87,
       "prior": [
-       4.57,
-       7.61
+       4.4,
+       7.34
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.91,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.48,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -4259,11 +4261,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.314,
+      "prior": [
+       0.314,
+       0.314
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.314,
+       "strongest_pair": 0.357,
+       "median_pair": 0.063,
+       "level_spread": 1.276,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -4310,7 +4363,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4359,7 +4412,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4408,7 +4461,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4457,7 +4510,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4506,7 +4559,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4555,7 +4608,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4604,62 +4657,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.314,
-      "prior": [
-       0.314,
-       0.314
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.314,
-       "strongest_pair": 0.357,
-       "median_pair": 0.063,
-       "level_spread": 1.276,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -6172,7 +6174,8 @@
        1.6680283773589242
       ]
      ],
-     "gain": 962.1880610955611
+     "gain": 962.1880610955611,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -6205,20 +6208,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.09,
+      "value": 6.11,
       "prior": [
-       5.32,
-       8.86
+       4.58,
+       7.63
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 34.9,
-       "implied_value": 7.38,
+       "median": 35.6,
+       "implied_value": 6.47,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 131.7,
-        "implied_value": 7.09
+        "median": 133.0,
+        "implied_value": 6.11
        }
       },
       "source": {
@@ -6261,7 +6264,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6270,15 +6273,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.7,
+      "value": 5.83,
       "prior": [
-       4.28,
-       7.12
+       4.37,
+       7.29
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.44,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.41,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -6318,11 +6321,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.312,
+      "prior": [
+       0.312,
+       0.312
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.312,
+       "strongest_pair": 0.355,
+       "median_pair": 0.064,
+       "level_spread": 1.291,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -6369,7 +6423,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6418,7 +6472,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6467,7 +6521,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6516,7 +6570,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -6565,7 +6619,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6614,7 +6668,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6663,62 +6717,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.312,
-      "prior": [
-       0.312,
-       0.312
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.312,
-       "strongest_pair": 0.355,
-       "median_pair": 0.064,
-       "level_spread": 1.291,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -8231,7 +8234,8 @@
        1.6568945710696086
       ]
      ],
-     "gain": 959.4810073094391
+     "gain": 959.4810073094391,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -8264,20 +8268,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.49,
+      "value": 6.57,
       "prior": [
-       5.62,
-       9.36
+       4.93,
+       8.22
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.6,
-       "implied_value": 7.57,
+       "median": 30.3,
+       "implied_value": 6.76,
        "naa_found_at_ppm": 1.946,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 122.4,
-        "implied_value": 7.49
+        "median": 120.7,
+        "implied_value": 6.57
        }
       },
       "source": {
@@ -8320,7 +8324,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8329,15 +8333,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.77,
+      "value": 6.91,
       "prior": [
-       5.08,
-       8.46
+       5.18,
+       8.64
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.8,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 10.75,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -8377,11 +8381,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.315,
+      "prior": [
+       0.315,
+       0.315
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.315,
+       "strongest_pair": 0.399,
+       "median_pair": 0.056,
+       "level_spread": 1.263,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -8428,7 +8483,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8477,7 +8532,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8526,7 +8581,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8575,7 +8630,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -8624,7 +8679,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8673,7 +8728,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8722,62 +8777,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.315,
-      "prior": [
-       0.315,
-       0.315
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.315,
-       "strongest_pair": 0.399,
-       "median_pair": 0.056,
-       "level_spread": 1.263,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -10290,7 +10294,8 @@
        1.6680283773589242
       ]
      ],
-     "gain": 962.1880610955611
+     "gain": 962.1880610955611,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -10323,20 +10328,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.36,
+      "value": 6.38,
       "prior": [
-       5.52,
-       9.2
+       4.78,
+       7.97
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 31.3,
-       "implied_value": 7.43,
+       "implied_value": 6.57,
        "naa_found_at_ppm": 1.965,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 124.6,
-        "implied_value": 7.36
+        "median": 124.5,
+        "implied_value": 6.38
        }
       },
       "source": {
@@ -10379,7 +10384,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10388,15 +10393,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.72,
+      "value": 6.87,
       "prior": [
-       5.04,
-       8.4
+       5.15,
+       8.59
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.73,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 10.7,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -10436,11 +10441,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.332,
+      "prior": [
+       0.332,
+       0.332
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.332,
+       "strongest_pair": 0.4,
+       "median_pair": 0.071,
+       "level_spread": 1.321,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -10487,7 +10543,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10536,7 +10592,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10585,7 +10641,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10634,7 +10690,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -10683,7 +10739,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10732,7 +10788,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10781,62 +10837,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.332,
-      "prior": [
-       0.332,
-       0.332
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.332,
-       "strongest_pair": 0.4,
-       "median_pair": 0.071,
-       "level_spread": 1.321,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -12349,7 +12354,8 @@
        1.7014297962268703
       ]
      ],
-     "gain": 969.9656997327344
+     "gain": 969.9656997327344,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -12382,20 +12388,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.33,
+      "value": 6.4,
       "prior": [
-       5.5,
-       9.16
+       4.8,
+       7.99
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 33.5,
-       "implied_value": 7.23,
+       "median": 33.2,
+       "implied_value": 6.54,
        "naa_found_at_ppm": 1.965,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 126.1,
-        "implied_value": 7.33
+        "median": 125.5,
+        "implied_value": 6.4
        }
       },
       "source": {
@@ -12438,7 +12444,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12447,15 +12453,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.29,
+      "value": 6.36,
       "prior": [
-       4.72,
-       7.86
+       4.77,
+       7.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.23,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 10.14,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -12495,11 +12501,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.328,
+      "prior": [
+       0.328,
+       0.328
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.328,
+       "strongest_pair": 0.393,
+       "median_pair": 0.07,
+       "level_spread": 1.308,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -12546,7 +12603,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12595,7 +12652,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12644,7 +12701,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12693,7 +12750,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -12742,7 +12799,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12791,7 +12848,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12840,62 +12897,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.328,
-      "prior": [
-       0.328,
-       0.328
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.328,
-       "strongest_pair": 0.393,
-       "median_pair": 0.07,
-       "level_spread": 1.308,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -14408,7 +14414,8 @@
        1.690295989937555
       ]
      ],
-     "gain": 967.4306117346791
+     "gain": 967.4306117346791,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -14441,20 +14448,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 9.32,
+      "value": 8.13,
       "prior": [
-       6.99,
-       11.65
+       6.1,
+       10.16
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 28.7,
-       "implied_value": 9.67,
+       "median": 28.8,
+       "implied_value": 8.88,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 101.4,
-        "implied_value": 9.32
+        "median": 101.6,
+        "implied_value": 8.13
        }
       },
       "source": {
@@ -14497,7 +14504,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14506,15 +14513,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.04,
+      "value": 4.99,
       "prior": [
-       3.78,
-       6.3
+       3.74,
+       6.24
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 8.58,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 8.38,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -14554,11 +14561,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.336,
+      "prior": [
+       0.336,
+       0.336
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.336,
+       "strongest_pair": 0.382,
+       "median_pair": 0.068,
+       "level_spread": 1.339,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -14605,7 +14663,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14654,7 +14712,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14703,7 +14761,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14752,7 +14810,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -14801,7 +14859,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14850,7 +14908,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14899,62 +14957,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.336,
-      "prior": [
-       0.336,
-       0.336
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.336,
-       "strongest_pair": 0.382,
-       "median_pair": 0.068,
-       "level_spread": 1.339,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -16467,7 +16474,8 @@
        1.7125636025161857
       ]
      ],
-     "gain": 972.4429538945395
+     "gain": 972.4429538945395,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -16500,20 +16508,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.88,
+      "value": 7.77,
       "prior": [
-       6.66,
-       11.09
+       5.82,
+       9.71
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.2,
-       "implied_value": 9.32,
+       "median": 30.0,
+       "implied_value": 8.67,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 106.6,
-        "implied_value": 8.88
+        "implied_value": 7.77
        }
       },
       "source": {
@@ -16556,7 +16564,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16565,15 +16573,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.94,
+      "value": 4.88,
       "prior": [
-       3.71,
-       6.18
+       3.66,
+       6.1
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 8.47,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 8.25,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -16613,11 +16621,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.339,
+      "prior": [
+       0.339,
+       0.339
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.339,
+       "strongest_pair": 0.39,
+       "median_pair": 0.068,
+       "level_spread": 1.34,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -16664,7 +16723,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16713,7 +16772,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16762,7 +16821,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16811,7 +16870,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -16860,7 +16919,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16909,7 +16968,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16958,62 +17017,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.339,
-      "prior": [
-       0.339,
-       0.339
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.339,
-       "strongest_pair": 0.39,
-       "median_pair": 0.068,
-       "level_spread": 1.34,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -18526,7 +18534,8 @@
        1.7125636025161857
       ]
      ],
-     "gain": 972.4429538945395
+     "gain": 972.4429538945395,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -18559,20 +18568,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.56,
+      "value": 6.52,
       "prior": [
-       5.67,
-       9.46
+       4.89,
+       8.15
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 33.0,
-       "implied_value": 7.48,
+       "median": 33.5,
+       "implied_value": 6.55,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 122.6,
-        "implied_value": 7.56
+        "median": 123.4,
+        "implied_value": 6.52
        }
       },
       "source": {
@@ -18615,7 +18624,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18624,15 +18633,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.11,
+      "value": 6.27,
       "prior": [
-       4.58,
-       7.64
+       4.7,
+       7.84
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.0,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.95,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -18672,11 +18681,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.323,
+      "prior": [
+       0.323,
+       0.323
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.323,
+       "strongest_pair": 0.379,
+       "median_pair": 0.063,
+       "level_spread": 1.276,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -18723,7 +18783,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18772,7 +18832,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18821,7 +18881,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18870,7 +18930,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -18919,7 +18979,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18968,7 +19028,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -19017,62 +19077,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.323,
-      "prior": [
-       0.323,
-       0.323
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.323,
-       "strongest_pair": 0.379,
-       "median_pair": 0.063,
-       "level_spread": 1.276,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -20585,7 +20594,8 @@
        1.6791621836482395
       ]
      ],
-     "gain": 964.8379873146484
+     "gain": 964.8379873146484,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -20618,20 +20628,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.88,
+      "value": 7.74,
       "prior": [
-       6.66,
-       11.1
+       5.81,
+       9.68
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.9,
-       "implied_value": 8.5,
+       "median": 31.0,
+       "implied_value": 7.76,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 105.4,
-        "implied_value": 8.88
+        "median": 105.6,
+        "implied_value": 7.74
        }
       },
       "source": {
@@ -20674,7 +20684,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20683,15 +20693,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.54,
+      "value": 5.49,
       "prior": [
-       4.16,
-       6.92
+       4.12,
+       6.86
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.24,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.03,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -20731,11 +20741,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.324,
+      "prior": [
+       0.324,
+       0.324
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.324,
+       "strongest_pair": 0.388,
+       "median_pair": 0.065,
+       "level_spread": 1.319,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -20782,7 +20843,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20831,7 +20892,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20880,7 +20941,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20929,7 +20990,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -20978,7 +21039,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21027,7 +21088,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21076,62 +21137,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.324,
-      "prior": [
-       0.324,
-       0.324
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.324,
-       "strongest_pair": 0.388,
-       "median_pair": 0.065,
-       "level_spread": 1.319,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -22644,7 +22654,8 @@
        1.6791621836482395
       ]
      ],
-     "gain": 964.8379873146484
+     "gain": 964.8379873146484,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -22677,20 +22688,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.61,
+      "value": 6.58,
       "prior": [
-       5.71,
-       9.51
+       4.94,
+       8.23
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 32.5,
-       "implied_value": 7.54,
+       "median": 32.8,
+       "implied_value": 6.65,
        "naa_found_at_ppm": 1.965,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 121.7,
-        "implied_value": 7.61
+        "median": 122.0,
+        "implied_value": 6.58
        }
       },
       "source": {
@@ -22733,7 +22744,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -22742,15 +22753,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.17,
+      "value": 6.32,
       "prior": [
-       4.63,
-       7.71
+       4.74,
+       7.9
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.09,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 10.07,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -22790,11 +22801,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.34,
+      "prior": [
+       0.34,
+       0.34
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.34,
+       "strongest_pair": 0.398,
+       "median_pair": 0.074,
+       "level_spread": 1.227,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -22841,7 +22903,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -22890,7 +22952,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -22939,7 +23001,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -22988,7 +23050,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -23037,7 +23099,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23086,7 +23148,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23135,62 +23197,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.34,
-      "prior": [
-       0.34,
-       0.34
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.34,
-       "strongest_pair": 0.398,
-       "median_pair": 0.074,
-       "level_spread": 1.227,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -24703,7 +24714,8 @@
        1.7125636025161857
       ]
      ],
-     "gain": 972.4429538945395
+     "gain": 972.4429538945395,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -24736,20 +24748,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.92,
+      "value": 6.89,
       "prior": [
-       5.94,
-       9.9
+       5.17,
+       8.61
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 32.8,
-       "implied_value": 7.73,
+       "median": 32.7,
+       "implied_value": 6.92,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 117.6,
-        "implied_value": 7.92
+        "median": 117.4,
+        "implied_value": 6.89
        }
       },
       "source": {
@@ -24792,7 +24804,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -24801,15 +24813,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.86,
+      "value": 5.99,
       "prior": [
-       4.4,
-       7.33
+       4.49,
+       7.49
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.65,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.62,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -24849,11 +24861,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.343,
+      "prior": [
+       0.343,
+       0.343
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.343,
+       "strongest_pair": 0.403,
+       "median_pair": 0.075,
+       "level_spread": 1.272,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -24900,7 +24963,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -24949,7 +25012,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -24998,7 +25061,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25047,7 +25110,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -25096,7 +25159,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25145,7 +25208,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25194,62 +25257,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.343,
-      "prior": [
-       0.343,
-       0.343
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.343,
-       "strongest_pair": 0.403,
-       "median_pair": 0.075,
-       "level_spread": 1.272,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -26762,7 +26774,8 @@
        1.723697408805501
       ]
      ],
-     "gain": 974.8620112605647
+     "gain": 974.8620112605647,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -26795,20 +26808,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.95,
+      "value": 6.9,
       "prior": [
-       5.96,
-       9.93
+       5.18,
+       8.63
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 32.9,
-       "implied_value": 7.73,
+       "median": 32.7,
+       "implied_value": 7.04,
        "naa_found_at_ppm": 1.994,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 117.3,
-        "implied_value": 7.95
+        "median": 117.6,
+        "implied_value": 6.9
        }
       },
       "source": {
@@ -26851,7 +26864,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -26860,15 +26873,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.83,
+      "value": 5.84,
       "prior": [
-       4.37,
-       7.29
+       4.38,
+       7.3
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.6,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.43,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -26908,11 +26921,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.355,
+      "prior": [
+       0.355,
+       0.355
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.355,
+       "strongest_pair": 0.423,
+       "median_pair": 0.077,
+       "level_spread": 1.327,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -26959,7 +27023,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27008,7 +27072,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27057,7 +27121,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27106,7 +27170,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -27155,7 +27219,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27204,7 +27268,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27253,62 +27317,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.355,
-      "prior": [
-       0.355,
-       0.355
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.355,
-       "strongest_pair": 0.423,
-       "median_pair": 0.077,
-       "level_spread": 1.327,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -28821,7 +28834,8 @@
        1.7459650213841318
       ]
      ],
-     "gain": 979.5237367401605
+     "gain": 979.5237367401605,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -28854,20 +28868,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.07,
+      "value": 7.04,
       "prior": [
-       6.05,
-       10.09
+       5.28,
+       8.79
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 32.9,
-       "implied_value": 7.88,
+       "implied_value": 7.19,
        "naa_found_at_ppm": 2.004,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 115.8,
-        "implied_value": 8.07
+        "median": 115.9,
+        "implied_value": 7.04
        }
       },
       "source": {
@@ -28910,7 +28924,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -28919,15 +28933,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.66,
+      "value": 5.61,
       "prior": [
-       4.25,
-       7.08
+       4.21,
+       7.01
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.37,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.17,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -28967,11 +28981,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.354,
+      "prior": [
+       0.354,
+       0.354
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.354,
+       "strongest_pair": 0.42,
+       "median_pair": 0.079,
+       "level_spread": 1.313,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -29018,7 +29083,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -29067,7 +29132,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -29116,7 +29181,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -29165,7 +29230,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -29214,7 +29279,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -29263,7 +29328,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -29312,62 +29377,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.354,
-      "prior": [
-       0.354,
-       0.354
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.354,
-       "strongest_pair": 0.42,
-       "median_pair": 0.079,
-       "level_spread": 1.313,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -30880,7 +30894,8 @@
        1.7459650213841318
       ]
      ],
-     "gain": 979.5237367401605
+     "gain": 979.5237367401605,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -30913,20 +30928,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.31,
+      "value": 7.43,
       "prior": [
-       6.24,
-       10.39
+       5.57,
+       9.29
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 32.2,
-       "implied_value": 8.46,
-       "naa_found_at_ppm": 1.984,
+       "median": 32.0,
+       "implied_value": 7.67,
+       "naa_found_at_ppm": 1.994,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 113.3,
-        "implied_value": 8.31
+        "median": 110.4,
+        "implied_value": 7.43
        }
       },
       "source": {
@@ -30969,7 +30984,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30978,15 +30993,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.21,
+      "value": 5.33,
       "prior": [
-       3.91,
-       6.51
+       4.0,
+       6.66
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 8.87,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 8.77,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -31026,11 +31041,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.345,
+      "prior": [
+       0.345,
+       0.345
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.345,
+       "strongest_pair": 0.416,
+       "median_pair": 0.069,
+       "level_spread": 1.361,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -31077,7 +31143,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -31126,7 +31192,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -31175,7 +31241,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -31224,7 +31290,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -31273,7 +31339,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -31322,7 +31388,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -31371,62 +31437,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.345,
-      "prior": [
-       0.345,
-       0.345
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.345,
-       "strongest_pair": 0.416,
-       "median_pair": 0.069,
-       "level_spread": 1.361,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -32939,7 +32954,8 @@
        1.723697408805501
       ]
      ],
-     "gain": 974.8620112605647
+     "gain": 974.8620112605647,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -32972,20 +32988,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.47,
+      "value": 7.4,
       "prior": [
-       6.35,
-       10.59
+       5.55,
+       9.25
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.8,
-       "implied_value": 8.6,
+       "median": 31.0,
+       "implied_value": 7.74,
        "naa_found_at_ppm": 1.994,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 110.7,
-        "implied_value": 8.47
+        "median": 110.4,
+        "implied_value": 7.4
        }
       },
       "source": {
@@ -33028,7 +33044,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -33037,15 +33053,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.45,
+      "value": 5.51,
       "prior": [
-       4.09,
-       6.81
+       4.13,
+       6.89
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.15,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.06,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -33085,11 +33101,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.35,
+      "prior": [
+       0.35,
+       0.35
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.35,
+       "strongest_pair": 0.486,
+       "median_pair": 0.07,
+       "level_spread": 1.67,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -33136,7 +33203,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -33185,7 +33252,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -33234,7 +33301,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -33283,7 +33350,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -33332,7 +33399,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -33381,7 +33448,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -33430,62 +33497,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.35,
-      "prior": [
-       0.35,
-       0.35
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.35,
-       "strongest_pair": 0.486,
-       "median_pair": 0.07,
-       "level_spread": 1.67,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -34998,7 +35014,8 @@
        1.7348312150948164
       ]
      ],
-     "gain": 977.2224401815797
+     "gain": 977.2224401815797,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -35031,20 +35048,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.82,
+      "value": 6.71,
       "prior": [
-       5.87,
-       9.78
+       5.03,
+       8.38
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 34.0,
-       "implied_value": 7.98,
+       "median": 34.7,
+       "implied_value": 7.07,
        "naa_found_at_ppm": 2.004,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 120.3,
-        "implied_value": 7.82
+        "median": 122.3,
+        "implied_value": 6.71
        }
       },
       "source": {
@@ -35087,7 +35104,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35096,15 +35113,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.24,
+      "value": 5.33,
       "prior": [
-       3.93,
-       6.55
+       4.0,
+       6.66
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 8.91,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 8.83,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -35144,11 +35161,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.358,
+      "prior": [
+       0.358,
+       0.358
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.358,
+       "strongest_pair": 0.413,
+       "median_pair": 0.078,
+       "level_spread": 1.339,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -35195,7 +35263,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35244,7 +35312,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35293,7 +35361,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35342,7 +35410,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -35391,7 +35459,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35440,7 +35508,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35489,62 +35557,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.358,
-      "prior": [
-       0.358,
-       0.358
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.358,
-       "strongest_pair": 0.413,
-       "median_pair": 0.078,
-       "level_spread": 1.339,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -37057,7 +37074,8 @@
        1.7459650213841318
       ]
      ],
-     "gain": 979.5237367401605
+     "gain": 979.5237367401605,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -37090,20 +37108,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.02,
+      "value": 6.89,
       "prior": [
-       6.02,
-       10.03
+       5.17,
+       8.62
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 31.7,
-       "implied_value": 8.11,
+       "median": 31.9,
+       "implied_value": 7.29,
        "naa_found_at_ppm": 1.994,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 116.3,
-        "implied_value": 8.02
+        "median": 118.0,
+        "implied_value": 6.89
        }
       },
       "source": {
@@ -37146,7 +37164,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37155,15 +37173,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.72,
+      "value": 5.76,
       "prior": [
-       4.29,
-       7.15
+       4.32,
+       7.2
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.49,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.36,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -37203,11 +37221,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.349,
+      "prior": [
+       0.349,
+       0.349
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.349,
+       "strongest_pair": 0.393,
+       "median_pair": 0.073,
+       "level_spread": 1.275,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -37254,7 +37323,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37303,7 +37372,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37352,7 +37421,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37401,7 +37470,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -37450,7 +37519,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37499,7 +37568,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37548,62 +37617,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.349,
-      "prior": [
-       0.349,
-       0.349
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.349,
-       "strongest_pair": 0.393,
-       "median_pair": 0.073,
-       "level_spread": 1.275,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -39116,7 +39134,8 @@
        1.7348312150948164
       ]
      ],
-     "gain": 977.2224401815797
+     "gain": 977.2224401815797,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -39149,20 +39168,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 6.63,
+      "value": 5.74,
       "prior": [
-       4.97,
-       8.29
+       4.3,
+       7.17
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 38.7,
-       "implied_value": 6.73,
+       "median": 39.0,
+       "implied_value": 5.98,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 141.1,
-        "implied_value": 6.63
+        "median": 141.7,
+        "implied_value": 5.74
        }
       },
       "source": {
@@ -39205,7 +39224,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39214,15 +39233,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.61,
+      "value": 5.74,
       "prior": [
-       4.21,
-       7.01
+       4.3,
+       7.18
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.36,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.33,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -39262,11 +39281,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.324,
+      "prior": [
+       0.324,
+       0.324
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.324,
+       "strongest_pair": 0.384,
+       "median_pair": 0.063,
+       "level_spread": 1.27,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -39313,7 +39383,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39362,7 +39432,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39411,7 +39481,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39460,7 +39530,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -39509,7 +39579,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39558,7 +39628,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39607,62 +39677,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.324,
-      "prior": [
-       0.324,
-       0.324
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.324,
-       "strongest_pair": 0.384,
-       "median_pair": 0.063,
-       "level_spread": 1.27,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -41175,7 +41194,8 @@
        1.690295989937555
       ]
      ],
-     "gain": 967.4306117346791
+     "gain": 967.4306117346791,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -41208,20 +41228,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 6.98,
+      "value": 6.11,
       "prior": [
-       5.24,
-       8.73
+       4.58,
+       7.64
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 38.0,
-       "implied_value": 7.08,
+       "median": 37.7,
+       "implied_value": 6.43,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 134.6,
-        "implied_value": 6.98
+        "median": 134.0,
+        "implied_value": 6.11
        }
       },
       "source": {
@@ -41264,7 +41284,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41273,15 +41293,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.33,
+      "value": 5.42,
       "prior": [
-       4.0,
-       6.66
+       4.06,
+       6.78
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.01,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 8.98,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -41321,11 +41341,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.314,
+      "prior": [
+       0.314,
+       0.314
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.314,
+       "strongest_pair": 0.36,
+       "median_pair": 0.058,
+       "level_spread": 1.25,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -41372,7 +41443,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41421,7 +41492,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41470,7 +41541,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41519,7 +41590,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -41568,7 +41639,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41617,7 +41688,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41666,62 +41737,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.314,
-      "prior": [
-       0.314,
-       0.314
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.314,
-       "strongest_pair": 0.36,
-       "median_pair": 0.058,
-       "level_spread": 1.25,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -43234,7 +43254,8 @@
        1.6680283773589242
       ]
      ],
-     "gain": 962.1880610955611
+     "gain": 962.1880610955611,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -43267,20 +43288,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.87,
+      "value": 7.65,
       "prior": [
-       6.65,
-       11.09
+       5.74,
+       9.57
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.8,
-       "implied_value": 8.48,
+       "median": 31.4,
+       "implied_value": 7.51,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 105.5,
-        "implied_value": 8.87
+        "median": 106.5,
+        "implied_value": 7.65
        }
       },
       "source": {
@@ -43323,7 +43344,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43332,15 +43353,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.57,
+      "value": 5.64,
       "prior": [
-       4.18,
-       6.96
+       4.23,
+       7.05
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.29,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.22,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -43380,11 +43401,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.378,
+      "prior": [
+       0.378,
+       0.378
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.378,
+       "strongest_pair": 0.648,
+       "median_pair": 0.078,
+       "level_spread": 2.242,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -43431,7 +43503,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43480,7 +43552,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43529,7 +43601,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43578,7 +43650,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -43627,7 +43699,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43676,7 +43748,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43725,62 +43797,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.378,
-      "prior": [
-       0.378,
-       0.378
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.378,
-       "strongest_pair": 0.648,
-       "median_pair": 0.078,
-       "level_spread": 2.242,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -45293,7 +45314,8 @@
        1.779366440252078
       ]
      ],
-     "gain": 986.0666198202208
+     "gain": 986.0666198202208,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -45326,20 +45348,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 8.4,
+      "value": 7.35,
       "prior": [
-       6.3,
-       10.49
+       5.51,
+       9.19
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 34.3,
-       "implied_value": 8.17,
+       "median": 34.1,
+       "implied_value": 7.5,
        "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 112.6,
-        "implied_value": 8.4
+        "median": 112.4,
+        "implied_value": 7.35
        }
       },
       "source": {
@@ -45382,7 +45404,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45391,15 +45413,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.98,
+      "value": 5.0,
       "prior": [
-       3.74,
-       6.23
+       3.75,
+       6.25
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 8.53,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 8.39,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -45439,11 +45461,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.324,
+      "prior": [
+       0.324,
+       0.324
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.324,
+       "strongest_pair": 0.445,
+       "median_pair": 0.057,
+       "level_spread": 1.539,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -45490,7 +45563,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45539,7 +45612,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45588,7 +45661,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45637,7 +45710,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -45686,7 +45759,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45735,7 +45808,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45784,62 +45857,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.324,
-      "prior": [
-       0.324,
-       0.324
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.324,
-       "strongest_pair": 0.445,
-       "median_pair": 0.057,
-       "level_spread": 1.539,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -47352,7 +47374,8 @@
        1.690295989937555
       ]
      ],
-     "gain": 967.4306117346791
+     "gain": 967.4306117346791,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -47385,20 +47408,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.69,
+      "value": 6.79,
       "prior": [
-       5.77,
-       9.61
+       5.09,
+       8.48
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 30.9,
-       "implied_value": 7.63,
-       "naa_found_at_ppm": 1.975,
+       "median": 31.2,
+       "implied_value": 7.14,
+       "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 119.6,
-        "implied_value": 7.69
+        "median": 118.8,
+        "implied_value": 6.79
        }
       },
       "source": {
@@ -47441,7 +47464,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -47450,15 +47473,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.57,
+      "value": 6.13,
       "prior": [
-       4.93,
-       8.21
+       4.6,
+       7.66
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.55,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.78,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -47498,11 +47521,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.337,
+      "prior": [
+       0.337,
+       0.337
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.337,
+       "strongest_pair": 0.373,
+       "median_pair": 0.075,
+       "level_spread": 1.336,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -47549,7 +47623,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -47598,7 +47672,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -47647,7 +47721,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -47696,7 +47770,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -47745,7 +47819,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -47794,7 +47868,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -47843,62 +47917,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.337,
-      "prior": [
-       0.337,
-       0.337
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.337,
-       "strongest_pair": 0.373,
-       "median_pair": 0.075,
-       "level_spread": 1.336,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -49411,7 +49434,8 @@
        1.7125636025161857
       ]
      ],
-     "gain": 972.4429538945395
+     "gain": 972.4429538945395,
+     "modes": null
     },
     "girf": null,
     "receiver": null
@@ -49444,20 +49468,20 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 7.82,
+      "value": 6.72,
       "prior": [
-       5.86,
-       9.77
+       5.04,
+       8.41
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 31.5,
-       "implied_value": 7.69,
-       "naa_found_at_ppm": 1.994,
+       "median": 31.1,
+       "implied_value": 7.05,
+       "naa_found_at_ppm": 1.984,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 118.2,
-        "implied_value": 7.82
+        "median": 119.6,
+        "implied_value": 6.72
        }
       },
       "source": {
@@ -49500,7 +49524,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -49509,15 +49533,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.3,
+      "value": 6.28,
       "prior": [
-       4.72,
-       7.88
+       4.71,
+       7.85
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 10.23,
-       "twin_without_broadening_hz": 3.57
+       "naa_fwhm_hz": 9.95,
+       "twin_without_broadening_hz": 3.55
       },
       "source": {
        "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
@@ -49557,11 +49581,62 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
       "note": "one acquisition; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "coils.partner_correlation",
+      "value": 0.335,
+      "prior": [
+       0.335,
+       0.335
+      ],
+      "measured": {
+       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
+       "strongest_partner_mean": 0.335,
+       "strongest_pair": 0.371,
+       "median_pair": 0.073,
+       "level_spread": 1.303,
+       "samples": 32768
+      },
+      "source": {
+       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
+       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
+       "url": "https://openneuro.org/datasets/ds006444"
+      },
+      "scanner": {
+       "vendor": "ge",
+       "model": "Discovery MR750",
+       "software": "27",
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        32
+       ],
+       "name": "32Ch Head"
+      },
+      "sequence": {
+       "name": "noise",
+       "family": ""
+      },
+      "acquisition": {
+       "channels": 32,
+       "rf": "no signal"
+      },
+      "voxel": {
+       "load": "a head"
+      },
+      "processing": "sample covariance of the channels over all samples",
+      "date": "28/09/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": true,
+      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      },
      {
@@ -49608,7 +49683,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -49657,7 +49732,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -49706,7 +49781,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -49755,7 +49830,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -49804,7 +49879,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -49853,7 +49928,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -49902,62 +49977,11 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "27/09/26",
+      "date": "28/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
-      "failed": ""
-     },
-     {
-      "leaf": "coils.partner_correlation",
-      "value": 0.335,
-      "prior": [
-       0.335,
-       0.335
-      ],
-      "measured": {
-       "statistic": "magnitude of the noise correlation between channels (scan.calibrate.CovarianceReading.statistics)",
-       "strongest_partner_mean": 0.335,
-       "strongest_pair": 0.371,
-       "median_pair": 0.073,
-       "level_spread": 1.303,
-       "samples": 32768
-      },
-      "source": {
-       "dataset": "OpenNeuro ds006444, the sLASER scans of both sessions (CC0)",
-       "citation": "doi 10.18112/openneuro.ds006444.v1.0.9",
-       "url": "https://openneuro.org/datasets/ds006444"
-      },
-      "scanner": {
-       "vendor": "ge",
-       "model": "Discovery MR750",
-       "software": "27",
-       "field_t": 3.0
-      },
-      "coil": {
-       "channels": [
-        32
-       ],
-       "name": "32Ch Head"
-      },
-      "sequence": {
-       "name": "noise",
-       "family": ""
-      },
-      "acquisition": {
-       "channels": 32,
-       "rf": "no signal"
-      },
-      "voxel": {
-       "load": "a head"
-      },
-      "processing": "sample covariance of the channels over all samples",
-      "date": "27/09/26",
-      "carried_by": "scanner",
-      "presets": [],
-      "fallback": true,
-      "note": "the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -51470,7 +51494,8 @@
        1.7014297962268703
       ]
      ],
-     "gain": 969.9656997327344
+     "gain": 969.9656997327344,
+     "modes": null
     },
     "girf": null,
     "receiver": null

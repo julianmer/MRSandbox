@@ -162,9 +162,8 @@ class MRSI:
             in it, so cells that differ only there share their lines; a cell where a
             profile has died (under SILENT) stays silent; what remains, the cells at
             the box's edge where the displaced slabs part, is simulated place by
-            place. An axis the lattice does not
-            resolve (the slab of a slice) is one place for every cell. Other designs
-            excite every cell alike, as before.
+            place. An axis the lattice does not resolve (the slab of a slice) is one
+            place for every cell. Other designs excite every cell alike.
     """
 
     SAME, SILENT = 0.01, 0.01
@@ -406,14 +405,16 @@ class MRSI:
         # a trajectory samples every kx line once per spectral dwell, so the sources
         # render on the fine ADC grid and the sampler picks each line's visit times;
         # a finite dead time appends n_dead unread fine samples to every period
-        # (the dead time quantized to fine-grid samples: the nx visits occupy dwell - dead, so the
-        # fine step is dwell / (nx + n_dead) and the realized dead time is n_dead of those steps)
+        # (the dead time quantized to fine-grid samples: the nx visits occupy dwell - dead,
+        # so the fine step is dwell / (nx + n_dead) and the realized dead time is n_dead of
+        # those steps)
         n_dead = 0
         if self.trajectory is not None:
             if not self.dead_time_s < dwell_s:
                 raise ValueError(f"dead_time_s must stay below the spectral dwell: got "
                                  f"{self.dead_time_s} at dwell {dwell_s}")
-            n_dead = int(round(self.dead_time_s * self.samples_per_period / (dwell_s - self.dead_time_s)))
+            n_dead = int(round(self.dead_time_s * self.samples_per_period
+                               / (dwell_s - self.dead_time_s)))
         period = self.samples_per_period + n_dead
         fine = npoints if self.trajectory is None else npoints * period
         step = dwell_s if self.trajectory is None else dwell_s / period
@@ -488,12 +489,10 @@ class MRSI:
         whole cost of such a lattice, and they are independent: after the first (it
         compiles and opens the truth's cache) the rest render side by side in
         `WORKERS` threads, the backends releasing the interpreter while they compute.
-        Two is the measured optimum (jax, ten cores, 34 GB, 16 cells of a full
-        metabolite set: 4.7 s a cell with one thread, 3.7 with two, 4.4 with four, 6.2
-        with eight, at 8.5, 12.9, 19.5, and 22.1 GB): a cell is bound by memory
-        traffic, not by cores, so more threads only crowd it. The numbers are the same
-        to the last bit. `_decoded` then finds every cell's basis in the cache. Without
-        a box the cells share one rendering and there is nothing to spread."""
+        Two threads suit it: a cell is bound by memory traffic, not by cores, so more
+        threads only crowd it. The results are the same to the last bit. `_decoded`
+        then finds every cell's basis in the cache. Without a box the cells share one
+        rendering and there is nothing to spread."""
         if self.box_center_mm is None:
             return
         live = [voxel for row in self.voxels for cell in row for voxel in cell

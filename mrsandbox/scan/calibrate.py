@@ -33,8 +33,9 @@ APODIZATION_HZ, NAA_PPM, WATER_PPM = 10.0, 2.008, 4.65
 # the lines a noise reading is taken on: where the line lies with the carrier on water, and how far
 # from there it is looked for (a phantom's water moves with its temperature)
 LINES = {"NAA": (NAA_PPM, 0.05), "water": (WATER_PPM, 0.4)}
-# the second reading of the noise: the plain single-transient NAA SNR follows the in vivo line, the apodized
-# one the broad signal under the singlet; they err in opposite directions and each gives a sigma
+# the second reading of the noise: the plain single-transient NAA SNR follows the in vivo line,
+# the apodized one the broad signal under the singlet; they err in opposite directions and each
+# gives a sigma
 APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodization of data and "
             "simulation alike")
 
@@ -61,7 +62,8 @@ def _combined(data, noise=None, like=None):
 
     def whitened(raw):
         w = np.einsum("ck,nks->ncs", whitening, raw)
-        turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(w[:64, :, 0]), w[:64])) / (np.pi / 2))
+        turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(w[:64, :, 0]), w[:64]))
+                         / (np.pi / 2))
         return w * np.exp(-0.5j * np.pi * turns)
 
     white = whitened(x)
@@ -78,8 +80,39 @@ def _axis(fid, dwell_s, f0_mhz, carrier_ppm):
     n = fid.shape[0]
     spectrum = np.fft.fftshift(np.fft.fft(np.asarray(fid), 16 * n))
     hz = np.fft.fftshift(np.fft.fftfreq(16 * n, dwell_s))
-    sign = max((1.0, -1.0), key=lambda s: np.abs(spectrum[np.abs(carrier_ppm + s * hz / f0_mhz - NAA_PPM) < 0.15]).max())
+    sign = max((1.0, -1.0), key=lambda s: np.abs(
+        spectrum[np.abs(carrier_ppm + s * hz / f0_mhz - NAA_PPM) < 0.15]).max())
     return sign, spectrum, hz
+
+
+#****************#
+#   registered   #
+#****************#
+def _registered(fids, dwell_s, f0_mhz, span_s=0.2):
+    """(npoints, transients) FIDs, the carrier on water, turned onto their mean: each
+    transient's frequency and phase fitted on the metabolites, 1.8 to 4.2 ppm of the FIDs'
+    first `span_s` (the rest is mostly noise, which a trial frequency twists), by least
+    squares (spectral registration, Near et al. 2015, Magn Reson Med 73:44). The readings of
+    the line and the noise then hold the scanner's own, and the run's drift and jitter are
+    left to the run's settings, which play them."""
+    import scipy.optimize
+
+    n = min(fids.shape[0], int(round(span_s / dwell_s)))
+    t = np.arange(fids.shape[0]) * dwell_s
+    sign, _, _ = _axis(fids.mean(axis=1), dwell_s, f0_mhz, WATER_PPM)
+    hz = np.fft.fftshift(np.fft.fftfreq(n, dwell_s))
+    band = np.abs(WATER_PPM + sign * hz / f0_mhz - 3.0) < 1.2
+    mean = np.fft.fftshift(np.fft.fft(fids[:n].mean(axis=1)))[band]
+    turned = []
+    for fid in fids.T:
+        def rest(p, fid=fid):
+            d = np.fft.fft(fid[:n] * np.exp(-2j * np.pi * p[0] * t[:n] - 1j * p[1]))
+            d = np.fft.fftshift(d)[band] - mean
+            return np.concatenate([d.real, d.imag])
+
+        shift, phase = scipy.optimize.least_squares(rest, [0.0, 0.0], x_scale="jac").x
+        turned.append(fid * np.exp(-2j * np.pi * shift * t - 1j * phase))
+    return np.stack(turned, axis=1)
 
 
 def _lines(fid, dwell_s, f0_mhz, carrier_ppm):
@@ -105,8 +138,8 @@ def _lines(fid, dwell_s, f0_mhz, carrier_ppm):
 def _exponentials(fid, dwell_s, order=20):
     """The complex exponentials in a FID's start, the state space way of HLSVD (Kung's
     Hankel SVD): (frequencies in Hz, dampings in 1/s, complex amplitudes at t = 0) of
-    `order` components fitted to the first half of `fid` in a Hankel matrix; what the
-    residual water records were read with (info/HANDOFF.md item 217), in the package."""
+    `order` components fitted to the first half of `fid` in a Hankel matrix; the residual
+    water records are read with it."""
     x = np.asarray(fid, dtype=np.complex128)
     n = x.size
     m = n // 2
@@ -123,9 +156,9 @@ def _eddy_transient(fid, dwell_s, f0_mhz, late_s=(0.06, 0.25), at_s=0.005):
     """The eddy phase transient at the FID's start, in radians `at_s` after the first
     sample: the water's components (within 0.4 ppm of the carrier, T2* above 5 ms) fitted
     on the late FID, where eddy currents have died and the water is still far above the
-    metabolites, carried back to the start; what the early phase does against that model
-    (info/HANDOFF.md item 236). Exact for transients dead by the window's start, a lower
-    bound for slower ones (the model's frequencies take a slow phase into a ramp)."""
+    metabolites, carried back to the start; what the early phase does against that model.
+    Exact for transients dead by the window's start, a lower bound for slower ones (the
+    model's frequencies take a slow phase into a ramp)."""
     x = np.asarray(fid, dtype=np.complex128)
     t = np.arange(x.size) * dwell_s
     a, b = int(late_s[0] / dwell_s), int(late_s[1] / dwell_s)
@@ -140,15 +173,16 @@ def _eddy_transient(fid, dwell_s, f0_mhz, late_s=(0.06, 0.25), at_s=0.005):
 def _raw(source, water=False):
     """A NIfTI-MRS file (a path or a loaded image) as ((npoints, coils, transients),
     dwell_s, f0_mhz, header); the transients are needed apart. A run that interleaves
-    unsuppressed water transients with its own (ds005917 stores one every 16th, some 300
-    times the others at their start, where a suppressed run's transients stay within
-    three times their median) gives its suppressed transients, or with `water` the
-    interleaved water, the run's own reference (none: no transient)."""
+    unsuppressed water transients with its own (ds005917 stores one every 16th), found as
+    the transients whose start stands far above the median, gives its suppressed
+    transients, or with `water` the interleaved water, the run's own reference (none: no
+    transient)."""
     import json
 
     import nibabel as nib
 
-    image = nib.load(str(source)) if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source
+    image = (nib.load(str(source))
+             if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source)
     extension = json.loads(image.header.extensions[0].get_content())
     tags = [extension.get(f"dim_{k}") for k in (5, 6, 7)]
     data = np.asarray(image.dataobj)
@@ -163,7 +197,8 @@ def _raw(source, water=False):
     rest = [axis for axis in range(1, data.ndim) if axis not in order[1:]]
     if any(data.shape[axis] > 1 for axis in rest):
         raise ValueError("only coils and transients are read; select the other dimension first")
-    x = np.transpose(data, order + rest).reshape(data.shape[0], data.shape[order[1]], data.shape[order[2]])
+    x = np.transpose(data, order + rest).reshape(data.shape[0], data.shape[order[1]],
+                                                 data.shape[order[2]])
     start = np.abs(x[:8]).mean(axis=(0, 1))
     loud = start > 20.0 * np.median(start)
     x = x[:, :, loud] if water else x[:, :, ~loud]
@@ -179,7 +214,8 @@ def _spectrum(fid, dwell_s, ppm_of, fill=4, apodization_hz=2.0):
     (ppm ascending, real): zero filled `fill` times, lightly apodized; `ppm_of` maps
     hertz to ppm and the sign of the frequency axis is the one that holds NAA."""
     n = fid.shape[0]
-    padded = np.concatenate([np.asarray(fid) * np.exp(-np.pi * apodization_hz * np.arange(n) * dwell_s),
+    padded = np.concatenate([np.asarray(fid)
+                             * np.exp(-np.pi * apodization_hz * np.arange(n) * dwell_s),
                              np.zeros((fill - 1) * n, dtype=np.complex128)])
     spectrum = np.fft.fftshift(np.fft.fft(padded))
     hz = np.fft.fftshift(np.fft.fftfreq(fill * n, dwell_s))
@@ -198,7 +234,8 @@ def _shape(ppm, real, f0_mhz):
     near = np.abs(ppm - NAA_PPM) < 0.12
     x, y = ppm[near], real[near]
     top = int(np.argmax(y))
-    half = np.median(real[np.abs(ppm - 1.6) < 0.1]) + 0.5 * (y[top] - np.median(real[np.abs(ppm - 1.6) < 0.1]))
+    half = (np.median(real[np.abs(ppm - 1.6) < 0.1])
+            + 0.5 * (y[top] - np.median(real[np.abs(ppm - 1.6) < 0.1])))
     left = top - int(np.argmax(y[top::-1] < half))
     right = top + int(np.argmax(y[top:] < half))
     low = np.interp(half, [y[left], y[left + 1]], [x[left], x[left + 1]])
@@ -222,12 +259,12 @@ class NoiseReading:
     The data are NIfTI-MRS with the coils and the transients apart (spec2nii writes it
     from TWIX, P-files, and data/list alike: `spec2nii twix -e image`, `spec2nii ge`,
     `spec2nii philips_dl`). The channels are whitened by the noise of the FIDs' last
-    eighth and combined with the first singular vector of the mean transient's start;
-    nothing else is done to the data, no fit enters (scan.calibrations, the measure).
+    eighth and combined with the first singular vector of the mean transient's start, and
+    in vivo the transients are registered on the metabolites (`_registered`); nothing else
+    is done to the data, no fit of a model enters (scan.calibrations, the measure).
     Averaged or combined data do not serve: a stored sum of excitations is not their
-    ideal sum (Big GABA's GE sites read a quarter low that way), so `excitations` is
-    for a sequence whose unit is more than one shot (SPECIAL's pair) and for nothing
-    else.
+    ideal sum, so `excitations` is for a sequence whose unit is more than one shot
+    (SPECIAL's pair) and for nothing else.
 
     A phantom has no NAA to speak of in one transient but all the water one could want:
     `line="water"` reads the unsuppressed water line, against a twin that is a
@@ -274,9 +311,10 @@ class NoiseReading:
         # median over transients. The floor is measured once, plain, where it is flat; under
         # the apodization it is that floor times the root of the window's mean square, as for
         # white noise and as the simulation has it: measured there, the broadened lines' feet
-        # and the edge of a cropped band would count as noise (up to a factor of two on
-        # oversampled data cropped to the band).
+        # and the edge of a cropped band would count as noise.
         fids = _combined(x, noise)
+        # registered on the metabolites in vivo; a phantom's water line has none to register on
+        fids = _registered(fids, dwell_s, f0_mhz) if line == "NAA" else fids
         center = LINES[line][0]
         window = np.exp(-np.pi * APODIZATION_HZ * np.arange(n) * dwell_s)
         hz = np.fft.fftshift(np.fft.fftfreq(n, dwell_s))
@@ -296,12 +334,15 @@ class NoiseReading:
         # whitened by the scanner's own noise the floor is known: unit variance per complex FID
         # point, half of it in the real part
         floors = np.full(transients, np.sqrt(n / 2.0)) if noise is not None else np.array(
-            [(real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std() for real in spectra.T])
+            [(real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std()
+             for real in spectra.T])
         plain = float(np.median(spectra[near].max(axis=0) / floors))
-        apodized = float(np.median(broad[near].max(axis=0) / (floors * np.sqrt((window ** 2).mean()))))
-        return cls(snr=plain, snr_apodized=apodized, naa_ppm=float(ppm[peak]), transients=transients, coils=coils,
-                   npoints=n, bandwidth_hz=1.0 / dwell_s, f0_mhz=float(f0_mhz),
-                   excitations=int(excitations), header=dict(header or {}), line=line)
+        apodized = float(np.median(broad[near].max(axis=0)
+                                   / (floors * np.sqrt((window ** 2).mean()))))
+        return cls(snr=plain, snr_apodized=apodized, naa_ppm=float(ppm[peak]),
+                   transients=transients, coils=coils, npoints=n, bandwidth_hz=1.0 / dwell_s,
+                   f0_mhz=float(f0_mhz), excitations=int(excitations), header=dict(header or {}),
+                   line=line)
 
     #****************#
     #   from nifti   #
@@ -334,15 +375,19 @@ class NoiseReading:
         for seed in range(seeds):
             truth = voxel.sample(seed)
             if gauss_hz is not None:
-                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))  # a realized leaf, as drawn
+                # a realized leaf, as drawn
+                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))
             _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
             row = []
             near = np.abs(ppm - LINES[self.line][0]) < LINES[self.line][1]
             # phased at the line's top as the data are, a phantom's water line under the apodization
-            top = np.fft.fftshift(np.fft.fft(np.asarray(fid) * (window if self.line == "water" else 1.0)))
+            top = np.fft.fftshift(np.fft.fft(np.asarray(fid)
+                                             * (window if self.line == "water" else 1.0)))
             phase = np.exp(-1j * np.angle(top[near][np.argmax(np.abs(top[near]))]))
-            for apodization, measured in ((np.ones(self.npoints), self.snr), (window, self.snr_apodized)):
-                height = (np.fft.fftshift(np.fft.fft(np.asarray(fid) * apodization)) * phase).real[near].max()
+            for apodization, measured in ((np.ones(self.npoints), self.snr),
+                                          (window, self.snr_apodized)):
+                height = (np.fft.fftshift(np.fft.fft(np.asarray(fid) * apodization))
+                          * phase).real[near].max()
                 row.append(height / (measured * np.sqrt((apodization ** 2).sum()) * scale))
             found.append(row)
         plain, apodized = np.median(np.array(found), axis=0)
@@ -361,7 +406,8 @@ class NoiseReading:
         return Calibration(
             leaf="noise.sigma", value=round(apodized, 2),
             prior=(round(0.75 * apodized, 2), round(1.25 * apodized, 2)),
-            measured={"statistic": f"single-transient {self.line} SNR (scan.calibrate.NoiseReading)",
+            measured={"statistic": f"single-transient {self.line} SNR "
+                                   "(scan.calibrate.NoiseReading)",
                       "median": round(self.snr, 1), "implied_value": round(plain, 2),
                       "naa_found_at_ppm": round(self.naa_ppm, 3),
                       "apodized": {"statistic": APODIZED, "median": round(self.snr_apodized, 1),
@@ -378,7 +424,8 @@ class NoiseReading:
                       "simulated_as": type(sequence).__name__},
             acquisition={"npoints": self.npoints, "bandwidth_hz": self.bandwidth_hz,
                          "transients": self.transients, "measured_on": self.excitations},
-            voxel={**({"load": voxel.scan.brain.name} if isinstance(voxel.scan.brain, Phantom) else {}),
+            voxel={**({"load": voxel.scan.brain.name}
+                      if isinstance(voxel.scan.brain, Phantom) else {}),
                    "size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
                    "simulated_position_mm": tuple(voxel.position_mm)},
             processing="NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
@@ -399,8 +446,8 @@ class SpectrumReading:
     """What the averaged spectrum of one raw acquisition says without a fit: the NAA
     singlet's width, and the 3.03 ppm creatine singlet's height against NAA's.
 
-    The coils are combined as for the noise reading and the transients averaged as they
-    are: no frequency alignment, so a drifting scanner widens the line (stated). The
+    The coils are combined and the transients registered as for the noise reading, then
+    averaged: a drifting run does not widen the line, its drift is the run's own. The
     twin's spectrum is read the same way, noise off, so the two compare like for like:
     the width checks the lineshape prior (lineshape.gauss_hz), the ratio the creatine
     range (scan.calibrations CREATINE_THREE_DATASETS_3T).
@@ -428,11 +475,12 @@ class SpectrumReading:
     def from_arrays(cls, data, dwell_s, f0_mhz, header=None):
         """Read raw FIDs, (npoints, coils, transients) complex, the carrier on water."""
         x = np.asarray(data)
-        ppm, real = _spectrum(_combined(x).mean(axis=1), dwell_s, lambda hz: WATER_PPM + hz / f0_mhz)
+        ppm, real = _spectrum(_registered(_combined(x), dwell_s, f0_mhz).mean(axis=1), dwell_s,
+                              lambda hz: WATER_PPM + hz / f0_mhz)
         width, creatine = _shape(ppm, real, f0_mhz)
-        return cls(naa_fwhm_hz=width, creatine_over_naa=creatine, transients=x.shape[2], coils=x.shape[1],
-                   npoints=x.shape[0], bandwidth_hz=1.0 / dwell_s, f0_mhz=float(f0_mhz),
-                   header=dict(header or {}))
+        return cls(naa_fwhm_hz=width, creatine_over_naa=creatine, transients=x.shape[2],
+                   coils=x.shape[1], npoints=x.shape[0], bandwidth_hz=1.0 / dwell_s,
+                   f0_mhz=float(f0_mhz), header=dict(header or {}))
 
     @classmethod
     def from_nifti(cls, source):
@@ -452,9 +500,11 @@ class SpectrumReading:
         for seed in range(seeds):
             truth = voxel.sample(seed)
             if gauss_hz is not None:
-                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))  # a realized leaf, as drawn
+                # a realized leaf, as drawn
+                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))
             _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
-            rows.append(_shape(*_spectrum(np.asarray(fid), dwell_s, lambda hz: hz / f0_mhz), f0_mhz))
+            rows.append(_shape(*_spectrum(np.asarray(fid), dwell_s, lambda hz: hz / f0_mhz),
+                               f0_mhz))
         width, creatine = np.median(np.array(rows), axis=0)
         return {"naa_fwhm_hz": float(width), "creatine_over_naa": float(creatine)}
 
@@ -465,7 +515,8 @@ class SpectrumReading:
         """The total creatine (mM) at which the twin would show the measured ratio: the
         twin's drawn median scaled by measured over simulated (the singlet's height is
         linear in it, NAA held)."""
-        drawn = np.median([float(voxel.resolve(truth.conc.Cr)) + float(voxel.resolve(truth.conc.PCr))
+        drawn = np.median([float(voxel.resolve(truth.conc.Cr))
+                           + float(voxel.resolve(truth.conc.PCr))
                            for truth in (voxel.sample(seed) for seed in range(seeds))])
         return float(drawn * self.creatine_over_naa / self.twin(voxel, seeds)["creatine_over_naa"])
 
@@ -482,20 +533,25 @@ class SpectrumReading:
         low, high = 0.0, 4.0 * self.naa_fwhm_hz
         for _ in range(10):
             middle = 0.5 * (low + high)
-            low, high = (middle, high) if self.twin(voxel, seeds, middle)["naa_fwhm_hz"] < self.naa_fwhm_hz else (low, middle)
+            low, high = ((middle, high)
+                         if self.twin(voxel, seeds, middle)["naa_fwhm_hz"] < self.naa_fwhm_hz
+                         else (low, middle))
         value = round(0.5 * (low + high), 2)
         bare = self.twin(voxel, seeds, 0.0)["naa_fwhm_hz"]
         sequence = voxel.scan.sequence
         return Calibration(
-            leaf="lineshape.gauss_hz", value=value, prior=(round(0.75 * value, 2), round(1.25 * value, 2)),
-            measured={"statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined "
-                                   "spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
+            leaf="lineshape.gauss_hz", value=value,
+            prior=(round(0.75 * value, 2), round(1.25 * value, 2)),
+            measured={"statistic": "full width at half maximum of the NAA singlet in the "
+                                   "averaged, coil-combined spectrum under 2 Hz apodization, in "
+                                   "Hz (scan.calibrate.SpectrumReading)",
                       "naa_fwhm_hz": round(self.naa_fwhm_hz, 2),
                       "twin_without_broadening_hz": round(bare, 2)},
-            # the rule: a twin already as wide as the line without any broadening leaves the bisection at its
-            # floor, and the line's width was not read
+            # the rule: a twin already as wide as the line without any broadening leaves the
+            # bisection at its floor, and the line's width was not read
             failed=("" if bare < self.naa_fwhm_hz else
-                    f"the twin without broadening ({bare:.1f} Hz) is already as wide as the measured line ({self.naa_fwhm_hz:.1f} Hz)"),
+                    f"the twin without broadening ({bare:.1f} Hz) is already as wide as the "
+                    f"measured line ({self.naa_fwhm_hz:.1f} Hz)"),
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),
@@ -508,8 +564,8 @@ class SpectrumReading:
                          "transients": self.transients, "measured_on": "the average"},
             voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
                    "simulated_position_mm": tuple(voxel.position_mm)},
-            processing="NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they "
-                       "are (a drifting scanner widens the line)",
+            processing="NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged "
+                       "as they are (a drifting scanner widens the line)",
             date=datetime.date.today().strftime("%d/%m/%y"), presets=tuple(presets),
             note="one acquisition; made by scan.calibrate",
         )
@@ -532,10 +588,9 @@ class RelaxationReading:
     apodization), the height of every singlet taken at its place, and the T2 is the slope
     of the heights' logarithm against the echo time: two numbers per line from as many
     heights as there are echoes, no model of the spectrum. Singlets only: a coupled
-    line's height swings with the echo time, and so does what lies under a singlet. On a
-    virtual Braino the creatine singlet reads 3 percent short and NAA's 6 (glutamate
-    beneath it), choline's 16 (myo-inositol beneath it): a bound for choline, a number
-    for the other two. The T2 is the sequence's (a PRESS series carries its pulses'
+    line's height swings with the echo time, and so does what lies under a singlet
+    (glutamate under NAA, myo-inositol under choline), so choline's T2 is a bound and the
+    other two are numbers. The T2 is the sequence's (a PRESS series carries its pulses'
     imperfections), as every published one is. In vitro: it sets a Phantom's t2_s, never
     a tissue leaf.
 
@@ -567,8 +622,10 @@ class RelaxationReading:
             for name, at in lines.items():
                 heights[name].append(real[np.abs(ppm - at) < 0.04].max())
         first = heights["NAA"][0] if "NAA" in heights else 1.0
-        heights = {name: tuple(float(h / first) for h in values) for name, values in heights.items()}
-        t2_s = {name: float(-1.0 / np.polyfit(te_s, np.log(values), 1)[0]) for name, values in heights.items()}
+        heights = {name: tuple(float(h / first) for h in values)
+                   for name, values in heights.items()}
+        t2_s = {name: float(-1.0 / np.polyfit(te_s, np.log(values), 1)[0])
+                for name, values in heights.items()}
         return cls(te_s=te_s, heights=heights, t2_s=t2_s)
 
 
@@ -623,7 +680,8 @@ class CovarianceReading:
 
         import nibabel as nib
 
-        image = nib.load(str(source)) if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source
+        image = (nib.load(str(source))
+                 if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source)
         extension = json.loads(image.header.extensions[0].get_content())
         tags = [extension.get(f"dim_{k}") for k in (5, 6, 7)]
         if "DIM_COIL" not in tags:
@@ -632,8 +690,8 @@ class CovarianceReading:
         start = int(round(data.shape[0] * (1.0 - tail)))
         header = {key: extension[key] for key in HEADER if extension.get(key) not in (None, "")}
         reading = cls.from_arrays(data[start:], header=header)
-        # a signal that still rings there is one mode shared by every channel: an unsuppressed
-        # phantom's water reads 1.00 where loaded arrays read 0.05 to 0.25
+        # a signal that still rings there is one mode shared by every channel (an unsuppressed
+        # phantom's water), far above what a loaded array's noise shares
         if reading.coils > 2 and reading.statistics()["median_pair"] > 0.8:
             raise ValueError("the FIDs still ring at their end (the channels correlate as one): "
                              "give the scanner's own noise samples to from_arrays")
@@ -654,7 +712,8 @@ class CovarianceReading:
         with h5py.File(str(path), "r") as file:
             table = file["dataset/data"]
             if lines is None:
-                flagged = np.flatnonzero(table["head"]["flags"] & np.uint64(1 << 18))  # ACQ_IS_NOISE_MEASUREMENT
+                # ACQ_IS_NOISE_MEASUREMENT
+                flagged = np.flatnonzero(table["head"]["flags"] & np.uint64(1 << 18))
                 lines = flagged if flagged.size else range(len(table))
             total, count, coils = None, 0, None
             for index in lines:
@@ -666,7 +725,8 @@ class CovarianceReading:
                 count += x.shape[1]
             xml = file["dataset/xml"][0]
         xml = xml.decode() if isinstance(xml, bytes) else xml
-        found = {tag: re.search(rf"<{tag}>(.*?)</{tag}>", xml) for tag in ("systemVendor", "systemModel", "systemFieldStrength_T")}
+        found = {tag: re.search(rf"<{tag}>(.*?)</{tag}>", xml)
+                 for tag in ("systemVendor", "systemModel", "systemFieldStrength_T")}
         header = {tag: match.group(1) for tag, match in found.items() if match}
         return cls(covariance=total.conj() / count, samples=count, header=header)
 
@@ -687,16 +747,20 @@ class CovarianceReading:
 
         with h5py.File(str(path), "r") as file:
             kspace = file["kspace"]
-            mask = file["mask"][()].astype(bool) if "mask" in file else np.ones(kspace.shape[-1], dtype=bool)
+            mask = (file["mask"][()].astype(bool) if "mask" in file
+                    else np.ones(kspace.shape[-1], dtype=bool))
             n = kspace.shape[2]
             cut = int(round(edge * n))
             samples = []
-            for index in range(kspace.shape[0]):                 # a slice at a time: a volume holds a gigabyte
-                lines = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(kspace[index][..., mask], axes=1), axis=1), axes=1)
-                samples.append(np.moveaxis(np.concatenate([lines[:, :cut], lines[:, n - cut:]], axis=1), 0, -1))
+            for index in range(kspace.shape[0]):     # a slice at a time: a volume holds a gigabyte
+                lines = np.fft.fftshift(
+                    np.fft.ifft(np.fft.ifftshift(kspace[index][..., mask], axes=1), axis=1), axes=1)
+                samples.append(np.moveaxis(np.concatenate([lines[:, :cut], lines[:, n - cut:]],
+                                                          axis=1), 0, -1))
             xml = file["ismrmrd_header"][()]
         xml = xml.decode() if isinstance(xml, bytes) else str(xml)
-        found = {tag: re.search(rf"<{tag}>(.*?)</{tag}>", xml) for tag in ("systemVendor", "systemModel", "systemFieldStrength_T")}
+        found = {tag: re.search(rf"<{tag}>(.*?)</{tag}>", xml)
+                 for tag in ("systemVendor", "systemModel", "systemFieldStrength_T")}
         header = {tag: match.group(1).strip() for tag, match in found.items() if match}
         if "systemFieldStrength_T" in header:
             header["systemFieldStrength_T"] = float(header["systemFieldStrength_T"])
@@ -723,7 +787,8 @@ class CovarianceReading:
         partner, the strongest pair, the median pair, and the spread of the channels'
         noise levels (largest over smallest standard deviation)."""
         c, level = self.correlation, np.sqrt(np.real(np.diag(self.covariance)))
-        return {"strongest_partner_mean": float(c.max(axis=1).mean()), "strongest_pair": float(c.max()),
+        return {"strongest_partner_mean": float(c.max(axis=1).mean()),
+                "strongest_pair": float(c.max()),
                 "median_pair": float(np.median(c[np.triu_indices(self.coils, 1)])),
                 "level_spread": float(level.max() / level.min())}
 
@@ -750,14 +815,15 @@ class CovarianceReading:
         hardware.CoilArray of loops) has `target` as its channels' mean strongest partner:
         the sample's share of the resistance comes from the geometry (`CoilArray.loaded`),
         the rest is the identity. The share is the geometry's as much as the data's (another
-        stand-in geometry reads it several times larger, HANDOFF item 246), so it is taken
-        against the array that plays it."""
+        stand-in geometry reads it otherwise), so it is taken against the array that plays
+        it."""
         sample = array.loaded(own_noise=0.0).noise_resistance
 
         def strongest(share):
             r = (1.0 - share) * sample + share * np.eye(len(array))
             level = np.sqrt(np.diag(r))
-            return float((np.abs(r / np.outer(level, level)) - np.eye(len(array))).max(axis=1).mean())
+            return float((np.abs(r / np.outer(level, level))
+                          - np.eye(len(array))).max(axis=1).mean())
 
         low, high = 0.0, 0.999
         if strongest(low) <= target:
@@ -780,7 +846,9 @@ class CovarianceReading:
         """The Calibration of coils.partner_correlation: the channels' mean strongest partner,
         the data's own number whatever the coil's geometry, which the console turns into
         the own share against the array on the floor (`share`)."""
-        return self._calibration("coils.partner_correlation", round(self.statistics()["strongest_partner_mean"], 3), dataset, load, citation, url)
+        return self._calibration("coils.partner_correlation",
+                                 round(self.statistics()["strongest_partner_mean"], 3), dataset,
+                                 load, citation, url)
 
     def _calibration(self, leaf, number, dataset, load, citation, url):
         return Calibration(
@@ -790,15 +858,19 @@ class CovarianceReading:
                       **{key: round(value, 3) for key, value in self.statistics().items()},
                       "samples": self.samples},
             source={"dataset": dataset, "citation": citation, "url": url},
-            scanner={"vendor": str(self.header.get("Manufacturer", self.header.get("systemVendor", ""))).lower() or None,
-                     "model": self.header.get("ManufacturersModelName", self.header.get("systemModel")),
+            scanner={"vendor": str(self.header.get(
+                         "Manufacturer", self.header.get("systemVendor", ""))).lower() or None,
+                     "model": self.header.get("ManufacturersModelName",
+                                              self.header.get("systemModel")),
                      "software": self.header.get("SoftwareVersions"),
                      "field_t": self.header.get("systemFieldStrength_T")},
             coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
-            sequence={"name": "noise", "family": ""}, acquisition={"channels": self.coils, "rf": "no signal"},
+            sequence={"name": "noise", "family": ""},
+            acquisition={"channels": self.coils, "rf": "no signal"},
             voxel={"load": load}, processing="sample covariance of the channels over all samples",
             date=datetime.date.today().strftime("%d/%m/%y"),
-            note="the modelled array stands in for the coil's unpublished geometry; made by scan.calibrate",
+            note="the modelled array stands in for the coil's unpublished geometry; made by "
+                 "scan.calibrate",
         )
 
 
@@ -811,16 +883,14 @@ class CovarianceReading:
 @dataclasses.dataclass(frozen=True)
 class WaterReading:
     """What one suppressed acquisition and its water reference say of the scanner's
-    water suppression and receiver, read the way the package's records were
-    (info/HANDOFF.md items 217 and 219): the residual water as the exponentials within
-    0.4 ppm of the carrier in the mean suppressed FID at t = 0 (`_exponentials`) over the
+    water suppression and receiver: the residual water as the exponentials within 0.4 ppm
+    of the carrier in the mean suppressed FID at t = 0 (`_exponentials`) over the
     reference's mean FID at t = 0, both combined with the suppressed file's own weights;
     the receiver delay as the phase of creatine against NAA over their distance, a
     first-order phase, read on creatine alone, BEYOND the phase the sequence itself
-    gives creatine's peak (the coupled neighbours under 3.03 ppm evolve over the echo:
-    a PRESS at TE 35 ms bends the peak by ten degrees with no delay at all; the twin
-    says how much, `intrinsic_phase_deg`); and the residual's phase beyond the line
-    through NAA and creatine, whose side (past a quarter turn: inverted) signs it.
+    gives creatine's peak (the coupled neighbours under 3.03 ppm evolve over the echo;
+    the twin says how much, `intrinsic_phase_deg`); and the residual's phase beyond the
+    line through NAA and creatine, whose side (past a quarter turn: inverted) signs it.
 
     Attributes:
         residual_over_full: The residual water at t = 0 over the reference's, positive.
@@ -828,17 +898,18 @@ class WaterReading:
         water_phase_deg: The residual's phase against the metabolites, the line taken out.
         creatine_phase_deg: Creatine's phase against NAA as measured.
         creatine_offset_hz: Creatine's distance from NAA, the ppm way round, in hertz.
-        dry_amplitude: The FID without its water at t = 0, in the data's units, the twin's scale.
+        dry_amplitude: The FID without its water at t = 0, in the data's units, the twin's
+            scale.
         residual_fid: The residual water as the data show it, its fitted components narrow and
             broad, turned so its line has `water_phase_deg` against the metabolites' frame.
         leak_over_full: The residual's broad part (T2* under 35 ms, the water outside the
             voxel the localization leaks) at t = 0 over the reference's; inside
-            `residual_over_full`, which is the total (info/HANDOFF.md item 238).
+            `residual_over_full`, which is the total.
         leak_t2star_s, leak_offset_hz: The heaviest broad part's decay and its frequency
             from the carrier.
         leak_phase_deg: The broad parts' phase against the narrow ones'.
         eddy_transient_rad: The reference's phase 5 ms after its first sample against its
-            components fitted late (item 236).
+            components fitted late.
     """
 
     residual_over_full: float
@@ -874,43 +945,58 @@ class WaterReading:
         # the residual water: the decaying exponentials within 0.4 ppm of the carrier, at t = 0
         m = min(1024, suppressed.size)
         freqs, damping, amplitudes = _exponentials(suppressed[:m], dwell_s)
-        water = (np.abs(freqs) < 0.4 * f0_mhz) & (damping < 0.0)          # within 0.4 ppm of the carrier, as the records
+        # within 0.4 ppm of the carrier, as the records
+        water = (np.abs(freqs) < 0.4 * f0_mhz) & (damping < 0.0)
         residual = complex(amplitudes[water].sum())
-        # the broad parts, the water the localization leaks; the narrow ones the voxel's own residual
+        # the broad parts, the water the localization leaks; the narrow ones the voxel's own
+        # residual
         t2star = -1.0 / damping[water]
         broad = t2star < 0.035
-        leak, narrow = complex(amplitudes[water][broad].sum()), complex(amplitudes[water][~broad].sum())
+        leak, narrow = (complex(amplitudes[water][broad].sum()),
+                        complex(amplitudes[water][~broad].sum()))
         heaviest = int(np.argmax(np.abs(amplitudes[water][broad]))) if broad.any() else None
         reference_fid = _combined(reference, like=data).mean(axis=1)
         t = np.arange(suppressed.size) * dwell_s
-        fitted = sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t) for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
+        fitted = sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t)
+                     for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
         dry = suppressed - fitted
         # the first-order phase: the complex peaks of the mean spectrum, NAA phased to zero
         lines = _lines(suppressed, dwell_s, f0_mhz, WATER_PPM)
-        (naa, f_naa), (creatine, f_cr), (residual_line, f_water) = lines["NAA"], lines["Cr"], lines["water"]
+        (naa, f_naa), (creatine, f_cr), (residual_line, f_water) = (lines["NAA"], lines["Cr"],
+                                                                    lines["water"])
         phase_cr = float(np.angle(creatine / naa))
-        slope = phase_cr / (f_cr - f_naa)                       # radians per hertz on creatine alone
-        beyond = float(np.degrees(np.angle(np.exp(1j * (np.angle(residual_line / naa) - slope * (f_water - f_naa))))))
-        return cls(residual_over_full=abs(residual) / full, residual_over_dry_max=abs(residual) / float(np.abs(dry).max()),
-                   water_phase_deg=beyond, creatine_phase_deg=float(np.degrees(phase_cr)), creatine_offset_hz=float(f_cr - f_naa),
+        slope = phase_cr / (f_cr - f_naa)                   # radians per hertz on creatine alone
+        beyond = float(np.degrees(np.angle(np.exp(
+            1j * (np.angle(residual_line / naa) - slope * (f_water - f_naa))))))
+        return cls(residual_over_full=abs(residual) / full,
+                   residual_over_dry_max=abs(residual) / float(np.abs(dry).max()),
+                   water_phase_deg=beyond, creatine_phase_deg=float(np.degrees(phase_cr)),
+                   creatine_offset_hz=float(f_cr - f_naa),
                    dry_amplitude=float(np.abs(dry[0])),
-                   # in the engine's convention, as `_lines` reads the phases (a file stored as the conjugate: the FID
-                   # conjugated), turned so its line has `beyond` against the metabolites' frame
-                   residual_fid=(fitted if _axis(suppressed, dwell_s, f0_mhz, WATER_PPM)[0] > 0 else np.conj(fitted))
+                   # in the engine's convention, as `_lines` reads the phases (a file stored as
+                   # the conjugate: the FID conjugated), turned so its line has `beyond` against
+                   # the metabolites' frame
+                   residual_fid=(fitted if _axis(suppressed, dwell_s, f0_mhz, WATER_PPM)[0] > 0
+                                 else np.conj(fitted))
                    * np.exp(1j * (np.radians(beyond) - np.angle(residual_line))),
                    leak_over_full=abs(leak) / full,
                    leak_t2star_s=float(t2star[broad][heaviest]) if heaviest is not None else 0.0,
-                   leak_offset_hz=float(freqs[water][broad][heaviest]) if heaviest is not None else 0.0,
-                   leak_phase_deg=float(np.degrees(np.angle(leak / narrow))) if heaviest is not None and narrow != 0.0 else 0.0,
+                   leak_offset_hz=(float(freqs[water][broad][heaviest]) if heaviest is not None
+                                   else 0.0),
+                   leak_phase_deg=(float(np.degrees(np.angle(leak / narrow)))
+                                   if heaviest is not None and narrow != 0.0 else 0.0),
                    eddy_transient_rad=_eddy_transient(reference_fid, dwell_s, f0_mhz),
-                   transients=int(np.asarray(data).shape[2]), reference_transients=int(np.asarray(reference).shape[2]),
-                   npoints=int(suppressed.size), coils=int(np.asarray(data).shape[1]), dwell_s=float(dwell_s), f0_mhz=float(f0_mhz),
+                   transients=int(np.asarray(data).shape[2]),
+                   reference_transients=int(np.asarray(reference).shape[2]),
+                   npoints=int(suppressed.size), coils=int(np.asarray(data).shape[1]),
+                   dwell_s=float(dwell_s), f0_mhz=float(f0_mhz),
                    header=dict(header or {}))
 
     @classmethod
     def from_nifti(cls, source, reference=None):
-        """From two NIfTI-MRS files with the transients apart: the suppressed run and its reference,
-        or with no reference the water transients the run interleaves with its own (`_raw`)."""
+        """From two NIfTI-MRS files with the transients apart: the suppressed run and its
+        reference, or with no reference the water transients the run interleaves with its
+        own (`_raw`)."""
         data, dwell_s, f0_mhz, header = _raw(source)
         water, dwell_ref, _, _ = _raw(source, water=True) if reference is None else _raw(reference)
         if water.shape[2] == 0:
@@ -927,18 +1013,25 @@ class WaterReading:
         return dict(
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
-                     "model": self.header.get("ManufacturersModelName"), "software": self.header.get("SoftwareVersions"),
+                     "model": self.header.get("ManufacturersModelName"),
+                     "software": self.header.get("SoftwareVersions"),
                      "field_t": round(self.f0_mhz / 42.5774785, 2)},
             coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
-            sequence={"name": self.header.get("SequenceName") or type(sequence).__name__, "family": type(sequence).__name__,
-                      "te_s": self.header.get("EchoTime"), "tr_s": self.header.get("RepetitionTime"),
+            sequence={"name": self.header.get("SequenceName") or type(sequence).__name__,
+                      "family": type(sequence).__name__,
+                      "te_s": self.header.get("EchoTime"),
+                      "tr_s": self.header.get("RepetitionTime"),
                       "simulated_as": type(sequence).__name__},
-            acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s, "transients": self.transients,
-                         "reference_transients": self.reference_transients, "water_suppressed": True},
-            voxel={**({"load": voxel.scan.brain.name} if isinstance(voxel.scan.brain, Phantom) else {}),
+            acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
+                         "transients": self.transients,
+                         "reference_transients": self.reference_transients,
+                         "water_suppressed": True},
+            voxel={**({"load": voxel.scan.brain.name}
+                      if isinstance(voxel.scan.brain, Phantom) else {}),
                    "size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
                    "simulated_position_mm": tuple(voxel.position_mm)},
-            date=datetime.date.today().strftime("%d/%m/%y"), note="one acquisition; made by scan.calibrate")
+            date=datetime.date.today().strftime("%d/%m/%y"),
+            note="one acquisition; made by scan.calibrate")
 
     #***************#
     #   the delay   #
@@ -951,11 +1044,10 @@ class WaterReading:
         phase against the metabolites, scaled by the FIDs without their water at t = 0),
         the median over `seeds` draws. What the sequence's own evolution, the
         macromolecules and the residual's wing put under 3.03 ppm, which a delay reading
-        must take out. A residual taken as one narrow line of the reference's shape left
-        the leak's broader wing in every delay row, where the console plays it again
-        (info/HANDOFF.md item 244)."""
+        must take out."""
         t = np.arange(self.npoints) * self.dwell_s
-        turn = np.exp(-2j * np.pi * WATER_PPM * voxel._f0_mhz() * t)     # the twin into the standard's frame
+        # the twin into the standard's frame
+        turn = np.exp(-2j * np.pi * WATER_PPM * voxel._f0_mhz() * t)
         phases = []
         for seed in range(seeds):
             truth = voxel.sample(seed)
@@ -963,8 +1055,10 @@ class WaterReading:
             if gauss_hz is not None:
                 dict.__setitem__(truth.lineshape, "gauss_hz", float(gauss_hz))
             parts = voxel._component_fids(truth, self.npoints, self.dwell_s)
-            dry = sum(np.asarray(fid) for name, fid in parts.items() if name not in ("water", "oov")) * turn
-            lines = _lines(dry + (abs(dry[0]) / self.dry_amplitude) * self.residual_fid, self.dwell_s, voxel._f0_mhz(), WATER_PPM)
+            dry = sum(np.asarray(fid) for name, fid in parts.items()
+                      if name not in ("water", "oov")) * turn
+            lines = _lines(dry + (abs(dry[0]) / self.dry_amplitude) * self.residual_fid,
+                           self.dwell_s, voxel._f0_mhz(), WATER_PPM)
             phases.append(np.degrees(np.angle(lines["Cr"][0] / lines["NAA"][0])))
         return float(np.median(phases))
 
@@ -985,67 +1079,94 @@ class WaterReading:
         return Calibration(
             leaf="water.adjusted_residual", value=float(round(value, 6)),
             prior=tuple(sorted((round(0.75 * value, 6), round(1.25 * value, 6)))),
-            measured={"statistic": "residual water at t = 0 over the water reference's, signed by its phase against "
-                                   "the metabolites (scan.calibrate.WaterReading)",
-                      "residual_over_full": round(self.residual_over_full, 6), "over_dry_maximum": round(self.residual_over_dry_max, 3),
-                      "phase_deg": round(self.water_phase_deg, 1), "inverted": abs(self.water_phase_deg) > 90.0},
-            processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials "
-                       "within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
+            measured={"statistic": "residual water at t = 0 over the water reference's, signed "
+                                   "by its phase against the metabolites "
+                                   "(scan.calibrate.WaterReading)",
+                      "residual_over_full": round(self.residual_over_full, 6),
+                      "over_dry_maximum": round(self.residual_over_dry_max, 3),
+                      "phase_deg": round(self.water_phase_deg, 1),
+                      "inverted": abs(self.water_phase_deg) > 90.0},
+            processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on "
+                       "both files, the exponentials within 0.4 ppm of the carrier at t = 0 over "
+                       "the reference FID at t = 0",
             presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
 
     def record_leak(self, voxel, dataset, presets=(), citation=None, url=None):
         """The Calibration of oov.fraction: the residual's broad part over the full water, the
-        prior a quarter either side (info/HANDOFF.md item 238)."""
+        prior a quarter either side."""
         value = self.leak_over_full
         return Calibration(
             leaf="oov.fraction", value=float(round(value, 6)),
             prior=(round(0.75 * value, 6), round(1.25 * value, 6)),
-            measured={"statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the "
-                                   "carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-                      "over_full": round(value, 6), "t2star_ms": round(1000.0 * self.leak_t2star_s, 1),
-                      "offset_hz": round(self.leak_offset_hz, 2), "phase_vs_residual_deg": round(self.leak_phase_deg, 1)},
-            processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials "
-                       "within 0.4 ppm of the carrier split at a T2* of 35 ms",
-            # the rule: the split is a 3 T number; at 7 T the voxel's own water decays within it (ds005917's reference
-            # water at 23 ms, its whole residual counted broad), so the broad part is not the leak there
-            failed="" if self.f0_mhz < 4.0 * 42.5774785 else "the split at a T2* of 35 ms is set for 3 T: above 4 T the voxel's own water decays within it",
+            measured={"statistic": "the broad exponentials (T2* under 35 ms) of the suppressed "
+                                   "mean FID within 0.4 ppm of the carrier at t = 0 over the "
+                                   "reference's full water (scan.calibrate.WaterReading)",
+                      "over_full": round(value, 6),
+                      "t2star_ms": round(1000.0 * self.leak_t2star_s, 1),
+                      "offset_hz": round(self.leak_offset_hz, 2),
+                      "phase_vs_residual_deg": round(self.leak_phase_deg, 1)},
+            processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on "
+                       "both files, the exponentials within 0.4 ppm of the carrier split at a T2* "
+                       "of 35 ms",
+            # the rule: the split is a 3 T number; at 7 T the voxel's own water decays within
+            # it, so the broad part is not the leak there
+            failed="" if self.f0_mhz < 4.0 * 42.5774785 else (
+                "the split at a T2* of 35 ms is set for 3 T: above 4 T the voxel's own water "
+                "decays within it"),
             presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
 
     def record_eddy(self, voxel, dataset, presets=(), citation=None, url=None):
         """The Calibration of acquisition.eddy_transient_rad: the reference's phase 5 ms after
         its first sample against its components fitted late, the prior a quarter either
         side of it (one subject's own; a population's record is a spread about zero); no
-        fallback, this scanner's (info/HANDOFF.md item 236)."""
+        fallback, this scanner's."""
         value = self.eddy_transient_rad
         return Calibration(
             leaf="acquisition.eddy_transient_rad", value=float(round(value, 4)),
             prior=tuple(sorted((round(0.75 * value, 4), round(1.25 * value, 4)))),
-            measured={"statistic": "the water reference's phase 5 ms after its first sample against its components "
-                                   "fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
+            measured={"statistic": "the water reference's phase 5 ms after its first sample "
+                                   "against its components fitted on 60 to 250 ms and carried "
+                                   "back (scan.calibrate.WaterReading)",
                       "at_5ms_rad": round(value, 4)},
-            processing="NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late "
-                       "window, the model carried back to the start",
-            # the rules: a phase past a quarter turn 5 ms in is the late model landing a half turn off, not a transient; the
-            # late window is set for 3 T, and at 7 T the water has decayed in it (T2* 23 ms on ds005917, 6 of 25 past the turn)
-            failed=("the late window, 60 to 250 ms, is set for 3 T: above 4 T the water has decayed in it" if self.f0_mhz >= 4.0 * 42.5774785
-                    else "" if abs(value) <= 0.5 * np.pi else f"the phase 5 ms in ({value:.2f} rad) is past a quarter turn: the late model's own wrap"),
-            presets=tuple(presets), fallback=False, **self._conditions(voxel, dataset, citation, url))
+            processing="NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean "
+                       "FID; Hankel SVD on the late window, the model carried back to the start",
+            # the rules: a phase past a quarter turn 5 ms in is the late model landing a half
+            # turn off, not a transient; the late window is set for 3 T, and at 7 T the water
+            # has decayed in it
+            failed=("the late window, 60 to 250 ms, is set for 3 T: above 4 T the water has "
+                    "decayed in it" if self.f0_mhz >= 4.0 * 42.5774785
+                    else "" if abs(value) <= 0.5 * np.pi
+                    else f"the phase 5 ms in ({value:.2f} rad) is past a quarter turn: the late "
+                         "model's own wrap"),
+            presets=tuple(presets), fallback=False,
+            **self._conditions(voxel, dataset, citation, url))
 
-    def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None, seeds=3):
+    def record_delay(self, voxel, dataset, presets=(), citation=None, url=None, gauss_hz=None,
+                     seeds=3):
         """The Calibration of acquisition.delay_s: creatine's phase against NAA beyond the
         twin's intrinsic one (the twin as broad as `gauss_hz`, drawn `seeds` times), over
         their distance, a delay of the samples against the echo top; no fallback, this
         scanner's."""
         intrinsic = self.intrinsic_phase_deg(voxel, gauss_hz, seeds)
-        delay = float(np.radians(self.creatine_phase_deg - intrinsic) / (2.0 * np.pi * self.creatine_offset_hz))
+        delay = float(np.radians(self.creatine_phase_deg - intrinsic)
+                      / (2.0 * np.pi * self.creatine_offset_hz))
         return Calibration(
             leaf="acquisition.delay_s", value=float(round(delay, 7)),
             prior=tuple(sorted((round(0.75 * delay, 7), round(1.25 * delay, 7)))),
-            measured={"statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency "
-                                   "difference, as seconds (scan.calibrate.WaterReading)",
-                      "delay_us": round(1e6 * delay, 1), "creatine_phase_deg": round(self.creatine_phase_deg, 1),
-                      "intrinsic_phase_deg": round(intrinsic, 1), "creatine_offset_hz": round(self.creatine_offset_hz, 1)},
-            processing="NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, "
-                       "phases at the peaks' maxima",
-            presets=tuple(presets), fallback=False, **self._conditions(voxel, dataset, citation, url))
+            measured={"statistic": "phase of creatine against NAA beyond the twin's intrinsic "
+                                   "phase, over their frequency difference, as seconds "
+                                   "(scan.calibrate.WaterReading)",
+                      "delay_us": round(1e6 * delay, 1),
+                      "creatine_phase_deg": round(self.creatine_phase_deg, 1),
+                      "intrinsic_phase_deg": round(intrinsic, 1),
+                      "creatine_offset_hz": round(self.creatine_offset_hz, 1)},
+            processing="NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum "
+                       "fourfold zero filled, phases at the peaks' maxima",
+            # the rule: past a quarter turn from the twin's, creatine's phase cannot tell a delay
+            # from an inverted or misplaced line (at 3 T about 2 ms, where the phase nears its wrap)
+            failed=("" if abs(self.creatine_phase_deg - intrinsic) <= 90.0 else
+                    "creatine's phase lies past a quarter turn from the twin's: an inverted or "
+                    "misplaced line, not a delay"),
+            presets=tuple(presets), fallback=False,
+            **self._conditions(voxel, dataset, citation, url))
 

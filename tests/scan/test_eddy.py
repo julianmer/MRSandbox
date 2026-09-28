@@ -32,7 +32,8 @@ from mrsandbox.sequences.timeline import gradient_waveforms
 
 GAMMA = 42.5774785
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
-               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
+               acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                eddy_transient_rad=0.0),
                gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
                               linear_short=0.0, linear_long=0.0))
 
@@ -80,8 +81,8 @@ class TestTimeline:
 
     def test_a_modulated_slice_gradient_rides_on_the_flat_top(self):
         scanner = Scanner.preset("generic_3t")
-        pulse = ShapedPulse.goia_wurst(0.0045, 10000.0, GAMMA * 15.0, gradient_hz_per_mm=GAMMA * 10.0,
-                                       gradient_axis="y")
+        pulse = ShapedPulse.goia_wurst(0.0045, 10000.0, GAMMA * 15.0,
+                                       gradient_hz_per_mm=GAMMA * 10.0, gradient_axis="y")
         t, waves = gradient_waveforms(Sequence(Delay(0.005), pulse, Delay(0.005)), scanner,
                                       TIME_STEP_S, 0.015)
         y = waves["y"]
@@ -102,7 +103,8 @@ class TestResponse:
         t = (np.arange(2000) - 500) * dt
         after = t >= 0.0
         np.testing.assert_allclose(b0[after], 0.4 * 20.0 * np.exp(-t[after] / 0.003), rtol=1e-6)
-        np.testing.assert_allclose(error[after], -0.01 * 20.0 * np.exp(-t[after] / 0.003), rtol=1e-6)
+        np.testing.assert_allclose(error[after], -0.01 * 20.0 * np.exp(-t[after] / 0.003),
+                                   rtol=1e-6)
         assert np.all(b0[~after] == 0.0)
 
     def test_a_train_carries_its_long_terms_into_every_repetition(self):
@@ -177,9 +179,11 @@ class TestKernel:
                                    2.5e-4, response)
         shifted = readout_kernel(crushed_echo(moment), scanner, (0.0, 0.0, 15.0), 20.0, 512,
                                  2.5e-4, response)
-        t, waves = gradient_waveforms(crushed_echo(moment), scanner, TIME_STEP_S, 0.030 + 512 * 2.5e-4)
+        t, waves = gradient_waveforms(crushed_echo(moment), scanner, TIME_STEP_S,
+                                      0.030 + 512 * 2.5e-4)
         _, error = induced_fields(waves["z"], TIME_STEP_S, [tau], [0.0], [fraction])
-        residual = np.interp(0.030 + np.arange(512) * 2.5e-4, t, np.cumsum(error) * TIME_STEP_S) * GAMMA
+        residual = np.interp(0.030 + np.arange(512) * 2.5e-4, t,
+                             np.cumsum(error) * TIME_STEP_S) * GAMMA
         residual = residual - residual[0]  # cycles per mm over the readout
         np.testing.assert_allclose(at_centre.real, np.sinc(residual * 20.0), atol=1e-4)
         assert np.abs(at_centre).min() < 0.9  # a visible dephasing at this residual
@@ -223,7 +227,8 @@ class TestKernel:
 #**************************************************************************************************#
 #                                                                                                  #
 # The kicks a response puts on a design before the readout: the analytic echo phase and imbalance. #
-#                                                                ************************************#
+#                                                                                                  #
+#**************************************************************************************************#
 class TestInducedDesign:
 
     @staticmethod
@@ -241,7 +246,8 @@ class TestInducedDesign:
         design = induced_sequence(crushed_echo(moment), scanner, response, (0.0, 0.0, 10.0))
         kicks = [event for event in design.events if isinstance(event, InducedKick)]
         assert len(kicks) == 2 and len(design.events) == 8
-        assert isinstance(design.events[2], InducedKick) and isinstance(design.events[7], InducedKick)
+        assert (isinstance(design.events[2], InducedKick)
+                and isinstance(design.events[7], InducedKick))
         t, cycles, moments = induced_phase(crushed_echo(moment), scanner, response, 0.030)
         edges = np.array([0.0, 0.015, 0.030])
         expected_moment = np.diff(np.interp(edges, t, moments["z"]))
@@ -276,7 +282,8 @@ class TestInducedDesign:
         t, cycles, moments = induced_phase(plain, scanner, response, 0.024)
         over = lambda series: np.diff(np.interp([0.010, 0.014], t, series))[0]
         np.testing.assert_allclose(track[3, -1], over(moments["z"]), rtol=1e-5)
-        np.testing.assert_allclose(track[0, -1], over(cycles) + 10.0 * over(moments["z"]), rtol=1e-5)
+        np.testing.assert_allclose(track[0, -1], over(cycles) + 10.0 * over(moments["z"]),
+                                   rtol=1e-5)
         assert np.all(np.diff(track[0]) != 0.0) and np.all(track[1:3] == 0.0)
 
     def test_the_b0_term_phases_the_echo_by_the_difference_of_its_halves(self):
@@ -341,9 +348,11 @@ class TestMeasuredResponse:
                                                            bandwidth_hz=60.0)]
         tau = te_s / 4.0
         return Sequence(excite, Gradient(-GAMMA * 10.0 * 0.001, 20.0, axis="z"), Delay(tau - 0.004),
-                        Gradient(moment, 20.0, axis="x"), refocus["x"], Gradient(moment, 20.0, axis="x"),
+                        Gradient(moment, 20.0, axis="x"), refocus["x"],
+                        Gradient(moment, 20.0, axis="x"),
                         Delay(tau - 0.006), *edit, Delay(tau - 0.006),
-                        Gradient(moment, 20.0, axis="y"), refocus["y"], Gradient(moment, 20.0, axis="y"),
+                        Gradient(moment, 20.0, axis="y"), refocus["y"],
+                        Gradient(moment, 20.0, axis="y"),
                         Delay(tau - 0.004), *edit)
 
     @pytest.mark.slow
@@ -352,7 +361,8 @@ class TestMeasuredResponse:
         brain, scanner = Brain.load("icbm152"), Scanner.preset("generic_3t")
         engine, design = Engine(scanner), self.localized_echo()
         kw = dict(position_mm=self.POSITION, size_mm=20.0)
-        clean = VirtualScan(brain, scanner, design, params=QUIET, water=Unsuppressed(), engine=engine)
+        clean = VirtualScan(brain, scanner, design, params=QUIET, water=Unsuppressed(),
+                            engine=engine)
         measured = VirtualScan(brain, scanner, design, params=QUIET, water=Unsuppressed(),
                                girf=GIRF.load(), engine=engine)
         ppm, s0 = clean.voxel(**kw).spectrum(seed=7, npoints=4096)

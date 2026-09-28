@@ -62,22 +62,19 @@ VAPOR = {
 # Units:  flip angles in degrees; delays in seconds from each pulse's peak to the next pulse's
 #         peak, the last to the excitation's, so a scheme's delays sum to the duration in its
 #         name. The pulses are 10 percent cutoff Gaussians of 68 Hz and 17.92 ms (the 68 Hz is
-#         the full width at half of the saturation, 1 - Mz: that is what a Gaussian of that
-#         truncation and duration gives, checked in the engine), each followed by a 9 ms crusher
+#         the full width at half of the saturation, 1 - Mz), each followed by a 9 ms crusher
 #         (their DOTCOPS directions are in the table and not typed: the package keeps the
 #         longitudinal magnetization alone).
-# Notes:  CHECKED against the dataset's headers (OpenNeuro ds006812, sub-01, 25/09/26): the
-#         amplitudes of ss_rf_ws1 to ss_rf_ws12 over the 11.7936 V of the 90 degree pulses
-#         (reference 221.3 V; the study calibrated no flip per voxel) give every flip of the
-#         table to 0.1 degrees. The header's lRFExcitationBandwidth reads 50 Hz, the product's
-#         field, where the paper states its 68 Hz pulses.
+# Notes:  the headers of the paper's dataset (OpenNeuro ds006812) hold these flips; their
+#         lRFExcitationBandwidth of 50 Hz is the product's field, not the 68 Hz of the pulses.
 COWS = {
     "pulse_bandwidth_hz": 68.0, "pulse_duration_s": 0.01792, "pulse_truncation": 0.1,
     "COWS(7;236)": {"flips_deg": (75.4, 86.2, 86.4, 72.4, 82.3, 116.7, 160.6),
                     "delays_s": (0.028, 0.028, 0.053032, 0.039794, 0.028, 0.038214, 0.021117)},
-    "COWS(12;626)": {"flips_deg": (75.8, 3.4, 110.6, 141.1, 180.0, 20.1, 89.6, 76.3, 117.2, 79.6, 127.7, 167.6),
-                     "delays_s": (0.082664, 0.028, 0.030553, 0.028, 0.061701, 0.051238, 0.099274, 0.062789,
-                                  0.087689, 0.028, 0.044538, 0.021797)},
+    "COWS(12;626)": {"flips_deg": (75.8, 3.4, 110.6, 141.1, 180.0, 20.1, 89.6, 76.3, 117.2, 79.6,
+                                   127.7, 167.6),
+                     "delays_s": (0.082664, 0.028, 0.030553, 0.028, 0.061701, 0.051238, 0.099274,
+                                  0.062789, 0.087689, 0.028, 0.044538, 0.021797)},
     "VAPOR7": {"flips_deg": (90.0, 90.0, 160.2, 90.0, 160.2, 90.0, 160.2),
                "delays_s": (0.150, 0.080, 0.160, 0.080, 0.100, 0.030, 0.026)},
 }
@@ -95,16 +92,15 @@ COWS = {
 #         the metabolite most affected, and finds none of it in a phantom (Table 3).
 # Units:  dimensionless ratios of concentrations, (mean, SD).
 # Notes:  labelled priors for the amplitude water suppression costs each metabolite; no
-#         source applies them yet (a decision for the suppressed-water world).
-# Siemens' product water saturation as svs_se plays it (syngo MR B17), read from the TWIX headers of
-# Big GABA site S1, subjects S01, S03 and S05 (24/09/26, info/HANDOFF.md item 217):
-# sSpecPara.lRFExcitationBandwidth 50 Hz, and the amplitudes of ss_rf_ws1, ws2, ws3 in the ratio
-# 1 : 0.935 : 1.803 in every subject (16.30, 15.24, 29.38 V in S01; the scanner's water suppression
-# adjustment scales all three at once, the protocol's 18.56, 17.35, 33.45 V became those). The third
-# pulse overtips, as WET's last one does, so the water recovering through the last gap crosses zero
-# at the excitation whatever its T1. The header holds no timing: the 30 ms spacing (a pulse of
-# about 26 ms and its spoiler) is STATED.
-SIEMENS_SVS_SE = {"bandwidth_hz": 50.0, "amplitude_ratios": (1.0, 0.935, 1.803), "spacing_s": 0.030}
+#         source applies them yet.
+# Siemens' product water saturation as svs_se plays it (syngo MR B17), read from the TWIX headers
+# of Big GABA site S1: sSpecPara.lRFExcitationBandwidth 50 Hz, and the amplitudes of ss_rf_ws1,
+# ws2, ws3 in a fixed ratio (the scanner's water suppression adjustment scales all three at once).
+# The third pulse overtips, as WET's last one does, so the water recovering through the last gap
+# crosses zero at the excitation whatever its T1. The header holds no timing: the 30 ms spacing
+# (a pulse of about 26 ms and its spoiler) is STATED.
+SIEMENS_SVS_SE = {"bandwidth_hz": 50.0, "amplitude_ratios": (1.0, 0.935, 1.803),
+                  "spacing_s": 0.030}
 BACON_2026_NON_SUPPRESSED = {
     "semi_laser": {
         "tNAA": (1.156, 0.051), "tCr": (1.535, 0.160), "mI": (1.242, 0.100),

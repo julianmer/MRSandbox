@@ -93,7 +93,8 @@ class TestDeposit:
                 step = grid[1] - grid[0]
                 assert abs(step - (5.0 if term in ("b0", axis) else 10.0)) < 0.01, (axis, term)
                 assert response.shape == grid.shape
-            at_zero = {term: response[np.argmin(np.abs(grid))] for term, (grid, response) in terms.items()}
+            at_zero = {term: response[np.argmin(np.abs(grid))]
+                       for term, (grid, response) in terms.items()}
             assert abs(at_zero[axis] - 1.0) < 2e-3  # the nominal gradient plays
             assert all(abs(at_zero[term]) < 2e-3 for term in "xyz" if term != axis)
             assert abs(at_zero["b0"]) < 1e-4
@@ -120,7 +121,8 @@ class TestDeposit:
 #**************************************************************************************************#
 #                                     Class TestReverseDeposit                                     #
 #**************************************************************************************************#
-@pytest.mark.skipif(not Resources.cached("reverse/philips_3t"), reason="reVERSE-GIRF file not cached (46 KB)")
+@pytest.mark.skipif(not Resources.cached("reverse/philips_3t"),
+                    reason="reVERSE-GIRF file not cached (46 KB)")
 class TestReverseDeposit:
 
     def test_the_philips_response_holds_the_self_terms_only(self):
@@ -129,9 +131,11 @@ class TestReverseDeposit:
         assert all(list(girf.terms[axis]) == [axis] for axis in "xyz")
         # a gradient follows its demand at low frequency and falls off in the kilohertz
         grid, response = girf.terms["z"]["z"]
-        assert abs(abs(response[np.abs(grid).argmin()]) - 1.0) < 0.03 and abs(response[np.abs(grid - 5000.0).argmin()]) < 0.8
+        assert (abs(abs(response[np.abs(grid).argmin()]) - 1.0) < 0.03
+                and abs(response[np.abs(grid - 5000.0).argmin()]) < 0.8)
         # a crusher's edge rings in its own axis for milliseconds and no B0 term comes with it
         crusher = np.zeros(4000)
         crusher[100:1100] = 20.0
         fields = girf("z", crusher, 1e-5, 20000.0)
-        assert list(fields) == ["z"] and abs(fields["z"][1105]) > 1.0 and abs(fields["z"][3000]) < 0.01
+        assert (list(fields) == ["z"] and abs(fields["z"][1105]) > 1.0
+                and abs(fields["z"][3000]) < 0.01)

@@ -22,7 +22,7 @@
 #         water based, 50 mM potassium phosphate buffer, pH 7.4 at 20 C, doped with Gd-DTPA
 #         (amount not stated, so the relaxation times are not known from the sheet), a
 #         CMIT:MIT preservative. Choline is choline chloride. No macromolecules, no lipids.
-#         No measured relaxation times of it were found in the literature (searched 19/09/26).
+#         No measured relaxation times of it are known in the literature.
 SPECTRE = {
     "NAA": 12.5,
     "Cr": 10.0,

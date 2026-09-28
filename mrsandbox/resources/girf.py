@@ -34,7 +34,8 @@ import scipy.fft
 #         members are extracted on demand.
 NWS_DEPOSIT = {
     "nws/release_zip": {
-        "url": "https://zenodo.org/api/records/18262881/files/jbbacon/NWS_Spectroscopy-1.0.0.zip/content",
+        "url": "https://zenodo.org/api/records/18262881/files/"
+               "jbbacon/NWS_Spectroscopy-1.0.0.zip/content",
         "md5": "cedfcf6d5c5c94ebbc35299633e5986c",
         "filename": "nws/NWS_Spectroscopy-1.0.0.zip",
     },
@@ -54,18 +55,20 @@ NWS_DEPOSIT = {
 #         move a spectrum's lines, which need the B0 term and a finer grid (the deposit above).
 REVERSE_DEPOSIT = {
     "reverse/philips_3t": {
-        "url": "https://github.com/mriphysics/reVERSE-GIRF/releases/download/1.0/GIRF_3T_London_20140729.mat",
+        "url": "https://github.com/mriphysics/reVERSE-GIRF/releases/download/1.0/"
+               "GIRF_3T_London_20140729.mat",
         "md5": "805ed8fb0ec114e7efe878225dea5d73",
         "filename": "reverse/GIRF_3T_London_20140729.mat",
     },
     "reverse/philips_7t": {
-        "url": "https://github.com/mriphysics/reVERSE-GIRF/releases/download/1.0/GIRF_7T_Zurich_20150302.mat",
+        "url": "https://github.com/mriphysics/reVERSE-GIRF/releases/download/1.0/"
+               "GIRF_7T_Zurich_20150302.mat",
         "md5": "db03dd410462f69c87c3b32d4502c2a8",
         "filename": "reverse/GIRF_7T_Zurich_20150302.mat",
     },
 }
 
-# Source: the deposit's GIRF_measurements members and the paper's Methods, read 17/09/26:
+# Source: the deposit's GIRF_measurements members and the paper's Methods:
 #         per input axis j a SphericalHarmonics_{J}_1.npz with GIRF_FT (4, P, 1), the terms
 #         in the order B0, x, y, z (the coefficients of the field the axis induces, in mT
 #         for B0 and mT/m for the first order, per mT/m of input), on freqFull (P points,
@@ -107,9 +110,9 @@ class GIRF:
     deviation H - 1 for the self term so the nominal waveform's own edges never
     enter, stated): the measured response carries noise to 100 kHz that the
     receiver never sees, and a resonance beyond the readout's band would otherwise
-    alias into it. The response
-    is linear and time-invariant (the paper's assumption); a zero-frequency error of
-    the self terms (under 1e-3) is a pre-emphasis residual the waveform's steps carry.
+    alias into it. The response is linear and time-invariant (the paper's
+    assumption); a zero-frequency error of the self terms is a pre-emphasis residual
+    the waveform's steps carry.
 
     Args:
         terms: {axis: {term: (freq_hz, response)}}, the complex response of each
@@ -133,7 +136,8 @@ class GIRF:
         archive on first use (the archive itself is fetched and verified on first use)."""
         from mrsandbox.resources import Resources
 
-        member = f"{GIRF_MEASUREMENT['root']}/{resolution}/SphericalHarmonics_{axis.upper()}_1.npz"
+        member = (f"{GIRF_MEASUREMENT['root']}/{resolution}/"
+                  f"SphericalHarmonics_{axis.upper()}_1.npz")
         local = Resources.cache_dir() / "nws" / member
         if not local.exists():
             with zipfile.ZipFile(Resources.path("nws/release_zip")) as archive:
@@ -178,7 +182,8 @@ class GIRF:
         name = f"reverse/philips_{field}"
         stored = scipy.io.loadmat(Resources.path(name))
         grid = stored["ff"].ravel()
-        return cls({axis: {axis: (grid, stored["Hw"][:, k])} for k, axis in enumerate("xyz")}, name=name)
+        return cls({axis: {axis: (grid, stored["Hw"][:, k])} for k, axis in enumerate("xyz")},
+                   name=name)
 
     #**********#
     #   named  #
@@ -194,7 +199,8 @@ class GIRF:
     def __call__(self, axis, waveform_mt_m, dt_s, bandwidth_hz):
         """The fields one axis's waveform induces, {"b0": Hz, "x", "y", "z": mT/m}."""
         waveform = np.asarray(waveform_mt_m, dtype=np.float64)
-        n = scipy.fft.next_fast_len(waveform.size + int(round(GIRF_MEASUREMENT["memory_s"] / dt_s)))
+        n = scipy.fft.next_fast_len(
+            waveform.size + int(round(GIRF_MEASUREMENT["memory_s"] / dt_s)))
         f = np.fft.rfftfreq(n, dt_s)
         half = 0.5 * bandwidth_hz
         edge = np.clip((f - 0.8 * half) / (0.2 * half), 0.0, 1.0)

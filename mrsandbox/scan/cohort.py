@@ -8,9 +8,8 @@
 #                                                                                                  #
 # Purpose: A cohort: subjects measured on one dataset, each a scanner profile of its own raw run   #
 #          with the voxel's place and the brain that stands in, so a draw lands every measured     #
-#          value on one real subject at once (info/HANDOFF.md item 239); and the package's         #
-#          cohorts as its measured database, pooled for a scanner by the conditions it matches     #
-#          (item 241).                                                                             #
+#          value on one real subject at once; and the package's cohorts as its measured            #
+#          database, pooled for a scanner by the conditions it matches.                            #
 #                                                                                                  #
 ####################################################################################################
 
@@ -30,7 +29,8 @@ from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.profile import ScannerProfile
 
 COHORTS = pathlib.Path(__file__).resolve().parent.parent / "resources" / "cohorts"
-# how far a row's field may sit from the scanner's and still be its field (the Siemens 3 T run at 2.89)
+# how far a row's field may sit from the scanner's and still be its field (the Siemens 3 T run
+# at 2.89)
 FIELD_T = 0.25
 # the leaves of the receive chain, which the receive array's channel count is a condition of;
 # the suppression's residual, the delay or the eddy transient do not change with the array
@@ -68,9 +68,11 @@ class Member:
         """The profile with every record's prior closed on its value: a member is one
         subject, not a range about one. A failed reading is dropped: its leaf falls to
         the pooled record."""
-        records = tuple(dataclasses.replace(record, prior=(record.value, record.value),
-                                            source={**record.source, "dataset": f"subject {self.subject} of {record.source['dataset']}"})
-                        for record in self.profile.records if not record.failed)
+        records = tuple(dataclasses.replace(
+            record, prior=(record.value, record.value),
+            source={**record.source,
+                    "dataset": f"subject {self.subject} of {record.source['dataset']}"})
+            for record in self.profile.records if not record.failed)
         return dataclasses.replace(self.profile, records=records)
 
     #**********#
@@ -104,20 +106,27 @@ class Cohort:
     #   label   #
     #***********#
     def label(self, dataset=None):
-        """The cohort in one line, the same shape for every cohort: "<dataset> · <vendor model> <field> T ·
-        <sequence> · N subjects", the conditions read off its members' records (`dataset` in place of
-        the name)."""
+        """The cohort in one line, the same shape for every cohort: "<dataset> · <vendor model>
+        <field> T · <sequence> · N subjects", the conditions read off its members' records
+        (`dataset` in place of the name)."""
         records = [r for m in self.members for r in m.profile.records]
-        tidy = {"ge": "GE", "TrioTim": "Trio", "Prisma_fit": "Prisma", "Discovery MR750": "MR750", "Investigational_Device_7T": "", "Magnetom 7T": "Magnetom",
-                "CBICMR30X": ""}
-        vendors = sorted({tidy.get(r.scanner["vendor"], str(r.scanner["vendor"]).title()) for r in records if r.scanner.get("vendor")})
-        models = sorted({tidy.get(r.scanner["model"], str(r.scanner["model"])) for r in records if r.scanner.get("model")} - {""})
-        fields = sorted({round(r.scanner["field_t"]) for r in records if r.scanner.get("field_t") is not None})
-        families = sorted({r.sequence.get("family", "") for r in records if r.sequence.get("family")}) or (
-            ["fMRI"] if any("series" in str(r.sequence.get("name", "")) or "physio" in str(r.sequence.get("name", "")) for r in records) else ["?"])
+        tidy = {"ge": "GE", "TrioTim": "Trio", "Prisma_fit": "Prisma", "Discovery MR750": "MR750",
+                "Investigational_Device_7T": "", "Magnetom 7T": "Magnetom", "CBICMR30X": ""}
+        vendors = sorted({tidy.get(r.scanner["vendor"], str(r.scanner["vendor"]).title())
+                          for r in records if r.scanner.get("vendor")})
+        models = sorted({tidy.get(r.scanner["model"], str(r.scanner["model"]))
+                         for r in records if r.scanner.get("model")} - {""})
+        fields = sorted({round(r.scanner["field_t"]) for r in records
+                         if r.scanner.get("field_t") is not None})
+        families = sorted({r.sequence.get("family", "") for r in records
+                           if r.sequence.get("family")}) or (
+            ["fMRI"] if any("series" in str(r.sequence.get("name", ""))
+                            or "physio" in str(r.sequence.get("name", "")) for r in records)
+            else ["?"])
         names = {"Press": "PRESS", "SemiLaser": "semi-LASER", "Steam": "STEAM"}
         system = " ".join(vendors + models) or "unstated system"
-        return (f"{dataset or self.name} · {system} {' / '.join(str(f) for f in fields) or '?'} T · "
+        return (f"{dataset or self.name} · {system} "
+                f"{' / '.join(str(f) for f in fields) or '?'} T · "
                 f"{', '.join(names.get(f, f) for f in families)} · {len(self.members)} subjects")
 
     #**********#
@@ -128,6 +137,28 @@ class Cohort:
         rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
         return self.members[int(rng.integers(len(self.members)))]
 
+    #*************#
+    #   checked   #
+    #*************#
+    def checked(self):
+        """The cohort with every run whose noise reads over twice the cohort's median failed in
+        its noise and width readings: a failed acquisition (motion, a lost coil), not the
+        scanner's noise or shim (stated). The noise reading is taken against each run's own twin,
+        so runs of other settings compare."""
+        noise = {k: r.value for k, m in enumerate(self.members) for r in m.profile.records
+                 if r.leaf == "noise.sigma" and not r.failed}
+        if not noise:
+            return self
+        median = float(np.median(list(noise.values())))
+        rule = (f"the run's noise reads over twice its cohort's median ({median:.3g}): a failed "
+                f"acquisition")
+        return dataclasses.replace(self, members=tuple(
+            dataclasses.replace(m, profile=dataclasses.replace(m.profile, records=tuple(
+                dataclasses.replace(r, failed=rule)
+                if r.leaf in ("noise.sigma", "lineshape.gauss_hz") and not r.failed else r
+                for r in m.profile.records)))
+            if noise.get(k, 0.0) > 2.0 * median else m for k, m in enumerate(self.members)))
+
     #**********#
     #   save   #
     #**********#
@@ -136,8 +167,10 @@ class Cohort:
         and brains; numbers with their conditions, no raw data."""
         with open(path, "w") as file:
             json.dump({"name": self.name,
-                       "members": [{"subject": m.subject, "position_mm": list(m.position_mm), "size_mm": list(m.size_mm),
-                                    "brain": m.brain, "profile": m.profile.to_dict()} for m in self.members]}, file, indent=1)
+                       "members": [{"subject": m.subject, "position_mm": list(m.position_mm),
+                                    "size_mm": list(m.size_mm), "brain": m.brain,
+                                    "profile": m.profile.to_dict()} for m in self.members]},
+                      file, indent=1)
 
     #**********#
     #   load   #
@@ -147,8 +180,9 @@ class Cohort:
         """The cohort `save` wrote."""
         with open(path) as file:
             stored = json.load(file)
-        return cls(stored["name"], tuple(Member(m["subject"], ScannerProfile.from_dict(m["profile"]), tuple(m["position_mm"]),
-                                                tuple(m["size_mm"]), m["brain"]) for m in stored["members"]))
+        return cls(stored["name"], tuple(
+            Member(m["subject"], ScannerProfile.from_dict(m["profile"]), tuple(m["position_mm"]),
+                   tuple(m["size_mm"]), m["brain"]) for m in stored["members"]))
 
     #***********#
     #   named   #
@@ -176,13 +210,16 @@ def package():
 def rows(leaf, within=()):
     """Every reading of `leaf` in the package's cohorts (those named in `within`, else all)
     that did not fail, as [(cohort name, subject, Calibration)]."""
-    return [(cohort.name, member.subject, record) for cohort in package() if not within or cohort.name in within
-            for member in cohort.members for record in member.profile.records if record.leaf == leaf and not record.failed]
+    return [(cohort.name, member.subject, record)
+            for cohort in package() if not within or cohort.name in within
+            for member in cohort.members for record in member.profile.records
+            if record.leaf == leaf and not record.failed]
 
 
 def leaves():
     """The leaves the package's cohorts hold readings of."""
-    return sorted({record.leaf for cohort in package() for member in cohort.members for record in member.profile.records})
+    return sorted({record.leaf for cohort in package() for member in cohort.members
+                   for record in member.profile.records})
 
 
 def _plain(text):
@@ -192,14 +229,17 @@ def _plain(text):
 def _matches(record, field_t, vendor, model, channels):
     """Whether a row was read under the conditions asked (None asks nothing); a row that
     does not state a condition does not fail it."""
-    if field_t is not None and record.scanner.get("field_t") is not None and abs(record.scanner["field_t"] - field_t) > FIELD_T:
+    if (field_t is not None and record.scanner.get("field_t") is not None
+            and abs(record.scanner["field_t"] - field_t) > FIELD_T):
         return False
     if vendor is not None and record.scanner.get("vendor") and record.scanner["vendor"] != vendor:
         return False
-    if model is not None and record.scanner.get("model") and _plain(model) not in _plain(record.scanner["model"]) \
-            and _plain(record.scanner["model"]) not in _plain(model):
+    if (model is not None and record.scanner.get("model")
+            and _plain(model) not in _plain(record.scanner["model"])
+            and _plain(record.scanner["model"]) not in _plain(model)):
         return False
-    if channels is not None and record.coil.get("channels") and channels not in record.coil["channels"]:
+    if (channels is not None and record.coil.get("channels")
+            and channels not in record.coil["channels"]):
         return False
     return True
 
@@ -208,16 +248,17 @@ def _matches(record, field_t, vendor, model, channels):
 #   pooled   #
 #************#
 def forget():
-    """Drop what was pooled and matched so far: for a test that stands in another database, or a package
-    whose cohorts were rebuilt in this process."""
+    """Drop what was pooled and matched so far: for a test that stands in another database, or
+    a package whose cohorts were rebuilt in this process."""
     _pooled.cache_clear()
     _holding.cache_clear()
 
 
 def pooled(leaf, scanner, channels=None, within=()):
-    """See _pooled: the same, computed once per leaf, conditions and database (the package's rows do
-    not change; a database stood in for it, as a test does, is another key)."""
-    return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels, tuple(within), id(package()))
+    """See _pooled: the same, computed once per leaf, conditions and database (the package's
+    rows do not change; a database stood in for it, as a test does, is another key)."""
+    return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels,
+                   tuple(within), id(package()))
 
 
 @functools.lru_cache(maxsize=4096)
@@ -256,7 +297,8 @@ def _pool(leaf, scanner, channels=None, within=()):
         prior = (float(values.min()), float(values.max()))
     else:
         prior = (float(np.percentile(values, 5)), float(np.percentile(values, 95)))
-        percentiles = {str(q): round(float(np.percentile(values, q)), 7) for q in (5, 25, 50, 75, 95)}
+        percentiles = {str(q): round(float(np.percentile(values, q)), 7)
+                       for q in (5, 25, 50, 75, 95)}
     records = [record for _, _, record in matched]
     cohorts = sorted({name for name, _, _ in matched})
 
@@ -264,29 +306,44 @@ def _pool(leaf, scanner, channels=None, within=()):
         return values[0] if len(values) == 1 else "pooled"
     # what the rows were matched on: the conditions asked and kept that at least one row states
     states = {"field_t": lambda r: True, "vendor": lambda r: bool(r.scanner.get("vendor")),
-              "model": lambda r: bool(r.scanner.get("model")), "channels": lambda r: bool(r.coil.get("channels"))}
-    stated = {key: value for key, value in conditions.items() if value is not None and any(states[key](r) for r in records)}
-    per_cohort = {name: round(float(np.median([r.value for c, _, r in matched if c == name])), 7) for name in cohorts}
+              "model": lambda r: bool(r.scanner.get("model")),
+              "channels": lambda r: bool(r.coil.get("channels"))}
+    stated = {key: value for key, value in conditions.items()
+              if value is not None and any(states[key](r) for r in records)}
+    per_cohort = {name: round(float(np.median([r.value for c, _, r in matched if c == name])), 7)
+                  for name in cohorts}
     return Calibration(
         leaf=leaf, value=round(value, 7), prior=tuple(round(float(v), 7) for v in prior),
-        measured={"statistic": "median over the subjects of the package's cohorts read under the scanner's conditions; "
-                               "the prior their 5th to 95th percentile (scan.cohort.pooled)",
-                  "subjects": len(matched), "matched_on": stated, "percentiles": percentiles, "per_cohort_median": per_cohort,
+        measured={"statistic": "median over the subjects of the package's cohorts read under the "
+                               "scanner's conditions; the prior their 5th to 95th percentile "
+                               "(scan.cohort.pooled)",
+                  "subjects": len(matched), "matched_on": stated, "percentiles": percentiles,
+                  "per_cohort_median": per_cohort,
                   "values": [round(float(v), 7) for v in sorted(values)],
-                  "subjects_per_cohort": {name: sum(1 for c, _, _ in matched if c == name) for name in cohorts}},
-        source={"dataset": f"pooled over {len(matched)} subjects of {len(cohorts)} cohort{'s' if len(cohorts) > 1 else ''}: "
+                  "subjects_per_cohort": {name: sum(1 for c, _, _ in matched if c == name)
+                                          for name in cohorts}},
+        source={"dataset": f"pooled over {len(matched)} subjects of {len(cohorts)} "
+                           f"cohort{'s' if len(cohorts) > 1 else ''}: "
                            + ", ".join(cohorts), "citation": None, "url": None},
         scanner={"vendor": one(sorted({r.scanner.get("vendor") or "unstated" for r in records})),
-                 "model": one(sorted({str(r.scanner.get("model") or "unstated") for r in records})),
-                 "software": None, "field_t": round(float(np.median([r.scanner["field_t"] for r in records if r.scanner.get("field_t") is not None] or [float("nan")])), 2)},
-        coil={"channels": tuple(sorted({int(c) for r in records for c in (r.coil.get("channels") or ())}))},
+                 "model": one(sorted({str(r.scanner.get("model") or "unstated")
+                                      for r in records})),
+                 "software": None,
+                 "field_t": round(float(np.median([r.scanner["field_t"] for r in records
+                                                   if r.scanner.get("field_t") is not None]
+                                                  or [float("nan")])), 2)},
+        coil={"channels": tuple(sorted({int(c) for r in records
+                                        for c in (r.coil.get("channels") or ())}))},
         sequence={"name": ", ".join(sorted({str(r.sequence.get("name")) for r in records})),
-                  "family": one(sorted({r.sequence.get("family", "") for r in records})).replace("pooled", "")},
+                  "family": one(sorted({r.sequence.get("family", "")
+                                        for r in records})).replace("pooled", "")},
         acquisition={"the subjects' own": True},
         voxel={"the subjects' own": True},
-        processing="the rows as their readers made them (scan.calibrate), pooled by scan.cohort.pooled",
+        processing="the rows as their readers made them (scan.calibrate), pooled by "
+                   "scan.cohort.pooled",
         date=max(r.date for r in records), carried_by=records[0].carried_by,
-        note="the package's measured database pooled for this scanner; a scan's departures name what it does not match",
+        note="the package's measured database pooled for this scanner; a scan's departures name "
+             "what it does not match",
     )
 
 
@@ -300,9 +357,13 @@ def holding(scanner):
 def _holding(b0_t, vendor, model, database):
     scanner = type("Asked", (), {"b0_t": b0_t, "vendor": vendor, "model": model})
     for model in (scanner.model, None):
-        found = sorted({cohort.name for cohort in package() for member in cohort.members for record in member.profile.records
-                        if not record.failed and _matches(record, float(scanner.b0_t), scanner.vendor, model, None)})
+        found = sorted({cohort.name for cohort in package() for member in cohort.members
+                        for record in member.profile.records
+                        if not record.failed
+                        and _matches(record, float(scanner.b0_t), scanner.vendor, model, None)})
         if found:
             return found
-    return sorted({cohort.name for cohort in package() for member in cohort.members for record in member.profile.records
-                   if not record.failed and _matches(record, float(scanner.b0_t), None, None, None)})
+    return sorted({cohort.name for cohort in package() for member in cohort.members
+                   for record in member.profile.records
+                   if not record.failed
+                   and _matches(record, float(scanner.b0_t), None, None, None)})

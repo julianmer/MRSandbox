@@ -180,9 +180,9 @@ class SelectivePulse(Event):
 
     The ideal-selective approximation: a spin is rotated in full when its resonance lies
     within bandwidth_hz around the pulse offset, and untouched otherwise. This is the
-    primitive behind water suppression trains and, later, spectral editing pulses. Offset
+    primitive behind water suppression trains and spectral editing pulses. Offset
     and bandwidth may be traced tensors, so a network can emit them. A tuple of offsets
-    is the ideal multi-band pulse: one band per centre, the validated idealization of
+    is the ideal multi-band pulse: one band per centre, the idealization of
     the dual-lobe cosine-modulated waveforms of Hadamard-encoded editing.
 
     Args:
@@ -199,7 +199,8 @@ class SelectivePulse(Event):
     #**********#
     def __init__(self, flip_deg, offset_ppm, bandwidth_hz, phase_deg=0.0):
         self.flip_deg = flip_deg
-        self.offset_ppm = tuple(offset_ppm) if isinstance(offset_ppm, (tuple, list)) else (offset_ppm,)
+        self.offset_ppm = (tuple(offset_ppm) if isinstance(offset_ppm, (tuple, list))
+                           else (offset_ppm,))
         self.bandwidth_hz = bandwidth_hz
         self.phase_deg = phase_deg
 
@@ -327,7 +328,8 @@ class ShapedPulse(Event):
         try:
             beta = coefficients[float(flip_deg)]
         except KeyError:
-            raise ValueError("hermite coefficients are published for 90 and 180 degrees only") from None
+            raise ValueError("hermite coefficients are published for 90 and 180 degrees "
+                             "only") from None
         tau = ((np.arange(steps, dtype=np.float32) + 0.5) / steps) * 2.0 - 1.0
         envelope = ((1.0 - beta * tau * tau) * np.exp(-9.0 * tau * tau)).astype(np.float32)
         return cls(flip_deg, duration_s, envelope, offset_ppm=offset_ppm, phase_deg=phase_deg,
@@ -411,7 +413,7 @@ class ShapedPulse(Event):
         twice as long, played backwards, so the main lobe comes late (at 0.8 of the
         pulse): the asymmetric excitation of short echo times, rephased by about 0.23
         of its moment instead of 0.52, at the price of a phase that is no longer linear
-        across the slab (its slab integral is 0.9 where the linear pulse keeps 0.98).
+        across the slab.
         """
         from scipy import signal
 
@@ -457,8 +459,9 @@ class ShapedPulse(Event):
         # `envelope` radians per step), not rescaled to a nominal flip, which the
         # passband ripple at the centre would turn into a wrong one
         peak = np.abs(envelope).max()
-        return cls(flip_deg, duration_s, (envelope / peak).astype(np.float32), offset_ppm=offset_ppm,
-                   phase_deg=phase_deg, peak_hz=peak / (2.0 * math.pi * duration_s / steps), **kwargs)
+        return cls(flip_deg, duration_s, (envelope / peak).astype(np.float32),
+                   offset_ppm=offset_ppm, phase_deg=phase_deg,
+                   peak_hz=peak / (2.0 * math.pi * duration_s / steps), **kwargs)
 
     #***********#
     #   sinc    #
@@ -585,7 +588,8 @@ class ShapedPulse(Event):
         propagator = None
         for start in range(0, steps, block):
             rows = d[start:start + block]
-            u = ops.expand_dims(rows, -1) * w[start:start + block] * ops.expand_dims(ops.conj(rows), -2)
+            u = (ops.expand_dims(rows, -1) * w[start:start + block]
+                 * ops.expand_dims(ops.conj(rows), -2))
             if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
                 u = u[:, 0]
             while int(u.shape[0]) > 1:
@@ -611,7 +615,7 @@ class Delay(Event):
     included, the standard approximation), and the populations recover toward thermal
     equilibrium with exp(-t/T1). A missing partner is treated as infinite, so a
     T1-only system still recovers and a T2-only system still dephases. Without any
-    relaxation times the delay stays purely coherent, exactly as before.
+    relaxation times the delay stays purely coherent.
 
     The frame offset of the context evolves alongside: a uniform offset commutes with
     the Hamiltonian, so its evolution exp(+i 2 pi offset Fz t) is a phase per

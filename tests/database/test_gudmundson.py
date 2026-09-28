@@ -18,7 +18,9 @@ import pytest
 
 from mrsandbox.database.gudmundson import Gudmundson
 
-pytestmark = pytest.mark.skipif(not Gudmundson.available(), reason="externals/mrs-database not checked out")
+pytestmark = pytest.mark.skipif(
+    not Gudmundson.available(), reason="externals/mrs-database not checked out"
+)
 
 
 #**************************************************************************************************#

@@ -57,7 +57,8 @@ class WaterSource(abc.ABC):
         content, which is the subject's (a brain's tissues, a phantom's solution)."""
         fractions, content = voxel.fractions, voxel.scan.brain.water_content
         return tissue.MRSI_CHALLENGE["water_molarity_mm"] * (
-            fractions.gm * content["gm"] + fractions.wm * content["wm"] + fractions.csf * content["csf"]
+            fractions.gm * content["gm"] + fractions.wm * content["wm"]
+            + fractions.csf * content["csf"]
         )
 
     #******************#
@@ -82,7 +83,8 @@ class WaterSource(abc.ABC):
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
         t2_s = voxel.resolve(truth.water.t2_s) if t2_s is None else t2_s
         held = getattr(self, "_lines", {}).get(id(truth))
-        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[2], voxel.offset_hz(truth))
+        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[2],
+               voxel.offset_hz(truth))
         if held is not None and held[0] is truth and key in held[1]:
             return held[1][key]
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
@@ -101,8 +103,9 @@ class WaterSource(abc.ABC):
         for truth in truths:
             if voxel.b1_profile(truth) is not None:
                 continue
-            key = (engine, sequence, float(voxel.resolve(truth.water.t1_s)), float(voxel.resolve(truth.water.t2_s)),
-                   voxel.frame(truth)[2], voxel.offset_hz(truth))
+            key = (engine, sequence, float(voxel.resolve(truth.water.t1_s)),
+                   float(voxel.resolve(truth.water.t2_s)), voxel.frame(truth)[2],
+                   voxel.offset_hz(truth))
             entry = held.get(id(truth))
             if entry is None or entry[0] is not truth:
                 if len(held) >= 256:
@@ -112,10 +115,12 @@ class WaterSource(abc.ABC):
                 members.append((truth, key, entry[1]))
         if not members:
             return
-        replay, _ = engine.replay_draws(sequence, ((self.system(f0_mhz / engine.b0_t),),), shift_mm=voxel.shift_mm)
-        t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
-            [[key[2]] for _, key, _ in members], [[key[3]] for _, key, _ in members],
-            [key[4] for _, key, _ in members], [key[5] for _, key, _ in members]))
+        replay, _ = engine.replay_draws(sequence, ((self.system(f0_mhz / engine.b0_t),),),
+                                        shift_mm=voxel.shift_mm)
+        t1, t2, b1, offset = (
+            ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+                [[key[2]] for _, key, _ in members], [[key[3]] for _, key, _ in members],
+                [key[4] for _, key, _ in members], [key[5] for _, key, _ in members]))
         freqs, amps = replay(t1, t2, b1, offset)
         for row, (_, key, cache) in enumerate(members):
             cache[key] = (freqs[row], amps[row])
@@ -154,7 +159,7 @@ class Unsuppressed(WaterSource):
     through a train's gaps and over the TR is the tissue's, so CSF's slow water and the
     tissues' fast water are never nulled by one adjustment at once, and what a train
     leaves is their sum, the CSF's long narrow line against the tissues' broader ones,
-    partly cancelling as the raw residuals do (info/HANDOFF.md item 232).
+    partly cancelling as raw residuals do.
     """
 
     #***********#
@@ -172,8 +177,11 @@ class Unsuppressed(WaterSource):
             if share <= 0.0:
                 continue
             own_t2 = getattr(t2_s, name) if isinstance(t2_s, Tissues) else voxel.resolve(t2_s)
-            freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz, t1_s=getattr(t1_s, name), t2_s=own_t2)
-            parts.append((freqs, amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share), own_t2))
+            freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz,
+                                             t1_s=getattr(t1_s, name), t2_s=own_t2)
+            parts.append((freqs,
+                          amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share),
+                          own_t2))
         return parts or None
 
 

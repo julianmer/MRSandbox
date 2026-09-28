@@ -32,7 +32,8 @@ class TestLimits:
 
     def test_presets_carry_the_stated_limits(self):
         scanner = Scanner.preset("generic_3t")
-        assert (scanner.peak_b1_ut, scanner.max_grad_mt_m, scanner.max_slew_t_m_s) == (25.0, 40.0, 200.0)
+        assert ((scanner.peak_b1_ut, scanner.max_grad_mt_m, scanner.max_slew_t_m_s)
+                == (25.0, 40.0, 200.0))
         assert Scanner.preset("generic_7t").peak_b1_ut == 30.0
         assert Scanner("custom", 3.0).max_grad_mt_m == 40.0
 
@@ -66,7 +67,8 @@ class TestLimits:
         band = SelectivePulse(180.0, 1.9, 60.0)
         assert Sequence(band, Delay(1.53 / 60.0 * 1.001)).feasible(scanner)
         assert not Sequence(band, Delay(1.53 / 60.0 * 0.999)).feasible(scanner)
-        assert Sequence(SelectivePulse(90.0, 4.65, 60.0), Delay(2.70 / 60.0 * 1.001)).feasible(scanner)
+        assert Sequence(SelectivePulse(90.0, 4.65, 60.0),
+                        Delay(2.70 / 60.0 * 1.001)).feasible(scanner)
 
     def test_gradients_take_the_shortest_trapezoid(self):
         scanner = Scanner.preset("generic_3t")
@@ -75,7 +77,8 @@ class TestLimits:
         crusher = Gradient.crusher(30.0, 0.002)
         area = 30e-3 * 2e-3
         ramps = 2.0 * scanner.max_grad_mt_m * 1e-3 / scanner.max_slew_t_m_s
-        flat = (area - (scanner.max_grad_mt_m * 1e-3) ** 2 / scanner.max_slew_t_m_s) / (scanner.max_grad_mt_m * 1e-3)
+        flat = ((area - (scanner.max_grad_mt_m * 1e-3) ** 2 / scanner.max_slew_t_m_s)
+                / (scanner.max_grad_mt_m * 1e-3))
         assert Sequence(crusher, Delay((ramps + flat) * 1.001)).feasible(scanner)
         assert not Sequence(crusher, Delay((ramps + flat) * 0.999)).feasible(scanner)
         # a small kick fits under a triangle

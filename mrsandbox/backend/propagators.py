@@ -117,8 +117,10 @@ class Backend:
         dt_t = ops.cast(ops.convert_to_tensor(dt), "float32")
         if ops.ndim(dt_t) > 0:
             dt_t = ops.reshape(dt_t, tuple(dt_t.shape) + (1, 1))
-        a = nops.complex_from(ops.zeros_like(nops.real(h)), (-2.0 * math.pi) * nops.real(h) * dt_t) \
-            + nops.complex_from((2.0 * math.pi) * nops.imag(h) * dt_t, ops.zeros_like(nops.real(h)))
+        a = (nops.complex_from(ops.zeros_like(nops.real(h)),
+                               (-2.0 * math.pi) * nops.real(h) * dt_t)
+             + nops.complex_from((2.0 * math.pi) * nops.imag(h) * dt_t,
+                                 ops.zeros_like(nops.real(h))))
         norm = ops.sqrt(ops.sum(ops.abs(a) ** 2, axis=(-2, -1)))
         s = ops.maximum(ops.ceil(ops.log2(ops.maximum(norm / 2.0, 1e-30))), 0.0)
         scale = nops.cast(ops.exp2(-s), "complex64")

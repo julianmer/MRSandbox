@@ -21,7 +21,8 @@ import sys
 import pytest
 
 pytest.importorskip("pydicom")
-if shutil.which("dcm2niix") is None and shutil.which("dcm2niix", path=str(pathlib.Path(sys.executable).parent)) is None:
+if (shutil.which("dcm2niix") is None
+        and shutil.which("dcm2niix", path=str(pathlib.Path(sys.executable).parent)) is None):
     pytest.skip("dcm2niix is not installed", allow_module_level=True)
 
 

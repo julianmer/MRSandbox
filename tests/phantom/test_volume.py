@@ -110,7 +110,7 @@ class TestVolume:
 #                                      Class TestBigBrainMaps                                      #
 #**************************************************************************************************#
 #                                                                                                  #
-# The registered BigBrain-MR quantitative maps load as Volumes on the brain's own grid.             #
+# The registered BigBrain-MR quantitative maps load as Volumes on the brain's own grid.            #
 #                                                                                                  #
 #**************************************************************************************************#
 @pytest.mark.skipif(not Resources.cached("bigbrain_mr/t1map_800um")

@@ -69,9 +69,11 @@ class TestWater:
     #   residual scaling   #
     #**********************#
     def test_suppressed_residual_matches_the_sampled_fraction(self, brain):
-        # the leaked water off: it sits under the residual at the same frequency (its own gate below)
+        # the leaked water off: it sits under the residual at the same frequency (its own gate
+        # below)
         quiet = Params(oov=dict(fraction=0.0))
-        suppressed, unsuppressed = make_scan(brain, params=quiet), make_scan(brain, params=quiet, water=Unsuppressed())
+        suppressed, unsuppressed = (make_scan(brain, params=quiet),
+                                    make_scan(brain, params=quiet, water=Unsuppressed()))
         truth = suppressed.voxel(position_mm=INTERIOR, size_mm=20.0).sample(seed=7)
         ratio = height_at(suppressed, INTERIOR, 4.65) / height_at(unsuppressed, INTERIOR, 4.65)
         assert abs(ratio - truth.water.residual_fraction) < 0.3 * truth.water.residual_fraction
@@ -80,20 +82,24 @@ class TestWater:
     #   per-tissue T1     #
     #*********************#
     def test_each_tissue_recovers_with_its_own_t1(self, brain):
-        # equal per-tissue values render as the one value does; a slow CSF beside fast tissues leaves MORE water
-        # at a short TR than the mean T1 says (recovery is convex in T1), which one adjustment cannot null with the rest
-        # (the T2 held to one value, since each tissue's water decays with its own otherwise)
+        # equal per-tissue values render as the one value does; a slow CSF beside fast tissues
+        # leaves MORE water at a short TR than the mean T1 says (recovery is convex in T1), which
+        # one adjustment cannot null with the rest (the T2 held to one value, since each tissue's
+        # water decays with its own otherwise)
         from mrsandbox.params import PerTissue
 
         def water(t1):
-            quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0), water=dict(t1_s=t1, t2_s=0.1))
-            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019, tr_s=1.0),
+            quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0),
+                           water=dict(t1_s=t1, t2_s=0.1))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"),
+                               Press(te1_s=0.011, te2_s=0.019, tr_s=1.0),
                                params=quiet, water=Unsuppressed())
             return height_at(scan, INTERIOR, 4.65)
 
         assert water(PerTissue(gm=1.2, wm=1.2, csf=1.2)) == pytest.approx(water(1.2), rel=1e-5)
         fractions = make_scan(brain).voxel(position_mm=INTERIOR, size_mm=20.0).fractions
-        mean = (fractions.gm * 1.0 + fractions.wm * 1.0 + fractions.csf * 4.0) / (fractions.gm + fractions.wm + fractions.csf)
+        mean = ((fractions.gm * 1.0 + fractions.wm * 1.0 + fractions.csf * 4.0)
+                / (fractions.gm + fractions.wm + fractions.csf))
         if fractions.csf > 0.02:
             assert water(PerTissue(gm=1.0, wm=1.0, csf=4.0)) > 1.01 * water(mean)
 
@@ -101,8 +107,9 @@ class TestWater:
     #   per-tissue T2     #
     #*********************#
     def test_each_tissue_decays_with_its_own_t2(self, brain):
-        # the water's parts: one per tissue present, each at the tissue's own T2 (the CSF's long line beside the
-        # tissues' shorter ones), so what a train leaves is their sum and not one line at the mean (item 232)
+        # the water's parts: one per tissue present, each at the tissue's own T2 (the CSF's long
+        # line beside the tissues' shorter ones), so what a train leaves is their sum and not one
+        # line at the mean
         scan = make_scan(brain, water=Unsuppressed())
         voxel = scan.voxel(position_mm=INTERIOR, size_mm=20.0)
         truth = voxel.sample(seed=7)
@@ -115,29 +122,40 @@ class TestWater:
     #   out-of-voxel water   #
     #**********************#
     def test_the_leaked_water_is_one_broad_line_a_fraction_of_the_full_water(self, brain):
-        # the water outside the voxel that the localization leaks (scan.calibrations OOV_WATER record): one line at the
-        # water's frequency plus its offset, decaying with its own T2* (and the draw's microscopic envelope), a fraction
-        # of the full water at t = 0 after the echo's decay, at the drawn phase against the voxel's own residual
+        # the water outside the voxel that the localization leaks (scan.calibrations OOV_WATER
+        # record): one line at the water's frequency plus its offset, decaying with its own T2* (and
+        # the draw's microscopic envelope), a fraction of the full water at t = 0 after the echo's
+        # decay, at the drawn phase against the voxel's own residual
         from mrsandbox.phantom.water import WaterSource
 
         def fid(fraction):
-            quiet = Params(acquisition=dict(shift_hz=0.0, spurious=dict(amplitude=0.0), phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0, eddy_transient_rad=0.0),
-                           spurious=dict(amplitude=0.0), lineshape=dict(gauss_hz=0.0), water=dict(t2_s=0.08),
-                           oov=dict(fraction=fraction, t2star_s=0.02, offset_hz=0.0, phase_deg=180.0))
-            scan = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019), params=quiet, water=Unsuppressed())
+            quiet = Params(acquisition=dict(shift_hz=0.0, spurious=dict(amplitude=0.0),
+                                            phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                            eddy_transient_rad=0.0),
+                           spurious=dict(amplitude=0.0), lineshape=dict(gauss_hz=0.0),
+                           water=dict(t2_s=0.08), oov=dict(fraction=fraction, t2star_s=0.02,
+                                                           offset_hz=0.0, phase_deg=180.0))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"),
+                               Press(te1_s=0.011, te2_s=0.019), params=quiet,
+                               water=Unsuppressed())
             voxel = scan.voxel(position_mm=INTERIOR, size_mm=20.0)
-            return voxel, np.asarray(voxel.fid(seed=7, npoints=1024, dwell_s=1.0 / 4000.0)[1], np.complex128)
+            return voxel, np.asarray(voxel.fid(seed=7, npoints=1024, dwell_s=1.0 / 4000.0)[1],
+                                     np.complex128)
 
         voxel, plain = fid(0.0)
         _, leaked = fid(0.004)
         extra = leaked - plain
         t = np.arange(1024) / 4000.0
         decay = np.polyfit(t[:200], np.log(np.abs(extra[:200])), 1)[0]
-        assert abs(-1.0 / decay - 0.02) < 0.002                                     # its own T2*
+        assert abs(-1.0 / decay - 0.02) < 0.002  # its own T2*
         full = WaterSource.full_amplitude_mm(voxel) * np.exp(-0.030 / 0.08)
-        assert abs(abs(extra[0]) / (0.004 * full) - 1.0) < 0.05                    # the fraction of the full water after TE
-        water = np.asarray(voxel.scan.water.lines(voxel.scan.engine, voxel.design(voxel.sample(seed=7)), voxel, voxel.sample(seed=7), voxel._f0_mhz())[0][1])
-        assert abs(abs(np.angle(extra[0] / np.sum(water))) - np.pi) < 0.2         # opposite to the voxel's own water, as drawn
+        # the fraction of the full water after TE
+        assert abs(abs(extra[0]) / (0.004 * full) - 1.0) < 0.05
+        water = np.asarray(voxel.scan.water.lines(voxel.scan.engine,
+                                                  voxel.design(voxel.sample(seed=7)), voxel,
+                                                  voxel.sample(seed=7), voxel._f0_mhz())[0][1])
+        # opposite to the voxel's own water, as drawn
+        assert abs(abs(np.angle(extra[0] / np.sum(water))) - np.pi) < 0.2
 
     #*************#
     #   silence   #
@@ -265,5 +283,5 @@ class TestLipidModel:
         methyl = real[np.abs(ppm - 0.90) < 0.08].max()
         olefinic = real[np.abs(ppm - 5.30) < 0.1].max()
         assert methylene > 3.0 * methyl  # 70 percent versus 8.8 percent, width-diluted
-        assert olefinic > 0.0  # the 5.3 ppm peak under water now exists
+        assert olefinic > 0.0  # the 5.3 ppm peak under water exists
         assert methylene > 5.0 * olefinic

@@ -51,12 +51,15 @@ def _echo_time_s(sequence):
         return float(sequence.te1_s) + float(sequence.te2_s)
     if hasattr(sequence, "taus_s"):
         return float(sum(sequence.taus_s))
-    from mrsandbox.sequences.events import CoherenceFilter, Delay, Pulse, SelectivePulse, ShapedPulse
+    from mrsandbox.sequences.events import (CoherenceFilter, Delay, Pulse, SelectivePulse,
+                                            ShapedPulse)
 
     events = list(sequence.events)
-    crushed = [k for k, event in enumerate(events) if isinstance(event, CoherenceFilter) and event.orders == (0,)]
+    crushed = [k for k, event in enumerate(events)
+               if isinstance(event, CoherenceFilter) and event.orders == (0,)]
     after = events[crushed[-1] + 1:] if crushed else events
-    excited = [k for k, event in enumerate(after) if isinstance(event, (Pulse, SelectivePulse, ShapedPulse))]
+    excited = [k for k, event in enumerate(after)
+               if isinstance(event, (Pulse, SelectivePulse, ShapedPulse))]
     transverse = after[excited[0] + 1:] if excited else after
     return float(sum(float(event.t_s) for event in transverse if isinstance(event, Delay)))
 
@@ -171,21 +174,26 @@ class MeasuredMM(MMSource):
     shapes instead of Gaussians, decaying with the sequence's echo time.
 
     The 3 T human metabolite-nulled STEAM spectrum from the consensus data collection
-    (fetched on first use) is mapped into the simulation frame: conjugated to our sign
+    (fetched on first use) is decomposed once into damped complex exponentials
+    (`_components`) and mapped into the simulation frame: conjugated to our sign
     convention, time scaled from the measured 123.245 MHz to the simulated field, and
-    remodulated from its water centred transmitter frame (4.7 ppm, verified against the
-    consensus peak positions) to the 0 ppm reference frame. The signal is normalized so
-    the drawn mm.level_mm leaf keeps the ParameterizedMM meaning at the peaks: the area
-    of the whole measured signal is the level times the parameterization's summed proton
-    areas times `PEAK_ANCHOR`, the factor raw in vivo data put between the two.
+    remodulated from its water centred transmitter frame (4.7 ppm, as the consensus peak
+    positions place it) to the 0 ppm reference frame. The components are rendered
+    at the sample times themselves, so a receiver delay samples the same signal later
+    or, before the echo top, earlier, where each component rises into the echo as its
+    decay mirrored (stated: a measured component's width is its lines' spread, which
+    the echo refocuses, more than their own T2). The signal is normalized so
+    the drawn mm.level_mm leaf keeps the ParameterizedMM meaning at the peaks: the
+    file's first point is the level times the parameterization's summed proton areas
+    times `PEAK_ANCHOR`, the factor raw in vivo data put between the two.
 
-    The measurement was acquired at TE 8 ms; for any other sequence every frequency bin
-    is attenuated by exp(-(TE - 8 ms) / T2(ppm)), with T2(ppm) the value of the nearest
-    peak in the consensus 3 T human column (Landheer 2020 in the typed Appendix S1
+    The measurement was acquired at TE 8 ms; for any other sequence every component
+    is attenuated by exp(-(TE - 8 ms) / T2), with T2 the value of the peak nearest the
+    component in the consensus 3 T human column (Landheer 2020 in the typed Appendix S1
     Table S3, the 3 T study reporting uncertainties) and the echo time read from the
-    sequence's own timings. With a TR every bin is scaled by the steady-state factor
-    of the nearest component: a one-spin probe at the component's position with the
-    drawn mm.t1 and mm.t2 runs the sequence itself with its TR and at a TR of a
+    sequence's own timings. With a TR every component is scaled by the steady-state
+    factor of the nearest component of CoupledMM: a one-spin probe at its position with
+    the drawn mm.t1 and mm.t2 runs the sequence itself with its TR and at a TR of a
     thousand seconds, and the ratio of the two is the factor, so partial recovery and
     the inversion of the recovered magnetization by refocusing pulses follow exactly
     the law the metabolites obey (Sequence.run). Stated approximations: the T2 and T1
@@ -196,12 +204,19 @@ class MeasuredMM(MMSource):
 
     TOTAL_PROTON_AREAS = 11.39  # the ParameterizedMM MM components summed
     # the first point of the measured FID holds everything broad beneath the peaks too, so a
-    # level that fixes the whole area leaves the peaks short: read off raw data, the 0.9 ppm
-    # peak over NAA in three in vivo datasets stands 3.1, 3.3, and 4.3 times above this
-    # source's twin (scan.calibrations MM_MEASURED_LEVEL_3T). The anchor puts the peaks where
-    # the data have them, and where ParameterizedMM's already are under the same level.
+    # level that fixes the whole area leaves the peaks short; the anchor puts the peaks where
+    # raw in vivo data have them (scan.calibrations MM_MEASURED_LEVEL_3T), and where
+    # ParameterizedMM's already are under the same level
     PEAK_ANCHOR = 3.3
     MEASURED_TE_S = 0.008  # the consensus 3 T human STEAM acquisition
+    # the decomposition: at this order the residual inside the macromolecules' band is the noise;
+    # a component broader than twice the file's broadest line is the fit's way to the first few
+    # points, not a resonance of the brain;
+    # nothing of a metabolite-nulled brain resonates outside BAND_PPM, so a component there is the
+    # measurement's noise or its band's edge
+    ORDER = 64
+    WIDEST_HZ = 300.0
+    BAND_PPM = (-1.0, 10.0)
 
     #**********#
     #   init   #
@@ -209,6 +224,7 @@ class MeasuredMM(MMSource):
     def __init__(self, center_ppm=4.7):
         self.center_ppm = center_ppm
         self._measured = None
+        self._decomposed = None
         self._t2_map = None
         self._repetition = None
 
@@ -219,37 +235,40 @@ class MeasuredMM(MMSource):
         tissue = voxel.fractions.gm + voxel.fractions.wm
         if tissue <= 0.0:
             return None
-        measured, sw_hz, sfrq_mhz = self._load()
-        t = np.asarray(t_s, dtype=np.float64)
-        # sample the measured FID at times scaled to the simulated field, ppm-faithful
-        t_measured = t * (f0_mhz / sfrq_mhz)
-        grid = np.arange(measured.size) / sw_hz
-        resampled = (np.interp(t_measured, grid, measured.real, right=0.0)
-                     + 1j * np.interp(t_measured, grid, measured.imag, right=0.0))
-        # conjugate into our +ppm convention, shift the transmitter frame to 0 ppm
-        signal = np.conj(resampled) * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
+        measured, _, sfrq_mhz = self._load()
+        rates, amps = self._components()
+        # times scaled to the simulated field (ppm-faithful), conjugated into our +ppm
+        # convention, the transmitter frame shifted to 0 ppm
+        rates = np.conj(rates) * (f0_mhz / sfrq_mhz) + 2j * np.pi * self.center_ppm * f0_mhz
+        amps = np.conj(amps)
         if sequence is not None:
-            signal = self._sequence_response(signal, t, f0_mhz, sequence, voxel, truth)
-        scale = truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS * self.PEAK_ANCHOR / np.conj(measured[0])
+            amps = amps * self._response(rates.imag / (2.0 * np.pi * f0_mhz), sequence, voxel,
+                                         truth, f0_mhz)
+        # before the echo top a component rises into the echo: its width is its lines' spread,
+        # which the echo refocuses, so its decay is mirrored about t = 0
+        t = np.asarray(t_s, dtype=np.float64)[None, :]
+        signal = (amps[:, None] * np.exp(1j * rates.imag[:, None] * t
+                                         + rates.real[:, None] * np.abs(t))).sum(axis=0)
+        scale = (truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS * self.PEAK_ANCHOR
+                 / np.conj(measured[0]))
         return (signal * scale).astype(np.complex64)
 
-    #*************************#
-    #   sequence response     #
-    #*************************#
-    def _sequence_response(self, signal, t, f0_mhz, sequence, voxel, truth):
-        """Every frequency bin scaled by what the sequence does beyond the measurement,
-        via one FFT round trip: the echo decay exp(-(TE - 8 ms) / T2(ppm)) with the
-        typed T2 of the nearest consensus 3 T peak, and with a TR the steady-state
-        factor of the nearest component (`_repetition_factors`)."""
-        dwell = float(t[1] - t[0])
-        ppm = (np.fft.fftfreq(t.size, d=dwell) % (1.0 / dwell)) / f0_mhz
-        factor = np.ones(t.size)
+    #**************#
+    #   response   #
+    #**************#
+    def _response(self, ppm, sequence, voxel, truth, f0_mhz):
+        """What the sequence does beyond the measurement at each of `ppm`: the echo decay
+        exp(-(TE - MEASURED_TE_S) / T2) with the typed T2 of the nearest consensus 3 T
+        peak, and with a TR the steady-state factor of the nearest component
+        (`_repetition_factors`)."""
+        factor = np.ones(np.shape(ppm), dtype=np.complex128)
         delta = _echo_time_s(sequence) - self.MEASURED_TE_S
         if abs(delta) >= 1e-9:
             if self._t2_map is None:
                 table = macromolecules.CONSENSUS_T2["t2_ms"]
                 # a peak's position from its frequency label, M3.4-3.6 to the midpoint
-                rows = sorted((np.mean([float(part) for part in peak.lstrip("M").split("-")]), value[0] / 1000.0)
+                rows = sorted((np.mean([float(part) for part in peak.lstrip("M").split("-")]),
+                               value[0] / 1000.0)
                               for peak, entries in table.items()
                               if (value := entries.get("landheer_2020")) is not None)
                 self._t2_map = (np.asarray([ppm for ppm, _ in rows]),
@@ -259,9 +278,7 @@ class MeasuredMM(MMSource):
         if sequence.tr_s is not None:
             positions, factors = self._repetition_factors(sequence, voxel, truth, f0_mhz)
             factor = factor * factors[_nearest(positions, ppm)]
-        if np.all(factor == 1.0):
-            return signal
-        return np.fft.ifft(np.fft.fft(signal) * factor)
+        return factor
 
     def _repetition_factors(self, sequence, voxel, truth, f0_mhz):
         """The steady-state factor of every component under the sequence's TR, as
@@ -307,6 +324,34 @@ class MeasuredMM(MMSource):
             self._measured = (fid, procpar["sw"], procpar["sfrq"])
         return self._measured
 
+    #****************#
+    #   components   #
+    #****************#
+    def _components(self):
+        """The measured FID as damped complex exponentials in the file's own frame, (rates
+        per second, complex amplitudes at t = 0), decomposed once: HSVD (Barkhuijsen et al.
+        1987, J Magn Reson 73:553) of order ORDER over the whole FID, the components broader
+        than WIDEST_HZ or outside BAND_PPM dropped and the others' amplitudes fitted again.
+        The file holds its first point halved, as an FFT wants it, so the point is doubled
+        before."""
+        if self._decomposed is None:
+            measured, sw_hz, sfrq_mhz = self._load()
+            fid = measured.astype(np.complex128)
+            fid[0] *= 2.0
+            rows = fid.size // 2
+            hankel = np.lib.stride_tricks.sliding_window_view(fid, fid.size - rows + 1)[:rows]
+            signal_space = np.linalg.svd(hankel, full_matrices=False)[0][:, :self.ORDER]
+            rates = np.log(np.linalg.eigvals(np.linalg.lstsq(signal_space[:-1], signal_space[1:],
+                                                             rcond=None)[0])) * sw_hz
+            # the file stores upfield as positive
+            ppm = self.center_ppm - rates.imag / (2.0 * np.pi * sfrq_mhz)
+            rates = rates[(rates.real < 0.0) & (-rates.real / np.pi < self.WIDEST_HZ)
+                          & (ppm > self.BAND_PPM[0]) & (ppm < self.BAND_PPM[1])]
+            amps = np.linalg.lstsq(np.exp(np.outer(np.arange(fid.size) / sw_hz, rates)), fid,
+                                   rcond=None)[0]
+            self._decomposed = (rates, amps)
+        return self._decomposed
+
 
 #**************************************************************************************************#
 #                                        Class ChallengeMM                                         #
@@ -327,13 +372,13 @@ class ChallengeMM(MeasuredMM):
     MM spectra at 3 T, scaled in the proton units of the challenge's metabolite basis
     (a first point of three for the creatine methyl), which are the engine's. The
     files carry upfield as negative frequency, our sign, at the 123.24 MHz of their
-    own headers (the dataset's readme gives 127.73 MHz for the metabolite basis; the
-    nine positions fit 123.24 to 0.001 ppm and 127.73 not at all); the time axis is
-    scaled to the simulated field and the frame moves from the basis reference,
-    4.647 ppm as those positions place it, to 0 ppm. The basis is a TE 0 FID-MRSI
-    shape; the sequence acts on it as on the measured spectrum (the echo decay per
-    frequency bin from TE 0 and the steady state of a TR, `MeasuredMM`), with the
-    same stated approximations. mm.kappa and mm.level_mm are not read.
+    own headers, which the nine positions fit (not the 127.73 MHz the dataset's readme
+    gives for the metabolite basis); the time axis is scaled to the simulated field and
+    the frame moves from the basis reference, 4.647 ppm as those positions place it, to
+    0 ppm. The basis is a TE 0 FID-MRSI shape; the sequence acts on it as on the measured
+    spectrum (the echo decay per frequency bin from TE 0 and the steady state of a TR,
+    `MeasuredMM`), with the same stated approximations. mm.kappa and mm.level_mm are not
+    read.
     """
 
     MEASURED_TE_S = 0.0
@@ -372,7 +417,13 @@ class ChallengeMM(MeasuredMM):
         signal *= macromolecules.MRSI_CHALLENGE["kappa"] * c_tcr
         signal = signal * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
         if sequence is not None:
-            signal = self._sequence_response(signal, t, f0_mhz, sequence, voxel, truth)
+            # every frequency bin of the sampled window scaled by the sequence's factors, one
+            # FFT round trip
+            dwell = float(t[1] - t[0])
+            factor = self._response((np.fft.fftfreq(t.size, d=dwell) % (1.0 / dwell)) / f0_mhz,
+                                    sequence, voxel, truth, f0_mhz)
+            if not np.all(factor == 1.0):
+                signal = np.fft.ifft(np.fft.fft(signal) * factor)
         return signal.astype(np.complex64)
 
     #**********#
@@ -406,13 +457,12 @@ class CoupledMM(MMSource):
     consensus flags as the GABA-relevant background); components without a listed
     partner stay uncoupled. Amplitudes follow the MRSI challenge model: kappa times the
     tissue-weighted component ratio times the drawn total creatine, so the background
-    scales with the subject. Chain partners at 2.04 and 2.99 are emitted by their chains
-    (matching the challenge ratios within about 20 percent); Gaussian widths come from
-    the Osprey values at matching positions, stated where no label matches. The proton
-    counts of the chains (3:1 and 2:2) are stated assumptions. Each system relaxes with
-    its own mm.t1 and mm.t2 leaves, typed from the consensus Appendix S1 3 T human
-    columns where the tables carry a value (see default_params) and stated otherwise,
-    so TE behaviour is component-faithful.
+    scales with the subject. Chain partners at 2.04 and 2.99 are emitted by their chains;
+    Gaussian widths come from the Osprey values at matching positions, stated where no
+    label matches. The proton counts of the chains (3:1 and 2:2) are stated assumptions.
+    Each system relaxes with its own mm.t1 and mm.t2 leaves, typed from the consensus
+    Appendix S1 3 T human columns where the tables carry a value (see default_params)
+    and stated otherwise, so TE behaviour is component-faithful.
     """
 
     # (name, groups as (ppm, protons), coupled group pairs, gauss width ppm); the J of
@@ -459,7 +509,7 @@ class CoupledMM(MMSource):
             amps.append(line_a[keep])
             gauss.append(np.full(int(keep.sum()), width_ppm * f0_mhz, dtype=np.float32))
         freqs = np.concatenate(freqs).astype(np.float32)
-        if freqs.size == 0:             # a kappa of zero leaves nothing: silent, like the other sources
+        if freqs.size == 0:  # a kappa of zero leaves nothing: silent, like the other sources
             return None
         return freqs, np.concatenate(amps).astype(np.complex64), np.concatenate(gauss)
 
@@ -493,13 +543,20 @@ class CoupledMM(MMSource):
         if key in cached:
             return cached[key]
         names = tuple(name for name, _, _, _ in self.SYSTEMS)
-        fn, bounds = engine.compiled_batch(sequence, tuple((system,) for system in self._systems(f0_mhz / engine.b0_t)),
+        fn, bounds = engine.compiled_batch(sequence,
+                                           tuple((system,) for system in
+                                                 self._systems(f0_mhz / engine.b0_t)),
                                            shift_mm=voxel.shift_mm, pruned=True)
-        line_f, line_a = fn(ops.convert_to_tensor(np.asarray([truth.mm.t1[name] for name in names], dtype=np.float32)),
-                            ops.convert_to_tensor(np.asarray([truth.mm.t2[name] for name in names], dtype=np.float32)),
-                            ops.convert_to_tensor(np.float32(b1_scale)), ops.convert_to_tensor(np.float32(offset_hz)))
-        line_f, line_a = np.asarray(ops.convert_to_numpy(line_f)), np.asarray(ops.convert_to_numpy(line_a))
-        lines = {name: (line_f[bounds[i]:bounds[i + 1]], line_a[bounds[i]:bounds[i + 1]]) for i, name in enumerate(names)}
+        line_f, line_a = fn(ops.convert_to_tensor(np.asarray([truth.mm.t1[name] for name in names],
+                                                             dtype=np.float32)),
+                            ops.convert_to_tensor(np.asarray([truth.mm.t2[name] for name in names],
+                                                             dtype=np.float32)),
+                            ops.convert_to_tensor(np.float32(b1_scale)),
+                            ops.convert_to_tensor(np.float32(offset_hz)))
+        line_f, line_a = (np.asarray(ops.convert_to_numpy(line_f)),
+                          np.asarray(ops.convert_to_numpy(line_a)))
+        lines = {name: (line_f[bounds[i]:bounds[i + 1]], line_a[bounds[i]:bounds[i + 1]])
+                 for i, name in enumerate(names)}
         cached[key] = lines
         return lines
 
@@ -531,15 +588,21 @@ class CoupledMM(MMSource):
         members = [(truth, key) for truth, key in members if key not in self._cache(truth)]
         if not members:
             return
-        replay, bounds = engine.replay_draws(sequence, tuple((system,) for system in self._systems(f0_mhz / engine.b0_t)),
+        replay, bounds = engine.replay_draws(sequence,
+                                             tuple((system,) for system in
+                                                   self._systems(f0_mhz / engine.b0_t)),
                                              shift_mm=voxel.shift_mm)
-        t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
-            [[truth.mm.t1[name] for name in names] for truth, _ in members],
-            [[truth.mm.t2[name] for name in names] for truth, _ in members],
-            [voxel.b1_scale(truth) for truth, _ in members], [voxel.offset_hz(truth) for truth, _ in members]))
-        freqs, amps = (np.asarray(ops.convert_to_numpy(value)) for value in replay(t1, t2, b1, offset))
+        t1, t2, b1, offset = (
+            ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+                [[truth.mm.t1[name] for name in names] for truth, _ in members],
+                [[truth.mm.t2[name] for name in names] for truth, _ in members],
+                [voxel.b1_scale(truth) for truth, _ in members],
+                [voxel.offset_hz(truth) for truth, _ in members]))
+        freqs, amps = (np.asarray(ops.convert_to_numpy(value))
+                       for value in replay(t1, t2, b1, offset))
         for row, (truth, key) in enumerate(members):
-            self._cache(truth)[key] = {name: (freqs[row, bounds[i]:bounds[i + 1]], amps[row, bounds[i]:bounds[i + 1]])
+            self._cache(truth)[key] = {name: (freqs[row, bounds[i]:bounds[i + 1]],
+                                              amps[row, bounds[i]:bounds[i + 1]])
                                        for i, name in enumerate(names)}
 
     #***************#
@@ -559,7 +622,8 @@ class CoupledMM(MMSource):
                     for i in range(offsets[a], offsets[a] + groups[a][1]):
                         for k in range(offsets[b], offsets[b] + groups[b][1]):
                             j[i][k] = j[k][i] = j_hz
-                systems.append(SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts, j_hz=tuple(map(tuple, j)),
-                                          scale=1.0, gamma_mhz_t=gamma_mhz_t))
+                systems.append(SpinSystem(name=name, nucleus="1H", shifts_ppm=shifts,
+                                          j_hz=tuple(map(tuple, j)), scale=1.0,
+                                          gamma_mhz_t=gamma_mhz_t))
             self._built = (gamma_mhz_t, tuple(systems))
         return self._built[1]

@@ -76,7 +76,8 @@ class Cycled(Sequence):
         """The average over the steps of the design run at each step's phases, each
         step's result rotated by its receiver phase."""
         total = None
-        jitter = None if self.jitter_deg is None else ops.convert_to_tensor(self.jitter_deg, dtype="float32")
+        jitter = (None if self.jitter_deg is None
+                  else ops.convert_to_tensor(self.jitter_deg, dtype="float32"))
         for step in range(self.table.shape[0]):
             events = list(self.events)
             for column, k in enumerate(self.pulses):

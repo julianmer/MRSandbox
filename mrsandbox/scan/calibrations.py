@@ -7,9 +7,9 @@
 # Created: 18/09/26                                                                                #
 #                                                                                                  #
 # Purpose: The calibrations against in vivo data, each with the exact conditions it was measured   #
-#          under (scanner, coil, sequence, acquisition, voxel, processing), so a number never       #
+#          under (scanner, coil, sequence, acquisition, voxel, processing), so a number never      #
 #          leaves its conditions unnoticed: a scan names the calibrations it used and the          #
-#          conditions it departs from. The in vivo leaves are pooled from the package's cohorts     #
+#          conditions it departs from. The in vivo leaves are pooled from the package's cohorts    #
 #          (scan.cohort); typed here is what no cohort row covers.                                 #
 #                                                                                                  #
 ####################################################################################################
@@ -118,9 +118,8 @@ class Calibration:
 #*****************************#
 #   array noise correlation   #
 #*****************************#
-# read off the noise adjustment measurement in the COWS file, the array on a head, by
-# scan.calibrate CovarianceReading. The tails of the FIDs of a Big GABA Trio subject (a
-# 32-channel head array too, no noise adjustment in those files) give 0.27 the same way.
+# the array's own noise share on a head, read off the noise adjustment measurement of a COWS
+# file by scan.calibrate CovarianceReading
 COIL_OWN_NOISE_PRISMA_3T = Calibration(
     leaf="coils.loaded.own_noise",
     value=0.25,
@@ -141,10 +140,9 @@ COIL_OWN_NOISE_PRISMA_3T = Calibration(
     date="18/09/26",
     note="the modelled array is CoilArray.helmet(), not this coil's geometry (not published)",
 )
-# the same statistic on four Philips 3 T systems with 32-channel head arrays, read off the noise
-# vectors (RF off) of their data/list exports (io.philips.DataList): 0.22 to 0.35, the Prisma's
-# share again, so the default of CoilArray.loaded holds across vendors. A phantom was in the
-# coil. Not in use; the Ingenia Elition among them is the philips_elition_3t preset's scanner.
+# the same statistic on four Philips 3 T systems with 32-channel head arrays and a phantom in the
+# coil, read off the noise vectors (RF off) of their data/list exports (io.philips.DataList): a
+# check that the default of CoilArray.loaded holds across vendors, not in use
 COIL_OWN_NOISE_PHILIPS_3T = Calibration(
     leaf="coils.loaded.own_noise",
     value=0.26,
@@ -168,16 +166,16 @@ COIL_OWN_NOISE_PHILIPS_3T = Calibration(
     sequence={"name": "noise vectors of a PRESS export", "product": "RawExp - PRESS"},
     acquisition={"channels": 32, "rf": "off"},
     voxel={"load": "a phantom"},
-    processing="data/list, the NOI vector of every channel, sample covariance over its 2048 samples",
+    processing="data/list, the NOI vector of every channel, sample covariance over its 2048 "
+               "samples",
     date="19/09/26",
     note="a check across vendors; the FIDs' tails do not serve here (unsuppressed phantom water "
          "rings to the end and the channels correlate to one)",
 )
 
-# and on two Siemens systems of the same study, read off the noise adjustment of their raw files:
-# the Prisma_fit's 32-channel head array with a phantom in it gives the share it gives on a
-# head (0.26 against 0.25: a phantom of a head's size loads the array as a head does), the
-# Vida's 20-channel head and neck array correlates alike. Not in use.
+# and on two Siemens systems of the same study, read off the noise adjustment of their raw files
+# with a phantom in the coil (a phantom of a head's size loads the array as a head does); a
+# check, not in use
 COIL_OWN_NOISE_SIEMENS_PHANTOM_3T = Calibration(
     leaf="coils.loaded.own_noise",
     value=0.26,
@@ -186,12 +184,14 @@ COIL_OWN_NOISE_SIEMENS_PHANTOM_3T = Calibration(
               "sites": {"S01a, Prisma_fit, syngo MR E11, Head_32": (0.40, 0.48, 0.17, 0.26),
                         "S02a, MAGNETOM Vida, syngo MR XA20, HeadNeck_20_TCS, 16 channels":
                             (0.43, 0.47, 0.24, None)},
-              "sites_note": "per site the three statistics and, for 32 channels, the share they give",
+              "sites_note": "per site the three statistics and, for 32 channels, the share they "
+                            "give",
               "samples": 65536, "subjects": 0},
-    source=COIL_OWN_NOISE_PHILIPS_3T.source | {"dataset": "Big Drift, two Siemens sites' raw files of the first "
-                                               "day's scan before the echo-planar run (CC BY-NC-SA 4.0)"},
-    scanner={"vendor": "siemens", "model": "Prisma_fit and MAGNETOM Vida", "software": "syngo MR E11 and XA20",
-             "field_t": 2.89},
+    source=COIL_OWN_NOISE_PHILIPS_3T.source | {"dataset": "Big Drift, two Siemens sites' raw "
+                                                          "files of the first day's scan before "
+                                                          "the echo-planar run (CC BY-NC-SA 4.0)"},
+    scanner={"vendor": "siemens", "model": "Prisma_fit and MAGNETOM Vida",
+             "software": "syngo MR E11 and XA20", "field_t": 2.89},
     coil={"channels": (32, 16), "name": "Head_32 and HeadNeck_20_TCS"},
     sequence={"name": "noise adjustment", "product": "the first measurement of the TWIX file"},
     acquisition={"channels": 32, "rf": "off"},
@@ -204,14 +204,10 @@ COIL_OWN_NOISE_SIEMENS_PHANTOM_3T = Calibration(
 #**************#
 #   creatine   #
 #**************#
-# the de Graaf ranges give creatine 4.5 to 10.5 and phosphocreatine 3.0 to 5.5 mM; drawn side
-# by side they put total creatine at 11.7 mM in the middle, as much as NAA plus NAAG, and the
-# 3.03 ppm singlet at 0.76 to 0.85 of the NAA singlet's height where three datasets show 0.56
-# to 0.62 (sequence, timings, and voxel matched; relaxation moves the ratio by 0.97 only,
-# the creatine lines' greater width by 0.66). Matched, the data put total creatine at 0.8
-# to 1.0 of NAA, about 8.5 mM, the cortical value of the literature. The creatine range is
-# therefore the phosphocreatine one, 3.0 to 5.5: a total of 6 to 11 mM, half of it
-# phosphorylated in the middle (the split hardly shows at 3 T; stated).
+# the creatine range against three datasets' averaged spectra: de Graaf's creatine and
+# phosphocreatine ranges drawn side by side put the 3.03 ppm singlet above its measured height
+# over NAA's, so the creatine range is the phosphocreatine one, 3.0 to 5.5 mM (a total of 6 to
+# 11 mM, half of it phosphorylated in the middle; the split hardly shows at 3 T, stated)
 CREATINE_THREE_DATASETS_3T = Calibration(
     leaf="conc.Cr",
     value=4.25,
@@ -239,24 +235,21 @@ CREATINE_THREE_DATASETS_3T = Calibration(
 #********************#
 #   macromolecules   #
 #********************#
-# the level of phantom.MeasuredMM, the consensus 3 T macromolecule spectrum: a measured shape whose
-# level rests on a stated prior (mm.level_mm) through the area of its whole FID, which holds
-# everything broad beneath the peaks too and left the peaks a third of what raw data show. The
-# record is the ratio read once, measured over twin, and sits in the source as its PEAK_ANCHOR.
-# With it the twin reads 0.12 where the data read 0.16 to 0.20: NAA's own height grows with the
-# background beneath it, so the reading is not linear in the anchor, and turning the anchor
-# until the two agree would be a fit. ParameterizedMM reads 0.9 to 1.1 of the data under the same
-# level and needs none; CoupledMM's co-edited part is right at TE 80 (HadamardEditing) and its
-# short-TE shortfall is not understood (no factor typed).
+# the peak anchor of phantom.MeasuredMM, the consensus 3 T macromolecule spectrum: its level rests
+# on a stated prior (mm.level_mm) through the area of its whole FID, which also holds everything
+# broad beneath the peaks, so the 0.9 ppm peak's height over NAA's is anchored to raw data, the
+# ratio measured over twin read once (the source's PEAK_ANCHOR). It is not tuned until twin and
+# data agree: NAA's own height grows with the background beneath it, so that would be a fit.
 MM_MEASURED_LEVEL_3T = Calibration(
     leaf="mm.measured.peak_anchor",
     value=3.3,
-    prior=(3.1, 4.3),
-    measured={"statistic": "height of the 0.9 ppm peak (0.85 to 0.97 ppm) above the 0.3 to 0.5 ppm baseline in "
-                           "the subjects' median spectrum, NAA height 1, 2 Hz apodization: measured over the "
-                           "MeasuredMM twin at the prior's level",
-              "fmrs_in_pain": (0.157, 0.051), "cows_prefrontal": (0.177, 0.054), "big_gaba_siemens": (0.195, 0.046),
-              "twin_with_the_anchor": (0.127, 0.118, 0.117)},
+    prior=(2.0, 3.5),
+    measured={"statistic": "height of the 0.9 ppm peak (0.85 to 0.97 ppm) above the 0.3 to 0.5 "
+                           "ppm baseline in the subjects' median spectrum, NAA height 1, 2 Hz "
+                           "apodization: measured over the MeasuredMM twin at the prior's level",
+              "fmrs_in_pain": (0.157, 0.051), "cows_prefrontal": (0.177, 0.054),
+              "big_gaba_siemens": (0.195, 0.046),
+              "twin_with_the_anchor": (0.151, 0.113, 0.125)},
     source=CREATINE_THREE_DATASETS_3T.source,
     scanner=CREATINE_THREE_DATASETS_3T.scanner,
     coil=CREATINE_THREE_DATASETS_3T.coil,
@@ -272,10 +265,10 @@ MM_MEASURED_LEVEL_3T = Calibration(
 #***************#
 #   catalogue   #
 #***************#
-# the typed records in use: what no cohort row of the package covers (scan.cohort pooled serves every leaf
-# the cohorts hold readings of). A record serves the scanner presets it names; the first record of a leaf
-# is the fallback for every other scanner, and a scan's header says where it departs from the record it
-# got (`Calibration.departures`)
+# the typed records in use: what no cohort row of the package covers (scan.cohort pooled serves
+# every leaf the cohorts hold readings of). A record serves the scanner presets it names; the
+# first record of a leaf is the fallback for every other scanner, and a scan's header says where
+# it departs from the record it got (`Calibration.departures`)
 CALIBRATIONS = (CREATINE_THREE_DATASETS_3T,)
 
 
@@ -309,29 +302,29 @@ def calibrations(scanner=None, records=(), channels=None):
 
 
 
-# the Prisma again, under conditions far from the COWS rows' (the cows_prisma cohort: sLASER TE 26,
-# midline voxels): the unedited sub-experiment of a HERMES acquisition at TE 80 in a lateral
-# temporal voxel reads 8.0 where the record says 4.9. At TE 80 the reading leans on the NAA T2
-# prior, the twin is an ideal PRESS where the data's is an editing sequence with its losses, and
-# the voxel's place is a stand-in: the record does not carry there unexamined, which is what
-# its header's departures say. A check, four subjects.
+# the Prisma under conditions far from the COWS rows' (the unedited sub-experiment of HERMES at
+# TE 80 in a lateral temporal voxel): the reading leans on the NAA T2 prior there and the twin is
+# an ideal PRESS, so the record is a check of what carries, which a scan's departures name
 NOISE_DS007806_PRISMA_3T = Calibration(
     leaf="noise.sigma",
     value=8.0,
     prior=(7.2, 9.3),
-    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over the standard "
-                           "deviation of the real noise floor), median over subjects", "median": 17.6,
-              "implied_value": 8.80, "subjects": 4,
-              "apodized": {"statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of "
-                                        "data and simulation alike", "median": 54.7, "implied_value": 7.26}},
+    measured={"statistic": "single-transient NAA SNR (Near et al. 2021: real NAA peak height over "
+                           "the standard deviation of the real noise floor), median over subjects",
+              "median": 17.6, "implied_value": 8.80, "subjects": 4,
+              "apodized": {"statistic": "the same single-transient NAA SNR after a 10 Hz "
+                                        "exponential apodization of data and simulation alike",
+                           "median": 54.7, "implied_value": 7.26}},
     source={"dataset": "OpenNeuro ds007806, SPfMRS social processing, the first sessions of four "
                        "subjects, the sub-experiment with the editing pulse at 7.5 ppm (CC0)",
             "citation": "Ford et al. 2026, bioRxiv, doi 10.64898/2025.12.03.691778",
             "url": "https://openneuro.org/datasets/ds007806"},
-    scanner={"vendor": "siemens", "model": "Prisma_fit", "software": "syngo MR E11", "field_t": 2.89},
+    scanner={"vendor": "siemens", "model": "Prisma_fit", "software": "syngo MR E11",
+             "field_t": 2.89},
     coil={"channels": (32,), "name": "Head_32"},
-    sequence={"name": "HERMES", "family": "Press", "product": "mgs_svs_ed (universal editing sequence)",
-              "te_s": 0.080, "tr_s": 2.0, "simulated_as": "Press(te1_s=0.03, te2_s=0.05, tr_s=2.0)"},
+    sequence={"name": "HERMES", "family": "Press",
+              "product": "mgs_svs_ed (universal editing sequence)", "te_s": 0.080, "tr_s": 2.0,
+              "simulated_as": "Press(te1_s=0.03, te2_s=0.05, tr_s=2.0)"},
     acquisition={"npoints": 4096, "bandwidth_hz": 4000.0, "transients": 195, "measured_on": 1,
                  "water_suppressed": True},
     voxel={"region": "right temporal, functional MRS during a task", "size_mm": (25.0, 40.0, 25.0),
@@ -344,9 +337,8 @@ NOISE_DS007806_PRISMA_3T = Calibration(
 )
 
 # records read the same way under other conditions, kept to test what carries a number there
-
-# records read the same way under other conditions, kept to test what carries a number there
-CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, COIL_OWN_NOISE_SIEMENS_PHANTOM_3T, NOISE_DS007806_PRISMA_3T)
+CHECKS = (COIL_OWN_NOISE_PHILIPS_3T, COIL_OWN_NOISE_SIEMENS_PHANTOM_3T,
+          NOISE_DS007806_PRISMA_3T)
 # numbers of the hardware models, outside the Params tree
 HARDWARE = {c.leaf: c for c in (COIL_OWN_NOISE_PRISMA_3T,)}
 # numbers of the signal models, outside the Params tree

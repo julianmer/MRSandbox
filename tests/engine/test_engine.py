@@ -44,7 +44,8 @@ def visible_lines(sim, *systems):
 
 def clusters(freqs, amps, center_ppm, half_width_ppm, tol_hz=0.5):
     """Merge lines within `tol_hz` into (center, weight) clusters inside a ppm window."""
-    sel = (freqs > (center_ppm - half_width_ppm) * F0_MHZ) & (freqs < (center_ppm + half_width_ppm) * F0_MHZ)
+    sel = ((freqs > (center_ppm - half_width_ppm) * F0_MHZ)
+           & (freqs < (center_ppm + half_width_ppm) * F0_MHZ))
     order = np.argsort(freqs[sel])
     centers, weights = [], []
     for f, a in zip(freqs[sel][order], amps[sel][order]):
@@ -86,7 +87,8 @@ class TestPulseAcquire:
         methyl, _ = clusters(freqs, amps, center_ppm=3.027, half_width_ppm=0.05)
         methylene, _ = clusters(freqs, amps, center_ppm=3.913, half_width_ppm=0.05)
         assert len(methyl) == 1 and len(methylene) == 1
-        ratio = clusters(freqs, amps, 3.027, 0.05)[1].sum() / clusters(freqs, amps, 3.913, 0.05)[1].sum()
+        ratio = (clusters(freqs, amps, 3.027, 0.05)[1].sum()
+                 / clusters(freqs, amps, 3.913, 0.05)[1].sum())
         assert abs(ratio - 1.5) < 1e-3
 
     #******************#
@@ -99,7 +101,8 @@ class TestPulseAcquire:
         assert total.real > 0.999 * abs(total)  # receiver convention: in-phase signal is real
         peaks = []
         for npoints in (2048, 8192):
-            ppm, spec = sim.spectrum(PulseAcquire(), *systems, npoints=npoints, sw_hz=2000.0, lw_hz=2.0)
+            ppm, spec = sim.spectrum(PulseAcquire(), *systems, npoints=npoints, sw_hz=2000.0,
+                                     lw_hz=2.0)
             ppm = np.asarray(ops.convert_to_numpy(ppm))
             spec_np = ops.convert_to_numpy(spec)
 
@@ -160,7 +163,7 @@ class TestB1Scale:
 #                                         Class TestOffset                                         #
 #**************************************************************************************************#
 #                                                                                                  #
-# The frame offset: refocused by spin echoes, seen by selective and shaped pulses.                  #
+# The frame offset: refocused by spin echoes, seen by selective and shaped pulses.                 #
 #                                                                                                  #
 #**************************************************************************************************#
 class TestOffset:
@@ -209,7 +212,7 @@ class TestOffset:
         # spins offset by delta under a carrier at c see what on-resonance spins see
         # under a carrier at c + delta; the carrier ramp is sampled at the step
         # midpoints while the frame term is exact, so the identity holds to the step
-        # discretization (6e-5 at 64 steps, 1.4e-5 at 512, the float32 floor)
+        # discretization
         water = self.water()
         delta_hz = 200.0
         on_water = Sequence(ShapedPulse.gaussian(90.0, 0.002, offset_ppm=4.65))
@@ -232,10 +235,8 @@ class TestRenderPrecision:
     def test_long_fid_tail_phase_stays_folded(self, sim):
         # the rendered oscillation must track exp(i 2 pi f t) against a float64 oracle
         # on long FIDs: the factorized render folds its block phases on the host in
-        # float64, so the tail phase error sits near 5e-5 rad, where any float32
-        # product of f and t (the dense fold at 2.6e-3, a power table built in the
-        # graph at 3e-3, the unfolded form at 4.3e-3) cannot; the gate holds the
-        # factorized floor with margin and catches a regression to any of those
+        # float64, so its tail phase error stays far below the milliradians any float32
+        # product of f and t reaches; the threshold sits between the two
         npoints, dwell = 8192, 1.0 / 4000.0
         t64 = np.arange(npoints, dtype=np.float64) * dwell
         for f0 in (-1907.3, 433.1, 1990.7):
@@ -267,8 +268,7 @@ class TestRenderPrecision:
         _, fid = sim.render_fid(ops.convert_to_tensor(f), ops.convert_to_tensor(a),
                                 npoints=npoints, dwell_s=dwell, lw_hz=ops.convert_to_tensor(lw))
         fid = np.asarray(ops.convert_to_numpy(fid), dtype=np.complex128)
-        # the float32 accumulation floor over hundreds of lines: 2e-5 measured for the
-        # factorized graph, 1e-5 for the dense one
+        # the float32 accumulation floor over hundreds of lines
         assert np.abs(fid - oracle).max() < 5e-5 * np.abs(oracle).max()
         gauss = rng.uniform(5.0, 40.0, L).astype(np.float32)
         g = (np.pi * gauss[:, None].astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
@@ -315,8 +315,7 @@ class TestGraph:
 
         engine = Engine(3.0)
         lac = SpinSystem.from_database("Lac")[0]
-        # float32 with the compiled and the eager fusion orders: 1e-8 on jax, a few
-        # 1e-6 on tensorflow
+        # float32 with the compiled and the eager fusion orders
         for te2 in (0.019, 0.024, 0.060):
             sequence = Press(te1_s=0.011, te2_s=te2)
             np.testing.assert_allclose(self.replay(engine, sequence, lac),
@@ -324,9 +323,7 @@ class TestGraph:
         assert len(engine._compiled) == 1
         # waveform arrays are timings too: an adiabatic design replays at another TE
         # (four 256-step propagator products with an eigendecomposition per step in
-        # float32: compiled and eager agree to 1e-4 on jax and 2e-3 relative on
-        # tensorflow, whose XLA and eager eigh kernels differ; the engine's oracle
-        # gate is 1e-3 relative)
+        # float32, where the XLA and eager eigh kernels of tensorflow differ)
         for te in (0.030, 0.040):
             sequence = SemiLaser(te_s=te)
             eager = self.eager(engine, sequence, lac)
@@ -358,7 +355,8 @@ class TestGraph:
         engine = Engine(3.0)
         lac = SpinSystem.from_database("Lac")[0]
         fn, _ = engine.graph(Press(te1_s=0.011, te2_s=0.019), ((lac,),))
-        args = [ops.convert_to_tensor(np.asarray(v, dtype=np.float32)) for v in ([1.2], [0.2], 1.0, 0.0)]
+        args = [ops.convert_to_tensor(np.asarray(v, dtype=np.float32))
+                for v in ([1.2], [0.2], 1.0, 0.0)]
 
         def observable(te1):
             timings = Engine.tensors(Press(te1_s=te1, te2_s=0.019).timings())
@@ -388,7 +386,8 @@ class TestGraph:
                                 crusher, Delay(0.015))):
             one = engine.compiled(design, lac)
             many = engine.compiled(design, lac, batched=True)
-            b1, offset = ops.convert_to_tensor(np.float32(1.0)), ops.convert_to_tensor(np.float32(0.0))
+            b1, offset = (ops.convert_to_tensor(np.float32(1.0)),
+                          ops.convert_to_tensor(np.float32(0.0)))
             freqs, amps = many(ops.convert_to_tensor(t1), ops.convert_to_tensor(t2), b1, offset)
             amps = np.asarray(ops.convert_to_numpy(amps))
             assert amps.shape == (4, lac.dim ** 2)
@@ -405,8 +404,9 @@ class TestGraph:
         assert len(engine._compiled) == 2
 
     def test_a_pruned_graph_keeps_every_line_that_carries_signal(self):
-        # the coherence filters silence most of the d*d elements exactly; the pruned graph gathers the rest inside
-        # the jit, so a replay transfers a fraction of the elements and renders the same spectrum, for any draw
+        # the coherence filters silence most of the d*d elements exactly; the pruned graph gathers
+        # the rest inside the jit, so a replay transfers a fraction of the elements and renders the
+        # same spectrum, for any draw
         from mrsandbox import SpinSystem
 
         engine = Engine(3.0)
@@ -417,31 +417,39 @@ class TestGraph:
         assert kept[-1] < bounds[-1] / 4 and len(kept) == len(bounds)
         rng = np.random.default_rng(5)
         for _ in range(6):
-            args = (ops.convert_to_tensor(rng.uniform(0.8, 2.0, 2).astype(np.float32)), ops.convert_to_tensor(rng.uniform(0.1, 0.4, 2).astype(np.float32)),
-                    ops.convert_to_tensor(np.float32(rng.uniform(0.7, 1.3))), ops.convert_to_tensor(np.float32(rng.uniform(-20.0, 20.0))))
+            args = (ops.convert_to_tensor(rng.uniform(0.8, 2.0, 2).astype(np.float32)),
+                    ops.convert_to_tensor(rng.uniform(0.1, 0.4, 2).astype(np.float32)),
+                    ops.convert_to_tensor(np.float32(rng.uniform(0.7, 1.3))),
+                    ops.convert_to_tensor(np.float32(rng.uniform(-20.0, 20.0))))
             f_full, a_full = (np.asarray(ops.convert_to_numpy(v)) for v in full(*args))
             f_kept, a_kept = (np.asarray(ops.convert_to_numpy(v)) for v in pruned(*args))
-            for g in range(2):          # per group: what the pruning drops carries nothing, and the spectrum is the same
+            # per group: what the pruning drops carries nothing, and the spectrum is the same
+            for g in range(2):
                 fa, aa = f_full[bounds[g]:bounds[g + 1]], a_full[bounds[g]:bounds[g + 1]]
                 fk, ak = f_kept[kept[g]:kept[g + 1]], a_kept[kept[g]:kept[g + 1]]
-                assert np.abs(aa).astype(np.float64).sum() - np.abs(ak).astype(np.float64).sum() <= 1e-7 * np.abs(aa).sum()
-                _, s_full = engine.render_fid(ops.convert_to_tensor(fa), ops.convert_to_tensor(aa), npoints=1024, lw_hz=4.0)
-                _, s_kept = engine.render_fid(ops.convert_to_tensor(fk), ops.convert_to_tensor(ak), npoints=1024, lw_hz=4.0)
+                assert (np.abs(aa).astype(np.float64).sum() - np.abs(ak).astype(np.float64).sum()
+                        <= 1e-7 * np.abs(aa).sum())
+                _, s_full = engine.render_fid(ops.convert_to_tensor(fa), ops.convert_to_tensor(aa),
+                                              npoints=1024, lw_hz=4.0)
+                _, s_kept = engine.render_fid(ops.convert_to_tensor(fk), ops.convert_to_tensor(ak),
+                                              npoints=1024, lw_hz=4.0)
                 s_full, s_kept = (np.asarray(ops.convert_to_numpy(v)) for v in (s_full, s_kept))
                 assert np.abs(s_full - s_kept).max() <= 1e-5 * np.abs(s_full).max()
 
     def test_rows_render_with_their_own_widths(self):
-        # a batch of draws renders in one call, every row with its own Lorentzian widths, and equals the rows rendered
-        # one by one
+        # a batch of draws renders in one call, every row with its own Lorentzian widths, and equals
+        # the rows rendered one by one
         engine = Engine(3.0)
         rng = np.random.default_rng(3)
         freqs = ops.convert_to_tensor(rng.uniform(-400.0, 400.0, 300).astype(np.float32))
         amps = (rng.normal(size=(5, 300)) + 1j * rng.normal(size=(5, 300))).astype(np.complex64)
         widths = rng.uniform(2.0, 12.0, (5, 300)).astype(np.float32)
-        _, together = engine.render_fids(freqs, ops.convert_to_tensor(amps), npoints=1024, lw_hz=widths)
+        _, together = engine.render_fids(freqs, ops.convert_to_tensor(amps), npoints=1024,
+                                         lw_hz=widths)
         together = np.asarray(ops.convert_to_numpy(together))
         for k in range(5):
-            _, alone = engine.render_fid(freqs, ops.convert_to_tensor(amps[k]), npoints=1024, lw_hz=ops.convert_to_tensor(widths[k]))
+            _, alone = engine.render_fid(freqs, ops.convert_to_tensor(amps[k]), npoints=1024,
+                                         lw_hz=ops.convert_to_tensor(widths[k]))
             alone = np.asarray(ops.convert_to_numpy(alone))
             assert np.abs(together[k] - alone).max() < 1e-5 * np.abs(alone).max()
 

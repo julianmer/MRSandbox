@@ -154,9 +154,11 @@ class TestFatLayer:
         fine[20:24] = 1.0
         affine = np.diag([0.5, 0.5, 0.5, 1.0])
         affine[:3, 3] = (-0.25, -0.75, -0.75)
-        brain = Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=np.eye(4), fat=Volume(fine, affine))
+        brain = Brain.from_maps(gm=gm, wm=zeros, csf=zeros, affine=np.eye(4),
+                                fat=Volume(fine, affine))
         assert brain.lipid_weight((8.5, 3.5, 3.5), 4.0) == pytest.approx(0.25)
-        np.testing.assert_allclose(brain.lipid_offset((8.5, 3.5, 3.5), 4.0), (1.5, 0.0, 0.0), atol=1e-6)
+        np.testing.assert_allclose(brain.lipid_offset((8.5, 3.5, 3.5), 4.0), (1.5, 0.0, 0.0),
+                                   atol=1e-6)
         offsets, volumes = brain.lipid_cells((8.5, 3.5, 3.5), 4.0)
         assert volumes.sum() == pytest.approx(16.0) and np.all(offsets[:, 0] > 1.0)
 
@@ -194,10 +196,12 @@ class TestQsmHead:
 
         t1 = QSMHead.volume("T1map")
         assert t1.shape == (256, 320, 320) and QSMHead.volume("Chimap").shape == t1.shape
-        grey, white = float(t1.mean((0.0, -40.0, 0.0), 20.0)), float(t1.mean((25.0, 10.0, 30.0), 20.0))
+        grey, white = (float(t1.mean((0.0, -40.0, 0.0), 20.0)),
+                       float(t1.mean((25.0, 10.0, 30.0), 20.0)))
         assert 1.6 < grey < 2.3 and 1.1 < white < 1.6  # 7 T
         scan = VirtualScan(Brain.load("qsm_rc2"), Scanner.preset("generic_7t"),
-                           Press(te1_s=0.011, te2_s=0.019), field=FieldMap.load("qsm_rc2", b0_t=7.0),
+                           Press(te1_s=0.011, te2_s=0.019),
+                           field=FieldMap.load("qsm_rc2", b0_t=7.0),
                            params=Params(water=dict(t1_s=Mapped(t1))))
         data = scan.voxel(position_mm=(25.0, 10.0, 30.0), size_mm=20.0).acquire(seed=3, npoints=128)
         local = data.hdr_ext["SimulationGroundTruth"]["local"]["water.t1_s"]

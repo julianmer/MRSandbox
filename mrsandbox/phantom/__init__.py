@@ -6,8 +6,8 @@
 #                                                                                                  #
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
-# Purpose: The virtual brain area: tissue fractions at any position now; water and lipid sources   #
-#          join here next.                                                                         #
+# Purpose: The virtual brain area: the anatomies and phantoms, the B0 field, and the voxel's       #
+#          sources of water, lipids, macromolecules and the downfield peaks.                       #
 #                                                                                                  #
 ####################################################################################################
 

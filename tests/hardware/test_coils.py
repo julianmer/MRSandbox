@@ -224,7 +224,8 @@ class TestNoiseByPlace:
         assert abs(header["noise_place"] - ratio) < 1e-6
 
 
-    @pytest.mark.skipif(not (pathlib.Path(__file__).parents[2] / "data/noise_data/noise_10312025.nii").exists(),
+    @pytest.mark.skipif(not (pathlib.Path(__file__).parents[2]
+                             / "data/noise_data/noise_10312025.nii").exists(),
                         reason="the measured noise scan is placed by hand")
     def test_a_measured_noise_scan_serves_as_the_map(self, pieces):
         # a noise-only scan of a 32-channel GE array reconstructed by the scanner: the level
@@ -234,8 +235,10 @@ class TestNoiseByPlace:
 
         from mrsandbox.phantom.volume import Volume
 
-        image = nib.load(str(pathlib.Path(__file__).parents[2] / "data/noise_data/noise_10312025.nii"))
-        level = Volume(np.asarray(image.dataobj, dtype=np.float32), image.affine, name="noise_10312025")
+        image = nib.load(str(pathlib.Path(__file__).parents[2]
+                             / "data/noise_data/noise_10312025.nii"))
+        level = Volume(np.asarray(image.dataobj, dtype=np.float32), image.affine,
+                       name="noise_10312025")
         scan = VirtualScan(*pieces, noise_map=level)
         assert abs(scan.voxel(self.REFERENCE, 30.0).noise_place() - 1.0) < 1e-9
         assert 1.2 < scan.voxel((0.0, 0.0, 0.0), 30.0).noise_place() < 1.7
@@ -294,7 +297,7 @@ class TestMappedArray:
 #                                        Class TestMappedBox                                       #
 #**************************************************************************************************#
 #                                                                                                  #
-# A synthetic mapped array: nearest cell at a point, overlap-weighted mean over a voxel box.        #
+# A synthetic mapped array: nearest cell at a point, overlap-weighted mean over a voxel box.       #
 #                                                                                                  #
 #**************************************************************************************************#
 class TestMappedBox:

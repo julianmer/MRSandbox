@@ -255,8 +255,10 @@ class TestInducedKick:
         water = WaterSource.system(gamma_mhz_t=42.5774785)
         # a kick's moment over the ensemble is a gradient kick (the ensemble comes from
         # the design's own Gradient, so the kick rides on its axis)
-        gradient = Sequence(Pulse(90.0), Gradient(0.02, 20.0, axis="z"), Gradient(0.05, 20.0, axis="z"))
-        kicked = Sequence(Pulse(90.0), Gradient(0.02, 20.0, axis="z"), InducedKick(0.0, moment_z=0.05))
+        gradient = Sequence(Pulse(90.0), Gradient(0.02, 20.0, axis="z"),
+                            Gradient(0.05, 20.0, axis="z"))
+        kicked = Sequence(Pulse(90.0), Gradient(0.02, 20.0, axis="z"),
+                          InducedKick(0.0, moment_z=0.05))
         np.testing.assert_allclose(amps(engine, kicked, water), amps(engine, gradient, water),
                                    atol=1e-6)
         # its uniform cycles advance the spins as a field does: a scanner frequency
@@ -269,12 +271,14 @@ class TestInducedKick:
         _, kick = engine.lines(kicked, water)
         np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(kick)),
                                    np.asarray(ops.convert_to_numpy(reference)), atol=1e-6)
-        assert np.abs(np.asarray(ops.convert_to_numpy(kick)) - np.asarray(ops.convert_to_numpy(plain))).max() > 1e-2
+        assert np.abs(np.asarray(ops.convert_to_numpy(kick))
+                      - np.asarray(ops.convert_to_numpy(plain))).max() > 1e-2
         brief = Sequence(Pulse(90.0), CoherenceFilter(-1), InducedKick(0.05))
         line = np.asarray(ops.convert_to_numpy(engine.lines(brief, water)[1]))
         assert abs(np.degrees(np.angle(line[np.argmax(np.abs(line))])) - 18.0) < 1e-3
         # every value is a timing, the axes are structure
-        assert InducedKick(0.1, moment_x=0.2).structure() == InducedKick(0.3, moment_x=0.4).structure()
+        assert (InducedKick(0.1, moment_x=0.2).structure()
+                == InducedKick(0.3, moment_x=0.4).structure())
         assert InducedKick(0.1, moment_x=0.2).timings() == (0.1, 0.2, 0.0, 0.0)
 
     def test_a_field_during_a_shaped_pulse_runs_the_spins_off_resonance(self, engine):
@@ -300,9 +304,11 @@ class TestInducedKick:
         track = np.zeros((4, steps + 1), dtype=np.float32)
         track[3] = 25.0 * t
         rephase = Gradient(-0.5 * 25.0 * duration, 20.0, axis="z")
-        slab = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3, gradient_hz_per_mm=25.0,
-                                             gradient_axis="z"), rephase)
-        field = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3, induced=track), rephase)
+        slab = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3,
+                                             gradient_hz_per_mm=25.0, gradient_axis="z"),
+                        rephase)
+        field = Sequence(ShapedPulse.gaussian(90.0, duration, offset_ppm=1.3, induced=track),
+                         rephase)
         np.testing.assert_allclose(lines(field), lines(slab), atol=1e-6)
         # the track is a timing: one compiled design replays at every voxel
         assert field.events[0].structure() == Sequence(ShapedPulse.gaussian(
@@ -336,10 +342,12 @@ class TestProjection:
             return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lac)[1]))
 
         projected = Sequence(
-            ShapedPulse.sinc(90.0, short, gradient_hz_per_mm=g, gradient_axis="x", extent_mm=extent, **kw),
+            ShapedPulse.sinc(90.0, short, gradient_hz_per_mm=g, gradient_axis="x",
+                             extent_mm=extent, **kw),
             Gradient(-0.5 * g * short, extent, axis="x"), CoherenceFilter(+1), Projection(),
             Delay(0.004),
-            ShapedPulse.sinc(180.0, short, gradient_hz_per_mm=g, gradient_axis="y", extent_mm=extent, **kw),
+            ShapedPulse.sinc(180.0, short, gradient_hz_per_mm=g, gradient_axis="y",
+                             extent_mm=extent, **kw),
             CoherenceFilter(-1), Projection(), Delay(0.004))
         t = np.append((np.arange(64) + 0.5) * short / 64, short)
 
@@ -470,7 +478,8 @@ class TestLocalizedPress:
         engine = Engine(3.0, isochromats=32)
         a = np.asarray(ops.convert_to_numpy(engine.lines(
             LocalizedPress(0.015, 0.015, 3.0 * 42.5774785, reference_ppm=4.65), water)[1]))
-        b = np.asarray(ops.convert_to_numpy(engine.lines(Press(te1_s=0.015, te2_s=0.015), water)[1]))
+        b = np.asarray(ops.convert_to_numpy(engine.lines(
+            Press(te1_s=0.015, te2_s=0.015), water)[1]))
         k = np.argmax(np.abs(b))
         assert 0.95 < abs(a[k] / b[k]) < 1.05 and abs(np.degrees(np.angle(a[k] / b[k]))) < 0.5
         with pytest.raises(ValueError):
@@ -481,17 +490,22 @@ class TestLocalizedPress:
 
         f0_mhz = 3.0 * 42.5774785
         turned = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(30.0, 20.0, 10.0), axes="zxy")
-        slabs = [(e.gradient_axis, float(e.flip_deg), float(e.gradient_hz_per_mm)) for e in turned.events
-                 if isinstance(e, ShapedPulse)]
-        assert [(axis, flip) for axis, flip, _ in slabs] == [("z", 90.0), ("x", 180.0), ("y", 180.0)]
+        slabs = [(e.gradient_axis, float(e.flip_deg), float(e.gradient_hz_per_mm))
+                 for e in turned.events if isinstance(e, ShapedPulse)]
+        assert ([(axis, flip) for axis, flip, _ in slabs]
+                == [("z", 90.0), ("x", 180.0), ("y", 180.0)])
         # every slab is as thick as the voxel's edge along its own axis: bandwidth over gradient
         plain = LocalizedPress(0.015, 0.015, f0_mhz, size_mm=(30.0, 20.0, 10.0))
-        edge = {e.gradient_axis: (float(e.flip_deg), float(e.gradient_hz_per_mm)) for e in plain.events if isinstance(e, ShapedPulse)}
-        assert slabs[0][2] * 10.0 == pytest.approx(edge["x"][1] * 30.0)          # the 90's bandwidth, on z now
-        assert slabs[1][2] * 30.0 == pytest.approx(edge["y"][1] * 20.0)          # a 180's bandwidth, on x now
+        edge = {e.gradient_axis: (float(e.flip_deg), float(e.gradient_hz_per_mm))
+                for e in plain.events if isinstance(e, ShapedPulse)}
+        # the 90's bandwidth, on z now
+        assert slabs[0][2] * 10.0 == pytest.approx(edge["x"][1] * 30.0)
+        # a 180's bandwidth, on x now
+        assert slabs[1][2] * 30.0 == pytest.approx(edge["y"][1] * 20.0)
         # an isotropic voxel of an uncoupled line does not care which pulse takes which axis
         engine, naa = Engine(3.0, isochromats=16), SpinSystem.from_database("NAA")[0]
-        heights = [np.abs(np.asarray(ops.convert_to_numpy(engine.lines(LocalizedPress(0.015, 0.015, f0_mhz, axes=axes), naa)[1]))).sum()
+        heights = [np.abs(np.asarray(ops.convert_to_numpy(engine.lines(
+                       LocalizedPress(0.015, 0.015, f0_mhz, axes=axes), naa)[1]))).sum()
                    for axes in ("xyz", "zxy")]
         assert heights[0] == pytest.approx(heights[1], rel=1e-3)
         with pytest.raises(ValueError):
@@ -521,7 +535,8 @@ class TestLocalizedSteam:
         assert abs(np.degrees(np.angle(voxel[k] / ideal[k]))) < 0.5
         # 2.3 kHz on every axis: the coupled multiplets stay close to the ideal ones
         glu = SpinSystem.from_database("Glu")[0]
-        a, b = lines(LocalizedSteam(0.020, 0.010, f0_mhz), glu), lines(Steam(te_s=0.020, tm_s=0.010), glu)
+        a, b = (lines(LocalizedSteam(0.020, 0.010, f0_mhz), glu),
+                lines(Steam(te_s=0.020, tm_s=0.010), glu))
         assert abs(np.vdot(a, b)) / np.linalg.norm(a) / np.linalg.norm(b) > 0.98
         # 14 uT pulses play on every preset
         assert LocalizedSteam(0.020, 0.010, f0_mhz).feasible(Scanner.preset("philips_elition_3t"))
@@ -547,7 +562,8 @@ class TestDifferentiable:
         lac = SpinSystem.from_database("Lac")[0]
         design = LocalizedPress(0.030, 0.040, f0_mhz)
         fn, _ = engine.graph(design, ((lac,),))
-        args = [ops.convert_to_tensor(np.asarray(v, dtype=np.float32)) for v in ([1.2], [0.2], 1.0, 0.0)]
+        args = [ops.convert_to_tensor(np.asarray(v, dtype=np.float32))
+                for v in ([1.2], [0.2], 1.0, 0.0)]
         timings = Engine.tensors(design.timings())
         delays = [k for k, event in enumerate(design.events) if isinstance(event, Delay)]
 
@@ -559,7 +575,7 @@ class TestDifferentiable:
 
         at = timings[delays[0]][0]
         value, grad = value_and_grad(observable)(at)
-        h = 2e-5  # the signal curves within 0.1 ms: the difference converges to the gradient from 4e-4 down
+        h = 2e-5  # the signal curves within 0.1 ms
         finite = (float(observable(at + h)) - float(observable(at - h))) / (2.0 * h)
         assert abs(finite) > 0.0 and abs(float(grad) - finite) < 0.02 * abs(finite)
 
@@ -575,7 +591,8 @@ def test_the_librarys_press_plays_its_crushers_on_request():
                          j_hz=((0.0, 6.9), (6.9, 0.0)), gamma_mhz_t=42.5774785)
 
     def amps(sequence, b1_scale):
-        return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lactate, b1_scale=b1_scale)[1]))
+        return np.asarray(ops.convert_to_numpy(
+            engine.lines(sequence, lactate, b1_scale=b1_scale)[1]))
 
     filtered, strong, weak = (Press(0.011, 0.019), Press(0.011, 0.019, crushers=(0.15, 0.25)),
                               Press(0.011, 0.019, crushers=(0.004, 0.007)))
@@ -596,7 +613,8 @@ def test_steam_and_semi_laser_play_their_crushers_too():
                          j_hz=((0.0, 6.9), (6.9, 0.0)), gamma_mhz_t=42.5774785)
 
     def amps(sequence, b1_scale=1.0):
-        return np.asarray(ops.convert_to_numpy(engine.lines(sequence, lactate, b1_scale=b1_scale)[1]))
+        return np.asarray(ops.convert_to_numpy(
+            engine.lines(sequence, lactate, b1_scale=b1_scale)[1]))
 
     # whole cycles over the ensemble select what the filters select
     for filtered, played in ((Steam(0.02, 0.01), Steam(0.02, 0.01, crushers=(0.15, 0.35))),
@@ -605,5 +623,7 @@ def test_steam_and_semi_laser_play_their_crushers_too():
         assert np.abs(amps(played) - wanted).max() < 0.02 * np.abs(wanted).max()
     # a stimulated echo with a transmit field a fifth low: a weak scheme lets the other echoes in
     wanted = amps(Steam(0.02, 0.01), 0.8)
-    assert np.abs(amps(Steam(0.02, 0.01, crushers=(0.15, 0.35)), 0.8) - wanted).max() < 0.03 * np.abs(wanted).max()
-    assert np.abs(amps(Steam(0.02, 0.01, crushers=(0.004, 0.006)), 0.8) - wanted).max() > 0.05 * np.abs(wanted).max()
+    assert (np.abs(amps(Steam(0.02, 0.01, crushers=(0.15, 0.35)), 0.8) - wanted).max()
+            < 0.03 * np.abs(wanted).max())
+    assert (np.abs(amps(Steam(0.02, 0.01, crushers=(0.004, 0.006)), 0.8) - wanted).max()
+            > 0.05 * np.abs(wanted).max())
