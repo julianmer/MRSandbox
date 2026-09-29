@@ -29,7 +29,11 @@ import sys
 # (spec2nii: Clarke et al. 2022)
 RAW = {".dat": "twix", ".7": "ge", ".sdat": "philips", ".list": "philips_dl", ".rda": "rda"}
 # what a file's name says of an image: the words looked for, lowercase, in order
-IMAGES = (("t1map", "T1 map"), ("r1map", "R1 map"), ("t1w", "T1w"), ("mprage", "T1w"),
+IMAGES = (("t1map", "T1 map"), ("r1map", "R1 map"),
+          # star maps first: R2* is not R2 (a gradient echo's decay carries the field's
+          # inhomogeneity), so neither feeds the water's T2
+          ("t2starmap", "other image"), ("r2starmap", "other image"),
+          ("t2map", "T2 map"), ("r2map", "R2 map"), ("t1w", "T1w"), ("mprage", "T1w"),
           ("t1_", "T1w"), ("_t1", "T1w"), ("fieldmap", "B0"), ("phasediff", "B0"), ("b0map", "B0"),
           ("_b0", "B0"), ("tb1", "B1+"), ("b1map", "B1+"), ("b1plus", "B1+"), ("flipangle", "B1+"),
           ("csm", "coils"), ("sens", "coils"), ("coilmap", "coils"),
@@ -42,6 +46,8 @@ GIVES = {"MRS run": "the noise level, the line width; with its reference the res
          "T1w": "the anatomy: tissues and the lipid layer (segmented with FSL)",
          "T1 map": "the water's T1 per tissue, read on the anatomy's tissues",
          "R1 map": "the water's T1 per tissue (1 / R1), read on the anatomy's tissues",
+         "T2 map": "the water's T2 per tissue, read on the anatomy's tissues",
+         "R2 map": "the water's T2 per tissue (1 / R2), read on the anatomy's tissues",
          "B0": "the field map, shimmed per voxel", "B1+": "the transmit field the pulses see",
          "coils": "the receive array's sensitivity maps",
          "noise scan": "the channels' covariance and own noise share",
@@ -62,7 +68,8 @@ READS = {"noise.sigma": ("MRS run",), "lineshape.gauss_hz": ("MRS run",),
          "oov.fraction": ("MRS run", "MRS reference"),
          "run.resp_freq_hz": ("physio",), "run.cardiac_hz": ("physio",),
          "run.events_per_min": ("image series",), "run.motion_mm": ("image series",),
-         "contrast": ("T1w",), "lipids": ("T1w",), "water.t1_s": ("T1 map", "R1 map")}
+         "contrast": ("T1w",), "lipids": ("T1w",), "water.t1_s": ("T1 map", "R1 map"),
+         "water.t2_s": ("T2 map", "R2 map")}
 
 
 def reads(leaf):

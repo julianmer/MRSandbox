@@ -20,7 +20,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-jax = ["jax"]
+# flatbuffers serializes the engine's graph exports (jax.export)
+jax = ["jax", "flatbuffers"]
 torch = ["torch"]
 tensorflow = ["tensorflow"]
 # Augmentrum drives the transient instabilities (scan.Multiplex.transients) and, as it

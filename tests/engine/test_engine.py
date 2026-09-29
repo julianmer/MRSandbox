@@ -436,6 +436,88 @@ class TestGraph:
                 s_full, s_kept = (np.asarray(ops.convert_to_numpy(v)) for v in (s_full, s_kept))
                 assert np.abs(s_full - s_kept).max() <= 1e-5 * np.abs(s_full).max()
 
+    def test_the_signal_index_persists_across_engines(self, backend, tmp_path):
+        # the index is a pure function of the graph, so a second engine reads it back from the
+        # cache directory instead of replaying the full graph: a tampered file coming back
+        # verbatim proves the read, and proves the key reproduces across engines
+        if backend != "jax":
+            pytest.skip("the signal index persists by jax's lowered module")
+        import jax
+
+        from mrsandbox import SpinSystem
+
+        before = jax.config.jax_compilation_cache_dir
+        jax.config.update("jax_compilation_cache_dir", str(tmp_path))
+
+        def no_exports():
+            # the graph export would otherwise serve the next engine before the index store
+            for file in (tmp_path / "exports").glob("*.npz"):
+                file.unlink()
+
+        try:
+            groups = (tuple(SpinSystem.from_database("Lac")),)
+            design = Press(te1_s=0.012, te2_s=0.02, tr_s=1.5)
+            _, kept = Engine(3.0).graph(design, groups, pruned=True)
+            (path,) = (tmp_path / "signal_index").glob("*.npz")
+            stored = dict(np.load(path))
+            np.savez(path, index=stored["index"][:-1], kept=stored["kept"] - 1)
+            no_exports()
+            _, tampered = Engine(3.0).graph(design, groups, pruned=True)
+            assert tampered[-1] == kept[-1] - 1
+            path.unlink()
+            no_exports()
+            _, recomputed = Engine(3.0).graph(design, groups, pruned=True)
+            assert np.array_equal(recomputed, kept) and path.exists()
+        finally:
+            jax.config.update("jax_compilation_cache_dir", before)
+
+    def test_a_graph_reloads_across_engines_untraced(self, backend, tmp_path, monkeypatch):
+        # a second engine takes the serialized export: no context is built, no python traced,
+        # the lines are the first engine's to the bit, the draws export serves any batch, and
+        # a jax transformation falls back to the live graph
+        if backend != "jax":
+            pytest.skip("graphs persist as jax exports")
+        import jax
+
+        from mrsandbox import SpinSystem
+        from mrsandbox.backend import Backend
+
+        before = jax.config.jax_compilation_cache_dir
+        jax.config.update("jax_compilation_cache_dir", str(tmp_path))
+        try:
+            groups = (tuple(SpinSystem.from_database("Lac")),)
+            design = Press(te1_s=0.012, te2_s=0.02, tr_s=1.5)
+            args = (ops.convert_to_tensor(np.asarray([1.4], np.float32)),
+                    ops.convert_to_tensor(np.asarray([0.25], np.float32)),
+                    ops.convert_to_tensor(np.float32(1.1)),
+                    ops.convert_to_tensor(np.float32(3.0)))
+            one = Engine(3.0)
+            fn, kept = one.compiled_batch(design, groups, pruned=True)
+            lines = [np.asarray(ops.convert_to_numpy(v)) for v in fn(*args)]
+            rows, _ = one.replay_draws(design, groups)
+            batch3 = np.asarray(ops.convert_to_numpy(
+                rows(*(ops.stack([a] * 3) for a in args))[1]))
+            two = Engine(3.0)
+            monkeypatch.setattr(two, "_ensemble_context",
+                                lambda *a, **k: pytest.fail("the export was not taken"))
+            fn2, kept2 = two.compiled_batch(design, groups, pruned=True)
+            again = [np.asarray(ops.convert_to_numpy(v)) for v in fn2(*args)]
+            assert np.array_equal(kept, kept2)
+            assert all(np.array_equal(a, b) for a, b in zip(lines, again))
+            rows2, _ = two.replay_draws(design, groups)
+            for draws in (3, 5):
+                batch = np.asarray(ops.convert_to_numpy(
+                    rows2(*(ops.stack([a] * draws) for a in args))[1]))
+                assert np.array_equal(batch[:3], batch3[:3])
+            monkeypatch.undo()
+            mapped = Backend.vmap(fn2, in_axes=(0, 0, None, None))
+            _, amps = mapped(ops.stack([args[0]] * 2), ops.stack([args[1]] * 2),
+                             args[2], args[3])
+            amps = np.asarray(ops.convert_to_numpy(amps))
+            assert np.abs(amps[0] - lines[1]).max() <= 1e-6 * np.abs(lines[1]).max()
+        finally:
+            jax.config.update("jax_compilation_cache_dir", before)
+
     def test_rows_render_with_their_own_widths(self):
         # a batch of draws renders in one call, every row with its own Lorentzian widths, and equals
         # the rows rendered one by one

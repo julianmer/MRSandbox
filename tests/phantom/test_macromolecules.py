@@ -164,6 +164,27 @@ class TestChallenge:
         expected = 0.4 * (truth.conc.Cr + truth.conc.PCr) * np.dot(weights, scan.mm._load()[:, 0])
         assert abs(fid[0] - expected) < 1e-5 * abs(expected)
 
+    #********************#
+    #   receiver delay   #
+    #********************#
+    def test_a_delay_samples_the_same_signal(self):
+        # the sequence acts per file at its named position, so a delayed grid reads the same
+        # signal later, and before the echo top the mirrored envelope stays bounded
+        brain = Brain.load("icbm152")
+        sequence = Press(te1_s=0.011, te2_s=0.019)
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), sequence, mm=ChallengeMM())
+        voxel = scan.voxel(**KW)
+        truth = voxel.sample(seed=7)
+        grid, f0 = np.arange(2048) / 4000.0, 42.5774785 * 3.0
+        zero = scan.mm.fid(voxel, truth, f0, grid, sequence=sequence)
+        for k in (2, -2):
+            moved = scan.mm.fid(voxel, truth, f0, grid + k / 4000.0, sequence=sequence)
+            err = (np.abs(moved[:-k] - zero[k:]).max() if k > 0
+                   else np.abs(moved[-k:] - zero[:k]).max())
+            assert err <= 1e-6 * np.abs(zero).max()
+        early = scan.mm.fid(voxel, truth, f0, grid - 8 / 4000.0, sequence=sequence)
+        assert np.abs(early[:8]).max() <= 1.1 * np.abs(zero).max()
+
 
 #**************************************************************************************************#
 #                                       Class TestMeasured                                         #

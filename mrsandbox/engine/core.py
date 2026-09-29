@@ -17,8 +17,11 @@
 #   imports   #
 #*************#
 import dataclasses
+import hashlib
 import math
 import numbers
+import os
+import pathlib
 
 import numpy as np
 
@@ -312,43 +315,90 @@ class Engine:
         is gathered inside the graph and a replay transfers and renders the few
         thousand lines that matter instead of every element. The bounds then count the
         kept elements per group. The complete layout stays the default.
+
+        On jax with the persistent compilation cache configured, the graph is also
+        kept as a serialized jax.export beside that cache (`_export_path`): a later
+        session deserializes it and never traces the python at all, and its one XLA
+        compilation lands in the persistent cache like any other. A call under a jax
+        transformation falls back to the live graph (`_wrap_export`).
         """
         from nifti_mrs_plus.backend import jit
 
         isochromats = isochromats if isochromats is not None else self.isochromats
-        key = (sequence.structure(), groups, isochromats, pruned)
-        if key not in self._compiled and pruned:
-            full, bounds = self.graph(sequence, groups, isochromats)
-            index, kept = self._signal_index(full, sequence, bounds)
+        # the timing shapes join the structure in the key: a tuple-valued timing (a tau list,
+        # a waveform) can change its tree or length under one structure, and a stored export,
+        # unlike a jit, cannot retrace for it
+        key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups,
+               isochromats, pruned)
+        if key in self._compiled:
+            return self._compiled[key]
+        path = self._export_path("graph", sequence, groups, isochromats, pruned)
+        stored = self._load_export(path)
+        if stored is not None:
+            exported, kept = stored
+            bounds = kept if pruned else self._group_bounds(groups)
+            fn = self._wrap_export(exported, lambda: self._raw_graph(sequence, groups,
+                                                                     isochromats, pruned)[0])
+        else:
+            raw, bounds = self._raw_graph(sequence, groups, isochromats, pruned)
+            if path is not None:
+                exported = self._store_export(path, raw, self._specs(sequence, groups),
+                                              kept=bounds if pruned else None)
+                fn = self._wrap_export(exported, lambda: raw)
+            else:
+                fn = jit(raw)
+        self._compiled[key] = (fn, bounds)
+        return self._compiled[key]
+
+    #*****************#
+    #   raw graph     #
+    #*****************#
+    def _raw_graph(self, sequence, groups, isochromats, pruned):
+        """`graph`'s plain python function and bounds, unjitted and uncached: what a
+        jit, an export, or a transformation fallback traces."""
+        from nifti_mrs_plus.backend import jit
+
+        if pruned:
+            full, bounds = self._raw_graph(sequence, groups, isochromats, False)
+            index, kept = self._signal_index(jit(full), sequence, bounds)
 
             def gathered(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
                 freqs, amps = full(t1_s, t2_s, b1_scale, offset_hz, timings, shift)
                 return ops.take(freqs, index), ops.take(amps, index)
 
-            self._compiled[key] = (jit(gathered), kept)
-        if key not in self._compiled:
-            contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
-                        for index, group in enumerate(groups) for system in group]
-            axes = sorted(self.extents(sequence))
-            bounds = np.cumsum([0] + [sum(system.dim ** 2 for system in group)
-                                      for group in groups])
+            return gathered, kept
+        contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
+                    for index, group in enumerate(groups) for system in group]
+        axes = sorted(self.extents(sequence))
 
-            def fn(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
-                design = sequence.bound(timings)
-                freqs, amps = [], []
-                for index, ctx0 in contexts:
-                    moved = {"gradient_" + axis:
-                             getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
-                             for axis in axes}
-                    ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
-                                              b1_scale=b1_scale, offset_hz=offset_hz, **moved)
-                    f, a = self._system_lines(design, ctx)
-                    freqs.append(f)
-                    amps.append(a)
-                return ops.concatenate(freqs), ops.concatenate(amps)
+        def fn(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
+            design = sequence.bound(timings)
+            freqs, amps = [], []
+            for index, ctx0 in contexts:
+                moved = {"gradient_" + axis:
+                         getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
+                         for axis in axes}
+                ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
+                                          b1_scale=b1_scale, offset_hz=offset_hz, **moved)
+                f, a = self._system_lines(design, ctx)
+                freqs.append(f)
+                amps.append(a)
+            return ops.concatenate(freqs), ops.concatenate(amps)
 
-            self._compiled[key] = (jit(fn), bounds)
-        return self._compiled[key]
+        return fn, self._group_bounds(groups)
+
+    @staticmethod
+    def _group_bounds(groups):
+        """Element bounds of the groups in the full output, by their dimensions."""
+        return np.cumsum([0] + [sum(system.dim ** 2 for system in group) for group in groups])
+
+    @staticmethod
+    def _timing_shapes(timings):
+        """The shape of every timing, nesting kept: the part of a sequence's timings that
+        shapes its graph beyond the structure."""
+        if isinstance(timings, tuple):
+            return tuple(Engine._timing_shapes(value) for value in timings)
+        return np.shape(timings)
 
     #******************#
     #   signal index   #
@@ -359,23 +409,194 @@ class Engine:
         the sequence's own timings), as an index tensor and the groups' bounds in it.
         An element under 1e-9 of its group's maximum in every replay is a structural
         zero (a coherence filter's), two orders below float32 itself: a null one
-        timing happens to sit on cannot reach it."""
+        timing happens to sit on cannot reach it.
+
+        The index is a pure function of the graph, so on jax with the persistent
+        compilation cache configured it is kept beside that cache (`_index_path`)
+        and a later session reads it back instead of replaying the full graph."""
+        relax, scales, offsets, floor = (1.5, 0.2), (0.8, 1.0, 1.25), (0.0, 7.0), 1e-9
         timings, shift = self.tensors(sequence.timings()), ops.zeros((3,), dtype="float32")
         n = len(bounds) - 1
+
+        def probe(b1, offset):
+            return (ops.convert_to_tensor(np.full(n, relax[0], np.float32)),
+                    ops.convert_to_tensor(np.full(n, relax[1], np.float32)),
+                    ops.convert_to_tensor(np.float32(b1)),
+                    ops.convert_to_tensor(np.float32(offset)), timings, shift)
+
+        path = self._index_path(full, probe(scales[0], offsets[0]),
+                                (relax, scales, offsets, floor))
+        if path is not None and path.exists():
+            stored = np.load(path)
+            return ops.convert_to_tensor(stored["index"]), stored["kept"]
         keep = np.zeros(int(bounds[-1]), dtype=bool)
-        for b1 in (0.8, 1.0, 1.25):
-            for offset in (0.0, 7.0):
-                _, amps = full(ops.convert_to_tensor(np.full(n, 1.5, np.float32)),
-                               ops.convert_to_tensor(np.full(n, 0.2, np.float32)),
-                               ops.convert_to_tensor(np.float32(b1)),
-                               ops.convert_to_tensor(np.float32(offset)), timings, shift)
+        for b1 in scales:
+            for offset in offsets:
+                _, amps = full(*probe(b1, offset))
                 amps = np.abs(np.asarray(ops.convert_to_numpy(amps)))
                 for g in range(n):
                     part = amps[bounds[g]:bounds[g + 1]]
-                    keep[bounds[g]:bounds[g + 1]] |= part > 1e-9 * part.max()
+                    keep[bounds[g]:bounds[g + 1]] |= part > floor * part.max()
         kept = np.concatenate([[0], np.cumsum([int(keep[bounds[g]:bounds[g + 1]].sum())
                                                for g in range(n)])])
-        return ops.convert_to_tensor(np.flatnonzero(keep)), kept
+        index = np.flatnonzero(keep)
+        if path is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fresh = path.with_suffix(f".{os.getpid()}.npz")
+            np.savez(fresh, index=index, kept=kept)
+            os.replace(fresh, path)
+        return ops.convert_to_tensor(index), kept
+
+    #****************#
+    #   index path   #
+    #****************#
+    @staticmethod
+    def _index_path(full, args, recipe):
+        """Where a graph's signal index persists, or None to keep it in memory.
+        Only on jax with the persistent compilation cache configured (the console
+        and the tests turn it on). The key is the full graph's lowered module,
+        which fixes the design, the systems, the ensemble and every constant,
+        plus the probe recipe; a looser key could hand a graph a stale index and
+        silently drop signal. Lowering traces the graph without running it."""
+        if not nops.is_jax(args[0]):
+            return None
+        import jax
+
+        directory = jax.config.jax_compilation_cache_dir
+        if directory is None:
+            return None
+        module = jax.jit(full).lower(*args).as_text()
+        digest = hashlib.sha256(repr(recipe).encode() + module.encode()).hexdigest()
+        return pathlib.Path(directory) / "signal_index" / (digest + ".npz")
+
+    #***************#
+    #   exports     #
+    #***************#
+    _code_salt = None
+
+    @classmethod
+    def _export_salt(cls):
+        """One hash over the physics sources and the library versions: any change
+        invalidates every stored export, since a serialized graph cannot see code."""
+        if cls._code_salt is None:
+            import jax
+            import keras
+
+            # the physics folders by path, never as package attributes: a concurrent import
+            # on another thread (the console's) leaves mrsandbox.engine unbound for a moment
+            root = pathlib.Path(__file__).parents[1]
+            folders = [root / name for name in ("engine", "sequences", "spins", "backend")]
+            folders.append(pathlib.Path(nops.__file__).parent)
+            digest = hashlib.sha256((jax.__version__ + keras.__version__).encode())
+            for folder in folders:
+                for file in sorted(folder.glob("*.py")):
+                    digest.update(file.name.encode() + file.read_bytes())
+            cls._code_salt = digest.hexdigest()
+        return cls._code_salt
+
+    def _export_path(self, kind, sequence, groups, isochromats, pruned):
+        """Where a graph's serialized export persists, or None to stay live: only on the
+        jax backend with the persistent compilation cache configured. The key holds the
+        code salt, the engine's field, receiver phase and ensemble, the design's
+        structure with its timing shapes, and every structural number of the systems;
+        never a looser key, a stale export would silently play other physics."""
+        import keras
+
+        if keras.config.backend() != "jax":
+            return None
+        try:
+            import flatbuffers  # noqa: F401  (jax.export's serialization needs it)
+        except ImportError:
+            return None
+        import jax
+
+        directory = jax.config.jax_compilation_cache_dir
+        if directory is None:
+            return None
+        shapes = self._timing_shapes(sequence.timings())
+        systems = tuple(tuple((s.name, s.nucleus, s.shifts_ppm, s.j_hz, s.scale, s.gamma_mhz_t,
+                               s.spin) for s in group) for group in groups)
+        text = repr((self._export_salt(), self.b0_t, self.receiver_phase_deg, kind,
+                     sequence.structure(), shapes, systems, isochromats, pruned))
+        digest = hashlib.sha256(text.encode()).hexdigest()
+        return pathlib.Path(directory) / "exports" / (digest + ".npz")
+
+    def _specs(self, sequence, groups, draws=None):
+        """ShapeDtypeStructs of a graph's inputs (t1_s, t2_s, b1_scale, offset_hz,
+        timings, shift), float32 as every caller converts them; with `draws` (a
+        symbolic dimension) the first four take it as their leading axis."""
+        import jax
+
+        lead = () if draws is None else (draws,)
+        spec = lambda shape: jax.ShapeDtypeStruct(shape, np.float32)
+        timings = jax.tree_util.tree_map(lambda value: spec(np.shape(value)),
+                                         sequence.timings())
+        return (spec(lead + (len(groups),)), spec(lead + (len(groups),)), spec(lead),
+                spec(lead), timings, spec((3,)))
+
+    def _load_export(self, path):
+        """(the deserialized jax.export.Exported, the stored kept bounds or None), or
+        None to build live: a missing file, or one another jax version wrote
+        (deserialize refuses it), rebuilds and rewrites."""
+        if path is None or not path.exists():
+            return None
+        from jax import export
+
+        try:
+            stored = np.load(path)
+            loaded = export.deserialize(stored["export"].tobytes())
+            kept = stored["kept"] if "kept" in stored.files else None
+        except Exception:
+            return None
+        return loaded, kept
+
+    def _store_export(self, path, fn, specs, kept=None):
+        """Serialize `fn` at `specs` (traced and lowered, never run) to `path` and
+        return its own deserialization, so every session compiles the same wrapped
+        module and jax's persistent cache serves it."""
+        import jax
+        from jax import export
+
+        data = np.frombuffer(export.export(jax.jit(fn))(*specs).serialize(), dtype=np.uint8)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fresh = path.with_suffix(f".{os.getpid()}.npz")
+        np.savez(fresh, export=data, **({} if kept is None else {"kept": kept}))
+        os.replace(fresh, path)
+        return export.deserialize(data.tobytes())
+
+    @staticmethod
+    def _wrap_export(exported, build):
+        """The loaded export behind the live graph's interface: a call whose leaves fit
+        the export's own signature runs the serialized module (each leaf made float32),
+        and any other call falls back to the live python graph, built once on first
+        need: a tracer among the leaves (vmap has no rule for a serialized call, a
+        gradient would need its VJP), or a shape the export was not made for (a vector
+        transmit scale over the ensemble), which a jit quietly retraces for and a
+        serialized module cannot. A symbolic dimension fits any size."""
+        import jax
+
+        from nifti_mrs_plus.backend import jit
+
+        call = jax.jit(exported.call)
+        shapes = tuple(aval.shape for aval in exported.in_avals)
+        live = []
+
+        def fits(leaf, shape):
+            got = np.shape(leaf)
+            return (not isinstance(leaf, jax.core.Tracer) and len(got) == len(shape)
+                    and all(want == have for want, have in zip(shape, got)
+                            if isinstance(want, int)))
+
+        def wrapped(*args):
+            leaves = jax.tree_util.tree_leaves(args)
+            if len(leaves) != len(shapes) or not all(map(fits, leaves, shapes)):
+                if not live:
+                    live.append(jit(build()))
+                return live[0](*args)
+            return call(*jax.tree_util.tree_map(
+                lambda leaf: ops.convert_to_tensor(leaf, dtype="float32"), args))
+
+        return wrapped
 
     @staticmethod
     def tensors(timings):
@@ -440,13 +661,44 @@ class Engine:
         with a leading draw axis on every input, t1_s and t2_s (draws, groups), the lines
         back as (draws, kept); plus the groups' bounds in the kept lines. One graph runs
         the whole batch (Backend.vmap); the mapped function is held per design, since
-        it closes over that design's timings."""
+        it closes over that design's timings. Where graphs persist as exports (`graph`),
+        the mapped graph keeps its own, with the draws axis a symbolic dimension (a
+        serialized call cannot go under vmap), so a session replays draws untraced too."""
         held = self._draws.get(id(sequence))
         signature = (groups, isochromats, tuple(sorted((shift_mm or {}).items())))
         if held is None or held[0] is not sequence or held[1] != signature:
-            fn, bounds = self.compiled_batch(sequence, groups, isochromats, shift_mm, pruned=True)
-            held = self._draws[id(sequence)] = (sequence, signature,
-                                                Backend.vmap(fn, in_axes=(0, 0, 0, 0)), bounds)
+            chromats = isochromats if isochromats is not None else self.isochromats
+            path = self._export_path("draws", sequence, groups, chromats, True)
+            stored = self._load_export(path)
+            if stored is None and path is not None:
+                import jax
+                from jax import export
+
+                raw, kept = self._raw_graph(sequence, groups, chromats, True)
+                stored = (self._store_export(
+                    path, jax.vmap(raw, in_axes=(0, 0, 0, 0, None, None)),
+                    self._specs(sequence, groups, draws=export.symbolic_shape("b")[0]),
+                    kept=kept), kept)
+            if stored is not None:
+                import jax
+
+                exported, kept = stored
+                call = self._wrap_export(exported, lambda: jax.vmap(
+                    self._raw_graph(sequence, groups, chromats, True)[0],
+                    in_axes=(0, 0, 0, 0, None, None)))
+                timings = self.tensors(sequence.timings())
+                shift = ops.convert_to_tensor(np.asarray(
+                    [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"],
+                    dtype=np.float32))
+                fn = lambda t1_s, t2_s, b1_scale, offset_hz: call(t1_s, t2_s, b1_scale,
+                                                                  offset_hz, timings, shift)
+                held = self._draws[id(sequence)] = (sequence, signature, fn, kept)
+            else:
+                fn, bounds = self.compiled_batch(sequence, groups, isochromats, shift_mm,
+                                                 pruned=True)
+                held = self._draws[id(sequence)] = (sequence, signature,
+                                                    Backend.vmap(fn, in_axes=(0, 0, 0, 0)),
+                                                    bounds)
         return held[2], held[3]
 
     #**************#

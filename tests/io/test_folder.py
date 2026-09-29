@@ -181,3 +181,29 @@ class TestConsole:
                 and read["water.t1_s.wm"] == pytest.approx(0.8, rel=0.02))
         leaf = session.twin().params["water"]["t1_s"]
         assert leaf.chosen == "own" and leaf.own.gm.low < 1.5 < leaf.own.gm.high
+
+    def test_a_t2_map_gives_the_water_its_t2_and_a_star_map_does_not(self, tmp_path):
+        # a T2 map of the subject on the floor, read per tissue like a T1 map; a T2* map is not
+        # a T2 map (a gradient echo's decay carries the field's inhomogeneity) and stays unread
+        import nibabel as nib
+
+        from mrsandbox.console.session import Session
+
+        session = Session("Brain, ICBM152 average, 2 mm")
+        maps = session.body().maps
+        t2 = sum(value * maps.data[..., k] for k, value in enumerate((0.11, 0.08, 2.0)))
+        image = nib.Nifti1Image(t2.astype(np.float32), maps.affine)
+        nib.save(image, tmp_path / "sub-01_T2map.nii.gz")
+        nib.save(image, tmp_path / "sub-01_T2starmap.nii.gz")
+        report = {file: (kind, gave) for file, kind, gave in session.replicate(tmp_path)}
+        assert (report["sub-01_T2map.nii.gz"][0] == "T2 map"
+                and report["sub-01_T2map.nii.gz"][1].startswith(
+                    "the water's T2 per tissue: gm 0.1"))
+        assert report["sub-01_T2starmap.nii.gz"][0] == "other image"
+        read = {r.leaf: r.value for r in session.run_records}
+        # a pure grey cell still holds 5 percent of a neighbour, and 5 percent of a 2 s CSF
+        # dominates a 0.11 s tissue, so grey reads high here by construction; white borders grey
+        assert (read["water.t2_s.gm"] == pytest.approx(0.11, rel=0.25)
+                and read["water.t2_s.wm"] == pytest.approx(0.08, rel=0.05))
+        leaf = session.twin().params["water"]["t2_s"]
+        assert leaf.chosen == "own" and leaf.own.gm.low < 0.11 < leaf.own.gm.high

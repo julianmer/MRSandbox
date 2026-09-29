@@ -375,10 +375,14 @@ class ChallengeMM(MeasuredMM):
     own headers, which the nine positions fit (not the 127.73 MHz the dataset's readme
     gives for the metabolite basis); the time axis is scaled to the simulated field and
     the frame moves from the basis reference, 4.647 ppm as those positions place it, to
-    0 ppm. The basis is a TE 0 FID-MRSI shape; the sequence acts on it as on the measured
-    spectrum (the echo decay per frequency bin from TE 0 and the steady state of a TR,
-    `MeasuredMM`), with the same stated approximations. mm.kappa and mm.level_mm are not
-    read.
+    0 ppm. Each file holds one peak: a real envelope modulated at its named position (its
+    phase is linear in time), so it is sampled at the sample times themselves and a
+    receiver delay samples the same signal later or, before the echo top, earlier, where
+    the envelope mirrors about t = 0 with its phase rolling on (stated, as `MeasuredMM`
+    mirrors its components). The basis is a TE 0 FID-MRSI shape; the sequence acts on
+    each file at its named position (the echo decay from TE 0 and the steady state of a
+    TR, `MeasuredMM`), with the same stated approximations. mm.kappa and mm.level_mm are
+    not read.
     """
 
     MEASURED_TE_S = 0.0
@@ -408,22 +412,22 @@ class ChallengeMM(MeasuredMM):
         t_basis = t * (f0_mhz / self.BASIS_MHZ)
         grid = np.arange(basis.shape[1]) * self.BASIS_DWELL_S
         c_tcr = voxel.resolve(truth.conc.Cr) + voxel.resolve(truth.conc.PCr)
+        positions = np.asarray([float(name.lstrip("M")) for name in self.FILES])
+        factors = (self._response(positions, sequence, voxel, truth, f0_mhz)
+                   if sequence is not None else np.ones(positions.size))
+        early = t_basis < 0.0
         signal = np.zeros(t.size, dtype=np.complex128)
-        for row, name in zip(basis, self.FILES):
+        for row, name, factor in zip(basis, self.FILES, factors):
             ratio = macromolecules.MRSI_CHALLENGE["components"][name]
             weight = fractions.gm * ratio["gm"] + fractions.wm * ratio["wm"]
-            signal += weight * (np.interp(t_basis, grid, row.real, right=0.0)
-                                + 1j * np.interp(t_basis, grid, row.imag, right=0.0))
+            sampled = (np.interp(np.abs(t_basis), grid, row.real, right=0.0)
+                       + 1j * np.interp(np.abs(t_basis), grid, row.imag, right=0.0))
+            # before the echo top the peak's envelope mirrors about t = 0, its phase rolling on
+            if early.any():
+                sampled[early] = np.exp(2j * np.angle(row[0])) * np.conj(sampled[early])
+            signal += weight * factor * sampled
         signal *= macromolecules.MRSI_CHALLENGE["kappa"] * c_tcr
         signal = signal * np.exp(2j * np.pi * self.center_ppm * f0_mhz * t)
-        if sequence is not None:
-            # every frequency bin of the sampled window scaled by the sequence's factors, one
-            # FFT round trip
-            dwell = float(t[1] - t[0])
-            factor = self._response((np.fft.fftfreq(t.size, d=dwell) % (1.0 / dwell)) / f0_mhz,
-                                    sequence, voxel, truth, f0_mhz)
-            if not np.all(factor == 1.0):
-                signal = np.fft.ifft(np.fft.fft(signal) * factor)
         return signal.astype(np.complex64)
 
     #**********#
