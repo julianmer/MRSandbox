@@ -1,0 +1,91 @@
+{
+ "name": "uk7t_oxford_7t",
+ "members": [
+  {
+   "subject": "the subject",
+   "position_mm": [
+    0.0,
+    -35.0,
+    20.0
+   ],
+   "size_mm": [
+    20.0,
+    20.0,
+    20.0
+   ],
+   "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [
+    "health"
+   ],
+   "profile": {
+    "scanner": {
+     "name": "generic_7t",
+     "b0_t": 7.0,
+     "peak_b1_ut": 30.0,
+     "max_grad_mt_m": 70.0,
+     "max_slew_t_m_s": 200.0,
+     "vendor": null,
+     "model": null,
+     "cited": "stated: the common 7 T limits, the peak B1 of Oz et al. 2021 (NMR Biomed 34:e4236, a head transmit coil)"
+    },
+    "records": [
+     {
+      "leaf": "water.t1_s.wm",
+      "value": 1.137,
+      "prior": [
+       0.8528,
+       1.4213
+      ],
+      "measured": {
+       "statistic": "the map's median in the wm cells past 0.95 of the partial volume (scan.maps.MapReading)",
+       "cells": 883900,
+       "percentiles_5_50_95": [
+        1.0021,
+        1.137,
+        1.3431
+       ]
+      },
+      "source": {
+       "dataset": "UK7T Network travelling head, Oxford (ODC-By)",
+       "citation": "Clarke et al. 2020, NeuroImage 206:116335",
+       "url": "https://ora.ox.ac.uk/objects/uuid:55ca977f-62df-4cbf-b300-2dc893e36647"
+      },
+      "scanner": {
+       "vendor": "siemens",
+       "model": null,
+       "software": null,
+       "field_t": 7.0
+      },
+      "coil": {
+       "channels": [],
+       "name": null
+      },
+      "sequence": {
+       "name": "quantitative map",
+       "family": "",
+       "te_s": null,
+       "tr_s": null
+      },
+      "acquisition": {},
+      "voxel": {},
+      "processing": "the map onto the tissues' grid by the affines, linear; the tissues FSL fast, four classes, of INV2 times the regularized uniform image inside INV2's brain (bet)",
+      "date": "29/09/26",
+      "carried_by": "subject",
+      "presets": [],
+      "fallback": true,
+      "note": "one subject's MP2RAGE T1 at 7 T (the DREAM transmit map in the flip angles): white matter only; the cortex reads near 2.0 s but cannot be told from CSF, whose T1 these timings do not resolve and the lookup clips onto the same value, so grey and CSF stay with the literature",
+      "failed": ""
+     }
+    ],
+    "coils": null,
+    "girf": null,
+    "receiver": null
+   }
+  }
+ ]
+}

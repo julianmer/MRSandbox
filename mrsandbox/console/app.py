@@ -42,6 +42,8 @@ from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING,
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
+from mrsandbox.database import Database
+from mrsandbox.scan.cohort import stated
 
 #*************#
 #   palette   #
@@ -160,14 +162,16 @@ RESIDUAL = ("water.adjusted_residual",)
 # the sources a value can come from, the same word and colour on every chip; the tree's "own" says
 # "yours"
 SOURCE_WORDS = {"literature": "literature", "stated": "stated", "pooled": "pooled",
-                "dataset": "dataset", "own": "yours", "custom": "custom"}
+                "mixed": "mixed", "dataset": "dataset", "own": "yours", "custom": "custom"}
 SOURCE_SAYS = {"literature": "a published number, or the manufacturer's",
                "stated": "a range the package assumed, nothing published behind it",
                "pooled": "the package's measured rows, pooled for this room",
+               "mixed": "the literature's studies and the measured datasets, each an equal "
+                        "voice",
                "dataset": "one real subject's own reading, from the dataset on the floor",
                "own": "measured from a scan you uploaded", "custom": "a number or range you set"}
 SOURCE_COLORS = {"literature": "#7FA6D9", "stated": "#8C8C8C", "pooled": "#7FA66B",
-                 "dataset": "#C9A0DC", "own": "#E2A55F", "custom": "#E8E2D6"}
+                 "mixed": "#6FB5AE", "dataset": "#C9A0DC", "own": "#E2A55F", "custom": "#E8E2D6"}
 SAID = "sources: " + " · ".join(f"{SOURCE_WORDS[s]} = {SOURCE_SAYS[s]}" for s in SOURCE_WORDS)
 # the leaves whose ranges the package assumed, and why (scan.defaults says it at each); every other
 # plain leaf is typed from a table of the literature (de Graaf, Gudmundson, Deelchand 2018, the
@@ -2047,7 +2051,7 @@ async def console(client: Client):
             reopen()
 
         def for_all(event):
-            if event.value in ("literature", "pooled", "dataset", "own"):
+            if event.value in ("literature", "pooled", "mixed", "dataset", "own"):
                 session.choose_all(lined, event.value)
                 reopen()
 
@@ -2128,7 +2132,7 @@ async def console(client: Client):
                 ui.label("Scanner").classes("label")
                 ui.space()
                 ui.select({name: SOURCE_WORDS[name]
-                           for name in ("literature", "pooled", "dataset", "own")
+                           for name in ("literature", "pooled", "mixed", "dataset", "own")
                            if any(name in sources[path]["sources"]
                                   for path in lined if path in sources)},
                           label="for all lines", on_change=for_all).props(
@@ -2519,6 +2523,115 @@ async def console(client: Client):
                 (schemes.index(card.water_suppression) + 1) % len(schemes)]
         draw()
 
+    def patient():
+        """The person on the table, as a scanner's registration takes them: age, sex, health;
+        the rows a person carries (the water's relaxation, breathing, motion) are pooled over
+        people like them, a healthy adult where nothing is given."""
+        person = session.person
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 420px"):
+            ui.label("Patient registration").classes("label")
+            age = ui.number("age (years)", value=person.get("age_y"), min=0, max=120,
+                            step=1).props("dense outlined dark clearable").classes(
+                "w-full").tooltip("people of ten years either side are pooled; empty is any "
+                                  "adult")
+            sex = ui.select({None: "not given", "F": "female", "M": "male"},
+                            value=person.get("sex"), label="sex").props(
+                "dense outlined dark").classes("w-full")
+            health = ui.select(sorted({"healthy", *stated("health")}),
+                               value=person.get("health", "healthy"), label="health",
+                               with_input=True, new_value_mode="add-unique").props(
+                "dense outlined dark").classes("w-full").tooltip(
+                "the conditions the measured database holds; a condition it holds no rows of "
+                "keeps the literature")
+            with ui.row().classes("w-full"):
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+
+                def admit():
+                    session.admit(age_y=age.value, sex=sex.value,
+                                  health=None if health.value == "healthy" else health.value)
+                    dialog.close()
+                    draw()
+                    ui.notify("Registered: " + (", ".join(
+                        f"{value:g} years" if key == "age_y" else str(value)
+                        for key, value in session.person.items()) or "a healthy adult"))
+                ui.button("Register", icon="how_to_reg", on_click=admit).mark(
+                    "register the patient").props("unelevated dense no-caps")
+        dialog.open()
+
+    def database():
+        """What the simulation draws from, to browse: the measured datasets, each cohort's
+        subjects with their traits and readings, and the typed literature with its sources."""
+        with ui.dialog() as dialog, ui.card().classes("pane").style(
+                "min-width: 1100px; max-width: 96vw"):
+            ui.label("Database").classes("label")
+            with ui.tabs().props("dense no-caps align=left") as tabs:
+                measured, literature = ui.tab("Measured datasets"), ui.tab("Literature")
+            with ui.tab_panels(tabs, value=measured).classes("w-full").style(
+                    "background: transparent"):
+                with ui.tab_panel(measured):
+                    catalogue = Session.catalogue()
+                    ui.label(f"{len(catalogue)} datasets, {sum(r['subjects'] for r in catalogue)} "
+                             "subjects; a subject's readings pool for a scanner under its "
+                             "conditions, a person's by their traits").classes("value")
+                    columns = [{"name": k, "label": label, "field": k, "align": "left",
+                                "sortable": True}
+                               for k, label in (("dataset", "dataset"), ("subjects", "subjects"),
+                                                ("readings", "readings"), ("failed", "failed"),
+                                                ("source", "source"), ("citation", "citation"))]
+                    ui.table(columns=columns, rows=[{**r, "dataset": r["dataset"]
+                                                     + (" (yours)" if r["yours"] else "")}
+                                                    for r in catalogue],
+                             row_key="name", selection="single",
+                             on_select=lambda event: show(event.selection)).props(
+                        "dense flat dark").classes("w-full").mark("datasets")
+                    shown = ui.column().classes("w-full")
+
+                    def show(selection):
+                        shown.clear()
+                        if not selection:
+                            return
+                        leaves, rows = Session.subjects_of(selection[0]["name"])
+                        with shown:
+                            ui.label(selection[0]["dataset"]).classes("label")
+                            ui.label(f"leaves read: {', '.join(leaves)}").classes("value").style(
+                                "white-space: normal")
+                            search = ui.input("filter the subjects").props(
+                                "dense outlined dark clearable").style("width: 320px")
+                            table = ui.table(columns=[
+                                {"name": k, "label": k, "field": k, "align": "left",
+                                 "sortable": True}
+                                for k in ("subject", "age", "sex", "health", *leaves)],
+                                rows=rows, row_key="subject",
+                                pagination={"rowsPerPage": 12}).props(
+                                "dense flat dark").classes("w-full").mark("subjects")
+                            search.bind_value_to(table, "filter")
+                with ui.tab_panel(literature):
+                    cards = Database.cards()
+                    names = {f"{c['module']} · {c['name']}": c for c in cards}
+                    ui.label(f"{len(cards)} typed tables, each with its source").classes("value")
+                    card = ui.column().classes("w-full")
+
+                    def read(name):
+                        card.clear()
+                        if name not in names:
+                            return
+                        with card:
+                            for field in ("source", "data", "units"):
+                                if names[name][field]:
+                                    with ui.row().classes("w-full no-wrap"):
+                                        ui.label(field).classes("label").style("width: 60px")
+                                        ui.label(names[name][field]).classes("value").style(
+                                            "white-space: normal")
+                            ui.code(names[name]["text"], language="python").classes("w-full")
+                    ui.select(list(names), label="table", with_input=True,
+                              on_change=lambda event: read(event.value)).props(
+                        "dense outlined dark").style("width: 420px").mark("literature table")
+            with ui.row().classes("w-full"):
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+        dialog.open()
+
     # the top bar: what is in the room
     with ui.row().classes("w-full items-center pane no-wrap").style("gap: 14px; padding: 4px 10px"):
         if MARK is not None:
@@ -2567,6 +2680,13 @@ async def console(client: Client):
             ui.notify("A new draw of the population is scanned from here on"))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
             "every exam scans the same draw of the population; this takes a new one")
+        ui.button(icon="storage", on_click=database).mark("database").props(
+            "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
+            "the database: the measured datasets and their subjects, the literature and its "
+            "sources")
+        ui.button(icon="badge", on_click=patient).mark("patient").props(
+            "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
+            "the patient: age, sex and health, which the measured rows they carry are pooled by")
         ui.space()
         status = ui.label("idle").classes("label")
 

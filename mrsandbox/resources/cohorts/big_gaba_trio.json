@@ -14,6 +14,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -2301,6 +2307,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -4588,6 +4600,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -6875,6 +6893,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -9162,6 +9186,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -11449,6 +11479,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -13736,6 +13772,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -16023,6 +16065,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 21.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -18310,6 +18358,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 20.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -20597,6 +20651,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -22884,6 +22944,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -25171,6 +25237,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -27458,6 +27530,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -28132,6 +28210,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 32.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -28806,6 +28890,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 21.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -29480,6 +29570,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -30154,6 +30250,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -30828,6 +30930,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -31502,6 +31610,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -32176,6 +32290,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -32850,6 +32970,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -33524,6 +33650,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 29.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -34198,6 +34330,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 32.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -34872,6 +35010,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -35546,6 +35690,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -37833,6 +37983,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -40120,6 +40276,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -42407,6 +42569,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -44694,6 +44862,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 23.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -46981,6 +47155,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -49268,6 +49448,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 29.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -51555,6 +51741,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -53842,6 +54034,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 27.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -56129,6 +56327,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 23.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -58416,6 +58620,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",
@@ -60703,6 +60913,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 27.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_trio_3t",

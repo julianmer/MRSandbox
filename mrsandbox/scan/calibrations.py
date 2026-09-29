@@ -273,12 +273,13 @@ CALIBRATIONS = (CREATINE_THREE_DATASETS_3T,)
 
 
 
-def calibrations(scanner=None, records=(), channels=None):
+def calibrations(scanner=None, records=(), channels=None, subject=None):
     """{leaf: Calibration} for a hardware.Scanner (or a preset name): for every leaf the
     package's cohorts hold readings of, the rows pooled under the scanner's conditions
-    (scan.cohort.pooled; `channels` the receive array's count); for the others the typed
-    record that names its preset, else the leaf's fallback. `records` are the scanner's
-    own (scan.profile) and outrank all."""
+    (scan.cohort.pooled; `channels` the receive array's count, `subject` the person's
+    traits, a healthy adult unless named); for the others the typed record that names its
+    preset, else the leaf's fallback. `records` are the scanner's own (scan.profile) and
+    outrank all."""
     from mrsandbox.hardware.scanners import Scanner
     from mrsandbox.scan import cohort
 
@@ -293,7 +294,7 @@ def calibrations(scanner=None, records=(), channels=None):
     if scanner is not None:
         hardware = scanner if isinstance(scanner, Scanner) else Scanner.preset(scanner)
         for leaf in cohort.leaves():
-            record = cohort.pooled(leaf, hardware, channels)
+            record = cohort.pooled(leaf, hardware, channels, subject=subject)
             if record is not None:
                 chosen[leaf] = record
     chosen.update({record.leaf: record for record in records})

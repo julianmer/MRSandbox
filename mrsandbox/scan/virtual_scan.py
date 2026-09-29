@@ -100,6 +100,10 @@ class VirtualScan:
             engine; raise it for dense multi-axis gradient schemes.
         records: The scanner's own Calibrations (a scan.profile ScannerProfile hands them
             over); they outrank the package's records in the priors and the header.
+        subject: The person scanned, as a scanner registers them: {"age_y": years, "sex":
+            "F" or "M", "health": "healthy" or the condition by name}; the measured rows they
+            carry (the water's relaxation, breathing, motion) are pooled over people like
+            them (scan.cohort.pooled). None is a healthy adult.
         engine: An Engine to share (its compiled graphs and renderers) between scans
             of one scanner, as a Multiplex does; None builds one for this scan.
     """
@@ -111,7 +115,7 @@ class VirtualScan:
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
                  ph=None, field_groups=1, water_groups=1, noise_map=None,
-                 noise_reference_mm=(0.0, -45.0, 35.0), records=()):
+                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -134,12 +138,14 @@ class VirtualScan:
         self.girf = girf
         self.receiver = receiver
         self.records = tuple(records)
+        self.subject = subject
         self.temperature_c = float(temperature_c if temperature_c is not None
                                    else brain.temperature_c if in_vitro else 37.0)
         self.ph = float(ph if ph is not None else brain.ph if in_vitro else 7.0)
         defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner,
                                   records=self.records,
-                                  channels=None if coils is None else len(coils))
+                                  channels=None if coils is None else len(coils),
+                                  subject=subject)
         self.params = (defaults
                        | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=self.temperature_c))

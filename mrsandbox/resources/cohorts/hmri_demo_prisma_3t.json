@@ -14,6 +14,17 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": [
+     18.0,
+     null
+    ],
+    "health": "healthy"
+   },
+   "taken": [
+    "age_y",
+    "health"
+   ],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -28,18 +39,18 @@
     "records": [
      {
       "leaf": "water.t1_s.gm",
-      "value": 1.5025,
+      "value": 1.4991,
       "prior": [
-       1.1269,
-       1.8781
+       1.1243,
+       1.8739
       ],
       "measured": {
        "statistic": "the map's median in the gm cells past 0.95 of the partial volume (scan.maps.MapReading)",
-       "cells": 449530,
+       "cells": 445781,
        "percentiles_5_50_95": [
-        0.9854,
-        1.5025,
-        2.2756
+        0.9842,
+        1.4991,
+        2.2622
        ]
       },
       "source": {
@@ -66,7 +77,7 @@
       "acquisition": {},
       "voxel": {},
       "processing": "the map onto the tissues' grid by the affines, linear; the tissues FSL fast of the session's T1-weighted image",
-      "date": "28/09/26",
+      "date": "29/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -75,18 +86,18 @@
      },
      {
       "leaf": "water.t1_s.wm",
-      "value": 1.0273,
+      "value": 1.0278,
       "prior": [
-       0.7705,
-       1.2841
+       0.7709,
+       1.2848
       ],
       "measured": {
        "statistic": "the map's median in the wm cells past 0.95 of the partial volume (scan.maps.MapReading)",
-       "cells": 404005,
+       "cells": 403394,
        "percentiles_5_50_95": [
-        0.6394,
-        1.0273,
-        1.5797
+        0.6433,
+        1.0278,
+        1.5803
        ]
       },
       "source": {
@@ -113,7 +124,7 @@
       "acquisition": {},
       "voxel": {},
       "processing": "the map onto the tissues' grid by the affines, linear; the tissues FSL fast of the session's T1-weighted image",
-      "date": "28/09/26",
+      "date": "29/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

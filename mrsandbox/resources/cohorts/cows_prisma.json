@@ -14,6 +14,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -2301,6 +2307,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -4588,6 +4600,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -6875,6 +6893,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -9162,6 +9186,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -11449,6 +11479,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -13736,6 +13772,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -16023,6 +16065,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -18310,6 +18358,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -20597,6 +20651,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -22884,6 +22944,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -25171,6 +25237,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -27458,6 +27530,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -29745,6 +29823,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -32032,6 +32116,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -34319,6 +34409,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -36606,6 +36702,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -38893,6 +38995,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -41180,6 +41288,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -43467,6 +43581,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -45754,6 +45874,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -48041,6 +48167,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -50328,6 +50460,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -52615,6 +52753,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -54902,6 +55046,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -57189,6 +57339,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -59476,6 +59632,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -61763,6 +61925,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -64050,6 +64218,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -66337,6 +66511,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -68624,6 +68804,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -70911,6 +71097,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -73198,6 +73390,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -75485,6 +75683,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -77772,6 +77976,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -80059,6 +80269,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -82346,6 +82562,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -84633,6 +84855,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -86920,6 +87148,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -89207,6 +89441,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -91494,6 +91734,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -93781,6 +94027,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -96068,6 +96320,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -98355,6 +98613,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -100642,6 +100906,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -102929,6 +103199,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -105216,6 +105492,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -107503,6 +107785,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -109790,6 +110078,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -112077,6 +112371,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -114364,6 +114664,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -116651,6 +116957,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -118938,6 +119250,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 34.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -121225,6 +121543,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -123512,6 +123836,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -125799,6 +126129,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -128086,6 +128422,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -130373,6 +130715,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -132660,6 +133008,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -134947,6 +135301,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -137234,6 +137594,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -139521,6 +139887,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 22.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -141808,6 +142180,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -144095,6 +144473,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -146382,6 +146766,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -148669,6 +149059,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -150956,6 +151352,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -153243,6 +153645,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -155530,6 +155938,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -157817,6 +158231,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -160104,6 +160524,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -162391,6 +162817,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -164678,6 +165110,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -166965,6 +167403,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -169252,6 +169696,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -171539,6 +171989,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -173826,6 +174282,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -176113,6 +176575,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -178400,6 +178868,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -180687,6 +181161,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -182974,6 +183454,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -185261,6 +185747,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -187548,6 +188040,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -189835,6 +190333,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -192122,6 +192626,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -194409,6 +194919,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -196696,6 +197212,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -198983,6 +199505,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",
@@ -201270,6 +201798,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 28.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "siemens_prisma_3t",

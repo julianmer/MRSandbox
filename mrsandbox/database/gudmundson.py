@@ -215,3 +215,31 @@ class PooledValue(typing.NamedTuple):
             math.sqrt(sum((yi - mean) ** 2 for yi in y) / max(len(y) - 1, 1))
         )
         return cls(mean_s=mean, sd_s=max(spread, 0.05 * mean), n_studies=len(y))
+
+    #***************#
+    #   reference   #
+    #***************#
+    @classmethod
+    def reference(cls, rows):
+        """The range individuals fall in, from a few studies that disagree beyond their error
+        bars (Siegel, Murad and Chu 2021, Res Synth Methods 12:148, the empirical reference
+        range with equal study weights; the median of study values as the robust centre,
+        McGrath et al. 2019, Stat Med 38:969). `rows` are (value, sd between the study's
+        subjects or None, n): the centre is the median of the values, the spread the square
+        root of their variance plus the within-study variance pooled over the studies that
+        print one, sum (n - 1) sd^2 / sum (n - 1)."""
+        values = [row[0] for row in rows]
+        within = cls.within(rows) ** 2
+        middle = sorted(values)[len(values) // 2] if len(values) % 2 else sum(
+            sorted(values)[len(values) // 2 - 1:len(values) // 2 + 1]) / 2.0
+        between = (sum((v - sum(values) / len(values)) ** 2 for v in values)
+                   / (len(values) - 1)) if len(values) > 1 else 0.0
+        return cls(mean_s=middle, sd_s=math.sqrt(between + within), n_studies=len(values))
+
+    @staticmethod
+    def within(rows):
+        """The spread between a study's subjects pooled over the studies of `rows` (value, sd or
+        None, n) that print one, sqrt(sum (n - 1) sd^2 / sum (n - 1)); zero where none does."""
+        known = [(sd, n) for _, sd, n in rows if sd is not None and n > 1]
+        return (math.sqrt(sum((n - 1) * sd ** 2 for sd, n in known)
+                          / sum(n - 1 for _, n in known)) if known else 0.0)

@@ -234,13 +234,14 @@ class TestWaterRelaxation:
         t1_gm, t2_gm = truth.water.t1_s.weighted(pure_gm), truth.water.t2_s.weighted(pure_gm)
         t1_csf = truth.water.t1_s.weighted(pure_csf)
         t1_mix, t2_mix = truth.water.t1_s.weighted(mixed), truth.water.t2_s.weighted(mixed)
-        # T1 draws from the crowdsourced challenge priors (BOUDREAU), T2 stays cited
-        assert abs(t1_gm - 1.548) < 5 * 0.156 and t2_gm == 0.110
+        # T1 draws from the crowdsourced challenge priors (BOUDREAU), T2 from the corrected
+        # studies' reference range (WATER_T2_3T)
+        assert abs(t1_gm - 1.548) < 5 * 0.156 and abs(t2_gm - 0.0805) < 5 * 0.009
         assert t1_csf == 4.3
         t1_wm = truth.water.t1_s.wm
         assert abs(t1_wm - 0.828) < 5 * 0.038
         assert abs(t1_mix - (t1_gm + t1_wm) / 2.0) < 1e-9
-        assert abs(t2_mix - (0.110 + 0.080) / 2.0) < 1e-9
+        assert abs(t2_mix - (t2_gm + truth.water.t2_s.wm) / 2.0) < 1e-9
 
     #****************#
     #   overrides    #

@@ -229,18 +229,21 @@ def _spectrum(fid, dwell_s, ppm_of, fill=4, apodization_hz=2.0):
 
 def _shape(ppm, real, f0_mhz):
     """What a spectrum says without a fit: the NAA singlet's full width at half maximum
-    over the level at 1.6 ppm (hertz), and the height of the 3.03 ppm creatine singlet
-    over NAA's."""
+    over the level at 1.6 ppm (hertz), not a number where the line does not fall to half
+    its height on both sides within 0.12 ppm (broader than that, or lost in noise), and the
+    height of the 3.03 ppm creatine singlet over NAA's."""
     near = np.abs(ppm - NAA_PPM) < 0.12
     x, y = ppm[near], real[near]
     top = int(np.argmax(y))
     half = (np.median(real[np.abs(ppm - 1.6) < 0.1])
             + 0.5 * (y[top] - np.median(real[np.abs(ppm - 1.6) < 0.1])))
+    creatine = real[np.abs(ppm - 3.03) < 0.04].max() / real[np.abs(ppm - NAA_PPM) < 0.04].max()
+    if not ((y[:top] < half).any() and (y[top + 1:] < half).any()):
+        return float("nan"), float(creatine)
     left = top - int(np.argmax(y[top::-1] < half))
     right = top + int(np.argmax(y[top:] < half))
     low = np.interp(half, [y[left], y[left + 1]], [x[left], x[left + 1]])
     high = np.interp(half, [y[right], y[right - 1]], [x[right], x[right - 1]])
-    creatine = real[np.abs(ppm - 3.03) < 0.04].max() / real[np.abs(ppm - NAA_PPM) < 0.04].max()
     return float((high - low) * f0_mhz), float(creatine)
 
 
@@ -505,7 +508,7 @@ class SpectrumReading:
             _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
             rows.append(_shape(*_spectrum(np.asarray(fid), dwell_s, lambda hz: hz / f0_mhz),
                                f0_mhz))
-        width, creatine = np.median(np.array(rows), axis=0)
+        width, creatine = np.nanmedian(np.array(rows), axis=0)
         return {"naa_fwhm_hz": float(width), "creatine_over_naa": float(creatine)}
 
     #**************#
@@ -529,8 +532,10 @@ class SpectrumReading:
         as the measured one, found by bisection (the twin's relaxation and sequence give
         the rest of the width), the prior a quarter either side (one acquisition has no
         spread of its own; stated). The shim of this scanner in this region of this
-        subject: a number of the field, carried with its voxel's place."""
-        low, high = 0.0, 4.0 * self.naa_fwhm_hz
+        subject: a number of the field, carried with its voxel's place. A line whose width
+        could not be read gives a failed record."""
+        unread = not np.isfinite(self.naa_fwhm_hz)
+        low, high = 0.0, 0.0 if unread else 4.0 * self.naa_fwhm_hz
         for _ in range(10):
             middle = 0.5 * (low + high)
             low, high = ((middle, high)
@@ -545,11 +550,13 @@ class SpectrumReading:
             measured={"statistic": "full width at half maximum of the NAA singlet in the "
                                    "averaged, coil-combined spectrum under 2 Hz apodization, in "
                                    "Hz (scan.calibrate.SpectrumReading)",
-                      "naa_fwhm_hz": round(self.naa_fwhm_hz, 2),
+                      "naa_fwhm_hz": None if unread else round(self.naa_fwhm_hz, 2),
                       "twin_without_broadening_hz": round(bare, 2)},
             # the rule: a twin already as wide as the line without any broadening leaves the
             # bisection at its floor, and the line's width was not read
-            failed=("" if bare < self.naa_fwhm_hz else
+            failed=("the NAA line does not fall to half its height within 0.12 ppm on both "
+                    "sides: its width was not read" if unread else
+                    "" if bare < self.naa_fwhm_hz else
                     f"the twin without broadening ({bare:.1f} Hz) is already as wide as the "
                     f"measured line ({self.naa_fwhm_hz:.1f} Hz)"),
             source={"dataset": dataset, "citation": citation, "url": url},

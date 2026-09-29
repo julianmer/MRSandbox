@@ -97,11 +97,13 @@ class TestMapReading:
                                       {"MagneticFieldStrength": 3}).records("a map dataset")
         monkeypatch.setattr(cohorts, "package", lambda: (Cohort("maps", (
             Member("S1", ScannerProfile(Scanner.preset("generic_3t"), rows),
-                   (0.0, 0.0, 0.0), (20.0, 20.0, 20.0)),)),))
+                   (0.0, 0.0, 0.0), (20.0, 20.0, 20.0),
+                   traits={"age_y": 30.0, "health": "healthy"}),)),))
         cohorts.forget()
         try:
             leaf = default_params(scanner=Scanner.preset("generic_3t"))["water"]["t1_s"]
-            assert leaf.chosen == "literature" and set(leaf.available) == {"literature", "pooled"}
+            assert leaf.chosen == "literature" and set(leaf.available) == {
+                "literature", "pooled", "mixed"}
             assert np.median(leaf.pooled.gm.values) == pytest.approx(T1["gm"], rel=0.005)
             assert "gm: pooled over 1 subject" in leaf.provenance["pooled"]
         finally:

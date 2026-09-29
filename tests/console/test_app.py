@@ -201,5 +201,20 @@ class TestApp:
                 user.find("Accept changes").click()
                 await user.should_see("4 sLASER TE 40")
                 await user.should_not_see("Accept changes")
+                # the patient registered as a scanner takes them, and what they carry pooled so
+                user.find(marker="patient").click()
+                await user.should_see("Patient registration")
+                next(e for e in user.find(kind=ui.number).elements
+                     if e.props.get("label") == "age (years)").value = 45
+                user.find(marker="register the patient").click()
+                await user.should_see("Registered: 45 years")
+                # the database to browse: the datasets, and a literature table with its source
+                user.find(marker="database").click()
+                await user.should_see("Measured datasets")
+                assert any(r["dataset"] == "Big GABA · Siemens Trio 3 T · PRESS · 36 subjects"
+                           for r in user.find(marker="datasets").elements.pop().rows)
+                user.find("Literature").click()
+                user.find(marker="literature table").elements.pop().value = "relaxation · CORBIN"
+                await user.should_see("Whole-brain T2 mapping", retries=20)
 
         asyncio.run(visit())

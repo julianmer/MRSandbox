@@ -14,6 +14,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 23.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -2074,6 +2080,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 66.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -4134,6 +4146,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 66.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -6194,6 +6212,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 39.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -8254,6 +8278,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 39.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -10314,6 +10344,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -12374,6 +12410,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -14434,6 +14476,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 39.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -16494,6 +16542,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 39.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -18554,6 +18608,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 20.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -20614,6 +20674,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 20.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -22674,6 +22740,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 21.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -24734,6 +24806,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 21.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -26794,6 +26872,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 19.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -28854,6 +28938,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 19.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -30914,6 +31004,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -32974,6 +33070,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -35034,6 +35136,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -37094,6 +37202,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -39154,6 +39268,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -41214,6 +41334,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -43274,6 +43400,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -45334,6 +45466,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -47394,6 +47532,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 53.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",
@@ -49454,6 +49598,12 @@
     30.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 53.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "ge_mr750_3t",

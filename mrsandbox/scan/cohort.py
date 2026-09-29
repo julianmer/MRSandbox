@@ -24,17 +24,28 @@ import re
 
 import numpy as np
 
+from mrsandbox.params import Empirical
 from mrsandbox.phantom import Brain
 from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.profile import ScannerProfile
 
 COHORTS = pathlib.Path(__file__).resolve().parent.parent / "resources" / "cohorts"
+# the operator's own cohorts, joined to the pool beside the package's (Cohort.save a cohort
+# here and it is pooled and listed; forget() in a running process)
+OWN = pathlib.Path.home() / "MRSandbox" / "cohorts"
 # how far a row's field may sit from the scanner's and still be its field (the Siemens 3 T run
 # at 2.89)
 FIELD_T = 0.25
 # the leaves of the receive chain, which the receive array's channel count is a condition of;
 # the suppression's residual, the delay or the eddy transient do not change with the array
 RECEIVE = ("noise.sigma", "coils.loaded.own_noise", "coils.partner_correlation")
+# the person a query asks for when it names no one: a healthy adult, the usual volunteer; children
+# and patients enter the pool only when asked. A subject's traits are conditions of the rows it
+# carries (the water's relaxation, its breathing and motion), not of the scanner's
+ADULT = {"age_y": (18.0, None), "health": "healthy"}
+# a number asked of a trait that varies continuously means about that value: this far either
+# side (stated: a registered age of 45 asks for people of 35 to 55)
+NEAR = {"age_y": 10.0}
 
 
 #**************************************************************************************************#
@@ -54,12 +65,20 @@ class Member:
         position_mm, size_mm: The voxel as the dataset placed it.
         brain: The name of the package brain standing in (none of the read datasets ships
             an image the package can use).
+        traits: What the dataset states of the person: "age_y" in years, "sex" ("F", "M"),
+            "health" ("healthy" or the condition by name), and any other it states; a
+            number the dataset gives only as a range (all adults) is that range, (low,
+            high) with None open. A trait not stated is unknown and meets no query of it.
+        taken: The traits a rule gave where the dataset does not state them (a volunteer's
+            health taken as healthy), shown as taken, not stated.
     """
     subject: str
     profile: ScannerProfile
     position_mm: tuple
     size_mm: tuple
     brain: str = "icbm152"
+    traits: dict = dataclasses.field(default_factory=dict)
+    taken: tuple = ()
 
     #***********#
     #   fixed   #
@@ -80,8 +99,10 @@ class Member:
     #**********#
     def scan(self, sequence, **kwargs):
         """A VirtualScan of this subject: its scanner's profile with its own values fixed,
-        its brain; `kwargs` are VirtualScan's."""
-        return self.fixed().scan(Brain.load(self.brain), sequence, **kwargs)
+        its brain, the leaves it has no reading of pooled over people like it (its traits);
+        `kwargs` are VirtualScan's."""
+        return self.fixed().scan(Brain.load(self.brain), sequence,
+                                 **{"subject": dict(self.traits) or None, **kwargs})
 
 
 #**************************************************************************************************#
@@ -116,7 +137,8 @@ class Cohort:
                           for r in records if r.scanner.get("vendor")})
         models = sorted({tidy.get(r.scanner["model"], str(r.scanner["model"]))
                          for r in records if r.scanner.get("model")} - {""})
-        fields = sorted({round(r.scanner["field_t"]) for r in records
+        # to the nearest half tesla: 1.5 stays 1.5, a Siemens 3 T's 2.89 reads 3
+        fields = sorted({round(2.0 * r.scanner["field_t"]) / 2.0 for r in records
                          if r.scanner.get("field_t") is not None})
         families = sorted({r.sequence.get("family", "") for r in records
                            if r.sequence.get("family")}) or (
@@ -126,7 +148,7 @@ class Cohort:
         names = {"Press": "PRESS", "SemiLaser": "semi-LASER", "Steam": "STEAM"}
         system = " ".join(vendors + models) or "unstated system"
         return (f"{dataset or self.name} · {system} "
-                f"{' / '.join(str(f) for f in fields) or '?'} T · "
+                f"{' / '.join(f'{f:g}' for f in fields) or '?'} T · "
                 f"{', '.join(names.get(f, f) for f in families)} · {len(self.members)} subjects")
 
     #**********#
@@ -169,6 +191,7 @@ class Cohort:
             json.dump({"name": self.name,
                        "members": [{"subject": m.subject, "position_mm": list(m.position_mm),
                                     "size_mm": list(m.size_mm), "brain": m.brain,
+                                    "traits": m.traits, "taken": list(m.taken),
                                     "profile": m.profile.to_dict()} for m in self.members]},
                       file, indent=1)
 
@@ -182,20 +205,26 @@ class Cohort:
             stored = json.load(file)
         return cls(stored["name"], tuple(
             Member(m["subject"], ScannerProfile.from_dict(m["profile"]), tuple(m["position_mm"]),
-                   tuple(m["size_mm"]), m["brain"]) for m in stored["members"]))
+                   tuple(m["size_mm"]), m["brain"],
+                   {k: tuple(v) if isinstance(v, list) else v
+                    for k, v in m.get("traits", {}).items()}, tuple(m.get("taken", ())))
+            for m in stored["members"]))
 
     #***********#
     #   named   #
     #***********#
     @classmethod
     def named(cls, name):
-        """One of the package's cohorts (mrsandbox/resources/cohorts), by name."""
-        return cls.load(COHORTS / f"{name}.json")
+        """One of the package's cohorts (mrsandbox/resources/cohorts) or the operator's
+        own (~/MRSandbox/cohorts), by name; the package's wins the name."""
+        path = COHORTS / f"{name}.json"
+        return cls.load(path if path.exists() else OWN / f"{name}.json")
 
     @staticmethod
     def names():
-        """The package's cohorts."""
-        return sorted(path.stem for path in COHORTS.glob("*.json"))
+        """The package's cohorts and the operator's own."""
+        return sorted({path.stem for folder in (COHORTS, OWN) if folder.is_dir()
+                       for path in folder.glob("*.json")})
 
 
 #*******************#
@@ -203,7 +232,7 @@ class Cohort:
 #*******************#
 @functools.lru_cache(maxsize=None)
 def package():
-    """The package's cohorts, loaded once: its measured database."""
+    """The package's cohorts and the operator's own, loaded once: the measured database."""
     return tuple(Cohort.named(name) for name in Cohort.names())
 
 
@@ -220,6 +249,13 @@ def leaves():
     """The leaves the package's cohorts hold readings of."""
     return sorted({record.leaf for cohort in package() for member in cohort.members
                    for record in member.profile.records})
+
+
+def stated(trait):
+    """The values of a person's trait the package's cohorts state, sorted (the conditions the
+    database holds, for one): what a query can ask of it and find."""
+    return sorted({str(member.traits[trait]) for cohort in package() for member in cohort.members
+                   if trait in member.traits})
 
 
 def _plain(text):
@@ -244,6 +280,72 @@ def _matches(record, field_t, vendor, model, channels):
     return True
 
 
+def _span(value):
+    """Whether a trait's value is a range, (low, high) of numbers with None open."""
+    return (isinstance(value, tuple) and len(value) == 2
+            and all(v is None or (isinstance(v, (int, float)) and not isinstance(v, bool))
+                    for v in value))
+
+
+def _suits(traits, asked):
+    """Whether a person's traits meet the traits asked: a number, or a range the dataset
+    states, inside the range asked; a word the word asked or one of the words asked (a
+    tuple). A trait not stated meets nothing asked of it."""
+    for key, want in asked.items():
+        have = traits.get(key)
+        if have is None:
+            return False
+        if _span(want):
+            low, high = have if _span(have) else (have, have)
+            if want[0] is not None and (low is None or low < want[0]):
+                return False
+            if want[1] is not None and (high is None or high > want[1]):
+                return False
+        elif have not in (want if isinstance(want, tuple) else (want,)):
+            return False
+    return True
+
+
+#**************#
+#   clusters   #
+#**************#
+def _clusters(groups):
+    """How the datasets of a pool weigh, {dataset: its subjects' values}, as a reference range
+    over individuals from several studies is built (Siegel, Murad and Chu 2021, Res Synth
+    Methods 12:148): the spread of subjects within the datasets (their pooled variance), the
+    spread of the datasets' means beyond what their sizes explain (the between-dataset
+    variance, by restricted maximum likelihood as Langan et al. 2019, Res Synth Methods
+    10:83, recommend over DerSimonian and Laird), and each dataset's share of the draws,
+    1 / (between + within / n) normalized: equal shares where the datasets disagree far
+    beyond their sizes, shares by size where they agree. Returns (within, between,
+    {dataset: share})."""
+    names = sorted(groups)
+    sizes = np.array([len(groups[name]) for name in names], dtype=float)
+    means = np.array([np.mean(groups[name]) for name in names])
+    freedom = sum(len(groups[name]) - 1 for name in names)
+    within = (sum((len(groups[name]) - 1) * np.var(groups[name], ddof=1)
+                  for name in names if len(groups[name]) > 1) / freedom) if freedom else 0.0
+    variances = within / sizes
+    between = 0.0
+    if len(names) > 1:
+        # a dataset of one subject, or of subjects who all read alike, still has some variance
+        floor = 1e-12 * max(float(np.var(means)), 1e-30)
+        variances = np.maximum(variances, floor)
+        between = max(float(np.var(means, ddof=1) - variances.mean()), 0.0)
+        for _ in range(200):
+            weights = 1.0 / (variances + between)
+            centre = np.sum(weights * means) / np.sum(weights)
+            estimate = max(float(np.sum(weights ** 2 * ((means - centre) ** 2 - variances))
+                                 / np.sum(weights ** 2) + 1.0 / np.sum(weights)), 0.0)
+            converged = abs(estimate - between) <= 1e-10 * (between + floor)
+            between = estimate
+            if converged:
+                break
+    total = variances + between
+    weights = 1.0 / total if total.min() > 0.0 else np.ones(len(names))
+    return float(within), between, dict(zip(names, weights / weights.sum()))
+
+
 #************#
 #   pooled   #
 #************#
@@ -254,51 +356,82 @@ def forget():
     _holding.cache_clear()
 
 
-def pooled(leaf, scanner, channels=None, within=()):
-    """See _pooled: the same, computed once per leaf, conditions and database (the package's
-    rows do not change; a database stood in for it, as a test does, is another key)."""
+def pooled(leaf, scanner, channels=None, within=(), subject=None):
+    """See _pool: the same, computed once per leaf, conditions and database (the package's
+    rows do not change; a database stood in for it, as a test does, is another key).
+    `subject` names the person's traits asked, over the healthy adult (ADULT) it leaves
+    unnamed; a trait asked as None asks nothing of it, a number of a trait in NEAR asks for
+    about that number."""
+    asked = {key: (value - NEAR[key], value + NEAR[key])
+             if key in NEAR and isinstance(value, (int, float)) else value
+             for key, value in {**ADULT, **(subject or {})}.items() if value is not None}
     return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels,
-                   tuple(within), id(package()))
+                   tuple(within), tuple(sorted(asked.items())), id(package()))
 
 
 @functools.lru_cache(maxsize=4096)
-def _pooled(leaf, b0_t, vendor, model, channels, within, database):
+def _pooled(leaf, b0_t, vendor, model, channels, within, subject, database):
     scanner = type("Asked", (), {"b0_t": b0_t, "vendor": vendor, "model": model})
-    return _pool(leaf, scanner, channels, within)
+    return _pool(leaf, scanner, channels, within, dict(subject))
 
 
-def _pool(leaf, scanner, channels=None, within=()):
+def _pool(leaf, scanner, channels=None, within=(), subject=None):
     """The Calibration of `leaf` for `scanner` (a hardware.Scanner) pooled over the package's
     cohort rows read under its conditions: the median over subjects is the value, their
     5th to 95th percentile the prior (the range over fewer than five, one row's own prior
     alone). The conditions are as specific as the scanner is: its field, its vendor and
     model where it states them, and `channels`, the receive array's count, where given and
-    the leaf is the receive chain's (RECEIVE); a condition nothing matches is dropped, model
-    first, then channels, then vendor, then the field itself (the departure names it).
-    `within` names the cohorts whose rows alone are pooled (one dataset as the scanner's
-    calibration); empty pools them all. None when no row of the leaf is there."""
-    found = rows(leaf, within)
+    the leaf is the receive chain's (RECEIVE); a row the subject carries is also asked of
+    the person's traits (`subject`, see _suits). When nothing matches, the fewest conditions
+    give way, the model the first to, then the person's age, sex and other traits, then
+    channels, vendor and the field itself, keeping whatever can still hold once a dearer one
+    has gone (the departure names it); the person's health never gives way, so a
+    condition no rows hold stays with the literature. `within` names the cohorts whose rows
+    alone are pooled (one dataset as the scanner's calibration); empty pools them all. None
+    when no row of the leaf is there."""
+    subject = subject or {}
+    found = [(cohort.name, member, record)
+             for cohort in package() if not within or cohort.name in within
+             for member in cohort.members for record in member.profile.records
+             if record.leaf == leaf and not record.failed]
     asked = dict(field_t=float(scanner.b0_t), vendor=scanner.vendor, model=scanner.model,
                  channels=channels if leaf in RECEIVE else None)
-    for dropped in ((), ("model",), ("model", "channels"), ("model", "channels", "vendor"),
-                    ("model", "channels", "vendor", "field_t")):
+    order = (["model"] + [key for key in ("age_y", "sex") if key in subject]
+             + sorted(set(subject) - {"age_y", "sex", "health"})
+             + ["channels", "vendor", "field_t"])
+    # the fewest conditions given way, the later in `order` the dearer: a set is tried before
+    # every set that drops a dearer condition, so what can hold once a dearer one has gone
+    # holds (an adult at another field before a child at this one)
+    for mask in range(2 ** len(order)):
+        dropped = [key for bit, key in enumerate(order) if mask >> bit & 1]
+        if "vendor" in dropped and "model" not in dropped:
+            continue                    # a model is its vendor's: it goes with the vendor
         conditions = {key: None if key in dropped else value for key, value in asked.items()}
-        matched = [row for row in found if _matches(row[2], **conditions)]
+        traits = {key: value for key, value in subject.items() if key not in dropped}
+        matched = [row for row in found if _matches(row[2], **conditions)
+                   and (row[2].carried_by != "subject" or _suits(row[1].traits, traits))]
         if matched:
             break
     if not matched:
         return None
-    values = np.array([record.value for _, _, record in matched], dtype=float)
-    value = float(np.median(values))
+    groups = {}
+    for name, _, record in matched:
+        groups.setdefault(name, []).append(float(record.value))
+    within, between, share = _clusters(groups)
+    # the values and weights as the record keeps them, so its prior and its draws agree
+    pairs = sorted((round(float(record.value), 7), round(share[name] / len(groups[name]), 9),
+                    name) for name, _, record in matched)
+    values = np.array([v for v, _, _ in pairs])
+    population = Empirical(tuple(values), tuple(w for _, w, _ in pairs))
+    value = population.value
     percentiles = {}
     if len(values) == 1:
         prior = matched[0][2].prior
     elif len(values) < 5:
         prior = (float(values.min()), float(values.max()))
     else:
-        prior = (float(np.percentile(values, 5)), float(np.percentile(values, 95)))
-        percentiles = {str(q): round(float(np.percentile(values, q)), 7)
-                       for q in (5, 25, 50, 75, 95)}
+        prior = (population.low, population.high)
+        percentiles = {str(q): round(population.percentile(q), 7) for q in (5, 25, 50, 75, 95)}
     records = [record for _, _, record in matched]
     cohorts = sorted({name for name, _, _ in matched})
 
@@ -314,14 +447,22 @@ def _pool(leaf, scanner, channels=None, within=()):
                   for name in cohorts}
     return Calibration(
         leaf=leaf, value=round(value, 7), prior=tuple(round(float(v), 7) for v in prior),
-        measured={"statistic": "median over the subjects of the package's cohorts read under the "
-                               "scanner's conditions; the prior their 5th to 95th percentile "
-                               "(scan.cohort.pooled)",
+        measured={"statistic": "each dataset a cluster, drawn by its random-effects share, then "
+                               "one of its subjects; the value the weighted median, the prior the "
+                               "weighted 5th to 95th percentile (scan.cohort.pooled)",
                   "subjects": len(matched), "matched_on": stated, "percentiles": percentiles,
                   "per_cohort_median": per_cohort,
-                  "values": [round(float(v), 7) for v in sorted(values)],
+                  "values": [float(v) for v in values],
+                  "weights": [w for _, w, _ in pairs],
+                  "datasets": [name for _, _, name in pairs],
+                  "dataset_share": {name: round(float(s), 6) for name, s in share.items()},
+                  "within_dataset_sd": round(float(np.sqrt(within)), 7),
+                  "between_dataset_sd": round(float(np.sqrt(between)), 7),
                   "subjects_per_cohort": {name: sum(1 for c, _, _ in matched if c == name)
-                                          for name in cohorts}},
+                                          for name in cohorts},
+                  # the person the rows were pooled for, and what of it no rows held
+                  **({"subject": traits, "subject_dropped": [k for k in dropped if k in subject]}
+                     if records[0].carried_by == "subject" else {})},
         source={"dataset": f"pooled over {len(matched)} subjects of {len(cohorts)} "
                            f"cohort{'s' if len(cohorts) > 1 else ''}: "
                            + ", ".join(cohorts), "citation": None, "url": None},

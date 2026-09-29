@@ -39,8 +39,8 @@ from mrsandbox.backend import Backend  # noqa: E402
 from mrsandbox.database import Database
 from mrsandbox.engine import Context, Engine
 from mrsandbox.hardware import CoilArray, Loop, MappedCoilArray, Receiver, Scanner
-from mrsandbox.params import (Clipped, Empirical, Fixed, Mapped, Normal, Params, PerTissue, Priors,
-                              Sourced, Tissues, Uniform, Value)
+from mrsandbox.params import (Clipped, Empirical, Fixed, Mapped, Mixture, Normal, Params, PerTissue,
+                              Priors, Sourced, Tissues, Uniform, Value)
 from mrsandbox.phantom import (Brain, ChallengeMM, CoupledMM, FieldMap, MeasuredMM, NoDownfield,
                                NoLipids, NoMM, NoWater, ParameterizedDownfield, ParameterizedMM,
                                Phantom, Skull, Suppressed, Unsuppressed, Volume)

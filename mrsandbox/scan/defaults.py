@@ -23,11 +23,12 @@ from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
-from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS
+from mrsandbox.database.gudmundson import PooledValue
+from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS, WATER_T2_3T
 from mrsandbox.hardware.scanners import Scanner
 from mrsandbox.scan.calibrations import calibrations
-from mrsandbox.params import (Clipped, Empirical, Fixed, Normal, Params, PerTissue, Priors, Sourced,
-                              Uniform)
+from mrsandbox.params import (Clipped, Empirical, Fixed, Mixture, Normal, Params, PerTissue, Priors,
+                              Sourced, Uniform)
 
 
 #****************#
@@ -37,7 +38,8 @@ from mrsandbox.params import (Clipped, Empirical, Fixed, Normal, Params, PerTiss
 FIELDS_T = (1.5, 3.0, 7.0)
 TISSUES = ("gm", "wm", "csf")
 WATER_CITED = ("Boudreau et al. 2024 (the ISMRM T1 challenge, 3 T cortex and genu), "
-               "Rooney et al. 2007 (CSF), Wansapura et al. 1999 (T2); at 1.5 and 7 T "
+               "Rooney et al. 2007 (CSF); T2 the median of five stimulated-echo-corrected "
+               "studies at 3 T, their spread the range (the WATER_T2_3T card); at 1.5 and 7 T "
                "Ethofer et al. 2003, Xin et al. 2013, Marjanska et al. 2012 (database.relaxation)")
 RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about 0.3 Hz a minute "
                       "at 3 T, either sign; Augmentrum's envelope",
@@ -82,7 +84,8 @@ _TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
 #**********************#
 #   default catalogue  #
 #**********************#
-def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=None):
+def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=None,
+                   subject=None):
     """Concentration priors and pooled literature relaxation for every metabolite that
     has both a spin system and a de Graaf range. Total choline is covered by GPC and
     PCho, its two constituents, so there is no separate Cho entry.
@@ -103,6 +106,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
             (scan.calibrations); without a scanner, a nameless one at `b0_t`.
         records: The scanner's own Calibrations (scan.profile), which outrank those.
         channels: The receive array's count, one of the conditions the readings are pooled by.
+        subject: The person's traits the readings they carry are pooled by (scan.cohort
+            pooled): "age_y", "sex", "health"; None is a healthy adult.
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
@@ -114,13 +119,21 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     # phosphocreatine taken out, 3.0 to 5.5 in the ranges' own numbers (a total of 6 to 11 mM);
     # the measured source is scan.calibrations CREATINE_THREE_DATASETS_3T
     served = calibrations(scanner if scanner is not None else Scanner("unnamed", float(b0_t)),
-                          records, channels)  # the measured source of every leaf a record serves
+                          records, channels, subject)  # every leaf a record serves
     if "Cr" in conc:
         conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5),
                                          cited=CREATINE))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
-    water_t1, water_t2 = (_per_tissue(f"water.{leaf}", served, value)
-                          for leaf, value in zip(("t1_s", "t2_s"), _water_relaxation(tesla)))
+    literature_t1, literature_t2 = _water_relaxation(tesla)
+    # the 3 T T2 studies each a voice of the mixed source, where their range is the literature
+    # (at 1.5 T too, the 3 T values reused, stated); each drawn about its value with its own
+    # spread between subjects, else the spread pooled over the studies that print one
+    studies = {tissue: tuple(
+        Clipped(Normal(value, sd if sd is not None else PooledValue.within(rows)), low=0.02)
+        for value, sd, _ in rows) for tissue, rows in WATER_T2_3T.items()
+        if "t2_s" not in WATER_FIELDS.get(tesla, {})}
+    water_t1 = _per_tissue("water.t1_s", served, literature_t1)
+    water_t2 = _per_tissue("water.t2_s", served, literature_t2, studies)
     # background signal inherent to the voxel: residual water, lipids, and the
     # macromolecules are signal, never baseline or nuisance (Kreis et al. 2021)
     background = Params(
@@ -445,19 +458,38 @@ def _sourced(leaf, served, make, literature=None, cited=None):
     record = served.get(leaf)
     if literature is None and record is None:
         return None
+    both = literature is not None and record is not None
     provenance = {**({"literature": cited} if literature is not None else {}),
-                  **({"pooled": _cited(record)} if record is not None else {})}
+                  **({"pooled": _cited(record)} if record is not None else {}),
+                  **({"mixed": f"{cited}; {_cited(record)}: each an equal voice"} if both else {})}
     return Sourced(literature=literature, pooled=None if record is None else _spread(record, make),
+                   mixed=_mixed((literature,), record, make) if both else None,
                    chosen="literature" if literature is not None else "pooled",
                    provenance=provenance)
 
 
 def _spread(record, make):
     """The Value a record's population is drawn from: a pooled record (scan.cohort) carries
-    its rows' values and every draw is one subject's own (the rows fall into sites and
-    vendors, not about one middle); any other record gives `make` of its prior."""
-    values = record.measured.get("values") if isinstance(record.measured, dict) else None
-    return Empirical(values) if values else make(*record.prior)
+    its rows' values and their weights, and every draw is one subject's own, its dataset
+    drawn by its share (the rows fall into sites and vendors, not about one middle); any
+    other record gives `make` of its prior."""
+    measured = record.measured if isinstance(record.measured, dict) else {}
+    values = measured.get("values")
+    return Empirical(values, measured.get("weights")) if values else make(*record.prior)
+
+
+def _mixed(studies, record, make):
+    """The literature and the measured datasets as equal voices (a Mixture): each study of
+    `studies` (the literature's Values, one per study, or the literature as one) and each
+    dataset of the pooled `record`, its own subjects; a record that is no pool is one voice,
+    `make` of its prior."""
+    measured = record.measured if isinstance(record.measured, dict) else {}
+    if not measured.get("values"):
+        return Mixture(tuple(studies) + (make(*record.prior),))
+    by_dataset = {}
+    for value, dataset in zip(measured["values"], measured["datasets"]):
+        by_dataset.setdefault(dataset, []).append(value)
+    return Mixture(tuple(studies) + tuple(Empirical(values) for values in by_dataset.values()))
 
 
 def _cited(record):
@@ -467,21 +499,27 @@ def _cited(record):
 #****************#
 #   per tissue   #
 #****************#
-def _per_tissue(leaf, served, literature):
+def _per_tissue(leaf, served, literature, studies=None):
     """A PerTissue leaf with its pooled source where the package's rows read it per tissue (a
     quantitative map on its subject's tissue maps, scan.maps): `leaf`.gm, .wm and .csf each
-    pooled, a tissue without rows as the literature gives it; the literature chosen. Without
-    rows the literature alone."""
+    pooled, a tissue without rows as the literature gives it; its mixed source the
+    literature's studies (`studies`, {tissue: Values, one per study}, else the literature as
+    one) and the datasets as equal voices; the literature chosen. Without rows the
+    literature alone."""
     records = {tissue: served.get(f"{leaf}.{tissue}") for tissue in TISSUES}
     if not any(records.values()):
         return literature
     pooled = PerTissue(**{tissue: getattr(literature, tissue) if record is None
                           else _spread(record, Uniform) for tissue, record in records.items()})
-    return Sourced(literature=literature, pooled=pooled, chosen="literature",
-                   provenance={"literature": WATER_CITED,
-                               "pooled": "; ".join(f"{tissue}: {_cited(record)}"
-                                                   for tissue, record in records.items()
-                                                   if record)})
+    mixed = PerTissue(**{tissue: getattr(literature, tissue) if record is None
+                         else _mixed((studies or {}).get(tissue, (getattr(literature, tissue),)),
+                                     record, Uniform)
+                         for tissue, record in records.items()})
+    held = "; ".join(f"{tissue}: {_cited(record)}" for tissue, record in records.items() if record)
+    return Sourced(literature=literature, pooled=pooled, mixed=mixed, chosen="literature",
+                   provenance={"literature": WATER_CITED, "pooled": held,
+                               "mixed": f"the literature's studies and {held}, each an equal "
+                                        "voice"})
 
 
 #**********************#
@@ -490,10 +528,17 @@ def _per_tissue(leaf, served, literature):
 def _water_relaxation(tesla):
     """The per-tissue water T1 and T2 leaves of a typed field: the 3 T tables with the
     field's WATER_FIELDS entries replacing what they cover; a (mean, sd) pair draws as
-    a Clipped Normal with the stated 0.2 s floor."""
+    a Clipped Normal with the stated floor, 0.2 s for T1, 0.02 s for T2 (no brain water
+    lies near either). The 3 T grey and white T2 are the reference range of the
+    WATER_T2_3T studies (database.gudmundson PooledValue.reference)."""
     field = WATER_FIELDS.get(tesla, {})
     t1 = {"gm": BOUDREAU["t1_s"]["gm_cortex"], "wm": BOUDREAU["t1_s"]["wm_genu"],
           "csf": WATER["t1_s"]["csf"], **field.get("t1_s", {})}
     t1 = {tissue: (Clipped(Normal(*value), low=0.2) if isinstance(value, tuple) else value)
           for tissue, value in t1.items()}
-    return PerTissue(**t1), PerTissue(**{**WATER["t2_s"], **field.get("t2_s", {})})
+    t2 = {**{tissue: tuple(PooledValue.reference(rows)[:2])
+             for tissue, rows in WATER_T2_3T.items()},
+          **WATER["t2_s"], **field.get("t2_s", {})}
+    t2 = {tissue: (Clipped(Normal(*value), low=0.02) if isinstance(value, tuple) else value)
+          for tissue, value in t2.items()}
+    return PerTissue(**t1), PerTissue(**t2)

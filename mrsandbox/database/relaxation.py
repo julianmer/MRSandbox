@@ -195,10 +195,37 @@ WATER = {
         "csf": 4.3,   # Rooney et al., MRM 57 (2007) 308: ventricular, field independent
     },
     "t2_s": {
-        "gm": 0.110,  # Wansapura et al., JMRI 9 (1999) 531 (pair printed unlabeled;
-        "wm": 0.080,  # assigned GM-high, consistent with the same abstract's T1 order)
         "csf": 0.5,   # stated assumption; literature spans roughly 0.3 to 2 seconds
     },
+}
+
+#********************#
+#   water t2 at 3 t  #
+#********************#
+# Source: per entry, beside each row.
+# Data:   in vivo water T2 of healthy adults at 3 T measured by multi-echo spin echo fitted with
+#         the stimulated echoes modelled (extended phase graph or Bloch dictionaries, or a
+#         corrected fast spin echo), the methods that read the tissue's own T2 (uncorrected
+#         mono-exponential fits read it long); each study checked at its source. Rows are
+#         (T2, sd between the study's subjects or None where the paper does not say what its
+#         error is, n); grey is cortical, white cerebral or frontal.
+# Units:  seconds.
+WATER_T2_3T = {
+    "gm": (
+        (0.0664, 0.0017, 28),  # Radunsky et al. 2024, PLoS One 19:e0297244, Table 3, cortex
+        (0.0733, 0.0026, 3),   # Snyder et al. 2022, MRM 87:2145, Table 2, the three subjects' mean
+        (0.0841, 0.0018, 7),   # Corbin et al. 2025 (the CORBIN card), the seven volunteers' median
+        (0.0805, None, 27),    # Hamid et al. 2023, Front Neurol 14:1175971, mid-cortex
+        (0.0870, 0.0042, 40),  # Seiler et al. 2020, Aging 12:16195, Table 1, mid-cortex
+    ),
+    "wm": (
+        (0.0588, 0.0014, 28),  # Radunsky et al. 2024, Table 3, cerebral white matter
+        (0.0610, None, 38),    # Shepherd et al. 2017, NeuroImage Clin 14:363, Table 2, centrum
+                               # semiovale
+        (0.0581, 0.0016, 3),   # Snyder et al. 2022, Table 2, frontal white matter
+        (0.0761, 0.0030, 7),   # Corbin et al. 2025 (the CORBIN card), the seven volunteers' median
+        (0.0627, None, 27),    # Hamid et al. 2023, Table 2, cerebral white matter
+    ),
 }
 
 #*************************#
@@ -246,5 +273,28 @@ BOUDREAU = {
         "wm_splenium": (0.852, 0.049),
         "gm_cortex": (1.548, 0.156),
         "gm_deep": (1.188, 0.133),
+    },
+}
+
+#************#
+#   corbin   #
+#************#
+# Source: Corbin, N., Trotier, A. J., Anandra, S., et al. Whole-brain T2 mapping with radial
+#         sampling and retrospective motion correction at 3T. Magnetic Resonance in Medicine 93
+#         (2025) 1026-1042, Table 1.
+# Data:   human brain water T2 at 3 T, seven healthy adults (5 F, 2 M, aged 28 to 50), Siemens
+#         Prisma, a 3D radial multi-echo spin echo of 50 echoes (7 to 350 ms), T2 by an extended
+#         phase graph fit with B1 (the stimulated echoes modelled); per region the median over
+#         each volunteer's voxels (grey and white matter by SPM12 on their own MPRAGE,
+#         probability over 0.9; deep nuclei by volBrain), one entry per volunteer, V1 to V7.
+# Units:  seconds.
+CORBIN = {
+    "t2_s": {
+        "gm": (0.0870, 0.0848, 0.0838, 0.0875, 0.0828, 0.0841, 0.0832),
+        "wm": (0.0786, 0.0761, 0.0751, 0.0805, 0.0795, 0.0757, 0.0717),
+        "caudate": (0.0747, 0.0751, 0.0752, 0.0698, 0.0729, 0.0715, 0.0735),
+        "putamen": (0.0693, 0.0715, 0.0701, 0.0680, 0.0730, 0.0669, 0.0651),
+        "thalamus": (0.0740, 0.0748, 0.0746, 0.0773, 0.0747, 0.0731, 0.0722),
+        "pallidum": (0.0622, 0.0636, 0.0596, 0.0632, 0.0676, 0.0599, 0.0586),
     },
 }

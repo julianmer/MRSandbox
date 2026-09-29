@@ -124,7 +124,10 @@ COHORTS = {"big_gaba_trio": "Big GABA", "big_gaba_ge": "Big GABA", "big_gaba_phi
            "cows_prisma": "COWS ds006812", "fmrs_pain_achieva": "fMRS in pain",
            "ds006444_ge_mr750": "OpenNeuro ds006444", "ds005917_siemens_7t": "OpenNeuro ds005917",
            "neuromet_siemens_7t": "NeuroMET", "ds001168_siemens_7t": "OpenNeuro ds001168",
-           "hmri_demo_prisma_3t": "hMRI demo"}
+           "hmri_demo_prisma_3t": "hMRI demo", "uk7t_oxford_7t": "UK7T Oxford",
+           "ds004611_prisma_3t": "OpenNeuro ds004611", "ixi_guys_1p5t": "IXI Guy's",
+           "ixi_hh_3t": "IXI Hammersmith", "ixi_iop_1p5t": "IXI IOP",
+           "radial_mese_prisma_3t": "Radial MESE"}
 # a run's instabilities as the operator sets them (Augmentrum's TransientSynthesizer,
 # scan.Multiplex.transients): a name, the synthesizer's argument, and what switches it off; left
 # alone, each is drawn from the 3 T envelope
@@ -556,6 +559,11 @@ class Session:
         scanner: Name of the scanner preset on the floor.
         coil: Name of the receive array (a key of COILS).
         subject: Name of the subject on the table (a key of SUBJECTS).
+        person: Who lies there, as the scanner registers them: {"age_y": years, "sex": "F" or
+            "M", "health": "healthy" or the condition by name}; the measured rows a person
+            carries (the water's relaxation, breathing, motion) are pooled over people like
+            them (scan.cohort.pooled). Empty is a healthy adult; a cohort's subject on the
+            floor is its own person.
         position_mm, size_mm: The voxel being planned, its centre and its (x, y, z) edges, world mm.
         calibration: None for the scanner's own records, or the preset whose records stand in
             (CALIBRATIONS).
@@ -623,8 +631,8 @@ class Session:
     COIL_SETTINGS = {**COIL_SETTINGS, **{label: {} for label in ARRAYS}}
 
     # what of the session is the room an exam is planned in and runs in
-    ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "seed", "field", "transmit",
-            "shim", "shim_mm")
+    ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "field",
+            "transmit", "shim", "shim_mm")
 
     #**********#
     #   init   #
@@ -635,6 +643,7 @@ class Session:
         self.field_t = None     # the field the scanner runs at; None is the preset's own
         self.coil = "one ideal channel"
         self.subject = subject
+        self.person = {}
         self.position_mm = list(PLACES.get(subject, PLACE))
         self.view_mm = list(self.position_mm)
         self.size_mm = [20.0, 20.0, 20.0]
@@ -813,20 +822,11 @@ class Session:
         beyond the bone its lipid layer. FSL must be installed (it is no dependency of the
         package); minutes. The files are kept in `folder` (~/MRSandbox/subjects/<name> unless
         given). Returns the folder."""
-        import os
-        import shutil
-        import subprocess
-
         import nibabel as nib
-        import nibabel.processing
 
-        tools = {tool: shutil.which(tool) or shutil.which(
-                     tool, path=os.path.expandvars("$FSLDIR/bin") + os.pathsep
-                     + os.path.expanduser("~/fsl/share/fsl/bin"))
-                 for tool in ("robustfov", "bet", "fast")}
-        if None in tools.values():
-            raise RuntimeError("FSL's robustfov, bet and fast are needed to segment an image "
-                               "(fsl.fmrib.ox.ac.uk); or give the three tissue maps")
+        from mrsandbox.scan import maps
+
+        maps._fsl("robustfov", "bet", "fast")            # all three, before any work
         folder = (pathlib.Path(folder) if folder is not None
                   else pathlib.Path.home() / "MRSandbox" / "subjects" / name)
         folder.mkdir(parents=True, exist_ok=True)
@@ -837,28 +837,9 @@ class Session:
             if series not in found:
                 raise ValueError("which series is the T1-weighted image? " + ", ".join(found))
             t1 = found[series]
-        image = nib.load(str(t1))
-        grid = np.eye(4)
-        grid[:3, 3] = (image.affine @ np.append(0.5 * (np.asarray(image.shape[:3]) - 1.0),
-                                                1.0))[:3] - 127.5
-        nib.save(nibabel.processing.resample_from_to(image, ((256, 256, 256), grid), order=3),
-                 str(folder / "t1.nii.gz"))
-        environment = {**os.environ, "FSLOUTPUTTYPE": "NIFTI_GZ", "FSLDIR": os.environ.get(
-            "FSLDIR", str(pathlib.Path(tools["bet"]).parents[3]))}
-        # the neck first: a sagittal 3D image reaches far below the brain, and bet then takes neck
-        # and scalp for brain. The cropped image only finds the brain; its mask is carried back
-        # onto the whole image's grid by their affines
-        subprocess.run([tools["robustfov"], "-i", str(folder / "t1"), "-r",
-                        str(folder / "cropped")], check=True, env=environment, capture_output=True)
-        subprocess.run([tools["bet"], str(folder / "cropped"), str(folder / "cropped_brain"), "-R",
-                        "-f", "0.4", "-m"], check=True, env=environment)
-        whole, mask = (nib.load(str(folder / "t1.nii.gz")),
-                       nib.load(str(folder / "cropped_brain_mask.nii.gz")))
-        onto = nibabel.processing.resample_from_to(mask, whole, order=0)
-        nib.save(nib.Nifti1Image(np.asarray(whole.dataobj) * (np.asarray(onto.dataobj) > 0),
-                                 whole.affine), str(folder / "brain.nii.gz"))
-        subprocess.run([tools["fast"], "-t", "1", "-n", "3", "-o", str(folder / "tissue"),
-                        str(folder / "brain")], check=True, env=environment)
+        nib.save(maps.conform(nib.load(str(t1))), str(folder / "t1.nii.gz"))
+        whole = nib.load(str(folder / "t1.nii.gz"))
+        onto = maps.tissues(folder / "t1.nii.gz", folder)
         # the lipid layer: fat is the brightest tissue of a T1-weighted image, so what outside the
         # brain is brighter than white matter, and lies beyond the bone (phantom.Brain.scalp), is
         # scalp fat (and marrow, which a voxel never meets)
@@ -1338,7 +1319,7 @@ class Session:
                                    "read but not used: one run calibrates"
                                    if item.converted or item.path.suffix.lower() in (".nii", ".gz")
                                    else item.note))
-                elif item.kind in ("T1 map", "R1 map"):
+                elif item.kind in ("T1 map", "R1 map", "T2 map", "R2 map"):
                     # read on the anatomy, once a T1w of the folder is on the floor
                     later.append(item)
                 else:
@@ -1347,7 +1328,8 @@ class Session:
                 report.append((item.path.name, item.kind, f"not read: {error}"[:160]))
         for item in later:
             # a quantitative map of the subject on the floor, read per tissue on the anatomy's
-            # tissues (scan.maps): its records the subject's own, the water's T1 per tissue "yours"
+            # tissues (scan.maps): its records the subject's own, the water's T1 or T2 per
+            # tissue "yours"; a rate map (R1, R2) is inverted on reading
             try:
                 import nibabel as nib
                 import nibabel.processing
@@ -1359,15 +1341,17 @@ class Session:
                     nib.load(str(item.path)), (maps.data.shape[:3], maps.affine), order=1)
                 data = np.asarray(onto.dataobj, dtype=np.float64)
                 data = (np.divide(1.0, data, out=np.zeros_like(data), where=data > 0.0)
-                        if item.kind == "R1 map" else data)
+                        if item.kind.startswith("R") else data)
+                which = "T1" if item.kind in ("T1 map", "R1 map") else "T2"
                 sidecar = item.path.parent / (item.path.name.split(".")[0] + ".json")
                 reading = MapReading.from_arrays(
-                    "water.t1_s", data,
+                    f"water.{which.lower()}_s", data,
                     {tissue: maps.data[..., k] for k, tissue in enumerate(("gm", "wm", "csf"))},
                     json.loads(sidecar.read_text()) if sidecar.exists() else {})
                 records = reading.records(folder.name)
                 self.run_records += records
-                report.append((item.path.name, item.kind, "the water's T1 per tissue: " + ", ".join(
+                report.append((item.path.name, item.kind,
+                               f"the water's {which} per tissue: " + ", ".join(
                     f"{r.leaf.split('.')[-1]} {r.value:.2f} s" for r in records) if records
                     else "no tissue with enough of its own cells"))
             except Exception as error:
@@ -1408,7 +1392,7 @@ class Session:
         reading of the operator's."""
         self.reset()
         self.choices, self.hardware, self.files, self.own_noise = {}, {}, {}, None
-        self.field_t, self.calibration = None, None
+        self.field_t, self.calibration, self.person = None, None, {}
         if self.cohort is not None:
             self.pick_cohort(None)
         self.scanner = "generic_3t"
@@ -1573,6 +1557,13 @@ class Session:
             return None
         return next(cohort for cohort in package() if cohort.name == self.cohort).draw(self.seed)
 
+    def admit(self, age_y=None, sex=None, health=None):
+        """Admit the person on the table (`person`) as a scanner's patient registration does: their
+        age in years, sex ("F", "M") and health ("healthy" or the condition by name); what is
+        not given is not asked, so nothing given is a healthy adult."""
+        self.person = {key: value for key, value in
+                       dict(age_y=age_y, sex=sex, health=health).items() if value is not None}
+
     def pick_cohort(self, name):
         """Put a package cohort on the floor, or none: its subject's scanner (where it is a
         preset), voxel place and size come with it, and every exam scans that subject's own
@@ -1599,6 +1590,50 @@ class Session:
         made once."""
         return _datasets()
 
+    @staticmethod
+    def catalogue():
+        """The measured database as the operator browses it, one row per cohort: its name, its
+        label, the subjects, readings and failed readings it holds, the leaves it reads, where
+        it comes from, and whether it is the operator's own (~/MRSandbox/cohorts)."""
+        from mrsandbox.scan import cohort as cohorts
+
+        rows = []
+        for cohort in package():
+            records = [r for m in cohort.members for r in m.profile.records]
+            source = records[0].source if records else {}
+            rows.append({"name": cohort.name,
+                         "dataset": cohort.label(COHORTS.get(cohort.name, cohort.name)),
+                         "subjects": len(cohort.members), "readings": len(records),
+                         "failed": sum(1 for r in records if r.failed),
+                         "leaves": ", ".join(sorted({r.leaf for r in records})),
+                         "source": source.get("dataset") or "",
+                         "citation": source.get("citation") or "", "url": source.get("url") or "",
+                         "yours": not (cohorts.COHORTS / f"{cohort.name}.json").exists()})
+        return rows
+
+    @staticmethod
+    def subjects_of(name):
+        """One row per subject of a cohort: its name, age, sex and health (a trait a rule gave
+        marked "taken"), and each reading it holds by leaf (a failed one as "failed: " and its
+        reason). Returns (leaves, rows)."""
+        cohort = next(c for c in package() if c.name == name)
+        leaves = sorted({r.leaf for m in cohort.members for r in m.profile.records})
+        rows = []
+        for member in cohort.members:
+            age = member.traits.get("age_y")
+            shown = {"age_y": "" if age is None else (
+                         f"{age:g}" if not isinstance(age, tuple)
+                         else " to ".join("" if a is None else f"{a:g}" for a in age).strip()),
+                     "sex": member.traits.get("sex", ""),
+                     "health": member.traits.get("health", "")}
+            shown = {key: f"{value} (taken)" if key in member.taken and value else value
+                     for key, value in shown.items()}
+            rows.append({"subject": member.subject, "age": shown["age_y"], "sex": shown["sex"],
+                         "health": shown["health"],
+                         **{r.leaf: f"failed: {r.failed}" if r.failed else f"{r.value:.4g}"
+                            for r in member.profile.records}})
+        return leaves, rows
+
     def cohort_says(self):
         """One sentence on the dataset on the floor and what it sets, empty without one."""
         member = self.member()
@@ -1613,7 +1648,7 @@ class Session:
         leaf's own setting goes, and "custom" keeps what is set."""
         sourced = self.twin(params=Params({})).params.sources()
         for path in paths:
-            if (source in ("literature", "pooled", "dataset", "own") and path in sourced
+            if (source in ("literature", "pooled", "mixed", "dataset", "own") and path in sourced
                     and source in sourced[path].available):
                 self.overrides.pop(path, None)
                 self.choices[path] = source
@@ -2014,8 +2049,10 @@ class Session:
         profile = profile if profile is not None else self.profile()
         if self.run_records:
             profile = dataclasses.replace(profile, records=profile.records + self.run_records)
+        member = self.member()
         scan = profile.scan(self.body(), sequence if sequence is not None else self.sequence(card),
                             params=params if params is not None else self.params(),
+                            subject=(member.traits if member is not None else self.person) or None,
                             **self.fields(card))
         if self.choices:
             sourced = scan.params.sources()

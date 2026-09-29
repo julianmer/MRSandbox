@@ -144,6 +144,21 @@ class TestFieldPriors:
     #*****************#
     #   1.5 tesla     #
     #*****************#
+    def test_the_water_t2_is_the_corrected_studies_median_and_each_a_voice_of_the_mix(self):
+        from mrsandbox.database.relaxation import WATER_T2_3T
+        from mrsandbox.scan.calibrations import calibrations
+        from mrsandbox.scan.defaults import default_params
+
+        t2 = default_params(b0_t=3.0, scanner="siemens_prisma_3t").water.t2_s
+        # the median of the five stimulated-echo-corrected studies, their spread the range
+        assert (t2.literature.gm.value.mean == 0.0805 and t2.literature.wm.value.mean == 0.061
+                and 0.005 < t2.literature.wm.value.sd < 0.01)
+        # the mix: each study and each measured dataset one voice
+        record = calibrations("siemens_prisma_3t")["water.t2_s.wm"]
+        datasets = len(set(record.measured["datasets"]))
+        assert len(t2.mixed.wm.components) == len(WATER_T2_3T["wm"]) + datasets
+        assert t2.chosen == "literature" and "each an equal voice" in t2.provenance["mixed"]
+
     def test_one_and_a_half_tesla_priors_and_the_three_tesla_fallback(self):
         from mrsandbox.scan.defaults import default_params
 
@@ -215,7 +230,7 @@ class TestFieldPriors:
         assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma",
                                        "water.adjusted_residual", "acquisition.delay_s",
                                        "acquisition.eddy_transient_rad", "oov.fraction", "water.t1_s",
-                                       *(f"run.{key}" for key in (
+                                       "water.t2_s", *(f"run.{key}" for key in (
                                            "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz",
                                            "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
                                            "broaden_hz", "events_per_min", "motion_mm"))}
@@ -224,7 +239,7 @@ class TestFieldPriors:
             "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled",
             "water.adjusted_residual": "pooled", "acquisition.delay_s": "pooled",
             "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled",
-            "water.t1_s": "literature"}
+            "water.t1_s": "literature", "water.t2_s": "literature"}
         # the run: the envelope until read; the head's move has no literature, the rows serve it
         assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items()
                    if path.startswith("run.") and path != "run.motion_mm")
@@ -263,7 +278,7 @@ class TestFieldPriors:
             drawn = default_params(b0_t=3.0, scanner=scanner).acquisition.eddy_transient_rad
             assert (isinstance(drawn.current, Empirical)
                     and (round(drawn.low, 7), round(drawn.high, 7)) == record.prior)
-            assert (drawn.value == record.value
+            assert (round(drawn.value, 7) == record.value
                     and list(drawn.current.values) == record.measured["values"])
         assert all(abs(record.value) <= 0.5 * np.pi
                    for _, _, record in cohort.rows("acquisition.eddy_transient_rad"))

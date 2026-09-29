@@ -181,6 +181,45 @@ class Database:
             return None
         return PooledValue.from_studies(y, v)
 
+    #***********#
+    #   cards   #
+    #***********#
+    @staticmethod
+    def cards():
+        """Every typed table of the literature modules as a card, {"module", "name", "source",
+        "data", "units", "text"}: the Source, Data and Units fields read off the comment block
+        above the table (each continued on the lines after it), "text" the table as typed,
+        its notes beside the values kept."""
+        import ast
+        import pathlib
+        import re
+
+        cards = []
+        for path in sorted(pathlib.Path(__file__).parent.glob("*.py")):
+            lines = path.read_text().splitlines()
+            for node in ast.parse("\n".join(lines)).body:
+                target = (node.targets[0] if isinstance(node, ast.Assign) and len(node.targets) == 1
+                          else node.target if isinstance(node, ast.AnnAssign) else None)
+                if not isinstance(target, ast.Name) or not target.id.isupper():
+                    continue
+                above, k = [], node.lineno - 2
+                while k >= 0 and lines[k].startswith("#") and not lines[k].startswith("#*"):
+                    above.insert(0, lines[k][1:].strip())
+                    k -= 1
+                fields, key = {}, None
+                for line in above:
+                    found = re.match(r"(Source|Data|Units):\s*(.*)", line)
+                    if found:
+                        key = found.group(1).lower()
+                        fields[key] = found.group(2)
+                    elif key:
+                        fields[key] += " " + line
+                if "source" in fields:
+                    cards.append({"module": path.stem, "name": target.id,
+                                  **{k: fields.get(k, "") for k in ("source", "data", "units")},
+                                  "text": "\n".join(lines[node.lineno - 1:node.end_lineno])})
+        return cards
+
     #**********************#
     #   lookup helpers     #
     #**********************#

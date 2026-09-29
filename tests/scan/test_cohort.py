@@ -14,10 +14,12 @@
 #*************#
 #   imports   #
 #*************#
+import dataclasses
+
 import numpy as np
 import pytest
 
-from mrsandbox import Fixed, Press, Scanner
+from mrsandbox import Empirical, Fixed, Press, Scanner
 from mrsandbox.scan import Cohort, Member, ScannerProfile
 from mrsandbox.scan import cohort as cohorts
 from mrsandbox.scan.calibrations import Calibration, calibrations
@@ -100,6 +102,23 @@ class TestCohort:
         # the member names itself
         assert header["noise.sigma"]["source"] == "subject S01 of a cohort"
 
+    def test_an_own_cohort_joins_the_database(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(cohorts, "OWN", tmp_path)
+        Cohort("my_site", (member("S01", 6.0, -0.006),)).save(tmp_path / "my_site.json")
+        cohorts.forget()
+        cohorts.package.cache_clear()
+        try:
+            assert "my_site" in Cohort.names() and "big_gaba_trio" in Cohort.names()
+            assert any(name == "my_site" for name, _, _ in cohorts.rows("noise.sigma"))
+        finally:
+            cohorts.package.cache_clear()
+            cohorts.forget()
+
+    def test_the_label_reads_the_field_to_the_half_tesla(self):
+        for field_t, shown in ((1.5, "1.5 T"), (2.89, "3 T"), (7.0, "7 T")):
+            cohort = Cohort("c", (member("S01", 6.0, -0.006, field_t=field_t),))
+            assert f" {shown} · " in cohort.label()
+
 
 #**************************************************************************************************#
 #                                         Class TestPooled                                         #
@@ -148,9 +167,16 @@ class TestPooled:
         everything = cohorts.pooled("noise.sigma", Scanner.preset("generic_3t"))
         assert (everything.measured["subjects"] == 8
                 and everything.measured["matched_on"] == {"field_t": 3.0})
-        assert (everything.value == np.median(self.TRIO + self.GE)
+        # each dataset a cluster: the two disagree far beyond their sizes, so each takes about
+        # half the draws and a GE subject (three of them) weighs more than a Trio one (five)
+        share = everything.measured["dataset_share"]
+        weights = dict(zip(everything.measured["values"], everything.measured["weights"]))
+        assert share["trio"] == pytest.approx(0.5, abs=0.05) and weights[7.0] > weights[4.0]
+        population = Empirical(everything.measured["values"], everything.measured["weights"])
+        assert (everything.value == round(population.value, 7)
+                and everything.value > np.median(self.TRIO + self.GE)
                 and everything.scanner["vendor"] == "pooled")
-        assert everything.prior == tuple(np.round(np.percentile(self.TRIO + self.GE, (5, 95)), 7))
+        assert everything.prior == (round(population.low, 7), round(population.high, 7))
         # rows without a model do not fail the model
         ge = cohorts.pooled("noise.sigma", Scanner.preset("ge_mr750_3t"), channels=8)
         # the range over fewer than five
@@ -168,6 +194,51 @@ class TestPooled:
         low = cohorts.pooled("noise.sigma", Scanner.preset("generic_1p5t"))
         assert low.measured["subjects"] == 8 and low.measured["matched_on"] == {}
         assert cohorts.pooled("conc.Cr", Scanner.preset("generic_3t")) is None
+
+    def test_datasets_weigh_by_size_when_they_agree_and_alike_when_they_disagree(self):
+        rng = np.random.default_rng(0)
+        agree = {"big": list(5.0 + rng.normal(0, 1, 100)), "small": list(5.0 + rng.normal(0, 1, 4))}
+        _, between, share = cohorts._clusters(agree)
+        assert between < 0.2 and share["big"] > 0.9               # one population: by size
+        apart = {"big": list(5.0 + rng.normal(0, 1, 100)), "small": list(9.0 + rng.normal(0, 1, 4))}
+        _, between, share = cohorts._clusters(apart)
+        assert between > 4.0 and 0.4 < share["small"] < 0.6        # two populations: alike
+
+    def test_the_person_is_a_condition_of_what_the_subject_carries(self, monkeypatch, tmp_path):
+        def person(name, t2, **traits):
+            carried = dataclasses.replace(record("water.t2_s.wm", t2), carried_by="subject")
+            return Member(name, ScannerProfile(Scanner.preset("siemens_trio_3t"),
+                                               (carried, record("noise.sigma", 5.0))),
+                          PLACE, SIZE, traits=traits)
+        people = Cohort("people", (
+            person("A", 0.080, age_y=30.0, sex="F", health="healthy"),
+            person("B", 0.084, age_y=70.0, sex="M", health="healthy"),
+            person("C", 0.090, age_y=9.0, sex="F", health="healthy"),
+            person("D", 0.095, age_y=45.0, sex="F", health="multiple sclerosis"),
+            person("E", 0.082, age_y=(18.0, None), health="healthy"),  # "healthy adults" alone
+            person("F", 0.200)))                                        # nothing stated
+        people.save(tmp_path / "people.json")
+        people = Cohort.load(tmp_path / "people.json")
+        assert people.members[4].traits == {"age_y": (18.0, None), "health": "healthy"}
+        monkeypatch.setattr(cohorts, "package", lambda: (people,))
+        cohorts.forget()
+        trio = Scanner.preset("siemens_trio_3t")
+
+        def values(**subject):
+            return cohorts.pooled("water.t2_s.wm", trio, subject=subject).measured["values"]
+        # unasked, a healthy adult: the child, the patient and the unstated stay out
+        assert values() == [0.080, 0.082, 0.084]
+        assert values(age_y=(60.0, None)) == [0.084] and values(sex="F") == [0.080]
+        assert values(health="multiple sclerosis") == [0.095]
+        # asked nothing at all: everyone
+        assert values(age_y=None, health=None) == [0.080, 0.082, 0.084, 0.090, 0.095, 0.200]
+        # an age no one holds gives way, named; a condition no one holds never does
+        old = cohorts.pooled("water.t2_s.wm", trio, subject={"age_y": (90.0, None)})
+        assert old.measured["subject_dropped"] == ["age_y"] and old.measured["subjects"] == 4
+        assert cohorts.pooled("water.t2_s.wm", trio, subject={"health": "glioma"}) is None
+        # the scanner's rows ask nothing of the person
+        noise = cohorts.pooled("noise.sigma", trio, subject={"health": "glioma"})
+        assert noise.measured["subjects"] == 6 and "subject" not in noise.measured
 
     def test_the_catalogue_serves_the_pool_and_own_records_outrank_it(self, monkeypatch):
         self.database(monkeypatch)
@@ -189,11 +260,14 @@ class TestPooled:
         trio = Scanner.preset("siemens_trio_3t")
         served = ScannerProfile.preset("siemens_trio_3t").calibrations()
         for leaf in cohorts.leaves():
-            # what the pool matched, as specific as it could
-            on = served[leaf].measured["matched_on"]
-            matching = [r.value for _, _, r in cohorts.rows(leaf)
-                        if cohorts._matches(r, on.get("field_t"), on.get("vendor"),
-                                            on.get("model"), on.get("channels"))]
+            # what the pool matched, as specific as it could, the person too for the rows the
+            # subject carries
+            on, person = served[leaf].measured["matched_on"], served[leaf].measured.get("subject")
+            matching = [r.value for c in cohorts.package() for m in c.members
+                        for r in m.profile.records if r.leaf == leaf and not r.failed
+                        and cohorts._matches(r, on.get("field_t"), on.get("vendor"),
+                                             on.get("model"), on.get("channels"))
+                        and (person is None or cohorts._suits(m.traits, person))]
             assert (served[leaf].value == round(float(np.median(matching)), 7)
                     and served[leaf].measured["subjects"] == len(matching))
         assert served["noise.sigma"].measured["matched_on"]["model"] == trio.model

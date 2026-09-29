@@ -137,14 +137,35 @@ class Empirical(Value):
     nearest neighbour), held inside the measured range, so the draws fill the shape
     between neighbouring subjects and never smear one site's cluster into another's.
     `low`, `high` and `value` read the 5th and 95th percentile and the median, the
-    range convention beside the draw."""
+    range convention beside the draw. `weights`, one per value, make a subject that much
+    likelier to be drawn and count as much in the percentiles (subjects of a small
+    dataset weigh more each, so no dataset outvotes another by its size alone); None, or
+    all equal, weighs every subject alike."""
 
     values: tuple
+    weights: tuple = None
 
     def __post_init__(self):
         object.__setattr__(self, "values", tuple(float(v) for v in self.values))
         if not self.values:
             raise ValueError("an empirical value needs at least one measured value")
+        if self.weights is not None:
+            weights = tuple(float(w) for w in self.weights)
+            if len(weights) != len(self.values):
+                raise ValueError("an empirical value needs one weight per value")
+            object.__setattr__(self, "weights",
+                               None if len(set(weights)) == 1 else weights)
+
+    def percentile(self, q):
+        """The value at percentile `q` of the weighted population: each subject's weight
+        centred on its value, interpolated between them (with no weights, numpy's own)."""
+        if self.weights is None:
+            return float(np.percentile(self.values, q))
+        order = np.argsort(self.values)
+        values = np.asarray(self.values)[order]
+        weights = np.asarray(self.weights)[order]
+        centres = (np.cumsum(weights) - 0.5 * weights) / weights.sum()
+        return float(np.interp(q / 100.0, centres, values))
 
     @property
     def bandwidth(self):
@@ -161,21 +182,26 @@ class Empirical(Value):
     #   sample   #
     #************#
     def sample(self, rng):
-        drawn = (self.values[int(rng.integers(len(self.values)))]
-                 + self.bandwidth * float(rng.standard_normal()))
+        if self.weights is None:
+            index = int(rng.integers(len(self.values)))
+        else:
+            cumulative = np.cumsum(self.weights)
+            index = min(int(np.searchsorted(cumulative, rng.random() * cumulative[-1],
+                                            side="right")), len(self.values) - 1)
+        drawn = self.values[index] + self.bandwidth * float(rng.standard_normal())
         return float(min(max(drawn, min(self.values)), max(self.values)))
 
     @property
     def value(self):
-        return float(np.median(self.values))
+        return self.percentile(50)
 
     @property
     def low(self):
-        return float(np.percentile(self.values, 5))
+        return self.percentile(5)
 
     @property
     def high(self):
-        return float(np.percentile(self.values, 95))
+        return self.percentile(95)
 
 
 #**************************************************************************************************#
@@ -249,8 +275,68 @@ class Mapped(Value):
         return self.volume
 
 
+#**************************************************************************************************#
+#                                          Class Mixture                                           #
+#**************************************************************************************************#
+#                                                                                                  #
+# A quantity drawn from one of several populations, each a voice, then from that population.       #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class Mixture(Value):
+    """A quantity drawn from one of several populations, each a voice, then from that
+    population: the literature's studies and the measured datasets side by side, each as
+    likely as another unless `weights` say otherwise (the reference range over individuals
+    from several studies with equal study weights, Siegel, Murad and Chu 2021, Res Synth
+    Methods 12:148). `value`, `low` and `high` read the median and the 5th and 95th
+    percentile of the mixture off a fixed draw of it."""
+
+    components: tuple
+    weights: tuple = None
+
+    def __post_init__(self):
+        object.__setattr__(self, "components", tuple(Value.of(c) for c in self.components))
+        if not self.components:
+            raise ValueError("a mixture needs at least one component")
+        if self.weights is not None:
+            weights = tuple(float(w) for w in self.weights)
+            if len(weights) != len(self.components):
+                raise ValueError("a mixture needs one weight per component")
+            object.__setattr__(self, "weights",
+                               None if len(set(weights)) == 1 else weights)
+
+    #************#
+    #   sample   #
+    #************#
+    def sample(self, rng):
+        if self.weights is None:
+            index = int(rng.integers(len(self.components)))
+        else:
+            cumulative = np.cumsum(self.weights)
+            index = min(int(np.searchsorted(cumulative, rng.random() * cumulative[-1],
+                                            side="right")), len(self.components) - 1)
+        return self.components[index].sample(rng)
+
+    def percentile(self, q):
+        """The value at percentile `q` of the mixture, off 4000 draws of a fixed seed."""
+        rng = np.random.default_rng(0)
+        return float(np.percentile([self.sample(rng) for _ in range(4000)], q))
+
+    @property
+    def value(self):
+        return self.percentile(50)
+
+    @property
+    def low(self):
+        return self.percentile(5)
+
+    @property
+    def high(self):
+        return self.percentile(95)
+
+
 # the sources a leaf's value can come from, in the order they are shown
-SOURCES = ("literature", "pooled", "dataset", "own", "custom")
+SOURCES = ("literature", "pooled", "mixed", "dataset", "own", "custom")
 
 
 #**************************************************************************************************#
@@ -266,7 +352,8 @@ class Sourced(Value):
 
     `literature` is a published value or a manufacturer's number (None where none is
     published: a zero written for want of a number is not literature), `pooled` the
-    package's measured rows pooled for the scanner (scan.cohort), `dataset` one real
+    package's measured rows pooled for the scanner (scan.cohort), `mixed` the literature's
+    studies and the measured datasets as equal voices (a Mixture), `dataset` one real
     subject's own reading from a package dataset on the floor, `own` a reading made on
     the operator's own scan, `custom` the user's (None until one is set: merging a plain
     Value onto this leaf sets it and chooses it). `provenance` says where each source's
@@ -276,6 +363,7 @@ class Sourced(Value):
     """
     literature: Value = None
     pooled: Value = None
+    mixed: Value = None
     dataset: Value = None
     own: Value = None
     custom: Value = None
@@ -293,8 +381,8 @@ class Sourced(Value):
 
     @property
     def available(self):
-        """The sources this leaf has a value for, in the order literature, pooled, dataset,
-        own, custom."""
+        """The sources this leaf has a value for, in the order literature, pooled, mixed,
+        dataset, own, custom."""
         return tuple(name for name in SOURCES if getattr(self, name) is not None)
 
     def choose(self, source, strict=False):
@@ -326,8 +414,8 @@ class Sourced(Value):
         return self.current == other
 
     def __hash__(self):
-        return hash((self.literature, self.pooled, self.dataset, self.own, self.custom,
-                     self.chosen))
+        return hash((self.literature, self.pooled, self.mixed, self.dataset, self.own,
+                     self.custom, self.chosen))
 
 
 #**************************************************************************************************#

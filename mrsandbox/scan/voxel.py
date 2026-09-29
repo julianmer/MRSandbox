@@ -948,8 +948,9 @@ class Voxel:
              else dataclasses.asdict(self.scan.receiver),
              "noise_place": float(self.noise_place()),
              "calibrations": {leaf: c.record(self.scan)
-                              for leaf, c in calibrations(self.scan.scanner,
-                                                          self.scan.records).items()}},
+                              for leaf, c in calibrations(
+                                  self.scan.scanner, self.scan.records,
+                                  subject=self.scan.subject).items()}},
             "MRSandbox: the virtual brain, the transmit map, the receiver, and the voxel "
             "placement.",
         )

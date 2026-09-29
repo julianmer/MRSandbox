@@ -298,19 +298,27 @@ class TestRelaxationReading:
 
         t2 = {"NAA": 0.53, "Cr": 0.31, "Cho": 0.20}
         phantom = Phantom.braino(temperature_c=37.0, t2_s=t2)
-        n, dwell_s, fids = 4096, 1.0 / 2000.0, {}
-        for te in (0.03, 0.06, 0.12, 0.2, 0.3):
-            voxel = VirtualScan(phantom, Scanner.preset("generic_3t"),
-                                Press(te1_s=0.012, te2_s=te - 0.012, tr_s=10.0),
-                                water=NoWater()).voxel((0.0, 0.0, 0.0), 20.0)
-            _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
-            # a scanner's carrier sits on water; the package's FIDs are referenced to 0 ppm
-            fids[te] = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n)
-                                                * dwell_s)
-        reading = RelaxationReading.from_series(fids, dwell_s, voxel._f0_mhz())
+        n, dwell_s = 4096, 1.0 / 2000.0
+        voxels = {te: VirtualScan(phantom, Scanner.preset("generic_3t"),
+                                  Press(te1_s=0.012, te2_s=te - 0.012, tr_s=10.0),
+                                  water=NoWater()).voxel((0.0, 0.0, 0.0), 20.0)
+                  for te in (0.03, 0.06, 0.12, 0.2, 0.3)}
+        # the line's width is drawn, and how much a neighbour overlaps a singlet with it: five
+        # draws, the median of each reading
+        readings = []
+        for seed in range(5):
+            fids = {}
+            for te, voxel in voxels.items():
+                _, fid = voxel._clean_fid(voxel.sample(seed), n, dwell_s)
+                # a scanner's carrier sits on water; the package's FIDs are referenced to 0 ppm
+                fids[te] = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz()
+                                                    * np.arange(n) * dwell_s)
+            readings.append(RelaxationReading.from_series(fids, dwell_s, voxel._f0_mhz()))
+        reading = readings[0]
         assert reading.te_s == (0.03, 0.06, 0.12, 0.2, 0.3) and reading.heights["NAA"][0] == 1.0
+        read = {name: float(np.median([r.t2_s[name] for r in readings])) for name in t2}
         # what lies under a singlet swings with the echo time: creatine stands clear, glutamate
         # lies under NAA, myo-inositol under choline, whose reading is a bound
-        assert reading.t2_s["Cr"] == pytest.approx(t2["Cr"], rel=0.04)
-        assert reading.t2_s["NAA"] == pytest.approx(t2["NAA"], rel=0.08)
-        assert 0.8 * t2["Cho"] < reading.t2_s["Cho"] < t2["Cho"]
+        assert read["Cr"] == pytest.approx(t2["Cr"], rel=0.04)
+        assert read["NAA"] == pytest.approx(t2["NAA"], rel=0.08)
+        assert 0.8 * t2["Cho"] < read["Cho"] < t2["Cho"]

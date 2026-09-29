@@ -281,3 +281,88 @@ class UK7T:
         """The relative transmit field from a DREAM flip-angle map stored in tenths of a
         degree: the measured preparation flip over the nominal one; zero where the map is."""
         return np.where(flip_map > 0.0, flip_map / tenths / prep_flip_deg, 0.0).astype(np.float32)
+
+    #**************#
+    #   cohort     #
+    #**************#
+    @classmethod
+    def cohort(cls, folder=None):
+        """The uk7t_oxford_7t cohort: the Oxford travelling head's own water T1 rows off
+        its MP2RAGE T1 map, read per tissue on the subject's own segmentation (scan.maps)
+        and shipped white matter only: the cortex reads near 2.0 s but cannot be told from
+        CSF, whose T1 these timings do not resolve and the lookup clips onto the same
+        value, so grey and CSF stay with the literature. The segmentation files
+        land in `folder` (the cache unless given) and are reused when there."""
+        import dataclasses
+        import pathlib
+
+        import nibabel as nib
+
+        from mrsandbox.hardware import Scanner
+        from mrsandbox.resources import Resources
+        from mrsandbox.scan import maps
+        from mrsandbox.scan.cohort import Cohort, Member
+        from mrsandbox.scan.maps import MapReading
+        from mrsandbox.scan.profile import ScannerProfile
+
+        folder = (pathlib.Path(folder) if folder is not None
+                  else Resources.cache_dir() / "uk7t" / "cohort")
+        folder.mkdir(parents=True, exist_ok=True)
+        if not (folder / "tissue_pve_3.nii.gz").exists():
+            # the segmentation image is INV2 times the regularized uniform image, inside
+            # INV2's brain: bet finds the surface on INV2, a plain gradient echo with an
+            # ordinary background, not on the uniform image, whose flat background and dark
+            # CSF strip a third to half of the head; the product, the usual MP2RAGE input
+            # to segmentation tools, adds INV2's proton density so the cortex (mid INV2,
+            # dark uniform) parts from the CSF (dark on both)
+            magnitude = nib.load(str(cls.file("oxf", "MP2RAGE_MAG")))
+            inv2 = np.asarray(magnitude.dataobj, dtype=np.float32)[..., 1]
+            nib.save(nib.Nifti1Image(inv2, magnitude.affine), str(folder / "inv2.nii.gz"))
+            # the uniform image with the regularized combination of O'Brien et al. 2014
+            # (PLoS ONE 9:e99676), (Re(INV1* INV2) - beta) / (|INV1|^2 + |INV2|^2 + 2 beta):
+            # the plain Marques 2010 ratio leaves salt-and-pepper noise outside the head
+            # that ruins bet and fast; beta well over the background power flattens the
+            # background to the dark end (100 times the median power of the outermost
+            # five-cell shell, the converter's exact-zero padding left out; the head sits
+            # far above it)
+            phase = (np.asarray(nib.load(str(cls.file("oxf", "MP2RAGE_PHS"))).dataobj,
+                                dtype=np.float32)
+                     * (2.0 * np.pi / UK7T_ACQUISITION["mp2rage"]["phase_range"]))
+            inversions = np.asarray(magnitude.dataobj, dtype=np.float32) * np.exp(1j * phase)
+            one, two = inversions[..., 0], inversions[..., 1]
+            power = np.abs(one) ** 2 + np.abs(two) ** 2
+            shell = np.ones(power.shape, dtype=bool)
+            shell[5:-5, 5:-5, 5:-5] = False
+            background = power[shell]
+            beta = 100.0 * np.median(background[background > 0.0])
+            uniform = (np.real(np.conj(one) * two) - beta) / (power + 2.0 * beta) + 0.5
+            nib.save(nib.Nifti1Image((inv2 * uniform).astype(np.float32), magnitude.affine),
+                     str(folder / "t1w_source.nii.gz"))
+            # four classes: with three, the cortex (dark on the uniform image, T1 near 2 s)
+            # and the CSF (dark too, its T1 clipped by the lookup onto the same 2 s) share
+            # one class; four still cannot part them, so only the white row ships and grey
+            # would be the deep-and-boundary mix
+            maps.tissues(folder / "t1w_source.nii.gz", folder, strip_on=folder / "inv2.nii.gz",
+                         classes=4, crop=False)
+        t1 = cls.volume("T1map", "oxf")
+        nib.save(nib.Nifti1Image(np.asarray(t1.data, dtype=np.float32), t1.affine),
+                 str(folder / "t1map.nii.gz"))
+        reading = MapReading.from_files(
+            "water.t1_s", folder / "t1map.nii.gz",
+            *(folder / f"tissue_pve_{k}.nii.gz" for k in (1, 3, 0)),
+            header={"Manufacturer": "Siemens", "MagneticFieldStrength": 7.0})
+        note = ("one subject's MP2RAGE T1 at 7 T (the DREAM transmit map in the flip "
+                "angles): white matter only; the cortex reads near 2.0 s but cannot be "
+                "told from CSF, whose T1 these timings do not resolve and the lookup clips "
+                "onto the same value, so grey and CSF stay with the literature")
+        records = tuple(dataclasses.replace(record, note=note) for record in reading.records(
+            "UK7T Network travelling head, Oxford (ODC-By)",
+            "Clarke et al. 2020, NeuroImage 206:116335",
+            "https://ora.ox.ac.uk/objects/uuid:55ca977f-62df-4cbf-b300-2dc893e36647",
+            processing="the map onto the tissues' grid by the affines, linear; the tissues "
+                       "FSL fast, four classes, of INV2 times the regularized uniform "
+                       "image inside INV2's brain (bet)")
+            if record.leaf.endswith(".wm"))
+        return Cohort("uk7t_oxford_7t", (Member(
+            "the subject", ScannerProfile(Scanner.preset("generic_7t"), records),
+            (0.0, -35.0, 20.0), (20.0, 20.0, 20.0), "icbm152"),))

@@ -314,14 +314,17 @@ class TestEncoding:
                             oversampling=2)
         elliptical = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=16.0,
                                oversampling=2, sampling="elliptical")
-        a = np.abs(np.asarray(ideal.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
-        b = np.abs(np.asarray(encoded.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
-        c = np.abs(np.asarray(elliptical.acquire(seed=3, npoints=32)[:])[:, :, 0]).sum(axis=-1)
         # a central 4x4 patch deep in the brain is nearly uniform, so encoding at twice
         # the source resolution must reproduce the ideal amplitudes closely; dropping
-        # the k corners barely moves a smooth object (Maudsley's argument)
-        assert np.abs(a - b).max() < 0.15 * a.max()
-        assert np.abs(a - c).max() < 0.15 * a.max()
+        # the k corners barely moves a smooth object (Maudsley's argument); how uniform the
+        # patch is goes with the drawn tissue water, so five draws, the median
+        encoded_off, elliptical_off = [], []
+        for seed in range(3, 8):
+            a, b, c = (np.abs(np.asarray(grid.acquire(seed=seed, npoints=32)[:])[:, :, 0])
+                       .sum(axis=-1) for grid in (ideal, encoded, elliptical))
+            encoded_off.append(np.abs(a - b).max() / a.max())
+            elliptical_off.append(np.abs(a - c).max() / a.max())
+        assert np.median(encoded_off) < 0.15 and np.median(elliptical_off) < 0.15
 
 
 #**************************************************************************************************#

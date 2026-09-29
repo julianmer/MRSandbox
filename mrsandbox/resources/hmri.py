@@ -217,16 +217,17 @@ HMRI_DEMO = {
 }
 
 # Source: the DICOM sidecars of the files above (acqpar: RepetitionTime, FlipAngle,
-#         EchoTime) and, for the SE/STE series, the hMRI toolbox standard defaults
-#         (config/hmri_b1_standard_defaults.m, i3D_EPI: beta 115:-5:65 degrees, TM 31.2 ms,
-#         T1 1192 ms), which the demo's own hmri_local_defaults.m leaves unchanged.
+#         EchoTime); for the SE/STE series the nominal angles and T1 of the hMRI toolbox
+#         standard defaults (config/hmri_b1_standard_defaults.m, i3D_EPI: beta 115:-5:65
+#         degrees, T1 1192 ms), and the mixing time of the series' own sidecar
+#         (sWipMemBlock.alFree(14), 33800 us), which the toolbox reads before its default.
 # Units:  s, degrees; the B0 phase difference is stored 0..4095 with the file's scale factors
 #         (slope 2, intercept -4096, which the NIfTI reader applies) mapping it onto
 #         -4096..4094, so -pi..pi is the scaled value over 4096.
 HMRI_ACQUISITION = {
     "flash": {"tr_s": 0.025, "te_s": tuple(0.0023 * k for k in range(1, 9)),
               "flip_deg": {"pdw": 6.0, "t1w": 21.0, "mtw": 6.0}},
-    "b1": {"beta_deg": tuple(float(115 - 5 * k) for k in range(11)), "tm_s": 0.0312,
+    "b1": {"beta_deg": tuple(float(115 - 5 * k) for k in range(11)), "tm_s": 0.0338,
            "t1_s": 1.192, "pairs": 5, "fwhm_mm": 8.0},
     "b0": {"te_s": (0.010, 0.01246), "phase_range": 4096.0},
     # the head support of each grid: magnitude above this fraction of the 99th
@@ -557,3 +558,63 @@ class HMRI:
         spacing: phi / (2 pi delta TE), the vendor's sign (stated); the unambiguous
         range is +- 1 / (2 delta TE), no unwrapping applied (stated)."""
         return (phase_difference_rad / (2.0 * np.pi * delta_te_s)).astype(np.float32)
+
+    #**************#
+    #   cohort     #
+    #**************#
+    @classmethod
+    def cohort(cls, folder=None):
+        """The hmri_demo_prisma_3t cohort: the demo subject's own water T1 rows off its MPM
+        T1 (1/r1 of the FLASH pair) at NOMINAL transmit, since its SE/STE transmit map
+        reads a tissue contrast no transmit field has; grey and
+        white matter only, the protocol's flip angles not resolving CSF's T1. The subject's
+        own T1-weighted FLASH is segmented by FSL (scan.maps: conform, strip, segment) in
+        `folder` (the cache unless given), and the files there are reused."""
+        import dataclasses
+        import pathlib
+
+        import nibabel as nib
+
+        from mrsandbox.hardware import Scanner
+        from mrsandbox.resources import Resources
+        from mrsandbox.scan import maps
+        from mrsandbox.scan.cohort import Cohort, Member
+        from mrsandbox.scan.maps import MapReading
+        from mrsandbox.scan.profile import ScannerProfile
+
+        folder = (pathlib.Path(folder) if folder is not None
+                  else Resources.cache_dir() / "hmri" / "cohort")
+        folder.mkdir(parents=True, exist_ok=True)
+        if not (folder / "tissue_pve_2.nii.gz").exists():
+            nib.save(maps.conform(nib.load(str(Resources.path("hmri/t1w_e1")))),
+                     str(folder / "t1.nii.gz"))
+            maps.tissues(folder / "t1.nii.gz", folder)
+        # the T1 map at nominal transmit, inside the head (the derived stack's T1 carries
+        # the measured transmit, so it is made here from the FLASH pair alone)
+        pdw_image = nib.load(str(Resources.path("hmri/pdw_e1")))
+        pdw, t1w = (np.asarray(nib.load(str(Resources.path(f"hmri/{k}"))).dataobj,
+                               dtype=np.float32) for k in ("pdw_e1", "t1w_e1"))
+        flash = HMRI_ACQUISITION["flash"]
+        r1 = cls.r1(pdw, t1w, np.radians(flash["flip_deg"]["pdw"]),
+                    np.radians(flash["flip_deg"]["t1w"]), flash["tr_s"], flash["tr_s"], 1.0)
+        r1 = np.where(pdw > HMRI_ACQUISITION["support"] * np.percentile(pdw, 99.0), r1, 0.0)
+        nib.save(nib.Nifti1Image(np.where(r1 > 0.0, 1.0 / np.where(r1 > 0.0, r1, 1.0),
+                                          0.0).astype(np.float32), pdw_image.affine),
+                 str(folder / "t1map.nii.gz"))
+        reading = MapReading.from_files(
+            "water.t1_s", folder / "t1map.nii.gz",
+            *(folder / f"tissue_pve_{k}.nii.gz" for k in (1, 2, 0)),
+            header={"Manufacturer": "Siemens", "ManufacturersModelName": "Prisma",
+                    "MagneticFieldStrength": 2.89, "ReceiveCoilName": "64Ch Head"})
+        note = ("one subject's MPM T1 (variable flip angle, TR 25 ms, 6 and 21 degrees) at "
+                "NOMINAL transmit: its SE/STE transmit map reads grey 1.03 and white 0.90, "
+                "a tissue contrast no transmit field has; MPM T1s run longer than inversion "
+                "recovery at 3 T; CSF not resolved by the protocol, left to the literature")
+        records = tuple(dataclasses.replace(record, note=note) for record in reading.records(
+            "hMRI toolbox demo subject, MPM (CC BY 4.0)",
+            "Callaghan et al. 2019, Data in Brief 25:104132",
+            "https://github.com/hMRI-group/hMRI-toolbox-demodata")
+            if record.leaf.split(".")[-1] in ("gm", "wm"))
+        return Cohort("hmri_demo_prisma_3t", (Member(
+            "the subject", ScannerProfile(Scanner.preset("siemens_prisma_3t"), records),
+            (0.0, -35.0, 20.0), (20.0, 20.0, 20.0), "icbm152"),))

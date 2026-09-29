@@ -263,22 +263,35 @@ class TestSession:
         session.protocol.water_suppression = "assumed residual"
         (session.field, session.protocol.real, session.protocol.averages,
          session.seed) = "uniform", False, 32, 4
+        # still, and no water leaking in from outside the voxel: the calibration's twin holds
+        # none (CALM), so a leak would read as the scanner's noise and width
         session.overrides.update({"run.drift_hz_per_min": 0.0, "run.ar_sigma_hz": 0.0,
                                   "run.resp_amp_hz": 0.0, "run.broaden_hz": 0.0,
-                                  "run.events_per_min": 0.0})
+                                  "run.events_per_min": 0.0, "oov.fraction": 0.0})
         session.protocol.water_reference = 2  # its water reference exam runs first
-        session.plan()
-        reference, exam = (session.run(planned) for planned in session.queue)
-        drawn = exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]
-        profile = json.loads(session.calibrate(
-            session.export(exam, tmp_path), "mine", folder=tmp_path,
-            reference=session.export(reference, tmp_path)).read_text())
-        read = {record["leaf"]: record["value"] for record in profile["records"]}
         # the file is in the standard's frame (the centre at 4.65 ppm), so the reading finds NAA
         # where a scanner's data has it; one subject's NAA level against the twin's median subject,
-        # the width being read first and held in the twin
-        assert read["noise.sigma"] == pytest.approx(drawn["noise"]["sigma"], rel=0.2)
-        assert read["lineshape.gauss_hz"] == pytest.approx(drawn["lineshape"]["gauss_hz"], rel=0.2)
+        # the width being read first and held in the twin: one subject reads off by as much as
+        # subjects differ, so five subjects, the median of read over drawn
+        ratios, first = {"noise.sigma": [], "lineshape.gauss_hz": []}, None
+        for seed in range(4, 9):
+            session.seed, session.queue = seed, []
+            session.plan()
+            reference, exam = (session.run(planned) for planned in session.queue)
+            drawn = exam.data.hdr_ext.to_dict()["SimulationGroundTruth"]["params"]
+            profile = json.loads(session.calibrate(
+                session.export(exam, tmp_path / str(seed)), "mine", folder=tmp_path,
+                reference=session.export(reference, tmp_path / str(seed))).read_text())
+            records = {record["leaf"]: record for record in profile["records"]}
+            truth = {"noise.sigma": drawn["noise"]["sigma"],
+                     "lineshape.gauss_hz": drawn["lineshape"]["gauss_hz"]}
+            for leaf in ratios:
+                if not records[leaf]["failed"]:     # a reading its own rule failed is not a ratio
+                    ratios[leaf].append(records[leaf]["value"] / truth[leaf])
+            first = first or (profile, {leaf: r["value"] for leaf, r in records.items()})
+        for leaf, found in ratios.items():
+            assert len(found) >= 4 and np.median(found) == pytest.approx(1.0, abs=0.2), leaf
+        profile, read = first
         assert profile["scanner"]["name"] == session.scanner
         # with the reference: the residual the shortcut water left, upright, and a receiver delay
         # record come too (the delay's number is gated on a voxel's own FID in
@@ -427,7 +440,9 @@ class TestSession:
         session.protocol.water_reference = 0
         (session.protocol.real, session.protocol.averages, session.protocol.npoints,
          session.seed) = False, 4, 512, 4
-        session.overrides.update({"run.events_per_min": 0.0})
+        # the train's work alone: no water leaking in from outside the voxel, which no train
+        # suppresses
+        session.overrides.update({"run.events_per_min": 0.0, "oov.fraction": 0.0})
         default = session.protocol.water_suppression
         assert default == "COWS(7;236)"  # the console's default: the train is played
         heights, truths = {}, []
@@ -444,8 +459,20 @@ class TestSession:
         assert len({truth["acquisition"]["shift_hz"] for truth in truths}) == 4
         # so a train's residual differs from exam to exam
         assert heights[default][0] != heights[default][1]
-        # without a train, the whole water line
-        assert heights["off"][0] > 5.0 * max(heights[default])
+        # without a train, the whole water line: the residual goes with the scanner's state, so
+        # over five people and their exams, the median of unsuppressed over suppressed
+        over = [heights["off"][0] / max(heights[default])]
+        for seed in range(5, 9):
+            session.seed, found = seed, {}
+            for scheme in (default, "off"):
+                session.protocol.water_suppression = scheme
+                exam = session.run(session.plan())
+                water = (exam.ppm > 4.4) & (exam.ppm < 4.9)
+                naa = (exam.ppm > 1.9) & (exam.ppm < 2.1)
+                found[scheme] = (np.abs(exam.frames[-1][1][water]).max()
+                                 / exam.frames[-1][1][naa].max())
+            over.append(found["off"] / found[default])
+        assert np.median(over) > 5.0
 
     def test_the_card_plays_water_suppression_and_ovs_before_the_localization(self):
         from mrsandbox import Vapor
@@ -604,7 +631,8 @@ class TestSession:
         session = Session(ICBM)
         sources = session.sources()
         assert (sources["lineshape.gauss_hz"]["chosen"] == "literature"
-                and set(sources["lineshape.gauss_hz"]["sources"]) == {"literature", "pooled"})
+                and set(sources["lineshape.gauss_hz"]["sources"]) == {"literature", "pooled",
+                                                                       "mixed"})
         assert (sources["noise.sigma"]["chosen"] == "pooled"
                 and sources["noise.sigma"]["provenance"]["pooled"].startswith("pooled over"))
         assert (sources["lineshape.gauss_hz"]["sources"]["literature"] == ("range", (2.0, 6.0))

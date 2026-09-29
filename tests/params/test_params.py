@@ -64,6 +64,30 @@ class TestValues:
     #****************#
     #   per tissue   #
     #****************#
+    def test_a_weighted_population_draws_by_its_weights(self):
+        from mrsandbox import Empirical
+
+        # two distant clusters, three subjects against one: weighted one quarter each, the
+        # lone subject half the draws
+        population = Empirical((1.0, 1.1, 1.2, 9.0), (1 / 6, 1 / 6, 1 / 6, 1 / 2))
+        rng = np.random.default_rng(0)
+        draws = np.array([population.sample(rng) for _ in range(4000)])
+        assert np.mean(draws > 5.0) == pytest.approx(0.5, abs=0.03)
+        assert population.value > 1.2 and population.high == 9.0
+        # equal weights are no weights: the draw stream and the percentiles unchanged
+        plain = Empirical((1.0, 2.0, 3.0))
+        assert Empirical((1.0, 2.0, 3.0), (0.2, 0.2, 0.2)) == plain and plain.value == 2.0
+
+    def test_a_mixture_draws_each_voice_alike(self):
+        from mrsandbox import Empirical, Mixture
+
+        # a study about 10 and a dataset of two subjects about 20: half the draws each
+        mixture = Mixture((Normal(10.0, 0.1), Empirical((19.9, 20.1))))
+        rng = np.random.default_rng(1)
+        draws = np.array([mixture.sample(rng) for _ in range(4000)])
+        assert np.mean(draws > 15.0) == pytest.approx(0.5, abs=0.03)
+        assert mixture.low < 10.5 and mixture.high > 19.5
+
     def test_per_tissue_realizes_components(self):
         value = PerTissue(gm=(6.0, 12.0), wm=Uniform(4.0, 9.0), csf=0.0)
         concrete = value.sample(np.random.default_rng(1))

@@ -14,6 +14,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 40.0,
+    "sex": "M",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -2301,6 +2307,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "M",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -4588,6 +4600,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 40.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -6875,6 +6893,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -9162,6 +9186,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 43.0,
+    "sex": "M",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -11449,6 +11479,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 32.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -13736,6 +13772,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 51.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -16023,6 +16065,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 37.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -18310,6 +18358,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -20597,6 +20651,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 26.0,
+    "sex": "M",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -22884,6 +22944,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 55.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -25171,6 +25237,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 66.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -27458,6 +27530,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "M",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -29745,6 +29823,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 23.0,
+    "sex": "F",
+    "health": "major depressive disorder"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -32032,6 +32116,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 21.0,
+    "sex": "M",
+    "health": "bipolar"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -34319,6 +34409,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 55.0,
+    "sex": "F",
+    "health": "bipolar"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -36606,6 +36702,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 33.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -38893,6 +38995,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 29.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -41180,6 +41288,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 24.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -43467,6 +43581,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 30.0,
+    "sex": "M",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -45754,6 +45874,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 25.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -48041,6 +48167,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 32.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -50328,6 +50460,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 31.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -52615,6 +52753,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -54902,6 +55044,12 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "age_y": 47.0,
+    "sex": "F",
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",

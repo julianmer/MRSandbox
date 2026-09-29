@@ -14,6 +14,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -1780,6 +1784,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -3546,6 +3554,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -5312,6 +5324,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -7078,6 +7094,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -8844,6 +8864,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -10610,6 +10634,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -12376,6 +12404,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
@@ -14142,6 +14174,10 @@
     20.0
    ],
    "brain": "icbm152",
+   "traits": {
+    "health": "healthy"
+   },
+   "taken": [],
    "profile": {
     "scanner": {
      "name": "generic_7t",
