@@ -79,6 +79,7 @@ height: 50px; padding: 0; font-size: 10.5px;
          line-height: 1.15; cursor: grab; }}
 .chip.over {{ border-left: 4px solid {GLOW}; }}
 .chip.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
+.chip.prelude {{ border-style: dashed; color: {DIM} !important; cursor: default; }}
 .tool.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .info {{ display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 5px; \
 align-content: start; white-space: nowrap; }}
@@ -1201,7 +1202,35 @@ async def console(client: Client):
         def refresh():
             """Redraw the diagram with the chosen block marked, the strip, and the inspector."""
             strip.clear()
+            card = session.protocol
             with strip:
+                # the card's own preludes first, grey: the same switches as the toolbar's
+                shown = {**({card.water_suppression: "water_drop"}
+                            if card.water_suppression in SUPPRESSION
+                            else {"assumed residual, no train": "water_drop"}
+                            if card.water_suppression == ASSUMED else {}),
+                         **({"OVS": "crop_free"} if card.ovs else {})}
+                for name, icon in shown.items():
+                    with ui.column().style("gap: 0; align-items: center"):
+                        ui.button(name, icon=icon).props("flat dense no-caps stack").classes(
+                            "chip prelude").tooltip(
+                            "the card's " + ("outer-volume suppression" if name == "OVS"
+                                             else "water suppression")
+                            + ", played before the design; remove it to design your own")
+                        ui.button(icon="close", on_click=lambda _, name=name: prelude(
+                            name, False)).props("flat dense round size=xs").mark(
+                            f"remove {'OVS' if name == 'OVS' else 'water suppression'}")
+                if not shown.keys() - {"OVS"}:
+                    with ui.button("add water suppression", icon="add").props(
+                            "flat dense no-caps stack").classes("chip prelude").mark(
+                            "add water suppression"):
+                        with ui.menu().props("dark"):
+                            for scheme in SUPPRESSION:
+                                ui.menu_item(scheme, lambda scheme=scheme: prelude(
+                                    scheme, True)).mark(f"scheme {scheme}")
+                if "OVS" not in shown:
+                    ui.button("add OVS", icon="add", on_click=lambda: prelude("OVS", True)).props(
+                        "flat dense no-caps stack").classes("chip prelude").mark("add OVS")
                 for index, (kind, settings) in enumerate(session.design):
                     brief = next((f"{value:g}" + unit
                                   for key, unit in (("flip_deg", "°"), ("ms", " ms"),
@@ -1282,11 +1311,24 @@ async def console(client: Client):
                                     "width: 170px")
             redraw()
 
+        def prelude(name, on):
+            """The card's water suppression (a scheme, or off) or its OVS, set from the designer:
+            the toolbar's switches, which the diagram and the spectrum follow."""
+            if name == "OVS":
+                session.protocol.ovs = on
+                room()
+            else:
+                session.protocol.water_suppression = name if on else "off"
+            refresh()
+            draw()
+
         def redraw():
             try:
-                drawn = session.diagram(session.own())  # the design itself, whatever the card plays
-                counts = np.cumsum([0] + [len(BLOCKS[kind][1](settings))
-                                          for kind, settings in session.design])
+                # the design after the card's preludes, as the card plays it
+                preludes = session.preludes(session.protocol)
+                drawn = session.diagram(session.designed(), preludes=preludes)
+                counts = sum(len(design.events) for design in preludes.values()) + np.cumsum(
+                    [0] + [len(BLOCKS[kind][1](settings)) for kind, settings in session.design])
                 spans = (drawn["spans"][counts[state["at"]]:counts[state["at"] + 1]]
                          if session.design else [])
                 preview.content = lanes(drawn, width=820.0, lane=44.0, mark=(
@@ -1428,7 +1470,8 @@ async def console(client: Client):
 
         async def look():
             """What the design does to a spectrum (Session.showcase): a fixed subject in normal
-            tissue, a uniform field, no noise, no water, nothing but the sequence."""
+            tissue, a uniform field, no noise, the card's water suppression and OVS as the strip
+            shows them."""
             busy.set_visibility(True)
             try:
                 ppm, real = await run.io_bound(session.showcase)
@@ -1442,7 +1485,7 @@ async def console(client: Client):
             outcome.update()
 
         def use():
-            """The card plays the design; water suppression and OVS stay the card's own switches."""
+            """The card plays the design, after the water suppression and OVS the strip shows."""
             keys.active, planning.active, session.protocol.sequence = False, True, "Custom"
             dialog.close()
             draw()
@@ -1508,8 +1551,8 @@ async def console(client: Client):
                     "the design is kept; the card plays what it played")
                 ui.button("Use this design", icon="check", on_click=use).props(
                     "unelevated dense no-caps").tooltip(
-                    "the card plays this design; water suppression and OVS stay the card's "
-                    "switches")
+                    "the card plays this design, after the water suppression and OVS shown before "
+                    "it")
                 keys = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
@@ -1521,7 +1564,8 @@ async def console(client: Client):
                         "position: absolute; top: 42%; left: 46%")
                     busy.set_visibility(False)
             several = ui.column().classes("w-full").style("gap: 4px")
-            ui.label("The design, in the order it plays · press a block to choose it · drag one "
+            ui.label("The design, in the order it plays · the card's water suppression and OVS "
+                     "first, grey (x removes, + adds) · press a block to choose it · drag one "
                      "onto another to move it there").classes("label")
             strip = ui.row().classes("w-full").style("gap: 4px")
             with ui.row().classes("w-full no-wrap").style(

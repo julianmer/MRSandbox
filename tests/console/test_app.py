@@ -59,6 +59,13 @@ class TestApp:
                 user.find("Done").click()
                 user.find(marker="design").click()
                 await user.should_see("the readout opens at")
+                # the card's water suppression, grey before the design: removed, another added
+                await user.should_see("COWS(7;236)")
+                user.find(marker="remove water suppression").click()
+                await user.should_see("add water suppression")
+                user.find(marker="add water suppression").click()
+                user.find(marker="scheme WET").click()
+                await user.should_see(marker="remove water suppression")
                 user.find("crusher").click()  # a block from the palette, after the chosen one
                 # the card's real PRESS came over, 15 blocks, and one more
                 await user.should_see("16 blocks")

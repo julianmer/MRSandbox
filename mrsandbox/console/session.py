@@ -1938,6 +1938,14 @@ class Session:
         return [(axis, side * (0.5 * (edge + card.ovs_mm) + card.ovs_gap_mm), float(card.ovs_mm))
                 for axis, edge in zip("xyz", self.size_mm) for side in (-1.0, 1.0)]
 
+    def designed(self):
+        """The own design as the card plays it: the card's preludes (its water suppression and
+        OVS) first, then the design's blocks; what the designer draws."""
+        design = self.own(self.protocol.tr_ms / 1000.0)
+        for prelude in reversed(self.preludes(self.protocol).values()):
+            design = prelude + design
+        return design
+
     def preludes(self, card):
         """What a timed card plays before its localization, in order, {name: design}."""
         found = {}
@@ -1981,7 +1989,7 @@ class Session:
             conditions = {name: prelude + design for name, design in conditions.items()}
         return conditions
 
-    def diagram(self, sequence=None, readout_ms=12.0):
+    def diagram(self, sequence=None, readout_ms=12.0, preludes=None):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
         of the shaped pulses' envelopes (a real envelope keeps its lobes' signs), "bars":
         [(t, height, selective)] the ideal pulses, which take no time, their flip over 180 and
@@ -1990,9 +1998,12 @@ class Session:
         height (coherence filters), "x", "y", "z": [(t, mT/m)] the gradients as the scanner
         would play them (sequences.timeline), "spans": [(start, end)] of every event, "crushers":
         [(start, end, axis)] the spans that are crushers and no slice selection, "groups":
-        [(start, end, name)] the card's preludes (water suppression, OVS), "adc": (start, end)}."""
-        preludes = (self.preludes(self.protocol) if sequence is None
-                    and self.protocol.sequence in (*SEQUENCES, *EDITING, "Custom") else {})
+        [(start, end, name)] the card's preludes (water suppression, OVS), "adc": (start, end)}.
+        `preludes` names those a given `sequence` opens with (the card's own where it is not
+        given)."""
+        if preludes is None:
+            preludes = (self.preludes(self.protocol) if sequence is None
+                        and self.protocol.sequence in (*SEQUENCES, *EDITING, "Custom") else {})
         sequence = sequence if sequence is not None else self.sequence()
         spans = [list(span) for span in event_spans(sequence)]
         # a prelude without duration (an ideal CHESS: selective pulses and filters that take no
@@ -2412,19 +2423,20 @@ class Session:
         return self._drift
 
     def showcase(self):
-        """What the own design does to a spectrum, to show the sequence and not a result: two
-        transients of a fixed subject (seed 0) in the average brain's parietal white and grey
-        matter, a uniform field, and everything of IDEALS off (no noise, macromolecules, lipids,
-        residual water, frequency and phase errors, eddy currents, spurious echoes), the run
-        still. Returns (ppm, real spectrum) on 0.2 to 4.2 ppm."""
+        """What the own design does to a spectrum as the card plays it: two transients of a fixed
+        subject (seed 0) in the average brain's parietal white and grey matter, a uniform field,
+        the card's water suppression and OVS before the design (the water and the scalp's lipids
+        in, so what they leave shows, or what the design alone leaves where they are off), and
+        the rest of IDEALS off (no noise, macromolecules, leaked water, frequency and phase
+        errors, eddy currents, spurious echoes), the run still. Returns (ppm, real spectrum) on
+        0.2 to 4.2 ppm."""
         clean = Session("Brain, ICBM152 average, 2 mm")
         clean.scanner, clean.field = self.scanner, "uniform"
         clean.designs, clean.condition, clean.weights = self.designs, self.condition, self.weights
         clean.protocol = dataclasses.replace(self.protocol, sequence="Custom",
-                                             averages=2 * len(self.designs), water_reference=0,
-                                             water_suppression="off", ovs=False)
-        clean.overrides = {path: value for leaves in IDEALS.values()
-                           for path, value in leaves.items()}
+                                             averages=2 * len(self.designs), water_reference=0)
+        clean.overrides = {path: value for name, leaves in IDEALS.items() if name != "lipids"
+                           for path, value in leaves.items() if path != "water.residual_fraction"}
         clean.overrides.update({f"run.{argument}": off for argument, off in RUN.values()})
         exam = clean.run(clean.plan(queued=False), seed=0)
         shown = (exam.ppm > 0.2) & (exam.ppm < 4.2)

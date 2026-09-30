@@ -329,6 +329,22 @@ class TestSession:
         assert tall > 10.0 * flat  # opposite signs add in the difference
         assert session.showcase()[1].shape == session.showcase()[0].shape
 
+    def test_the_designer_shows_the_cards_preludes_before_the_design(self):
+        session = Session(ICBM)
+        session.adopt()
+        session.protocol.water_suppression, session.protocol.ovs = "WET", True
+        preludes = session.preludes(session.protocol)
+        own = session.own()
+        designed = session.designed()
+        # the card's water suppression and OVS first, then the design's blocks
+        assert list(preludes) == ["WET", "OVS"] and len(designed.events) == (
+            sum(len(p.events) for p in preludes.values()) + len(own.events))
+        drawn = session.diagram(designed, preludes=preludes)
+        assert [name for _, _, name in drawn["groups"]][:1] == ["WET"]
+        # removed on the card, gone from the designer
+        session.protocol.water_suppression, session.protocol.ovs = "off", False
+        assert len(session.designed().events) == len(own.events)
+
     def test_real_designs_are_fitted_to_the_scanners_transmitter(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0
