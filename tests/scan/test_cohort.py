@@ -240,6 +240,39 @@ class TestPooled:
         noise = cohorts.pooled("noise.sigma", trio, subject={"health": "glioma"})
         assert noise.measured["subjects"] == 6 and "subject" not in noise.measured
 
+    def test_a_map_row_of_an_unfaithful_method_joins_only_when_asked_or_alone(self, monkeypatch):
+        def mapped(name, t1, method, model="Prisma", age_y=30.0):
+            row = dataclasses.replace(record("water.t1_s.wm", t1, model=model),
+                                      carried_by="subject",
+                                      sequence={"name": "a map", "family": method})
+            return Member(name, ScannerProfile(Scanner.preset("siemens_prisma_3t"), (row,)),
+                          PLACE, SIZE, traits={"age_y": age_y, "health": "healthy"})
+        inversion, mp2rage = mapped("A", 0.85, "inversion recovery"), mapped("B", 0.82, "MP2RAGE")
+        flip = mapped("C", 1.03, "variable flip angle")
+        prisma = Scanner.preset("siemens_prisma_3t")
+
+        def pool(*members, **asked):
+            monkeypatch.setattr(cohorts, "package", lambda: (Cohort("maps", members),))
+            cohorts.forget()
+            return cohorts.pooled("water.t1_s.wm", prisma, **asked).measured
+        # the faithful methods by default, named
+        faithful = pool(inversion, mp2rage, flip)
+        assert (faithful["values"] == [0.82, 0.85] and not faithful["method_dropped"]
+                and faithful["matched_on"]["method"] == cohorts.FAITHFUL["water.t1_s"])
+        # another method asked by name, or any
+        assert pool(inversion, mp2rage, flip, method="variable flip angle")["values"] == [1.03]
+        assert pool(inversion, mp2rage, flip, method=())["values"] == [0.82, 0.85, 1.03]
+        # no faithful row of an adult: the method gives way, named, before the person's age
+        alone = pool(flip, mapped("D", 1.20, "MP2RAGE", age_y=9.0))
+        assert (alone["values"] == [1.03] and alone["method_dropped"]
+                and alone["methods"] == ["variable flip angle"])
+        # the model gives way before the method
+        trio = pool(flip, mapped("E", 0.84, "inversion recovery", model="TrioTim"))
+        assert trio["values"] == [0.84] and "model" not in trio["matched_on"]
+        # a leaf without a faithful table asks no method
+        self.database(monkeypatch)
+        assert "methods" not in cohorts.pooled("noise.sigma", prisma).measured
+
     def test_the_catalogue_serves_the_pool_and_own_records_outrank_it(self, monkeypatch):
         self.database(monkeypatch)
         served = calibrations("siemens_trio_3t", channels=32)
@@ -266,7 +299,8 @@ class TestPooled:
             matching = [r.value for c in cohorts.package() for m in c.members
                         for r in m.profile.records if r.leaf == leaf and not r.failed
                         and cohorts._matches(r, on.get("field_t"), on.get("vendor"),
-                                             on.get("model"), on.get("channels"))
+                                             on.get("model"), on.get("channels"),
+                                             on.get("method"))
                         and (person is None or cohorts._suits(m.traits, person))]
             assert (served[leaf].value == round(float(np.median(matching)), 7)
                     and served[leaf].measured["subjects"] == len(matching))

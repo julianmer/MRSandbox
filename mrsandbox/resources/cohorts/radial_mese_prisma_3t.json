@@ -67,7 +67,7 @@
       },
       "sequence": {
        "name": "3D radial multi-echo spin echo, 50 echoes",
-       "family": "",
+       "family": "EPG multi-echo spin echo",
        "te_s": [
         0.007,
         0.35
@@ -77,7 +77,7 @@
       "acquisition": {},
       "voxel": {},
       "processing": "the EPG T2 map onto the tissues' grid by the affines, linear; the tissues FSL fast with the standard priors throughout on the first echo, inside MNI152's brain mask flirted onto it",
-      "date": "29/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

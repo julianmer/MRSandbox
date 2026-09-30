@@ -113,8 +113,8 @@ class Developmental:
         reading = MapReading.from_files(leaf, seconds,
                                         *(work / f"tissue_pve_{k}.nii.gz" for k in (1, 2, 0)),
                                         header=header)
-        what = ("the vendor's MP2RAGE T1 map" if leaf == "water.t1_s"
-                else "the GRAPPATINI T2 map (model-based, 16 echoes)")
+        what, method = (("the vendor's MP2RAGE T1 map", "MP2RAGE") if leaf == "water.t1_s"
+                        else ("the GRAPPATINI T2 map (model-based, 16 echoes)", "GRAPPATINI"))
         return tuple(dataclasses.replace(
             record, note=f"one child's {what}, aged {age} years; CSF not resolved by the "
                          "protocol, left to the literature")
@@ -122,7 +122,7 @@ class Developmental:
                 cls.DATASET, cls.CITATION, cls.URL,
                 processing="the map onto the tissues' grid by the affines, linear; the tissues "
                            "FSL fast of the UNIT1 image inside the brain bet finds on the "
-                           "second inversion")
+                           "second inversion", method=method)
             if not record.leaf.endswith(".csf"))
 
     @staticmethod
@@ -247,7 +247,8 @@ class IXI:
                     cls.DATASET.format(site=place), None, cls.URL,
                     processing="the two-point T2 of the PD and T2 echoes onto the tissues' grid "
                                "by the affines, linear; the tissues FSL fast of the session's "
-                               "T1-weighted image (robustfov, bet)")
+                               "T1-weighted image (robustfov, bet)",
+                    method="two-point turbo spin echo")
                 if not record.leaf.endswith(".csf"))
             if records:
                 sex = {"female": "F", "male": "M"}.get(info.get("gender"))
@@ -326,7 +327,8 @@ class RadialMESE:
                 cls.DATASET, "Corbin et al. 2025, Magn Reson Med 93:1026", cls.URL,
                 processing="the EPG T2 map onto the tissues' grid by the affines, linear; the "
                            "tissues FSL fast with the standard priors throughout on the first "
-                           "echo, inside MNI152's brain mask flirted onto it")
+                           "echo, inside MNI152's brain mask flirted onto it",
+                method="EPG multi-echo spin echo")
             if record.leaf.endswith(".wm"))
         return Cohort("radial_mese_prisma_3t", (_subject(
             "the subject", "siemens_prisma_3t", records,

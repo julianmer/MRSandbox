@@ -67,14 +67,14 @@
       },
       "sequence": {
        "name": "quantitative map",
-       "family": "",
+       "family": "MP2RAGE",
        "te_s": null,
        "tr_s": null
       },
       "acquisition": {},
       "voxel": {},
       "processing": "the map onto the tissues' grid by the affines, linear; the tissues FSL fast, four classes, of INV2 times the regularized uniform image inside INV2's brain (bet)",
-      "date": "29/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

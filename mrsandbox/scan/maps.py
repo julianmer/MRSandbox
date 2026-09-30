@@ -97,11 +97,15 @@ class MapReading:
     #*************#
     #   records   #
     #*************#
-    def records(self, dataset, citation=None, url=None, processing=None):
+    def records(self, dataset, citation=None, url=None, processing=None, method=""):
         """One Calibration per tissue with FEW own cells or more, `leaf`.gm, .wm, .csf: the
         median the value, a quarter either side the prior, the subject's (carried_by); the
         cells' 5th and 95th percentiles kept with the reading. `processing` says how the
-        map and the tissues were made where the default does not."""
+        map and the tissues were made where the default does not; `method` how the map was
+        measured, the rows' sequence family (scan.cohort pools a leaf's faithful methods,
+        FAITHFUL)."""
+        conditions = _conditions(self.header, dataset, citation, url, "quantitative map")
+        conditions["sequence"]["family"] = method
         made = []
         for tissue, values in self.values.items():
             if values.size < FEW:
@@ -118,8 +122,7 @@ class MapReading:
                 processing=processing or (
                     "the map onto the tissues' grid by the affines, linear; "
                     "the tissues FSL fast of the session's T1-weighted image"),
-                **{**_conditions(self.header, dataset, citation, url, "quantitative map"),
-                   "note": "one subject's quantitative map; made by scan.maps"}))
+                **{**conditions, "note": "one subject's quantitative map; made by scan.maps"}))
         return tuple(made)
 
 

@@ -70,14 +70,14 @@
       },
       "sequence": {
        "name": "quantitative map",
-       "family": "",
+       "family": "variable flip angle",
        "te_s": null,
        "tr_s": null
       },
       "acquisition": {},
       "voxel": {},
       "processing": "the map onto the tissues' grid by the affines, linear; the tissues FSL fast of the session's T1-weighted image",
-      "date": "29/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -117,14 +117,14 @@
       },
       "sequence": {
        "name": "quantitative map",
-       "family": "",
+       "family": "variable flip angle",
        "te_s": null,
        "tr_s": null
       },
       "acquisition": {},
       "voxel": {},
       "processing": "the map onto the tissues' grid by the affines, linear; the tissues FSL fast of the session's T1-weighted image",
-      "date": "29/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

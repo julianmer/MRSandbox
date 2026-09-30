@@ -47,7 +47,8 @@ class Calibration:
         scanner: Vendor, model, software, field in tesla.
         coil: The receive array as far as the data tell.
         sequence: Name and timings in seconds; `family` is the part of this package's
-            class names the sequence goes by where the name is not.
+            class names the sequence goes by where the name is not, or how a quantitative
+            map was measured (its method).
         acquisition: Points, bandwidth, transients, and how many enter the measurement.
         voxel: Place, size, and the simulator's stand-in for the place.
         processing: How the measured number was read off the data.

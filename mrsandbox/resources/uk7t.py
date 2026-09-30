@@ -299,7 +299,7 @@ class UK7T:
         import nibabel as nib
 
         from mrsandbox.hardware import Scanner
-        from mrsandbox.resources import Resources
+        from mrsandbox.resources import Resources, participants
         from mrsandbox.scan import maps
         from mrsandbox.scan.cohort import Cohort, Member
         from mrsandbox.scan.maps import MapReading
@@ -361,8 +361,8 @@ class UK7T:
             "https://ora.ox.ac.uk/objects/uuid:55ca977f-62df-4cbf-b300-2dc893e36647",
             processing="the map onto the tissues' grid by the affines, linear; the tissues "
                        "FSL fast, four classes, of INV2 times the regularized uniform "
-                       "image inside INV2's brain (bet)")
+                       "image inside INV2's brain (bet)", method="MP2RAGE")
             if record.leaf.endswith(".wm"))
-        return Cohort("uk7t_oxford_7t", (Member(
+        return participants.attach(Cohort("uk7t_oxford_7t", (Member(
             "the subject", ScannerProfile(Scanner.preset("generic_7t"), records),
-            (0.0, -35.0, 20.0), (20.0, 20.0, 20.0), "icbm152"),))
+            (0.0, -35.0, 20.0), (20.0, 20.0, 20.0), "icbm152"),)))

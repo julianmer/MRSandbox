@@ -46,6 +46,14 @@ ADULT = {"age_y": (18.0, None), "health": "healthy"}
 # a number asked of a trait that varies continuously means about that value: this far either
 # side (stated: a registered age of 45 asks for people of 35 to 55)
 NEAR = {"age_y": 10.0}
+# the measurement methods that read a leaf (and its tissues' leaves) as the tissue has it, a
+# map row's method its sequence family: methods part far beyond the spread between people (white
+# matter T1 over 30 percent apart, Stikov et al. 2015, Magn Reson Med 73:514), so a row of
+# another method joins the pool only when asked, or when no faithful row holds, named
+FAITHFUL = {
+    "water.t1_s": ("inversion recovery", "MP2RAGE"),
+    "water.t2_s": ("EPG multi-echo spin echo",),
+}
 
 
 #**************************************************************************************************#
@@ -262,9 +270,9 @@ def _plain(text):
     return re.sub(r"[^a-z0-9]", "", str(text).lower())
 
 
-def _matches(record, field_t, vendor, model, channels):
-    """Whether a row was read under the conditions asked (None asks nothing); a row that
-    does not state a condition does not fail it."""
+def _matches(record, field_t, vendor, model, channels, method=None):
+    """Whether a row was read under the conditions asked (None asks nothing; `method` the
+    methods asked); a row that does not state a condition does not fail it."""
     if (field_t is not None and record.scanner.get("field_t") is not None
             and abs(record.scanner["field_t"] - field_t) > FIELD_T):
         return False
@@ -276,6 +284,9 @@ def _matches(record, field_t, vendor, model, channels):
         return False
     if (channels is not None and record.coil.get("channels")
             and channels not in record.coil["channels"]):
+        return False
+    if (method is not None and record.sequence.get("family")
+            and record.sequence["family"] not in method):
         return False
     return True
 
@@ -356,34 +367,40 @@ def forget():
     _holding.cache_clear()
 
 
-def pooled(leaf, scanner, channels=None, within=(), subject=None):
+def pooled(leaf, scanner, channels=None, within=(), subject=None, method=None):
     """See _pool: the same, computed once per leaf, conditions and database (the package's
     rows do not change; a database stood in for it, as a test does, is another key).
     `subject` names the person's traits asked, over the healthy adult (ADULT) it leaves
     unnamed; a trait asked as None asks nothing of it, a number of a trait in NEAR asks for
-    about that number."""
+    about that number. `method` names the measurement methods asked (one or several), over
+    the leaf's faithful ones (FAITHFUL) it leaves unnamed; empty asks any."""
     asked = {key: (value - NEAR[key], value + NEAR[key])
              if key in NEAR and isinstance(value, (int, float)) else value
              for key, value in {**ADULT, **(subject or {})}.items() if value is not None}
+    if method is None:
+        method = next((names for key, names in FAITHFUL.items()
+                       if leaf == key or leaf.startswith(f"{key}.")), ())
+    methods = (method,) if isinstance(method, str) else tuple(method)
     return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels,
-                   tuple(within), tuple(sorted(asked.items())), id(package()))
+                   tuple(within), tuple(sorted(asked.items())), methods or None, id(package()))
 
 
 @functools.lru_cache(maxsize=4096)
-def _pooled(leaf, b0_t, vendor, model, channels, within, subject, database):
+def _pooled(leaf, b0_t, vendor, model, channels, within, subject, methods, database):
     scanner = type("Asked", (), {"b0_t": b0_t, "vendor": vendor, "model": model})
-    return _pool(leaf, scanner, channels, within, dict(subject))
+    return _pool(leaf, scanner, channels, within, dict(subject), methods)
 
 
-def _pool(leaf, scanner, channels=None, within=(), subject=None):
+def _pool(leaf, scanner, channels=None, within=(), subject=None, methods=None):
     """The Calibration of `leaf` for `scanner` (a hardware.Scanner) pooled over the package's
     cohort rows read under its conditions: the median over subjects is the value, their
     5th to 95th percentile the prior (the range over fewer than five, one row's own prior
     alone). The conditions are as specific as the scanner is: its field, its vendor and
-    model where it states them, and `channels`, the receive array's count, where given and
-    the leaf is the receive chain's (RECEIVE); a row the subject carries is also asked of
-    the person's traits (`subject`, see _suits). When nothing matches, the fewest conditions
-    give way, the model the first to, then the person's age, sex and other traits, then
+    model where it states them, `methods` the measurement methods asked of the rows (None
+    any), and `channels`, the receive array's count, where given and the leaf is the
+    receive chain's (RECEIVE); a row the subject carries is also asked of the person's
+    traits (`subject`, see _suits). When nothing matches, the fewest conditions give way,
+    the model the first to, then the method, the person's age, sex and other traits, then
     channels, vendor and the field itself, keeping whatever can still hold once a dearer one
     has gone (the departure names it); the person's health never gives way, so a
     condition no rows hold stays with the literature. `within` names the cohorts whose rows
@@ -395,8 +412,8 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None):
              for member in cohort.members for record in member.profile.records
              if record.leaf == leaf and not record.failed]
     asked = dict(field_t=float(scanner.b0_t), vendor=scanner.vendor, model=scanner.model,
-                 channels=channels if leaf in RECEIVE else None)
-    order = (["model"] + [key for key in ("age_y", "sex") if key in subject]
+                 channels=channels if leaf in RECEIVE else None, method=methods)
+    order = (["model", "method"] + [key for key in ("age_y", "sex") if key in subject]
              + sorted(set(subject) - {"age_y", "sex", "health"})
              + ["channels", "vendor", "field_t"])
     # the fewest conditions given way, the later in `order` the dearer: a set is tried before
@@ -440,7 +457,8 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None):
     # what the rows were matched on: the conditions asked and kept that at least one row states
     states = {"field_t": lambda r: True, "vendor": lambda r: bool(r.scanner.get("vendor")),
               "model": lambda r: bool(r.scanner.get("model")),
-              "channels": lambda r: bool(r.coil.get("channels"))}
+              "channels": lambda r: bool(r.coil.get("channels")),
+              "method": lambda r: bool(r.sequence.get("family"))}
     stated = {key: value for key, value in conditions.items()
               if value is not None and any(states[key](r) for r in records)}
     per_cohort = {name: round(float(np.median([r.value for c, _, r in matched if c == name])), 7)
@@ -462,7 +480,11 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None):
                                           for name in cohorts},
                   # the person the rows were pooled for, and what of it no rows held
                   **({"subject": traits, "subject_dropped": [k for k in dropped if k in subject]}
-                     if records[0].carried_by == "subject" else {})},
+                     if records[0].carried_by == "subject" else {}),
+                  # the methods the rows were read by, and whether the ones asked gave way
+                  **({"methods": sorted({r.sequence.get("family") or "unstated"
+                                         for r in records}),
+                      "method_dropped": "method" in dropped} if methods else {})},
         source={"dataset": f"pooled over {len(matched)} subjects of {len(cohorts)} "
                            f"cohort{'s' if len(cohorts) > 1 else ''}: "
                            + ", ".join(cohorts), "citation": None, "url": None},

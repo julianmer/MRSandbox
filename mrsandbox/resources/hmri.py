@@ -576,7 +576,7 @@ class HMRI:
         import nibabel as nib
 
         from mrsandbox.hardware import Scanner
-        from mrsandbox.resources import Resources
+        from mrsandbox.resources import Resources, participants
         from mrsandbox.scan import maps
         from mrsandbox.scan.cohort import Cohort, Member
         from mrsandbox.scan.maps import MapReading
@@ -613,8 +613,8 @@ class HMRI:
         records = tuple(dataclasses.replace(record, note=note) for record in reading.records(
             "hMRI toolbox demo subject, MPM (CC BY 4.0)",
             "Callaghan et al. 2019, Data in Brief 25:104132",
-            "https://github.com/hMRI-group/hMRI-toolbox-demodata")
+            "https://github.com/hMRI-group/hMRI-toolbox-demodata", method="variable flip angle")
             if record.leaf.split(".")[-1] in ("gm", "wm"))
-        return Cohort("hmri_demo_prisma_3t", (Member(
+        return participants.attach(Cohort("hmri_demo_prisma_3t", (Member(
             "the subject", ScannerProfile(Scanner.preset("siemens_prisma_3t"), records),
-            (0.0, -35.0, 20.0), (20.0, 20.0, 20.0), "icbm152"),))
+            (0.0, -35.0, 20.0), (20.0, 20.0, 20.0), "icbm152"),)))

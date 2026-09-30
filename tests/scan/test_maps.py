@@ -55,8 +55,11 @@ class TestMapReading:
 
         t1, tissues = subject()
         reading = MapReading.from_arrays("water.t1_s", t1, tissues, {"MagneticFieldStrength": 3})
-        records = {r.leaf: r for r in reading.records("a synthetic subject")}
+        records = {r.leaf: r for r in reading.records("a synthetic subject",
+                                                      method="inversion recovery")}
         assert set(records) == {"water.t1_s.gm", "water.t1_s.wm", "water.t1_s.csf"}
+        # the method is the rows' sequence family
+        assert {r.sequence["family"] for r in records.values()} == {"inversion recovery"}
         for tissue, value in T1.items():  # the mixed cells left out: the stated value
             assert records[f"water.t1_s.{tissue}"].value == pytest.approx(value, rel=0.005)
             # a quarter either side, as every reading of one's own; not the cells' spread
