@@ -1611,29 +1611,6 @@ class Session:
                          "yours": not (cohorts.COHORTS / f"{cohort.name}.json").exists()})
         return rows
 
-    @staticmethod
-    def subjects_of(name):
-        """One row per subject of a cohort: its name, age, sex and health (a trait a rule gave
-        marked "taken"), and each reading it holds by leaf (a failed one as "failed: " and its
-        reason). Returns (leaves, rows)."""
-        cohort = next(c for c in package() if c.name == name)
-        leaves = sorted({r.leaf for m in cohort.members for r in m.profile.records})
-        rows = []
-        for member in cohort.members:
-            age = member.traits.get("age_y")
-            shown = {"age_y": "" if age is None else (
-                         f"{age:g}" if not isinstance(age, tuple)
-                         else " to ".join("" if a is None else f"{a:g}" for a in age).strip()),
-                     "sex": member.traits.get("sex", ""),
-                     "health": member.traits.get("health", "")}
-            shown = {key: f"{value} (taken)" if key in member.taken and value else value
-                     for key, value in shown.items()}
-            rows.append({"subject": member.subject, "age": shown["age_y"], "sex": shown["sex"],
-                         "health": shown["health"],
-                         **{r.leaf: f"failed: {r.failed}" if r.failed else f"{r.value:.4g}"
-                            for r in member.profile.records}})
-        return leaves, rows
-
     def parameter(self, leaf):
         """One leaf of the measured database against age: every subject's reading that did not
         fail as {"dataset", "method", "subject", "age_y", "value", "share"}, the share that

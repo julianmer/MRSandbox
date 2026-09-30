@@ -291,6 +291,14 @@ class TestPooled:
         # no row at 7 T: the field never gives way, the leaf stays with the literature
         assert cohorts.pooled("water.t2_s.wm", Scanner.preset("generic_7t")) is None
 
+    def test_the_database_is_one_table_a_row_per_reading(self, monkeypatch):
+        self.database(monkeypatch)
+        rows = cohorts.table()
+        # every reading, the failed one with its reason
+        assert len(rows) == 2 * 5 + 1 + 2 * 3 and rows["failed"].ne("").sum() == 1
+        noise = rows.query("leaf == 'noise.sigma' and failed == '' and vendor == 'siemens'")
+        assert sorted(noise["value"]) == self.TRIO and set(noise["dataset"]) == {"trio"}
+
     def test_the_catalogue_serves_the_pool_and_own_records_outrank_it(self, monkeypatch):
         self.database(monkeypatch)
         served = calibrations("siemens_trio_3t", channels=32)

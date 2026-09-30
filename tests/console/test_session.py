@@ -238,12 +238,14 @@ class TestSession:
         session.protocol.water_reference = 0
         session.protocol.water_suppression = "assumed residual"
         session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 30, 256
-        session.overrides.update({"run.ar_sigma_hz": 0.0, "run.resp_amp_hz": 0.0,
-                                  "run.events_per_min": 0.0})  # the drift alone
+        # the drift alone, at a stated rate (a drawn one may lie near zero, as some measured runs
+        # drift)
+        session.overrides.update({"run.drift_hz_per_min": 0.4, "run.ar_sigma_hz": 0.0,
+                                  "run.resp_amp_hz": 0.0, "run.events_per_min": 0.0})
         session.prescan = False
         first, second = (session.run(session.plan()).tracks["frequency_hz"] for _ in range(2))
         rate = session.drift_hz_per_min
-        assert 0.05 <= abs(rate) <= 1.5 and session.clock_s == 120.0
+        assert rate == 0.4 and session.clock_s == 120.0
         # a minute later, a minute of drift on
         assert first[0] == 0.0 and second[0] == pytest.approx(rate * 1.0)
         # the same rate all session

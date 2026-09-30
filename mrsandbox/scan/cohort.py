@@ -270,6 +270,38 @@ def stated(trait):
                    if trait in member.traits})
 
 
+def table():
+    """The measured database as one pandas DataFrame, a row per reading, failed ones included
+    (`failed` their reason, empty where they hold): the dataset and subject, the person (age_y a
+    stated number, age_low and age_high the range it lies in, open ends NaN; sex, health, the
+    traits a rule gave), the leaf, its value and prior, and what it was read under (method, the
+    sequence, field, vendor, model, channels, date, source). Query it as any DataFrame, e.g.
+    table().query("leaf == 'water.t2_s.wm' and age_low >= 40"). Needs pandas."""
+    import pandas
+
+    found = []
+    for cohort in package():
+        for member in cohort.members:
+            age = member.traits.get("age_y")
+            low, high = age if _span(age) else (age, age)
+            for record in member.profile.records:
+                found.append({
+                    "dataset": cohort.name, "subject": member.subject,
+                    "age_y": age if not _span(age) else None, "age_low": low, "age_high": high,
+                    "sex": member.traits.get("sex"), "health": member.traits.get("health"),
+                    "taken": ", ".join(member.taken), "leaf": record.leaf,
+                    "value": record.value, "low": record.prior[0], "high": record.prior[1],
+                    "failed": record.failed, "method": record.sequence.get("family") or None,
+                    "sequence": record.sequence.get("name"),
+                    "field_t": record.scanner.get("field_t"),
+                    "vendor": record.scanner.get("vendor"), "model": record.scanner.get("model"),
+                    "channels": ", ".join(str(c) for c in record.coil.get("channels") or ()),
+                    "date": record.date, "source": record.source.get("dataset")})
+    frame = pandas.DataFrame(found)
+    return frame.astype({key: float for key in ("age_y", "age_low", "age_high", "value", "low",
+                                                "high", "field_t")})
+
+
 def _plain(text):
     return re.sub(r"[^a-z0-9]", "", str(text).lower())
 

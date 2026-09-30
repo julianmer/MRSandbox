@@ -29,8 +29,9 @@ tensorflow = ["tensorflow"]
 # PyPI, but imports it lazily, so install it as the CI does: augmentrum without
 # dependencies, then spec2nii, tqdm, shutup, matplotlib, and nifti-mrs-plus[ops].
 augment = ["augmentrum>=0.0.2"]
-# the virtual scanner console (mrsandbox.console): uvx --from "mrsandbox[console]" mrsandbox-console
-console = ["nicegui", "pywebview", "pillow", "dcm2niix", "mrsandbox[jax]"]
+# the virtual scanner console (mrsandbox.console): uvx --from "mrsandbox[console]" mrsandbox-console;
+# pandas holds the measured database as one table (scan.cohort.table)
+console = ["nicegui", "pywebview", "pillow", "dcm2niix", "pandas", "mrsandbox[jax]"]
 dev = ["pytest", "pypulseq", "ruff", "mrsandbox[jax]"]
 
 [project.scripts]

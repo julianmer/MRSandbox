@@ -127,9 +127,9 @@ class TestApp:
                 await user.should_see("share of a channel's noise that is its own")
                 await user.should_see("sensitivity maps")
                 nova = "GE · 32-ch Head (Nova 3832016)"  # a scanner's own array, as published
-                # the card's select, not the top bar's
-                [e for e in user.find(kind=ui.select).elements
-                 if nova in e.options][-1].value = nova
+                # the card's select, not the top bar's (labelled; the found elements are a set)
+                next(e for e in user.find(kind=ui.select).elements
+                     if nova in e.options and e.props.get("label") != "receive array").value = nova
                 await user.should_see("Nova Medical's user manual")
                 await user.should_see("the mean of the two pitches")     # what the package stated
                 # the pooled correlation turned into this array's share
@@ -208,11 +208,15 @@ class TestApp:
                      if e.props.get("label") == "age (years)").value = 45
                 user.find(marker="register the patient").click()
                 await user.should_see("Registered: 45 years")
-                # the database to browse: the datasets, and a literature table with its source
+                # the database to browse: every reading, narrowed by a facet and by a query
                 user.find(marker="database").click()
                 await user.should_see("Measured datasets")
-                assert any(r["dataset"] == "Big GABA · Siemens Trio 3 T · PRESS · 36 subjects"
-                           for r in user.find(marker="datasets").elements.pop().rows)
+                user.find(marker="facet dataset").elements.pop().value = ["big_gaba_trio"]
+                await user.should_see("of 36 subjects in 1 datasets", retries=20)
+                user.find(marker="database query").elements.pop().value = "leaf == 'noise.sigma'"
+                await user.should_see("readings of 35 subjects", retries=20)
+                grid = user.find(marker="database grid").elements.pop()
+                assert {row["leaf"] for row in grid.options["rowData"]} == {"noise.sigma"}
                 user.find("Literature").click()
                 user.find(marker="literature table").elements.pop().value = "relaxation · CORBIN"
                 await user.should_see("Whole-brain T2 mapping", retries=20)

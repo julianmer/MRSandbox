@@ -43,7 +43,7 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 from mrsandbox.database import Database
-from mrsandbox.scan.cohort import stated
+from mrsandbox.scan.cohort import stated, table
 
 #*************#
 #   palette   #
@@ -2574,42 +2574,139 @@ async def console(client: Client):
             with ui.tab_panels(tabs, value=measured).classes("w-full").style(
                     "background: transparent"):
                 with ui.tab_panel(measured):
-                    catalogue = Session.catalogue()
-                    ui.label(f"{len(catalogue)} datasets, {sum(r['subjects'] for r in catalogue)} "
-                             "subjects; a subject's readings pool for a scanner under its "
-                             "conditions, a person's by their traits").classes("value")
-                    columns = [{"name": k, "label": label, "field": k, "align": "left",
-                                "sortable": True}
-                               for k, label in (("dataset", "dataset"), ("subjects", "subjects"),
-                                                ("readings", "readings"), ("failed", "failed"),
-                                                ("source", "source"), ("citation", "citation"))]
-                    ui.table(columns=columns, rows=[{**r, "dataset": r["dataset"]
-                                                     + (" (yours)" if r["yours"] else "")}
-                                                    for r in catalogue],
-                             row_key="name", selection="single",
-                             on_select=lambda event: show(event.selection)).props(
-                        "dense flat dark").classes("w-full").mark("datasets")
-                    shown = ui.column().classes("w-full")
+                    frame = table()
+                    frame["field"] = (2.0 * frame["field_t"]).round() / 2.0
+                    labels = {r["name"]: r["dataset"] + (" (yours)" if r["yours"] else "")
+                              for r in Session.catalogue()}
+                    cited = {r["name"]: f"{r['source']}; {r['citation']}".strip("; ")
+                             for r in Session.catalogue()}
+                    ui.label("every reading of the measured database, a row each: narrow it by the "
+                             "facets (the counts are what each choice would leave), by a query in "
+                             "pandas syntax, or in the columns' headers; a row opens its subject"
+                             ).classes("value").style("white-space: normal")
+                    facets, chosen_now = {}, {"rows": frame}
+                    names = {"dataset": "dataset", "leaf": "leaf", "field": "field (T)",
+                             "vendor": "vendor", "method": "method", "sex": "sex",
+                             "health": "health"}
+                    with ui.row().classes("w-full no-wrap items-start").style("gap: 14px"):
+                        with ui.column().style("width: 260px; gap: 4px"):
+                            for key, label in names.items():
+                                facets[key] = ui.select({}, multiple=True, label=label,
+                                                        on_change=lambda: narrow()).props(
+                                    "dense outlined dark use-chips clearable").classes(
+                                    "w-full").mark(f"facet {key}")
+                            ui.label("age (years)").classes("label").style(
+                                "margin-bottom: 30px")
+                            ages = ui.range(min=0, max=90, step=1,
+                                            value={"min": 0, "max": 90}).props(
+                                "label-always dark").on("change", lambda: narrow()).mark(
+                                "facet age")
+                            failed = ui.switch("failed readings too", value=False,
+                                               on_change=lambda: narrow()).mark("facet failed")
+                        with ui.column().classes("col").style("min-width: 0"):
+                            with ui.row().classes("w-full items-center no-wrap"):
+                                query = ui.input(
+                                    "query (pandas): leaf == 'noise.sigma' and age_low >= 40",
+                                    on_change=lambda: narrow()).props(
+                                    "dense outlined dark clearable debounce=600").classes(
+                                    "col").mark("database query")
+                                ui.button(icon="download", on_click=lambda: ui.download.content(
+                                    chosen_now["rows"].drop(columns="field").to_csv(index=False),
+                                    "mrsandbox_database.csv")).props(
+                                    "flat dense round").tooltip("these rows as CSV")
+                            counted = ui.label().classes("value").mark("database count")
+                            columns = ("dataset", "subject", "age", "sex", "health", "leaf",
+                                       "value", "method", "field_t", "vendor", "model", "failed")
+                            wide = {"dataset": 150, "leaf": 190, "method": 170, "model": 130}
+                            grid = ui.aggrid({
+                                "columnDefs": [
+                                    {"field": key, "headerName": key.replace("_t", " (T)"),
+                                     "minWidth": wide.get(key, 70),
+                                     "filter": ("agNumberColumnFilter"
+                                                if key in ("value", "field_t")
+                                                else "agTextColumnFilter")}
+                                    for key in columns],
+                                "defaultColDef": {"sortable": True, "resizable": True,
+                                                  "floatingFilter": True},
+                                "rowData": []},
+                                theme="balham").style("height: 520px").classes("w-full").mark(
+                                "database grid")
+                            grid.on("cellClicked", lambda event: subject(event.args["data"]))
 
-                    def show(selection):
-                        shown.clear()
-                        if not selection:
-                            return
-                        leaves, rows = Session.subjects_of(selection[0]["name"])
-                        with shown:
-                            ui.label(selection[0]["dataset"]).classes("label")
-                            ui.label(f"leaves read: {', '.join(leaves)}").classes("value").style(
+                    def narrow():
+                        rows = frame if failed.value else frame[frame["failed"] == ""]
+                        low, high = ages.value["min"], ages.value["max"]
+                        if (low, high) != (0, 90):
+                            rows = rows[(rows["age_low"] >= low)
+                                        & (rows["age_high"].fillna(np.inf) <= high)]
+                        if query.value:
+                            try:
+                                rows = rows.query(query.value)
+                                query.props(remove="error")
+                            except Exception as error:                     # noqa: BLE001
+                                query.props(f'error error-message="{str(error)[:80]}"')
+                        picked = {key: facet.value or [] for key, facet in facets.items()}
+                        # each facet's counts under every other facet's choice
+                        for key, facet in facets.items():
+                            others = rows
+                            for other, values in picked.items():
+                                if other != key and values:
+                                    others = others[others[other].isin(values)]
+                            counts = others[key].dropna().value_counts()
+                            named = labels if key == "dataset" else {}
+                            options = {value: f"{named.get(value, value)} ({counts.get(value, 0)})"
+                                       for value in sorted(set(counts.index) | set(picked[key]),
+                                                           key=str)}
+                            facet.set_options(options, value=picked[key])
+                        for key, values in picked.items():
+                            if values and key != "leaf":
+                                rows = rows[rows[key].isin(values)]
+                        # the people the filter keeps, whatever leaf: the Parameters chart's
+                        chosen_now["people"] = set(zip(rows["dataset"], rows["subject"]))
+                        if picked["leaf"]:
+                            rows = rows[rows["leaf"].isin(picked["leaf"])]
+                        chosen_now["rows"] = rows
+                        people = rows[["dataset", "subject"]].drop_duplicates().shape[0]
+                        counted.text = (f"{len(rows)} readings of {people} subjects in "
+                                        f"{rows['dataset'].nunique()} datasets")
+                        shown = rows.assign(age=[
+                            "" if np.isnan(lo) else f"{lo:g}" if lo == hi else
+                            f"{lo:g} to {'' if np.isnan(hi) else f'{hi:g}'}".strip()
+                            for lo, hi in zip(rows["age_low"], rows["age_high"])])
+                        grid.options["rowData"] = [
+                            {key: (None if isinstance(value, float) and np.isnan(value)
+                                   else value) for key, value in row.items()}
+                            for row in shown[list(columns)].to_dict("records")]
+                        grid.update()
+
+                    def subject(row):
+                        """One subject's card: who, and every reading with its conditions."""
+                        mine = frame[(frame["dataset"] == row["dataset"])
+                                     & (frame["subject"] == row["subject"])]
+                        first = mine.iloc[0]
+                        with ui.dialog() as card, ui.card().classes("pane").style(
+                                "min-width: 1200px; max-width: 94vw"):
+                            ui.label(f"{row['subject']} · {labels.get(row['dataset'])}").classes(
+                                "label")
+                            ui.label(", ".join(str(v) for v in (
+                                row["age"] and f"{row['age']} years", first["sex"],
+                                first["health"]) if v and v == v)
+                                + (f" (taken: {first['taken']})" if first["taken"] else "")
+                            ).classes("value")
+                            ui.label(cited.get(row["dataset"], "")).classes("value").style(
                                 "white-space: normal")
-                            search = ui.input("filter the subjects").props(
-                                "dense outlined dark clearable").style("width: 320px")
-                            table = ui.table(columns=[
-                                {"name": k, "label": k, "field": k, "align": "left",
-                                 "sortable": True}
-                                for k in ("subject", "age", "sex", "health", *leaves)],
-                                rows=rows, row_key="subject",
-                                pagination={"rowsPerPage": 12}).props(
-                                "dense flat dark").classes("w-full").mark("subjects")
-                            search.bind_value_to(table, "filter")
+                            ui.table(columns=[{"name": k, "label": k, "field": k, "align": "left"}
+                                              for k in ("leaf", "value", "low", "high", "method",
+                                                        "sequence", "field_t", "model",
+                                                        "channels", "date", "failed")],
+                                     rows=mine.astype(object).where(mine.notna(), "").to_dict(
+                                         "records"), row_key="leaf").props(
+                                "dense flat dark").classes("w-full").mark("subject card")
+                            with ui.row().classes("w-full"):
+                                ui.space()
+                                ui.button("Close", on_click=card.close).props("flat dense no-caps")
+                        card.open()
+                    narrow()
                 with ui.tab_panel(literature):
                     cards = Database.cards()
                     names = {f"{c['module']} · {c['name']}": c for c in cards}
@@ -2637,8 +2734,7 @@ async def console(client: Client):
                              "conditions (field, method, person, system) leave out; the "
                              "literature and this room's pooled value beside, each its 5th to "
                              "95th percentile").classes("value").style("white-space: normal")
-                    ui.select(sorted({leaf for row in Session.catalogue()
-                                      for leaf in row["leaves"].split(", ") if leaf}),
+                    ui.select(sorted(frame["leaf"].unique()),
                               label="leaf", with_input=True,
                               on_change=lambda event: plot(event.value)).props(
                         "dense outlined dark").style("width: 320px").mark("parameter leaf")
@@ -2649,6 +2745,10 @@ async def console(client: Client):
                         if not leaf:
                             return
                         seen = session.parameter(leaf)
+                        everyone = len(seen["points"])
+                        # the people the Measured tab's filter keeps
+                        seen["points"] = [p for p in seen["points"]
+                                          if (p["dataset"], p["subject"]) in chosen_now["people"]]
                         shares = {p["dataset"]: p["share"] for p in seen["points"] if p["share"]}
                         # a pool of more than three datasets folds into one series
                         named = (sorted(shares, key=lambda d: (-shares[d], d))
@@ -2718,9 +2818,9 @@ async def console(client: Client):
                                                  "max": float(f"{max(values) + pad:.3g}")},
                                        "series": series}).style("height: 460px").classes(
                                 "w-full").mark("parameter chart")
-                            ui.label(f"{len(seen['points'])} readings; {unaged} of them state no "
-                                     "age (or only an open range) and are not drawn").classes(
-                                "value")
+                            ui.label(f"{len(seen['points'])} readings (of {everyone}: the "
+                                     f"Measured tab's filter); {unaged} of them state no age (or "
+                                     "only an open range) and are not drawn").classes("value")
             with ui.row().classes("w-full"):
                 ui.space()
                 ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
