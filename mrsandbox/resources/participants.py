@@ -132,29 +132,3 @@ def attach(cohort, people=None):
                             taken=TAKEN.get(cohort.name, ()))
         for member in cohort.members))
 
-
-#************#
-#   people   #
-#************#
-# where each package cohort's subjects are stated per subject, off the local copies of the
-# datasets under one data folder; health as the dataset's README or paper states it of all
-PEOPLE = {
-    "big_gaba_ge": lambda data: big_gaba(data / "BigGABA" / "demographics.csv"),
-    "big_gaba_philips": lambda data: big_gaba(data / "BigGABA" / "demographics.csv"),
-    "big_gaba_trio": lambda data: big_gaba(data / "BigGABA" / "demographics.csv"),
-    # the README: ten healthy adults
-    "cows_prisma": lambda data: bids(data / "openneuro_ds006812", health="healthy"),
-    # Gorgolewski et al. 2015, Sci Data 2:140054: volunteers of earlier 7 T studies, aged 21 to
-    # 30; the health not stated, a volunteer's taken
-    "ds001168_siemens_7t": lambda data: bids(data / "openneuro_ds001168", health=VOLUNTEER),
-    # the group column: major depressive disorder, bipolar disorder, healthy controls
-    "ds005917_siemens_7t": lambda data: bids(data / "openneuro_ds005917"),
-    # the README: sixteen healthy adults
-    "ds006444_ge_mr750": lambda data: bids(data / "openneuro_ds006444", health="healthy"),
-}
-
-
-def people(name, data):
-    """{key: traits} of a package cohort's subjects off the datasets under `data` (PEOPLE);
-    empty for a cohort whose paper alone states them (STATED)."""
-    return PEOPLE[name](pathlib.Path(data)) if name in PEOPLE else {}

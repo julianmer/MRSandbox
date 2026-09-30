@@ -120,14 +120,26 @@ class ScannerProfile:
     def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None,
                       load="a head", water=None, seeds=None):
         """The profile the readings of one acquisition give (`read` makes them from files; a
-        cohort's builder from arrays): the spectrum's width first, then the noise against a
-        twin as broad as that, with `covariance` and `array` the channels' own noise and the
-        array so loaded, with `water` the residual, the receiver delay, the leaked water and
-        the eddy transient. `seeds` draws the twin that many times per reading in place of
-        the readers' own counts (fewer for a twin that plays shaped pulses)."""
+        cohort's builder from arrays): the spectrum's width first, with `water` the
+        residual, the receiver delay, the leaked water and the eddy transient, then the noise
+        against a twin held at those readings (the leak aside, which the twin holds calm);
+        with `covariance` and `array` the channels' own noise and the array so loaded.
+        `seeds` draws the twin that many times per reading in place of the readers' own
+        counts (fewer for a twin that plays shaped pulses)."""
         few = {} if seeds is None else {"seeds": seeds}
         shim = spectrum.record(voxel, dataset, **few)
-        sigma = noise.record(voxel, dataset, gauss_hz=shim.value, **few)
+        read = ()
+        if water is not None:
+            delay = water.record_delay(voxel, dataset, gauss_hz=shim.value, **few)
+            if shim.failed:
+                delay = dataclasses.replace(delay, failed="read against a failed width: "
+                                                          + shim.failed)
+            read = (water.record_residual(voxel, dataset), delay, water.record_leak(voxel, dataset),
+                    water.record_eddy(voxel, dataset))
+        # the twin at this run's own readings, not the population's ranges (a failed one drawn)
+        held = {record.leaf: record.value for record in (shim,) + read
+                if not record.failed and record.leaf != "oov.fraction"}
+        sigma = noise.record(voxel, dataset, held=held, **few)
         if shim.failed:                          # what is read against the width fails with it
             sigma = dataclasses.replace(sigma, failed="read against a failed width: " + shim.failed)
         records, coils = (sigma, shim), None
@@ -140,13 +152,7 @@ class ScannerProfile:
                                         scanner=sigma.scanner)
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
-        if water is not None:
-            delay = water.record_delay(voxel, dataset, gauss_hz=shim.value, **few)
-            if shim.failed:
-                delay = dataclasses.replace(delay, failed=sigma.failed)
-            records += tuple(dataclasses.replace(record, scanner=sigma.scanner) for record in (
-                water.record_residual(voxel, dataset), delay, water.record_leak(voxel, dataset),
-                water.record_eddy(voxel, dataset)))
+        records += tuple(dataclasses.replace(record, scanner=sigma.scanner) for record in read)
         return cls(voxel.scan.scanner, records, coils=coils)
 
     #**********#

@@ -17,6 +17,7 @@
 #*************#
 import dataclasses
 import datetime
+import functools
 
 import numpy as np
 
@@ -359,16 +360,17 @@ class NoiseReading:
     #***********#
     #   sigma   #
     #***********#
-    def sigma(self, voxel, seeds=12, gauss_hz=None):
+    def sigma(self, voxel, seeds=12, held=None):
         """The reference noise level (the noise.sigma leaf) at which `voxel`, a Voxel of a
         scan set up as the acquisition was (field, sequence, timings, place, size),
         reproduces the reading: (plain, apodized), each the median over `seeds` drawn
         subjects. Nothing is drawn for the noise: white noise of sigma per real FID point
         leaves sigma times the root of the summed squared window in the real spectrum.
-        `gauss_hz` holds the twin's Gaussian broadening at the value read from the same
-        data (SpectrumReading): a line's height goes with its width, so a twin as broad as
-        the acquisition reads its noise, where a twin of the population's widths reads it
-        only as well as this shim is typical."""
+        `held` {leaf: value} holds the twin's leaves at the values read off the same data
+        (the width, SpectrumReading; the residual water, delay and eddy transient,
+        WaterReading): a line's height goes with its width and with the residual's wing
+        under it, so a twin at the acquisition's own readings reads its noise, where one
+        drawn from the population's ranges reads it only as well as this run is typical."""
         dwell_s = 1.0 / self.bandwidth_hz
         window = np.exp(-np.pi * APODIZATION_HZ * np.arange(self.npoints) * dwell_s)
         ppm = np.fft.fftshift(np.fft.fftfreq(self.npoints, dwell_s)) / voxel._f0_mhz()
@@ -377,9 +379,11 @@ class NoiseReading:
         found = []
         for seed in range(seeds):
             truth = voxel.sample(seed)
-            if gauss_hz is not None:
+            for leaf, value in (held or {}).items():
+                branch, _, key = leaf.rpartition(".")
                 # a realized leaf, as drawn
-                dict.__setitem__(truth["lineshape"], "gauss_hz", float(gauss_hz))
+                dict.__setitem__(functools.reduce(lambda node, part: node[part],
+                                                  branch.split("."), truth), key, float(value))
             _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
             row = []
             near = np.abs(ppm - LINES[self.line][0]) < LINES[self.line][1]
@@ -399,12 +403,12 @@ class NoiseReading:
     #************#
     #   record   #
     #************#
-    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=12, gauss_hz=None):
+    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=12, held=None):
         """The Calibration of noise.sigma this reading makes with `voxel` as its virtual
         twin: the value is the apodized reading's, the prior a quarter either side of it
         (one acquisition has no spread of its own; stated), the conditions the file's and
-        the twin's; `gauss_hz` as for `sigma`."""
-        plain, apodized = self.sigma(voxel, seeds, gauss_hz)
+        the twin's; `held` as for `sigma`, kept with the reading."""
+        plain, apodized = self.sigma(voxel, seeds, held)
         sequence = voxel.scan.sequence
         return Calibration(
             leaf="noise.sigma", value=round(apodized, 2),
@@ -414,7 +418,8 @@ class NoiseReading:
                       "median": round(self.snr, 1), "implied_value": round(plain, 2),
                       "naa_found_at_ppm": round(self.naa_ppm, 3),
                       "apodized": {"statistic": APODIZED, "median": round(self.snr_apodized, 1),
-                                   "implied_value": round(apodized, 2)}},
+                                   "implied_value": round(apodized, 2)},
+                      "twin_held_at": dict(held or {})},
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),

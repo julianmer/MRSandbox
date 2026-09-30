@@ -66,6 +66,33 @@ class TestNoiseReading:
         assert record.scanner["vendor"] == "virtual" and record.coil["channels"] == (4,)
         assert record.prior[0] < record.value < record.prior[1] and record.departures(scan) == {}
 
+    def test_a_twin_held_at_the_runs_own_readings_reads_the_run_alone(self):
+        # two twins whose residual water and delay differ read one run alike once held at the
+        # run's own readings, and apart when drawn
+        calm = Params(spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                       eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+        twins = [VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                             Press(te1_s=0.011, te2_s=0.024, tr_s=2.0),
+                             params=calm | Params(water=dict(adjusted_residual=residual),
+                                                  acquisition=dict(delay_s=delay))).voxel(
+            position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
+            for residual, delay in ((0.01, -0.0002), (0.05, -0.0006))]
+        n, dwell_s = 2048, 1.0 / 2000.0
+        _, fid = twins[0]._clean_fid(twins[0].sample(0), n, dwell_s)
+        fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * twins[0]._f0_mhz() * np.arange(n)
+                                       * dwell_s)
+        rng = np.random.default_rng(4)
+        data = fid[:, None, None] + 0.05 * np.abs(fid).max() * (
+            rng.standard_normal((n, 1, 16)) + 1j * rng.standard_normal((n, 1, 16)))
+        reading = NoiseReading.from_arrays(data, dwell_s, twins[0]._f0_mhz())
+        held = {"water.adjusted_residual": 0.01, "acquisition.delay_s": -0.0002}
+        assert (reading.sigma(twins[0], seeds=1, held=held)
+                == reading.sigma(twins[1], seeds=1, held=held))
+        assert reading.sigma(twins[0], seeds=1) != reading.sigma(twins[1], seeds=1)
+        record = reading.record(twins[1], "a run", seeds=1, held=held)
+        assert record.measured["twin_held_at"] == held
+
     def test_a_phantoms_water_line_gives_the_noise_with_the_scanners_own_noise_samples(self):
         from mrsandbox import Phantom, Unsuppressed
 

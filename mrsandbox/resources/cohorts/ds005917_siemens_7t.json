@@ -34,7 +34,7 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.3,
+      "value": 2.31,
       "prior": [
        1.73,
        2.88
@@ -47,7 +47,12 @@
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 97.9,
-        "implied_value": 2.3
+        "implied_value": 2.31
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 8.26,
+        "water.adjusted_residual": 0.000961,
+        "acquisition.delay_s": -5.04e-05
        }
       },
       "source": {
@@ -90,7 +95,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -99,15 +104,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 8.3,
+      "value": 8.26,
       "prior": [
-       6.23,
-       10.38
+       6.2,
+       10.32
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 10.39,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -147,7 +152,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -198,7 +203,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -249,7 +254,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -311,7 +316,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -320,16 +325,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -8.24e-05,
+      "value": -5.04e-05,
       "prior": [
-       -0.000103,
-       -6.18e-05
+       -6.3e-05,
+       -3.78e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -82.4,
+       "delay_us": -50.4,
        "creatine_phase_deg": -7.9,
-       "intrinsic_phase_deg": 1.1,
+       "intrinsic_phase_deg": -2.4,
        "creatine_offset_hz": 303.7
       },
       "source": {
@@ -373,7 +378,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -435,7 +440,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -494,7 +499,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -526,7 +531,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -540,7 +545,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -572,7 +577,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -586,7 +591,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -618,7 +623,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -632,7 +637,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -664,7 +669,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -678,7 +683,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -710,7 +715,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -724,7 +729,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -756,7 +761,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -770,7 +775,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2327,20 +2332,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.07,
+      "value": 2.02,
       "prior": [
-       1.55,
-       2.59
+       1.51,
+       2.52
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 35.0,
-       "implied_value": 2.0,
+       "implied_value": 1.97,
        "naa_found_at_ppm": 1.988,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 103.4,
-        "implied_value": 2.07
+        "implied_value": 2.02
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.9,
+        "water.adjusted_residual": 0.000855,
+        "acquisition.delay_s": 6.08e-05
        }
       },
       "source": {
@@ -2383,7 +2393,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2392,15 +2402,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 9.95,
+      "value": 9.9,
       "prior": [
-       7.46,
-       12.44
+       7.43,
+       12.38
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 12.21,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -2440,7 +2450,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2491,7 +2501,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2542,7 +2552,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2604,7 +2614,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2613,16 +2623,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 3.15e-05,
+      "value": 6.08e-05,
       "prior": [
-       2.36e-05,
-       3.94e-05
+       4.56e-05,
+       7.6e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 31.5,
+       "delay_us": 60.8,
        "creatine_phase_deg": 3.9,
-       "intrinsic_phase_deg": 0.5,
+       "intrinsic_phase_deg": -2.7,
        "creatine_offset_hz": 302.5
       },
       "source": {
@@ -2666,7 +2676,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -2728,7 +2738,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2787,7 +2797,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -2819,7 +2829,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -2833,7 +2843,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2865,7 +2875,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -2879,7 +2889,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2911,7 +2921,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -2925,7 +2935,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2957,7 +2967,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -2971,7 +2981,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3003,7 +3013,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -3017,7 +3027,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3049,7 +3059,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -3063,7 +3073,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4620,20 +4630,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.4,
+      "value": 2.41,
       "prior": [
        1.8,
-       3.0
+       3.01
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 31.2,
-       "implied_value": 2.32,
+       "implied_value": 2.31,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 90.4,
-        "implied_value": 2.4
+        "implied_value": 2.41
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.49,
+        "water.adjusted_residual": 0.001263,
+        "acquisition.delay_s": -5.19e-05
        }
       },
       "source": {
@@ -4676,7 +4691,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4693,7 +4708,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.71,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -4733,7 +4748,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4784,7 +4799,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4835,7 +4850,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4897,7 +4912,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4906,16 +4921,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -7.16e-05,
+      "value": -5.19e-05,
       "prior": [
-       -8.95e-05,
-       -5.37e-05
+       -6.49e-05,
+       -3.9e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -71.6,
+       "delay_us": -51.9,
        "creatine_phase_deg": -7.0,
-       "intrinsic_phase_deg": 0.8,
+       "intrinsic_phase_deg": -1.3,
        "creatine_offset_hz": 303.5
       },
       "source": {
@@ -4959,7 +4974,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -5021,7 +5036,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5080,7 +5095,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -5112,7 +5127,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -5126,7 +5141,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5158,7 +5173,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -5172,7 +5187,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5204,7 +5219,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -5218,7 +5233,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -5250,7 +5265,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -5264,7 +5279,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5296,7 +5311,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -5310,7 +5325,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5342,7 +5357,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -5356,7 +5371,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -6913,7 +6928,7 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.3,
+      "value": 2.31,
       "prior": [
        1.73,
        2.88
@@ -6926,7 +6941,12 @@
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 87.9,
-        "implied_value": 2.3
+        "implied_value": 2.31
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 11.45,
+        "water.adjusted_residual": 0.001217,
+        "acquisition.delay_s": -1.7e-06
        }
       },
       "source": {
@@ -6969,7 +6989,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6978,15 +6998,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 11.61,
+      "value": 11.45,
       "prior": [
-       8.71,
-       14.51
+       8.59,
+       14.31
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.06,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -7026,7 +7046,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7077,7 +7097,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7128,7 +7148,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7190,7 +7210,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7199,16 +7219,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -2.11e-05,
+      "value": -1.7e-06,
       "prior": [
-       -2.64e-05,
-       -1.58e-05
+       -2.1e-06,
+       -1.3e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -21.1,
+       "delay_us": -1.7,
        "creatine_phase_deg": -0.8,
-       "intrinsic_phase_deg": 1.5,
+       "intrinsic_phase_deg": -0.6,
        "creatine_offset_hz": 301.5
       },
       "source": {
@@ -7252,7 +7272,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -7314,7 +7334,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7373,7 +7393,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -7405,7 +7425,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -7419,7 +7439,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7451,7 +7471,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -7465,7 +7485,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7497,7 +7517,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -7511,7 +7531,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7543,7 +7563,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -7557,7 +7577,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7589,7 +7609,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -7603,7 +7623,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7635,7 +7655,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -7649,7 +7669,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9206,20 +9226,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.13,
+      "value": 2.1,
       "prior": [
-       1.6,
-       2.67
+       1.58,
+       2.63
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 36.7,
-       "implied_value": 2.09,
+       "implied_value": 2.06,
        "naa_found_at_ppm": 1.969,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 103.9,
-        "implied_value": 2.13
+        "implied_value": 2.1
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 8.83,
+        "water.adjusted_residual": 0.001119,
+        "acquisition.delay_s": 3.61e-05
        }
       },
       "source": {
@@ -9262,7 +9287,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9279,7 +9304,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.0,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -9319,7 +9344,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9370,7 +9395,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9421,7 +9446,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9483,7 +9508,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9492,16 +9517,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 1.69e-05,
+      "value": 3.61e-05,
       "prior": [
-       1.27e-05,
-       2.11e-05
+       2.71e-05,
+       4.52e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 16.9,
+       "delay_us": 36.1,
        "creatine_phase_deg": 1.4,
-       "intrinsic_phase_deg": -0.5,
+       "intrinsic_phase_deg": -2.6,
        "creatine_offset_hz": 303.5
       },
       "source": {
@@ -9545,7 +9570,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9607,7 +9632,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9666,7 +9691,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9698,7 +9723,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -9712,7 +9737,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9744,7 +9769,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -9758,7 +9783,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9790,7 +9815,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -9804,7 +9829,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9836,7 +9861,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -9850,7 +9875,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9882,7 +9907,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -9896,7 +9921,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9928,7 +9953,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -9942,7 +9967,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -11499,20 +11524,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.54,
+      "value": 2.53,
       "prior": [
        1.9,
-       3.17
+       3.16
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 34.2,
-       "implied_value": 2.38,
+       "implied_value": 2.37,
        "naa_found_at_ppm": 2.008,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 89.3,
-        "implied_value": 2.54
+        "implied_value": 2.53
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 8.11,
+        "water.adjusted_residual": 0.001327,
+        "acquisition.delay_s": -2.07e-05
        }
       },
       "source": {
@@ -11555,7 +11585,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11572,7 +11602,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 10.21,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -11612,7 +11642,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11663,7 +11693,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11714,7 +11744,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11776,7 +11806,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11785,16 +11815,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -4.12e-05,
+      "value": -2.07e-05,
       "prior": [
-       -5.14e-05,
-       -3.09e-05
+       -2.59e-05,
+       -1.55e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -41.2,
+       "delay_us": -20.7,
        "creatine_phase_deg": -4.6,
-       "intrinsic_phase_deg": -0.1,
+       "intrinsic_phase_deg": -2.3,
        "creatine_offset_hz": 303.1
       },
       "source": {
@@ -11838,7 +11868,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -11900,7 +11930,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11959,7 +11989,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -11991,7 +12021,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -12005,7 +12035,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12037,7 +12067,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -12051,7 +12081,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12083,7 +12113,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -12097,7 +12127,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -12129,7 +12159,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -12143,7 +12173,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12175,7 +12205,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -12189,7 +12219,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12221,7 +12251,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -12235,7 +12265,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -13792,20 +13822,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.33,
+      "value": 2.28,
       "prior": [
-       1.75,
-       2.92
+       1.71,
+       2.85
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 38.4,
-       "implied_value": 2.18,
+       "implied_value": 2.16,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 98.1,
-        "implied_value": 2.33
+        "implied_value": 2.28
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 7.76,
+        "water.adjusted_residual": 0.000723,
+        "acquisition.delay_s": 7.17e-05
        }
       },
       "source": {
@@ -13848,7 +13883,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13857,15 +13892,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 7.8,
+      "value": 7.76,
       "prior": [
-       5.85,
-       9.75
+       5.82,
+       9.7
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 9.86,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -13905,7 +13940,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13956,7 +13991,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14007,7 +14042,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14069,7 +14104,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14078,16 +14113,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 5.11e-05,
+      "value": 7.17e-05,
       "prior": [
-       3.83e-05,
-       6.38e-05
+       5.38e-05,
+       8.97e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 51.1,
+       "delay_us": 71.7,
        "creatine_phase_deg": 5.3,
-       "intrinsic_phase_deg": -0.2,
+       "intrinsic_phase_deg": -2.5,
        "creatine_offset_hz": 302.2
       },
       "source": {
@@ -14131,7 +14166,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -14193,7 +14228,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14252,7 +14287,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -14284,7 +14319,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -14298,7 +14333,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14330,7 +14365,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -14344,7 +14379,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14376,7 +14411,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -14390,7 +14425,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -14422,7 +14457,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -14436,7 +14471,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14468,7 +14503,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -14482,7 +14517,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14514,7 +14549,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -14528,7 +14563,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -16085,20 +16120,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.59,
+      "value": 2.57,
       "prior": [
-       1.94,
-       3.24
+       1.93,
+       3.21
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 27.2,
-       "implied_value": 2.45,
+       "implied_value": 2.44,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 80.9,
-        "implied_value": 2.59
+        "implied_value": 2.57
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 10.47,
+        "water.adjusted_residual": 0.001186,
+        "acquisition.delay_s": 1.98e-05
        }
       },
       "source": {
@@ -16141,7 +16181,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16150,15 +16190,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.57,
+      "value": 10.47,
       "prior": [
-       7.93,
-       13.21
+       7.85,
+       13.09
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 12.92,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -16198,7 +16238,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16249,7 +16289,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16300,7 +16340,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16362,7 +16402,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16371,16 +16411,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -9.3e-06,
+      "value": 1.98e-05,
       "prior": [
-       -1.16e-05,
-       -6.9e-06
+       1.49e-05,
+       2.48e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -9.3,
+       "delay_us": 19.8,
        "creatine_phase_deg": 0.6,
-       "intrinsic_phase_deg": 1.6,
+       "intrinsic_phase_deg": -1.5,
        "creatine_offset_hz": 301.4
       },
       "source": {
@@ -16424,7 +16464,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -16486,7 +16526,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16545,7 +16585,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -16577,7 +16617,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -16591,7 +16631,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16623,7 +16663,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -16637,7 +16677,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16669,7 +16709,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -16683,7 +16723,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -16715,7 +16755,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -16729,7 +16769,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16761,7 +16801,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -16775,7 +16815,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -16807,7 +16847,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -16821,7 +16861,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -18378,20 +18418,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.28,
+      "value": 2.27,
       "prior": [
-       1.71,
-       2.85
+       1.7,
+       2.84
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 32.8,
-       "implied_value": 2.2,
+       "implied_value": 2.19,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 95.1,
-        "implied_value": 2.28
+        "implied_value": 2.27
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.52,
+        "water.adjusted_residual": 0.001353,
+        "acquisition.delay_s": -1.15e-05
        }
       },
       "source": {
@@ -18434,7 +18479,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18451,7 +18496,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.75,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -18491,7 +18536,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18542,7 +18587,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18593,7 +18638,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18655,7 +18700,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18664,16 +18709,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -4.18e-05,
+      "value": -1.15e-05,
       "prior": [
-       -5.23e-05,
-       -3.14e-05
+       -1.44e-05,
+       -8.6e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -41.8,
+       "delay_us": -11.5,
        "creatine_phase_deg": -2.5,
-       "intrinsic_phase_deg": 2.0,
+       "intrinsic_phase_deg": -1.3,
        "creatine_offset_hz": 302.2
       },
       "source": {
@@ -18717,7 +18762,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -18779,7 +18824,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18838,7 +18883,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -18870,7 +18915,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -18884,7 +18929,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18916,7 +18961,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -18930,7 +18975,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -18962,7 +19007,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -18976,7 +19021,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -19008,7 +19053,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -19022,7 +19067,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -19054,7 +19099,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -19068,7 +19113,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -19100,7 +19145,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -19114,7 +19159,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -20671,20 +20716,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.73,
+      "value": 2.65,
       "prior": [
-       2.05,
-       3.42
+       1.99,
+       3.32
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 32.0,
-       "implied_value": 2.57,
+       "implied_value": 2.53,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 83.2,
-        "implied_value": 2.73
+        "implied_value": 2.65
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 7.99,
+        "water.adjusted_residual": 0.001115,
+        "acquisition.delay_s": 8.45e-05
        }
       },
       "source": {
@@ -20727,7 +20777,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20736,15 +20786,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 8.03,
+      "value": 7.99,
       "prior": [
-       6.02,
-       10.04
+       5.99,
+       9.99
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 10.1,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -20784,7 +20834,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20835,7 +20885,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20886,7 +20936,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20948,7 +20998,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -20957,16 +21007,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 6.44e-05,
+      "value": 8.45e-05,
       "prior": [
-       4.83e-05,
-       8.05e-05
+       6.34e-05,
+       0.0001056
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 64.4,
+       "delay_us": 84.5,
        "creatine_phase_deg": 6.8,
-       "intrinsic_phase_deg": -0.2,
+       "intrinsic_phase_deg": -2.4,
        "creatine_offset_hz": 301.8
       },
       "source": {
@@ -21010,7 +21060,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -21072,7 +21122,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21131,7 +21181,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -21163,7 +21213,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -21177,7 +21227,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21209,7 +21259,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -21223,7 +21273,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21255,7 +21305,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -21269,7 +21319,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -21301,7 +21351,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -21315,7 +21365,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21347,7 +21397,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -21361,7 +21411,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -21393,7 +21443,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -21407,7 +21457,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -22964,20 +23014,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.68,
+      "value": 2.62,
       "prior": [
-       2.01,
-       3.36
+       1.97,
+       3.28
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 29.1,
-       "implied_value": 2.51,
+       "implied_value": 2.47,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 81.1,
-        "implied_value": 2.68
+        "implied_value": 2.62
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.4,
+        "water.adjusted_residual": 0.001383,
+        "acquisition.delay_s": 5.46e-05
        }
       },
       "source": {
@@ -23020,7 +23075,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23037,7 +23092,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.6,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -23077,7 +23132,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23128,7 +23183,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23179,7 +23234,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23241,7 +23296,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23250,16 +23305,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 3.54e-05,
+      "value": 5.46e-05,
       "prior": [
-       2.65e-05,
-       4.42e-05
+       4.1e-05,
+       6.83e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 35.4,
+       "delay_us": 54.6,
        "creatine_phase_deg": 4.6,
-       "intrinsic_phase_deg": 0.7,
+       "intrinsic_phase_deg": -1.4,
        "creatine_offset_hz": 302.9
       },
       "source": {
@@ -23303,7 +23358,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -23365,7 +23420,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23424,7 +23479,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -23456,7 +23511,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -23470,7 +23525,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23502,7 +23557,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -23516,7 +23571,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23548,7 +23603,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -23562,7 +23617,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -23594,7 +23649,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -23608,7 +23663,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23640,7 +23695,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -23654,7 +23709,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -23686,7 +23741,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -23700,7 +23755,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -25257,20 +25312,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.79,
+      "value": 2.68,
       "prior": [
-       2.09,
-       3.48
+       2.01,
+       3.34
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 23.8,
-       "implied_value": 2.64,
+       "implied_value": 2.6,
        "naa_found_at_ppm": 1.988,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 73.0,
-        "implied_value": 2.79
+        "implied_value": 2.68
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 11.29,
+        "water.adjusted_residual": 0.001775,
+        "acquisition.delay_s": 0.0001127
        }
       },
       "source": {
@@ -25313,7 +25373,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25322,15 +25382,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 11.45,
+      "value": 11.29,
       "prior": [
-       8.59,
-       14.31
+       8.47,
+       14.11
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 13.86,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -25370,7 +25430,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25421,7 +25481,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25472,7 +25532,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25534,7 +25594,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25543,16 +25603,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0001029,
+      "value": 0.0001127,
       "prior": [
-       7.72e-05,
-       0.0001287
+       8.45e-05,
+       0.0001409
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 102.9,
+       "delay_us": 112.7,
        "creatine_phase_deg": 12.4,
-       "intrinsic_phase_deg": 1.3,
+       "intrinsic_phase_deg": 0.3,
        "creatine_offset_hz": 300.0
       },
       "source": {
@@ -25596,7 +25656,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -25658,7 +25718,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25717,7 +25777,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -25749,7 +25809,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -25763,7 +25823,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25795,7 +25855,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -25809,7 +25869,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25841,7 +25901,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -25855,7 +25915,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -25887,7 +25947,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -25901,7 +25961,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25933,7 +25993,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -25947,7 +26007,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -25979,7 +26039,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -25993,7 +26053,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -27550,20 +27610,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.42,
+      "value": 3.23,
       "prior": [
-       2.57,
-       4.28
+       2.43,
+       4.04
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 21.5,
-       "implied_value": 3.14,
+       "implied_value": 3.08,
        "naa_found_at_ppm": 2.002,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 61.6,
-        "implied_value": 3.42
+        "implied_value": 3.23
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 10.31,
+        "water.adjusted_residual": 0.001132,
+        "acquisition.delay_s": 0.000147
        }
       },
       "source": {
@@ -27606,7 +27671,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27615,15 +27680,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.41,
+      "value": 10.31,
       "prior": [
-       7.81,
-       13.01
+       7.73,
+       12.89
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 12.72,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -27663,7 +27728,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27714,7 +27779,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27765,7 +27830,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27827,7 +27892,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -27836,16 +27901,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0001284,
+      "value": 0.000147,
       "prior": [
-       9.63e-05,
-       0.0001605
+       0.0001103,
+       0.0001838
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 128.4,
+       "delay_us": 147.0,
        "creatine_phase_deg": 14.3,
-       "intrinsic_phase_deg": 0.4,
+       "intrinsic_phase_deg": -1.6,
        "creatine_offset_hz": 302.1
       },
       "source": {
@@ -27889,7 +27954,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -27951,7 +28016,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -28010,7 +28075,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -28042,7 +28107,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -28056,7 +28121,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -28088,7 +28153,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -28102,7 +28167,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -28134,7 +28199,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -28148,7 +28213,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -28180,7 +28245,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -28194,7 +28259,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -28226,7 +28291,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -28240,7 +28305,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -28272,7 +28337,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -28286,7 +28351,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -29845,8 +29910,8 @@
       "leaf": "noise.sigma",
       "value": 2.06,
       "prior": [
-       1.54,
-       2.57
+       1.55,
+       2.58
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
@@ -29857,6 +29922,11 @@
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 106.8,
         "implied_value": 2.06
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.1,
+        "water.adjusted_residual": 0.001218,
+        "acquisition.delay_s": -5.83e-05
        }
       },
       "source": {
@@ -29899,7 +29969,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -29916,7 +29986,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.28,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -29956,7 +30026,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30007,7 +30077,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30058,7 +30128,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30120,7 +30190,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30129,16 +30199,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -7.78e-05,
+      "value": -5.83e-05,
       "prior": [
-       -9.72e-05,
-       -5.83e-05
+       -7.29e-05,
+       -4.37e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -77.8,
+       "delay_us": -58.3,
        "creatine_phase_deg": -7.6,
-       "intrinsic_phase_deg": 0.9,
+       "intrinsic_phase_deg": -1.2,
        "creatine_offset_hz": 303.7
       },
       "source": {
@@ -30182,7 +30252,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -30244,7 +30314,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30303,7 +30373,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -30335,7 +30405,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -30349,7 +30419,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30381,7 +30451,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -30395,7 +30465,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30427,7 +30497,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -30441,7 +30511,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -30473,7 +30543,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -30487,7 +30557,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30519,7 +30589,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -30533,7 +30603,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -30565,7 +30635,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -30579,7 +30649,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -32144,12 +32214,17 @@
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 34.1,
-       "implied_value": 2.08,
+       "implied_value": 2.07,
        "naa_found_at_ppm": 1.988,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 101.0,
         "implied_value": 2.13
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.75,
+        "water.adjusted_residual": 0.001273,
+        "acquisition.delay_s": -3.19e-05
        }
       },
       "source": {
@@ -32192,7 +32267,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32209,7 +32284,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.97,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -32249,7 +32324,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32300,7 +32375,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32351,7 +32426,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32413,7 +32488,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32422,16 +32497,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -5.01e-05,
+      "value": -3.19e-05,
       "prior": [
-       -6.27e-05,
-       -3.76e-05
+       -3.99e-05,
+       -2.39e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -50.1,
+       "delay_us": -31.9,
        "creatine_phase_deg": -4.8,
-       "intrinsic_phase_deg": 0.7,
+       "intrinsic_phase_deg": -1.3,
        "creatine_offset_hz": 302.6
       },
       "source": {
@@ -32475,7 +32550,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -32537,7 +32612,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32596,7 +32671,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -32628,7 +32703,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -32642,7 +32717,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32674,7 +32749,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -32688,7 +32763,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32720,7 +32795,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -32734,7 +32809,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -32766,7 +32841,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -32780,7 +32855,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32812,7 +32887,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -32826,7 +32901,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -32858,7 +32933,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -32872,7 +32947,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -34429,20 +34504,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.38,
+      "value": 2.36,
       "prior": [
-       1.79,
-       2.98
+       1.77,
+       2.95
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 36.1,
-       "implied_value": 2.28,
+       "implied_value": 2.26,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 95.4,
-        "implied_value": 2.38
+        "implied_value": 2.36
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 7.98,
+        "water.adjusted_residual": 0.001269,
+        "acquisition.delay_s": 2.23e-05
        }
       },
       "source": {
@@ -34485,7 +34565,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34494,15 +34574,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 8.02,
+      "value": 7.98,
       "prior": [
-       6.01,
-       10.02
+       5.99,
+       9.98
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 10.09,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -34542,7 +34622,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34593,7 +34673,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34644,7 +34724,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34706,7 +34786,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34715,16 +34795,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 2.2e-06,
+      "value": 2.23e-05,
       "prior": [
-       1.6e-06,
-       2.7e-06
+       1.67e-05,
+       2.78e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 2.2,
+       "delay_us": 22.3,
        "creatine_phase_deg": 0.1,
-       "intrinsic_phase_deg": -0.1,
+       "intrinsic_phase_deg": -2.3,
        "creatine_offset_hz": 303.8
       },
       "source": {
@@ -34768,7 +34848,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -34830,7 +34910,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34889,7 +34969,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -34921,7 +35001,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -34935,7 +35015,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -34967,7 +35047,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -34981,7 +35061,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35013,7 +35093,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -35027,7 +35107,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -35059,7 +35139,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -35073,7 +35153,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35105,7 +35185,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -35119,7 +35199,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -35151,7 +35231,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -35165,7 +35245,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -36722,20 +36802,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.32,
+      "value": 2.3,
       "prior": [
-       1.74,
-       2.9
+       1.73,
+       2.88
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 40.5,
-       "implied_value": 2.25,
+       "implied_value": 2.23,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 98.8,
-        "implied_value": 2.32
+        "implied_value": 2.3
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 7.02,
+        "water.adjusted_residual": 0.001474,
+        "acquisition.delay_s": 1.57e-05
        }
       },
       "source": {
@@ -36778,7 +36863,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -36787,15 +36872,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 7.05,
+      "value": 7.02,
       "prior": [
-       5.29,
-       8.81
+       5.26,
+       8.77
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 9.09,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -36835,7 +36920,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -36886,7 +36971,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -36937,7 +37022,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -36999,7 +37084,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37008,16 +37093,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -5.9e-06,
+      "value": 1.57e-05,
       "prior": [
-       -7.4e-06,
-       -4.4e-06
+       1.18e-05,
+       1.97e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -5.9,
+       "delay_us": 15.7,
        "creatine_phase_deg": -0.5,
-       "intrinsic_phase_deg": 0.2,
+       "intrinsic_phase_deg": -2.2,
        "creatine_offset_hz": 303.0
       },
       "source": {
@@ -37061,7 +37146,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -37123,7 +37208,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37182,7 +37267,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -37214,7 +37299,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -37228,7 +37313,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37260,7 +37345,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -37274,7 +37359,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37306,7 +37391,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -37320,7 +37405,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -37352,7 +37437,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -37366,7 +37451,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37398,7 +37483,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -37412,7 +37497,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -37444,7 +37529,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -37458,7 +37543,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -39015,20 +39100,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.48,
+      "value": 2.47,
       "prior": [
-       1.86,
-       3.1
+       1.85,
+       3.09
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 36.8,
-       "implied_value": 2.35,
+       "implied_value": 2.33,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 91.3,
-        "implied_value": 2.48
+        "implied_value": 2.47
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 7.5,
+        "water.adjusted_residual": 0.000928,
+        "acquisition.delay_s": -1.98e-05
        }
       },
       "source": {
@@ -39071,7 +39161,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39088,7 +39178,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 9.58,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -39128,7 +39218,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39179,7 +39269,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39230,7 +39320,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39292,7 +39382,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39301,16 +39391,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -4.1e-05,
+      "value": -1.98e-05,
       "prior": [
-       -5.13e-05,
-       -3.08e-05
+       -2.47e-05,
+       -1.48e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -41.0,
+       "delay_us": -19.8,
        "creatine_phase_deg": -4.4,
-       "intrinsic_phase_deg": 0.1,
+       "intrinsic_phase_deg": -2.2,
        "creatine_offset_hz": 302.4
       },
       "source": {
@@ -39354,7 +39444,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -39416,7 +39506,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39475,7 +39565,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -39507,7 +39597,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -39521,7 +39611,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39553,7 +39643,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -39567,7 +39657,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39599,7 +39689,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -39613,7 +39703,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -39645,7 +39735,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -39659,7 +39749,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39691,7 +39781,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -39705,7 +39795,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -39737,7 +39827,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -39751,7 +39841,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -41308,20 +41398,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 1.91,
+      "value": 1.83,
       "prior": [
-       1.43,
-       2.39
+       1.37,
+       2.29
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 38.9,
-       "implied_value": 1.86,
+       "implied_value": 1.82,
        "naa_found_at_ppm": 1.988,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 113.6,
-        "implied_value": 1.91
+        "implied_value": 1.83
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.53,
+        "water.adjusted_residual": 0.001403,
+        "acquisition.delay_s": 0.0001001
        }
       },
       "source": {
@@ -41364,7 +41459,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41381,7 +41476,7 @@
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.75,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -41421,7 +41516,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41472,7 +41567,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41523,7 +41618,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41585,7 +41680,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41594,16 +41689,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 8.09e-05,
+      "value": 0.0001001,
       "prior": [
-       6.07e-05,
-       0.0001011
+       7.51e-05,
+       0.0001251
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 80.9,
+       "delay_us": 100.1,
        "creatine_phase_deg": 9.4,
-       "intrinsic_phase_deg": 0.7,
+       "intrinsic_phase_deg": -1.4,
        "creatine_offset_hz": 300.4
       },
       "source": {
@@ -41647,7 +41742,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -41709,7 +41804,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41768,7 +41863,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -41800,7 +41895,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -41814,7 +41909,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41846,7 +41941,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -41860,7 +41955,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41892,7 +41987,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -41906,7 +42001,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -41938,7 +42033,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -41952,7 +42047,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -41984,7 +42079,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -41998,7 +42093,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -42030,7 +42125,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -42044,7 +42139,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -43601,20 +43696,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.03,
+      "value": 2.04,
       "prior": [
-       1.52,
-       2.54
+       1.53,
+       2.55
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 29.9,
-       "implied_value": 1.97,
+       "implied_value": 1.98,
        "naa_found_at_ppm": 1.936,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 97.3,
-        "implied_value": 2.03
+        "implied_value": 2.04
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 12.22,
+        "water.adjusted_residual": 0.001055,
+        "acquisition.delay_s": -5.2e-06
        }
       },
       "source": {
@@ -43657,7 +43757,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43666,15 +43766,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 12.4,
+      "value": 12.22,
       "prior": [
-       9.3,
-       15.5
+       9.17,
+       15.28
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 14.87,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -43714,7 +43814,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43765,7 +43865,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43816,7 +43916,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43878,7 +43978,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -43887,16 +43987,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -2.46e-05,
+      "value": -5.2e-06,
       "prior": [
-       -3.07e-05,
-       -1.84e-05
+       -6.5e-06,
+       -3.9e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -24.6,
+       "delay_us": -5.2,
        "creatine_phase_deg": -0.4,
-       "intrinsic_phase_deg": 2.3,
+       "intrinsic_phase_deg": 0.1,
        "creatine_offset_hz": 301.8
       },
       "source": {
@@ -43940,7 +44040,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -44002,7 +44102,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -44061,7 +44161,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -44093,7 +44193,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -44107,7 +44207,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -44139,7 +44239,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -44153,7 +44253,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -44185,7 +44285,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -44199,7 +44299,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -44231,7 +44331,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -44245,7 +44345,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -44277,7 +44377,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -44291,7 +44391,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -44323,7 +44423,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -44337,7 +44437,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -45902,12 +46002,17 @@
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 48.1,
-       "implied_value": 1.86,
+       "implied_value": 1.85,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 121.0,
         "implied_value": 1.89
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 7.16,
+        "water.adjusted_residual": 0.00134,
+        "acquisition.delay_s": -3.58e-05
        }
       },
       "source": {
@@ -45950,7 +46055,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -45959,15 +46064,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 7.19,
+      "value": 7.16,
       "prior": [
-       5.39,
-       8.99
+       5.37,
+       8.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 9.23,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -46007,7 +46112,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46058,7 +46163,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46109,7 +46214,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46171,7 +46276,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46180,16 +46285,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -5.78e-05,
+      "value": -3.58e-05,
       "prior": [
-       -7.22e-05,
-       -4.33e-05
+       -4.48e-05,
+       -2.69e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -57.8,
+       "delay_us": -35.8,
        "creatine_phase_deg": -6.1,
-       "intrinsic_phase_deg": 0.2,
+       "intrinsic_phase_deg": -2.2,
        "creatine_offset_hz": 303.5
       },
       "source": {
@@ -46233,7 +46338,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -46295,7 +46400,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46354,7 +46459,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -46386,7 +46491,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -46400,7 +46505,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46432,7 +46537,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -46446,7 +46551,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46478,7 +46583,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -46492,7 +46597,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -46524,7 +46629,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -46538,7 +46643,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46570,7 +46675,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -46584,7 +46689,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -46616,7 +46721,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -46630,7 +46735,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -48187,20 +48292,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.15,
+      "value": 2.13,
       "prior": [
-       1.61,
-       2.69
+       1.6,
+       2.67
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 33.7,
-       "implied_value": 2.08,
+       "implied_value": 2.07,
        "naa_found_at_ppm": 2.002,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 99.6,
-        "implied_value": 2.15
+        "implied_value": 2.13
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.87,
+        "water.adjusted_residual": 0.001473,
+        "acquisition.delay_s": 1.23e-05
        }
       },
       "source": {
@@ -48243,7 +48353,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48252,15 +48362,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 9.92,
+      "value": 9.87,
       "prior": [
-       7.44,
-       12.4
+       7.4,
+       12.34
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 12.18,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -48300,7 +48410,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48351,7 +48461,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48402,7 +48512,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48464,7 +48574,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48473,16 +48583,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -6.5e-06,
+      "value": 1.23e-05,
       "prior": [
-       -8.1e-06,
-       -4.8e-06
+       9.2e-06,
+       1.53e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -6.5,
+       "delay_us": 12.3,
        "creatine_phase_deg": -0.0,
-       "intrinsic_phase_deg": 0.7,
+       "intrinsic_phase_deg": -1.4,
        "creatine_offset_hz": 302.1
       },
       "source": {
@@ -48526,7 +48636,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -48588,7 +48698,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48647,7 +48757,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -48679,7 +48789,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -48693,7 +48803,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48725,7 +48835,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -48739,7 +48849,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48771,7 +48881,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -48785,7 +48895,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -48817,7 +48927,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -48831,7 +48941,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48863,7 +48973,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -48877,7 +48987,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -48909,7 +49019,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -48923,7 +49033,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -50480,20 +50590,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 3.09,
+      "value": 3.14,
       "prior": [
-       2.32,
-       3.87
+       2.35,
+       3.92
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 28.0,
-       "implied_value": 2.92,
+       "implied_value": 2.94,
        "naa_found_at_ppm": 1.988,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 73.4,
-        "implied_value": 3.09
+        "implied_value": 3.14
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 8.03,
+        "water.adjusted_residual": 0.001118,
+        "acquisition.delay_s": -0.0001617
        }
       },
       "source": {
@@ -50536,7 +50651,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -50545,15 +50660,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 8.07,
+      "value": 8.03,
       "prior": [
-       6.05,
-       10.09
+       6.02,
+       10.04
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 10.15,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -50593,7 +50708,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -50644,7 +50759,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -50695,7 +50810,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -50757,7 +50872,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -50766,16 +50881,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0001945,
+      "value": -0.0001617,
       "prior": [
-       -0.0002431,
-       -0.0001459
+       -0.0002021,
+       -0.0001213
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -194.5,
+       "delay_us": -161.7,
        "creatine_phase_deg": -20.0,
-       "intrinsic_phase_deg": 1.3,
+       "intrinsic_phase_deg": -2.3,
        "creatine_offset_hz": 304.7
       },
       "source": {
@@ -50819,7 +50934,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -50881,7 +50996,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -50940,7 +51055,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -50972,7 +51087,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -50986,7 +51101,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -51018,7 +51133,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -51032,7 +51147,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -51064,7 +51179,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -51078,7 +51193,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -51110,7 +51225,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -51124,7 +51239,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -51156,7 +51271,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -51170,7 +51285,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -51202,7 +51317,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -51216,7 +51331,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -52771,7 +52886,7 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.25,
+      "value": 2.26,
       "prior": [
        1.69,
        2.82
@@ -52779,12 +52894,17 @@
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 42.7,
-       "implied_value": 2.24,
+       "implied_value": 2.23,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 103.2,
-        "implied_value": 2.25
+        "implied_value": 2.26
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 6.59,
+        "water.adjusted_residual": 0.00161,
+        "acquisition.delay_s": -4.6e-05
        }
       },
       "source": {
@@ -52827,7 +52947,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -52836,15 +52956,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 6.62,
+      "value": 6.59,
       "prior": [
-       4.96,
-       8.28
+       4.94,
+       8.24
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 8.67,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -52884,7 +53004,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -52935,7 +53055,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -52986,7 +53106,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53048,7 +53168,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53057,16 +53177,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -5.39e-05,
+      "value": -4.6e-05,
       "prior": [
-       -6.74e-05,
-       -4.04e-05
+       -5.75e-05,
+       -3.45e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -53.9,
+       "delay_us": -46.0,
        "creatine_phase_deg": -7.1,
-       "intrinsic_phase_deg": -1.3,
+       "intrinsic_phase_deg": -2.1,
        "creatine_offset_hz": 302.9
       },
       "source": {
@@ -53110,7 +53230,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -53172,7 +53292,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53231,7 +53351,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -53263,7 +53383,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -53277,7 +53397,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53309,7 +53429,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -53323,7 +53443,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53355,7 +53475,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -53369,7 +53489,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -53401,7 +53521,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -53415,7 +53535,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53447,7 +53567,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -53461,7 +53581,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -53493,7 +53613,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -53507,7 +53627,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -55064,10 +55184,10 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.7,
+      "value": 2.71,
       "prior": [
-       2.02,
-       3.37
+       2.03,
+       3.39
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
@@ -55077,7 +55197,12 @@
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 80.9,
-        "implied_value": 2.7
+        "implied_value": 2.71
+       },
+       "twin_held_at": {
+        "lineshape.gauss_hz": 9.27,
+        "water.adjusted_residual": 0.00104,
+        "acquisition.delay_s": -6.34e-05
        }
       },
       "source": {
@@ -55120,7 +55245,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55129,15 +55254,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 9.32,
+      "value": 9.27,
       "prior": [
-       6.99,
-       11.65
+       6.95,
+       11.59
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 11.49,
-       "twin_without_broadening_hz": 3.68
+       "twin_without_broadening_hz": 3.7
       },
       "source": {
        "dataset": "OpenNeuro ds005917, NIMH ketamine mechanism of action study, the baseline sessions (CC0)",
@@ -55177,7 +55302,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55228,7 +55353,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55279,7 +55404,7 @@
        "load": "a head"
       },
       "processing": "sample covariance of the channels over all samples",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55341,7 +55466,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55350,16 +55475,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -8.36e-05,
+      "value": -6.34e-05,
       "prior": [
-       -0.0001045,
-       -6.27e-05
+       -7.93e-05,
+       -4.76e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -83.6,
+       "delay_us": -63.4,
        "creatine_phase_deg": -8.2,
-       "intrinsic_phase_deg": 1.0,
+       "intrinsic_phase_deg": -1.2,
        "creatine_offset_hz": 303.0
       },
       "source": {
@@ -55403,7 +55528,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -55465,7 +55590,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55524,7 +55649,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -55556,7 +55681,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -55570,7 +55695,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55602,7 +55727,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -55616,7 +55741,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55648,7 +55773,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -55662,7 +55787,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -55694,7 +55819,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -55708,7 +55833,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55740,7 +55865,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -55754,7 +55879,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -55786,7 +55911,7 @@
       },
       "coil": {
        "channels": [],
-       "name": null
+       "name": "32Ch_Head_7T"
       },
       "sequence": {
        "name": "press",
@@ -55800,7 +55925,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "28/09/26",
+      "date": "30/09/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

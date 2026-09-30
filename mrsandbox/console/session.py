@@ -1634,6 +1634,42 @@ class Session:
                             for r in member.profile.records}})
         return leaves, rows
 
+    def parameter(self, leaf):
+        """One leaf of the measured database against age: every subject's reading that did not
+        fail as {"dataset", "method", "subject", "age_y", "value", "share"}, the share that
+        dataset takes in this room's pool (none where the room's conditions leave it out; a
+        range of ages stands at its middle, an open one or none at None); and this room's
+        literature and pooled value, each (5th, 50th, 95th percentile), None where the room
+        has none."""
+        profile, array, member = self.profile(), self.array(), self.member()
+        record = calibrations(profile.scanner, profile.records,
+                              channels=None if array is None else len(array),
+                              subject=(member.traits if member is not None else self.person)
+                              or None).get(leaf)
+        share = record.measured.get("dataset_share", {}) if record is not None else {}
+        points = []
+        for cohort in package():
+            for person in cohort.members:
+                age = person.traits.get("age_y")
+                if isinstance(age, tuple):
+                    age = None if None in age else 0.5 * (age[0] + age[1])
+                points += [{"dataset": cohort.name, "method": r.sequence.get("family") or "",
+                            "subject": person.subject, "age_y": age, "value": float(r.value),
+                            "share": share.get(cohort.name)}
+                           for r in person.profile.records if r.leaf == leaf and not r.failed]
+        sources = self.twin(params=Params({})).params.sources()
+        path = leaf if leaf in sources else leaf.rpartition(".")[0]
+        literature = sources[path].literature if path in sources else None
+        if literature is not None and path != leaf:
+            literature = getattr(literature, leaf.rpartition(".")[2])
+        if literature is not None:
+            rng = np.random.default_rng(0)
+            literature = tuple(float(v) for v in np.percentile(
+                [float(literature.sample(rng)) for _ in range(2000)], (5.0, 50.0, 95.0)))
+        return {"points": points, "literature": literature,
+                "pooled": None if record is None or "dataset_share" not in record.measured
+                else (record.prior[0], record.value, record.prior[1])}
+
     def cohort_says(self):
         """One sentence on the dataset on the floor and what it sets, empty without one."""
         member = self.member()

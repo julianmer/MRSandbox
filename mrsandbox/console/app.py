@@ -172,6 +172,9 @@ SOURCE_SAYS = {"literature": "a published number, or the manufacturer's",
                "own": "measured from a scan you uploaded", "custom": "a number or range you set"}
 SOURCE_COLORS = {"literature": "#7FA6D9", "stated": "#8C8C8C", "pooled": "#7FA66B",
                  "mixed": "#6FB5AE", "dataset": "#C9A0DC", "own": "#E2A55F", "custom": "#E8E2D6"}
+# the datasets of a scatter, in this order and at most three (told apart under colour blindness on
+# the panel); the literature's blue and the pooled green stay with the reference lines
+CATEGORY = ("#C98500", "#9085E9", "#D55181")
 SAID = "sources: " + " · ".join(f"{SOURCE_WORDS[s]} = {SOURCE_SAYS[s]}" for s in SOURCE_WORDS)
 # the leaves whose ranges the package assumed, and why (scan.defaults says it at each); every other
 # plain leaf is typed from a table of the literature (de Graaf, Gudmundson, Deelchand 2018, the
@@ -2567,6 +2570,7 @@ async def console(client: Client):
             ui.label("Database").classes("label")
             with ui.tabs().props("dense no-caps align=left") as tabs:
                 measured, literature = ui.tab("Measured datasets"), ui.tab("Literature")
+                parameters = ui.tab("Parameters")
             with ui.tab_panels(tabs, value=measured).classes("w-full").style(
                     "background: transparent"):
                 with ui.tab_panel(measured):
@@ -2627,6 +2631,96 @@ async def console(client: Client):
                     ui.select(list(names), label="table", with_input=True,
                               on_change=lambda event: read(event.value)).props(
                         "dense outlined dark").style("width: 420px").mark("literature table")
+                with ui.tab_panel(parameters):
+                    ui.label("every subject's reading of one leaf against age: in colour the "
+                             "datasets this room's pool draws on, in grey the rows its "
+                             "conditions (field, method, person, system) leave out; the "
+                             "literature and this room's pooled value beside, each its 5th to "
+                             "95th percentile").classes("value").style("white-space: normal")
+                    ui.select(sorted({leaf for row in Session.catalogue()
+                                      for leaf in row["leaves"].split(", ") if leaf}),
+                              label="leaf", with_input=True,
+                              on_change=lambda event: plot(event.value)).props(
+                        "dense outlined dark").style("width: 320px").mark("parameter leaf")
+                    plotted = ui.column().classes("w-full")
+
+                    def plot(leaf):
+                        plotted.clear()
+                        if not leaf:
+                            return
+                        seen = session.parameter(leaf)
+                        shares = {p["dataset"]: p["share"] for p in seen["points"] if p["share"]}
+                        # a pool of more than three datasets folds into one series
+                        named = (sorted(shares, key=lambda d: (-shares[d], d))
+                                 if len(shares) <= len(CATEGORY) else [])
+                        folded = ("other datasets of this room's pool" if named
+                                  else "the datasets of this room's pool")
+                        groups = {}
+                        for p in seen["points"]:
+                            if p["age_y"] is None:
+                                continue
+                            key = (f"{p['dataset']} · {p['method']}" if p["dataset"] in named
+                                   else folded if p["share"]
+                                   else "outside this room's conditions")
+                            groups.setdefault(key, []).append(
+                                {"name": f"{p['subject']} · {p['dataset']} · {p['method']}",
+                                 "value": [p["age_y"], p["value"]]})
+                        methods = {p["dataset"]: p["method"] for p in seen["points"]}
+                        colours = {f"{d} · {methods[d]}": c for d, c in zip(named, CATEGORY)}
+
+                        def style(key):
+                            if key in colours:
+                                return {"color": colours[key]}
+                            if key == folded:
+                                return {"color": INK}
+                            return {"color": "transparent", "borderColor": DIM, "borderWidth": 1}
+                        series = [{"type": "scatter", "name": key, "symbolSize": 8,
+                                   "itemStyle": {"borderColor": PANEL, "borderWidth": 1,
+                                                 **style(key)},
+                                   "data": data} for key, data in sorted(
+                            groups.items(), key=lambda kv: (kv[0] not in colours, kv[0]))]
+                        for source, band in (("literature", seen["literature"]),
+                                             ("pooled", seen["pooled"])):
+                            if band is None:
+                                continue
+                            said = "this room's pool" if source == "pooled" else source
+                            series.append({
+                                "type": "scatter", "name": said, "data": [],
+                                "itemStyle": {"color": SOURCE_COLORS[source]},
+                                "markArea": {"silent": True, "itemStyle": {
+                                    "color": SOURCE_COLORS[source], "opacity": 0.12},
+                                    "data": [[{"yAxis": band[0]}, {"yAxis": band[2]}]]},
+                                "markLine": {"silent": True, "symbol": "none", "data": [
+                                    {"yAxis": band[1]}], "lineStyle": {
+                                    "color": SOURCE_COLORS[source], "width": 2, "type": "solid"},
+                                    "label": {"formatter": f"{said} {band[1]:.3g}",
+                                              "color": INK, "position": "insideEndTop"}}})
+                        axis = {"axisLine": {"lineStyle": {"color": LINE}},
+                                "axisLabel": {"color": DIM}, "nameTextStyle": {"color": DIM},
+                                "splitLine": {"show": False}}
+                        unaged = sum(1 for p in seen["points"] if p["age_y"] is None)
+                        # the value axis spans the readings and both bands
+                        values = [p["value"] for p in seen["points"]] + [
+                            v for band in (seen["literature"], seen["pooled"]) if band
+                            for v in (band[0], band[2])]
+                        pad = 0.05 * ((max(values) - min(values)) or abs(max(values)) or 1.0)
+                        with plotted:
+                            ui.echart({"backgroundColor": "transparent", "animation": False,
+                                       "legend": {"textStyle": {"color": INK}, "top": 0},
+                                       "grid": {"left": 64, "right": 24, "top": 56, "bottom": 40},
+                                       "tooltip": {"trigger": "item",
+                                                   "formatter": "{a}<br/>{b}<br/>age, value: {c}"},
+                                       "xAxis": {**axis, "type": "value", "min": 0,
+                                                 "name": "age (years)", "nameLocation": "middle",
+                                                 "nameGap": 26},
+                                       "yAxis": {**axis, "type": "value", "name": leaf,
+                                                 "min": float(f"{min(values) - pad:.3g}"),
+                                                 "max": float(f"{max(values) + pad:.3g}")},
+                                       "series": series}).style("height: 460px").classes(
+                                "w-full").mark("parameter chart")
+                            ui.label(f"{len(seen['points'])} readings; {unaged} of them state no "
+                                     "age (or only an open range) and are not drawn").classes(
+                                "value")
             with ui.row().classes("w-full"):
                 ui.space()
                 ui.button("Close", on_click=dialog.close).props("flat dense no-caps")

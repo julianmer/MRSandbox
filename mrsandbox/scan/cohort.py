@@ -413,9 +413,9 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None, methods=None):
     first to, then the method, the person's age, sex and other traits, then channels,
     vendor and the field itself, keeping whatever can still hold once a dearer one has
     gone (the departure names it); the person's health never gives way, nor the field of a
-    tissue's relaxation, so a condition no rows hold stays with the literature. `within` names the cohorts whose rows
-    alone are pooled (one dataset as the scanner's calibration); empty pools them all. None
-    when no row of the leaf is there."""
+    tissue's relaxation, so a condition no rows hold stays with the literature. `within`
+    names the cohorts whose rows alone are pooled (one dataset as the scanner's
+    calibration); empty pools them all. None when no row of the leaf is there."""
     subject = subject or {}
     found = [(cohort.name, member, record)
              for cohort in package() if not within or cohort.name in within

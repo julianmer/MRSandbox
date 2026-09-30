@@ -277,7 +277,8 @@ class TestPooled:
         def mapped(name, t2, vendor, model, field_t):
             row = dataclasses.replace(
                 record("water.t2_s.wm", t2, vendor=vendor, model=model, field_t=field_t),
-                carried_by="subject", sequence={"name": "a map", "family": "EPG multi-echo spin echo"})
+                carried_by="subject",
+                sequence={"name": "a map", "family": "EPG multi-echo spin echo"})
             return Member(name, ScannerProfile(Scanner.preset("siemens_prisma_3t"), (row,)),
                           PLACE, SIZE, traits={"age_y": 30.0, "health": "healthy"})
         monkeypatch.setattr(cohorts, "package", lambda: (Cohort("maps", (

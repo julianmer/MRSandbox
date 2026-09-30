@@ -216,5 +216,12 @@ class TestApp:
                 user.find("Literature").click()
                 user.find(marker="literature table").elements.pop().value = "relaxation · CORBIN"
                 await user.should_see("Whole-brain T2 mapping", retries=20)
+                # one leaf against age, the literature and this room's pool beside
+                user.find("Parameters").click()
+                user.find(marker="parameter leaf").elements.pop().value = "water.t2_s.wm"
+                await user.should_see("state no age", retries=20)
+                names = [s["name"] for s in
+                         user.find(marker="parameter chart").elements.pop().options["series"]]
+                assert "literature" in names and "this room's pool" in names
 
         asyncio.run(visit())
