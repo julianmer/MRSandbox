@@ -101,7 +101,7 @@ class TestScannerProfile:
         assert trio.calibrations()["noise.sigma"] == cohorts.pooled(
             "noise.sigma", Scanner.preset("siemens_trio_3t"), within=("big_gaba_trio",))
         assert "big_gaba_trio" in cohorts.holding(Scanner.preset("siemens_trio_3t"))
-        assert cohorts.holding(Scanner.preset("generic_1p5t")) == []  # nothing at the field
+        assert cohorts.holding(Scanner("unnamed", 11.7)) == []  # nothing at the field
         assert set(cohorts.holding(Scanner.preset("generic_3t"))) >= {
             "big_gaba_trio", "big_gaba_ge", "big_gaba_philips"}
 

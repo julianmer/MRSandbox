@@ -153,6 +153,10 @@ class IXI:
             one dual-echo turbo spin echo (echo train 16) giving PD at TE 8 ms and T2 at TE 100
             ms, one TR, on one grid (the IOP headers state TE 8.72 and 104.64 ms, and "3T",
             which the NITRC session's 1.5 T and the site's description overrule).
+    Failed: the Institute of Psychiatry's two echoes come out scaled apart subject by subject:
+            its subjects' pure CSF reads PD at or below T2, or a T2 of well under a second, in
+            most, where the two Philips sites read one to two seconds; so no IOP subject's
+            two-point T2 holds and every row of the site fails.
     """
 
     DATASET = "IXI, {site} (CC BY-SA 3.0)"
@@ -160,12 +164,14 @@ class IXI:
     SITES = {
         "Guys": ("ixi_guys_1p5t", "generic_1p5t", "Guy's Hospital",
                  {"Manufacturer": "Philips", "ManufacturersModelName": "Gyroscan Intera",
-                  "MagneticFieldStrength": 1.5}),
+                  "MagneticFieldStrength": 1.5}, ""),
         "HH": ("ixi_hh_3t", "generic_3t", "Hammersmith Hospital",
                {"Manufacturer": "Philips", "ManufacturersModelName": "Intera",
-                "MagneticFieldStrength": 3.0}),
+                "MagneticFieldStrength": 3.0}, ""),
         "IOP": ("ixi_iop_1p5t", "generic_1p5t", "Institute of Psychiatry",
-                {"Manufacturer": "GE", "MagneticFieldStrength": 1.5}),
+                {"Manufacturer": "GE", "MagneticFieldStrength": 1.5},
+                "the site's two echoes come out scaled apart subject by subject (its pure CSF "
+                "reads PD at or below T2, or a T2 of well under a second, in most subjects)"),
     }
 
     #**************#
@@ -178,9 +184,10 @@ class IXI:
         T1-weighted image segmented (scan.maps.tissues, neck cropped), its T2 two-point from
         the PD and T2 echoes, (TE2 - TE1) / ln(PD / T2) where PD exceeds T2, read on those
         tissues, grey and white matter only (CSF's T2 of over a second is beyond a 100 ms
-        echo). The T2 map is aligned to the T1 by the affines, the scans of one session
-        (stated: a rigid refinement changes the tissues' readings little). The work lands
-        in `folder`/<subject> and is reused when there; each member carries its age, sex and
+        echo); a subject whose two echoes lie on different grids is left out. The T2 map is
+        aligned to the T1 by the affines, the scans of one session (stated: a rigid
+        refinement changes the tissues' readings little). The work lands in
+        `folder`/<subject> and is reused when there; each member carries its age, sex and
         health."""
         import dataclasses
         import re
@@ -189,13 +196,17 @@ class IXI:
         import nibabel.processing
         import scipy.ndimage
 
-        name, scanner, place, stated = cls.SITES[site]
+        name, scanner, place, stated, broken = cls.SITES[site]
         root, folder = pathlib.Path(root), pathlib.Path(folder)
         members = []
         for subject in sorted(root.glob(f"*_{site}")):
             found = {kind: next(subject.glob(f"*-{kind}.nii.gz"), None)
                      for kind in ("T1", "PD", "T2")}
             if None in found.values() or not (subject / "subject.json").exists():
+                continue
+            image, echo = nib.load(str(found["PD"])), nib.load(str(found["T2"]))
+            # the two echoes of one acquisition lie on one grid: a pair that does not is two
+            if image.shape != echo.shape or not np.allclose(image.affine, echo.affine, atol=1e-3):
                 continue
             info = json.loads((subject / "subject.json").read_text())
             scans = info.get("scans", {})
@@ -212,9 +223,8 @@ class IXI:
             work.mkdir(parents=True, exist_ok=True)
             if not (work / "tissue_pve_2.nii.gz").exists():
                 maps.tissues(found["T1"], work)
-            image = nib.load(str(found["PD"]))
             pd = np.asarray(image.dataobj, dtype=np.float64)
-            t2w = np.asarray(nib.load(str(found["T2"])).dataobj, dtype=np.float64)
+            t2w = np.asarray(echo.dataobj, dtype=np.float64)
             valid = (t2w > 0.0) & (pd > t2w)
             t2 = np.where(valid, (te[1] - te[0]) / np.log(np.where(valid, pd, 2.0)
                                                          / np.where(valid, t2w, 1.0)), 0.0)
@@ -227,9 +237,9 @@ class IXI:
                 nib.load(str(work / "tissue_pve_0.nii.gz")), image, order=1).dataobj)
                 > maps.PURE, iterations=2)
             ratio = float(np.median(pd[csf] / np.maximum(t2w[csf], 1.0)))
-            failed = "" if ratio > 1.0 else (
+            failed = broken or ("" if ratio > 1.0 else (
                 f"pure CSF reads PD over T2 at {ratio:.3f}, at or below 1: the echoes are "
-                "not scaled alike")
+                "not scaled alike"))
             reading = MapReading.from_files(
                 "water.t2_s", work / "water.t2_s.nii.gz",
                 *(work / f"tissue_pve_{k}.nii.gz" for k in (1, 2, 0)),

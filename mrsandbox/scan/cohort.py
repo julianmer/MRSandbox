@@ -54,6 +54,10 @@ FAITHFUL = {
     "water.t1_s": ("inversion recovery", "MP2RAGE"),
     "water.t2_s": ("EPG multi-echo spin echo",),
 }
+# the tissue's relaxation, which the field sets (T1 lengthens and T2 shortens with it) and no
+# scanner's vendor, model or coil: its rows pool at the scanner's field alone, whatever system
+# read them, and with none there the leaf stays with the literature's own table
+RELAXATION = ("water.t1_s", "water.t2_s")
 
 
 #**************************************************************************************************#
@@ -270,6 +274,12 @@ def _plain(text):
     return re.sub(r"[^a-z0-9]", "", str(text).lower())
 
 
+def _under(leaf, keys):
+    """The key of `keys` that `leaf` is or lies under ("water.t2_s.wm" under "water.t2_s"), or
+    None."""
+    return next((key for key in keys if leaf == key or leaf.startswith(f"{key}.")), None)
+
+
 def _matches(record, field_t, vendor, model, channels, method=None):
     """Whether a row was read under the conditions asked (None asks nothing; `method` the
     methods asked); a row that does not state a condition does not fail it."""
@@ -378,8 +388,7 @@ def pooled(leaf, scanner, channels=None, within=(), subject=None, method=None):
              if key in NEAR and isinstance(value, (int, float)) else value
              for key, value in {**ADULT, **(subject or {})}.items() if value is not None}
     if method is None:
-        method = next((names for key, names in FAITHFUL.items()
-                       if leaf == key or leaf.startswith(f"{key}.")), ())
+        method = FAITHFUL.get(_under(leaf, FAITHFUL), ())
     methods = (method,) if isinstance(method, str) else tuple(method)
     return _pooled(leaf, float(scanner.b0_t), scanner.vendor, scanner.model, channels,
                    tuple(within), tuple(sorted(asked.items())), methods or None, id(package()))
@@ -399,11 +408,12 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None, methods=None):
     model where it states them, `methods` the measurement methods asked of the rows (None
     any), and `channels`, the receive array's count, where given and the leaf is the
     receive chain's (RECEIVE); a row the subject carries is also asked of the person's
-    traits (`subject`, see _suits). When nothing matches, the fewest conditions give way,
-    the model the first to, then the method, the person's age, sex and other traits, then
-    channels, vendor and the field itself, keeping whatever can still hold once a dearer one
-    has gone (the departure names it); the person's health never gives way, so a
-    condition no rows hold stays with the literature. `within` names the cohorts whose rows
+    traits (`subject`, see _suits), and a tissue's relaxation (RELAXATION) asks no vendor,
+    model or coil. When nothing matches, the fewest conditions give way, the model the
+    first to, then the method, the person's age, sex and other traits, then channels,
+    vendor and the field itself, keeping whatever can still hold once a dearer one has
+    gone (the departure names it); the person's health never gives way, nor the field of a
+    tissue's relaxation, so a condition no rows hold stays with the literature. `within` names the cohorts whose rows
     alone are pooled (one dataset as the scanner's calibration); empty pools them all. None
     when no row of the leaf is there."""
     subject = subject or {}
@@ -411,11 +421,13 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None, methods=None):
              for cohort in package() if not within or cohort.name in within
              for member in cohort.members for record in member.profile.records
              if record.leaf == leaf and not record.failed]
-    asked = dict(field_t=float(scanner.b0_t), vendor=scanner.vendor, model=scanner.model,
+    tissue = _under(leaf, RELAXATION) is not None
+    asked = dict(field_t=float(scanner.b0_t), vendor=None if tissue else scanner.vendor,
+                 model=None if tissue else scanner.model,
                  channels=channels if leaf in RECEIVE else None, method=methods)
     order = (["model", "method"] + [key for key in ("age_y", "sex") if key in subject]
-             + sorted(set(subject) - {"age_y", "sex", "health"})
-             + ["channels", "vendor", "field_t"])
+             + sorted(set(subject) - {"age_y", "sex", "health"}) + ["channels", "vendor"]
+             + ([] if tissue else ["field_t"]))
     # the fewest conditions given way, the later in `order` the dearer: a set is tried before
     # every set that drops a dearer condition, so what can hold once a dearer one has gone
     # holds (an adult at another field before a child at this one)

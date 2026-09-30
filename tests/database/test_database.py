@@ -165,7 +165,8 @@ class TestFieldPriors:
         p3, p15 = default_params(b0_t=3.0), default_params(b0_t=1.5)
         assert p15.t1.NAA.mean < p3.t1.NAA.mean  # Ethofer 1.5 T rows and Rutgers 2003
         assert p15.water.t1_s.wm.value.mean == 0.68 and p15.water.t1_s.gm.value.mean == 1.04
-        assert p15.water.t2_s == p3.water.t2_s  # no 1.5 T water T2 typed: 3 T reused, stated
+        # no 1.5 T water T2 typed: 3 T reused, stated
+        assert p15.water.t2_s.literature == p3.water.t2_s.literature
         assert p15.t2.Gln == p3.t2.Gln  # no 1.5 T rows for Gln: the 3 T pool
         assert p15.t2.NAA.mean != p3.t2.NAA.mean  # NAA has 1.5 T rows of its own
         assert p15.mm.t1.mm091.value == 0.220 and p15.mm.t1.mm121.value == 0.200  # Kreis 2005

@@ -91,6 +91,15 @@ class TestIXI:
         assert all("not scaled alike" in r.failed for r in records)
         assert records[0].measured["csf_pd_over_t2"] < 1.0
 
+    def test_a_site_whose_echoes_come_out_scaled_apart_fails_whole(self, tmp_path):
+        self.subject(tmp_path / "ixi", tmp_path / "work", "003_IOP")
+        cohort = IXI.cohort(tmp_path / "ixi", tmp_path / "work", "IOP")
+        # its CSF passes, its rows fail all the same
+        records = cohort.members[0].profile.records
+        assert records[0].measured["csf_pd_over_t2"] > 1.0
+        assert all("scaled apart" in r.failed for r in records)
+        assert {r.sequence["family"] for r in records} == {"two-point turbo spin echo"}
+
 
 #**************************************************************************************************#
 #                                      Class TestDevelopmental                                     #

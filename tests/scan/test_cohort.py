@@ -273,6 +273,23 @@ class TestPooled:
         self.database(monkeypatch)
         assert "methods" not in cohorts.pooled("noise.sigma", prisma).measured
 
+    def test_a_tissues_relaxation_asks_its_field_and_no_vendor(self, monkeypatch):
+        def mapped(name, t2, vendor, model, field_t):
+            row = dataclasses.replace(
+                record("water.t2_s.wm", t2, vendor=vendor, model=model, field_t=field_t),
+                carried_by="subject", sequence={"name": "a map", "family": "EPG multi-echo spin echo"})
+            return Member(name, ScannerProfile(Scanner.preset("siemens_prisma_3t"), (row,)),
+                          PLACE, SIZE, traits={"age_y": 30.0, "health": "healthy"})
+        monkeypatch.setattr(cohorts, "package", lambda: (Cohort("maps", (
+            mapped("A", 0.072, "siemens", "Prisma", 2.89),
+            mapped("B", 0.090, "philips", "Achieva", 1.5))),))
+        cohorts.forget()
+        # a Philips at 3 T takes the Siemens row at its field: no tissue depends on the vendor
+        philips = cohorts.pooled("water.t2_s.wm", Scanner.preset("philips_achieva_3t")).measured
+        assert philips["values"] == [0.072] and "vendor" not in philips["matched_on"]
+        # no row at 7 T: the field never gives way, the leaf stays with the literature
+        assert cohorts.pooled("water.t2_s.wm", Scanner.preset("generic_7t")) is None
+
     def test_the_catalogue_serves_the_pool_and_own_records_outrank_it(self, monkeypatch):
         self.database(monkeypatch)
         served = calibrations("siemens_trio_3t", channels=32)
