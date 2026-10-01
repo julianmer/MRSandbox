@@ -35,6 +35,17 @@ class TestBrain:
         assert brain.name == "icbm152"
         assert 0.0 <= brain.gm.min() and brain.gm.max() <= 1.0
 
+    #************************#
+    #   a child's template   #
+    #************************#
+    def test_a_childs_template_holds_a_childs_tissue_in_the_same_frame(self):
+        adult, child = Brain.load("icbm152"), Brain.load("nihpd_4.5-8.5")
+        # the MNI frame both: the same places are brain; a young child has more grey, less white
+        place, size = (0.0, -35.0, 20.0), (20.0, 20.0, 20.0)
+        assert sum(child.fractions(place, size)) == pytest.approx(1.0, abs=0.05)
+        assert (float(np.sum(child.gm)) > float(np.sum(adult.gm))
+                and float(np.sum(child.wm)) < float(np.sum(adult.wm)))
+
     #**********************************#
     #   fractions inside and outside   #
     #**********************************#

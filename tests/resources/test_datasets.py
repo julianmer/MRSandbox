@@ -31,18 +31,21 @@ class TestDatasets:
         shipped = {path.stem for path in cohorts.COHORTS.glob("*.json")}
         assert set(datasets.DATASETS) == shipped
 
-    def test_a_missing_copy_stops_the_call_before_any_build(self, tmp_path):
-        with pytest.raises(FileNotFoundError, match="openneuro.org/datasets/ds006812"):
-            datasets.rebuild(tmp_path, names=["neuromet_siemens_7t", "cows_prisma"],
+    def test_a_copy_fetched_by_hand_stops_the_call_before_anything(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="nitrc.org/frs"):
+            datasets.rebuild(tmp_path, names=["cows_prisma", "big_gaba_trio"],
                              into=tmp_path / "built")
-        assert not (tmp_path / "built").exists()
+        assert not (tmp_path / "built").exists() and not (tmp_path / "openneuro_ds006812").exists()
+        # asked not to fetch, any missing copy stops it
+        with pytest.raises(FileNotFoundError, match="ds006812"):
+            datasets.rebuild(tmp_path, names=["cows_prisma"], fetch=False)
 
-    def test_the_call_saves_each_cohort_it_builds(self, tmp_path, monkeypatch):
-        (tmp_path / "mine").mkdir()
+    def test_a_missing_copy_is_fetched_then_built_and_saved(self, tmp_path, monkeypatch):
         made = Cohort("mine", (Member("S1", ScannerProfile(Scanner.preset("generic_3t")),
                                       (0.0, 0.0, 0.0), (20.0, 20.0, 20.0)),))
-        monkeypatch.setitem(datasets.DATASETS, "mine",
-                            ("mine", "a URL", lambda root, data: made))
+        monkeypatch.setitem(datasets.DATASETS, "mine", (
+            "mine", "a URL", lambda root: root.mkdir(),
+            lambda root, data: made if root.is_dir() else None))
         saved = datasets.rebuild(tmp_path, names=["mine"], into=tmp_path / "built")
-        assert saved == [tmp_path / "built" / "mine.json"]
+        assert saved == [tmp_path / "built" / "mine.json"] and (tmp_path / "mine").is_dir()
         assert Cohort.load(saved[0]).members[0].subject == "S1"

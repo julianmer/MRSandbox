@@ -2348,9 +2348,9 @@
         "implied_value": 2.02
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 9.9,
+        "lineshape.gauss_hz": 9.95,
         "water.adjusted_residual": 0.000855,
-        "acquisition.delay_s": 6.08e-05
+        "acquisition.delay_s": 6.09e-05
        }
       },
       "source": {
@@ -2402,10 +2402,10 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 9.9,
+      "value": 9.95,
       "prior": [
-       7.43,
-       12.38
+       7.46,
+       12.44
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
@@ -2623,14 +2623,14 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 6.08e-05,
+      "value": 6.09e-05,
       "prior": [
        4.56e-05,
-       7.6e-05
+       7.61e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 60.8,
+       "delay_us": 60.9,
        "creatine_phase_deg": 3.9,
        "intrinsic_phase_deg": -2.7,
        "creatine_offset_hz": 302.5
@@ -4630,7 +4630,7 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.41,
+      "value": 2.4,
       "prior": [
        1.8,
        3.01
@@ -4643,7 +4643,7 @@
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 90.4,
-        "implied_value": 2.41
+        "implied_value": 2.4
        },
        "twin_held_at": {
         "lineshape.gauss_hz": 9.49,
@@ -16128,7 +16128,7 @@
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 27.2,
-       "implied_value": 2.44,
+       "implied_value": 2.43,
        "naa_found_at_ppm": 1.995,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
@@ -16136,9 +16136,9 @@
         "implied_value": 2.57
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 10.47,
+        "lineshape.gauss_hz": 10.52,
         "water.adjusted_residual": 0.001186,
-        "acquisition.delay_s": 1.98e-05
+        "acquisition.delay_s": 1.99e-05
        }
       },
       "source": {
@@ -16190,10 +16190,10 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 10.47,
+      "value": 10.52,
       "prior": [
-       7.85,
-       13.09
+       7.89,
+       13.15
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
@@ -16411,14 +16411,14 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 1.98e-05,
+      "value": 1.99e-05,
       "prior": [
        1.49e-05,
        2.48e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 19.8,
+       "delay_us": 19.9,
        "creatine_phase_deg": 0.6,
        "intrinsic_phase_deg": -1.5,
        "creatine_offset_hz": 301.4
@@ -25312,25 +25312,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.68,
+      "value": 2.67,
       "prior": [
-       2.01,
-       3.34
+       2.0,
+       3.33
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 23.8,
-       "implied_value": 2.6,
+       "implied_value": 2.58,
        "naa_found_at_ppm": 1.988,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 73.0,
-        "implied_value": 2.68
+        "implied_value": 2.67
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 11.29,
+        "lineshape.gauss_hz": 11.4,
         "water.adjusted_residual": 0.001775,
-        "acquisition.delay_s": 0.0001127
+        "acquisition.delay_s": 0.000113
        }
       },
       "source": {
@@ -25382,10 +25382,10 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 11.29,
+      "value": 11.4,
       "prior": [
-       8.47,
-       14.11
+       8.55,
+       14.25
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
@@ -25603,16 +25603,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.0001127,
+      "value": 0.000113,
       "prior": [
-       8.45e-05,
-       0.0001409
+       8.47e-05,
+       0.0001412
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 112.7,
+       "delay_us": 113.0,
        "creatine_phase_deg": 12.4,
-       "intrinsic_phase_deg": 0.3,
+       "intrinsic_phase_deg": 0.2,
        "creatine_offset_hz": 300.0
       },
       "source": {
@@ -43696,25 +43696,25 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 2.04,
+      "value": 2.03,
       "prior": [
        1.53,
-       2.55
+       2.54
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 29.9,
-       "implied_value": 1.98,
+       "implied_value": 1.97,
        "naa_found_at_ppm": 1.936,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 97.3,
-        "implied_value": 2.04
+        "implied_value": 2.03
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 12.22,
+        "lineshape.gauss_hz": 12.28,
         "water.adjusted_residual": 0.001055,
-        "acquisition.delay_s": -5.2e-06
+        "acquisition.delay_s": -5.1e-06
        }
       },
       "source": {
@@ -43766,10 +43766,10 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 12.22,
+      "value": 12.28,
       "prior": [
-       9.17,
-       15.28
+       9.21,
+       15.35
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
@@ -43987,14 +43987,14 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -5.2e-06,
+      "value": -5.1e-06,
       "prior": [
-       -6.5e-06,
-       -3.9e-06
+       -6.4e-06,
+       -3.8e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -5.2,
+       "delay_us": -5.1,
        "creatine_phase_deg": -0.4,
        "intrinsic_phase_deg": 0.1,
        "creatine_offset_hz": 301.8
@@ -48295,12 +48295,12 @@
       "value": 2.13,
       "prior": [
        1.6,
-       2.67
+       2.66
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 33.7,
-       "implied_value": 2.07,
+       "implied_value": 2.06,
        "naa_found_at_ppm": 2.002,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
@@ -48308,9 +48308,9 @@
         "implied_value": 2.13
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 9.87,
+        "lineshape.gauss_hz": 9.92,
         "water.adjusted_residual": 0.001473,
-        "acquisition.delay_s": 1.23e-05
+        "acquisition.delay_s": 1.24e-05
        }
       },
       "source": {
@@ -48362,10 +48362,10 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 9.87,
+      "value": 9.92,
       "prior": [
-       7.4,
-       12.34
+       7.44,
+       12.4
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
@@ -48583,14 +48583,14 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 1.23e-05,
+      "value": 1.24e-05,
       "prior": [
-       9.2e-06,
-       1.53e-05
+       9.3e-06,
+       1.54e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 12.3,
+       "delay_us": 12.4,
        "creatine_phase_deg": -0.0,
        "intrinsic_phase_deg": -1.4,
        "creatine_offset_hz": 302.1

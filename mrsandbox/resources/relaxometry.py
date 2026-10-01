@@ -22,6 +22,7 @@ import numpy as np
 
 from mrsandbox.hardware import Scanner
 from mrsandbox.resources import participants
+from mrsandbox.resources.icbm import NIHPD_BANDS
 from mrsandbox.scan import maps
 from mrsandbox.scan.cohort import Cohort, Member
 from mrsandbox.scan.maps import MapReading
@@ -31,11 +32,11 @@ from mrsandbox.scan.profile import ScannerProfile
 #*************#
 #   subject   #
 #*************#
-def _subject(name, scanner, records, traits):
+def _subject(name, scanner, records, traits, brain="icbm152"):
     """A cohort member of one subject's rows and traits, placed as the map cohorts place
-    theirs."""
+    theirs, `brain` standing in."""
     return Member(name, ScannerProfile(Scanner.preset(scanner), records), (0.0, -35.0, 20.0),
-                  (20.0, 20.0, 20.0), "icbm152", traits)
+                  (20.0, 20.0, 20.0), brain, traits)
 
 
 #**************************************************************************************************#
@@ -75,7 +76,9 @@ class Developmental:
         or its T2 of over a second). The maps are aligned by their affines,
         the two acquisitions minutes apart (stated). Each subject's first session is read (some
         have only a second). The work lands in `folder`/<subject> and is reused when there;
-        each member carries its age, sex and health."""
+        each member carries its age, sex and health, and stands in as the pediatric template
+        of its age (the band centred nearest its age among those holding it; the youngest band
+        under 4.5 years)."""
         root, folder = pathlib.Path(root), pathlib.Path(folder)
         people = participants.bids(root, health="healthy")
         members = []
@@ -96,7 +99,14 @@ class Developmental:
             if records:
                 traits = {**people.get(subject, {"health": "healthy"}),
                           **({} if age is None else {"age_y": age})}
-                members.append(_subject(subject, "siemens_prisma_3t", records, traits))
+                band = "4.5-18.5"
+                if age is not None:
+                    bands = {b: tuple(float(v) for v in b.split("-")) for b in NIHPD_BANDS}
+                    held = [b for b, (low, high) in bands.items() if low <= max(age, 4.5) <= high]
+                    band = min(held, key=lambda b: (abs(sum(bands[b]) / 2.0 - age),
+                                                    bands[b][1] - bands[b][0]))
+                members.append(_subject(subject, "siemens_prisma_3t", records, traits,
+                                        f"nihpd_{band}"))
         return Cohort("ds004611_prisma_3t", tuple(members))
 
     @classmethod

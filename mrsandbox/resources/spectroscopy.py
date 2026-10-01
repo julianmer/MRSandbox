@@ -102,8 +102,8 @@ def _cohort(name, dataset, cited, twins, runs, people=None, forced=None, excitat
 
 
 def _found(pattern):
-    """The files a glob pattern finds, sorted by their paths as text."""
-    return sorted(glob.glob(str(pattern)))
+    """The files a glob pattern finds ("**" any folders deep), sorted by their paths as text."""
+    return sorted(glob.glob(str(pattern), recursive=True))
 
 
 #**************************************************************************************************#
@@ -312,7 +312,7 @@ class TissueSegmentation:
             cls.CITED, {"parietal": ("ge_mr750_3t", SemiLaser(te_s=0.035, tr_s=2.0),
                                      (0.0, -45.0, 35.0), 30.0)},
             [(f.split("/")[-1].split("_acq")[0], "parietal", (lambda f=f: _raw(f)), None)
-             for f in _found(root / "*_svs.nii.gz")],
+             for f in _found(root / "**" / "*_acq-slaser_svs.nii.gz")],
             participants.bids(root, health="healthy"),
             forced={"ManufacturersModelName": "Discovery MR750", "ReceiveCoilName": "32Ch Head"},
             seeds=3)
@@ -351,7 +351,8 @@ class Ketamine:
             cls.CITED, {"pgacc": ("generic_7t", Press(te1_s=0.0345, te2_s=0.0345, tr_s=2.5),
                                   (0.0, 40.0, 8.0), 20.0)},
             [(f.split("/")[-1].split("_ses")[0], "pgacc", (lambda f=f: _raw(f)),
-              (lambda f=f: _raw(f, water=True))) for f in _found(root / "*_svs.nii.gz")],
+              (lambda f=f: _raw(f, water=True)))
+             for f in _found(root / "**" / "*_ses-b0_svs.nii.gz")],
             participants.bids(root), forced={"ReceiveCoilName": "32Ch_Head_7T"})
 
 

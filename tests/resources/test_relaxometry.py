@@ -127,6 +127,7 @@ class TestDevelopmental:
             assert records[f"water.t1_s.{tissue}"].value == pytest.approx(T1[tissue], rel=1e-3)
             assert records[f"water.t2_s.{tissue}"].value == pytest.approx(T2[tissue], rel=1e-3)
         assert cohort.members[0].traits == {"sex": "M", "health": "healthy", "age_y": 9.3}
+        assert cohort.members[0].brain == "nihpd_7-11"   # the band centred nearest the age
         assert records["water.t2_s.wm"].scanner["model"] == "Prisma_fit"
 
 

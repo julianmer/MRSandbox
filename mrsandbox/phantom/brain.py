@@ -43,7 +43,9 @@ class Brain:
             without it the brain boundary.
     """
 
-    PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2")
+    # the NIHPD pediatric templates, one per age band in years (resources.icbm NIHPD_BANDS)
+    PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2", "nihpd_4.5-18.5", "nihpd_4.5-8.5", "nihpd_7-11",
+               "nihpd_7.5-13.5", "nihpd_10-14", "nihpd_13-18.5")
 
     # the water content per tissue class that anchors the water signal (phantom.water)
     water_content = tissue.MRSI_CHALLENGE["water_content"]
@@ -87,9 +89,10 @@ class Brain:
     #*************#
     @classmethod
     def load(cls, name="icbm152", fat=None):
-        """Load a named brain preset; its maps are fetched on first use and cached.
-        `fat="qsm_rc2"` lends a preset without a scalp the fat-bearing layer of the QSM
-        challenge head, carried into its world (resources.QSMHead.fat; the head's
+        """Load a named brain preset; its maps are fetched on first use and cached. A
+        "nihpd_<band>" preset is the pediatric template of that age band, a child's tissue in
+        the ICBM152 frame. `fat="qsm_rc2"` lends a preset without a scalp the fat-bearing layer
+        of the QSM challenge head, carried into its world (resources.QSMHead.fat; the head's
         files are placed by hand)."""
         if name not in cls.PRESETS:
             raise KeyError(f"unknown brain {name!r}; known: {', '.join(cls.PRESETS)}")
@@ -111,7 +114,7 @@ class Brain:
         from mrsandbox.resources import Resources
 
         images = {
-            label: nib.load(str(Resources.path(f"icbm152/{label}_2mm")))
+            label: nib.load(str(Resources.path(f"{name}/{label}_2mm")))
             for label in ("gm", "wm", "csf")
         }
         return cls(

@@ -48,8 +48,8 @@ class Resources:
     CACHE_ENV = "MRSANDBOX_CACHE"
 
     # one dict per data source, each in its own cited module
-    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO,
-                **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **girf.REVERSE_DEPOSIT,
+    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **icbm.NIHPD, **mrshub.MM_CONSENSUS,
+                **hmri.HMRI_DEMO, **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **girf.REVERSE_DEPOSIT,
                 **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2}
 
     #*************#
@@ -89,7 +89,8 @@ class Resources:
     #*************#
     @classmethod
     def _fetch(cls, url, destination, md5):
-        """Download to a temporary sibling, verify the checksum, move into place."""
+        """Download to a temporary sibling, verify the checksum (none where `md5` is None: the
+        publisher states none), move into place."""
         destination.parent.mkdir(parents=True, exist_ok=True)
         partial = destination.with_suffix(destination.suffix + ".partial")
         print(f"fetching {url} -> {destination}")
@@ -97,7 +98,7 @@ class Resources:
             # a stalled connection raises after the timeout instead of hanging a job
             with urllib.request.urlopen(url, timeout=120) as response, open(partial, "wb") as f:
                 shutil.copyfileobj(response, f)
-            digest = cls._md5(partial)
+            digest = None if md5 is None else cls._md5(partial)
             if digest != md5:
                 raise IOError(f"checksum mismatch for {url}: got {digest}, expected {md5}")
             partial.replace(destination)
