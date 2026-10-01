@@ -101,7 +101,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -162,7 +162,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -228,7 +228,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -294,7 +294,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -309,8 +309,9 @@
        0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.0,
+       "water_t2star_ms": 36.5,
        "t2star_ms": 0.0,
        "offset_hz": 0.0,
        "phase_vs_residual_deg": 0.0
@@ -359,8 +360,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -423,7 +424,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -469,7 +470,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -515,7 +516,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -561,7 +562,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -607,7 +608,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -653,7 +654,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -699,7 +700,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -813,7 +814,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -874,7 +875,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -940,7 +941,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1006,7 +1007,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -1015,17 +1016,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.01187,
+      "value": 0.0,
       "prior": [
-       0.008903,
-       0.014838
+       0.0,
+       0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.01187,
-       "t2star_ms": 34.9,
-       "offset_hz": 0.59,
-       "phase_vs_residual_deg": -169.0
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "water_t2star_ms": 37.6,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -1071,8 +1073,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1135,7 +1137,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -1181,7 +1183,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1227,7 +1229,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1273,7 +1275,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -1319,7 +1321,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1365,7 +1367,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1411,7 +1413,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -1525,7 +1527,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1586,7 +1588,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1652,7 +1654,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1718,7 +1720,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -1733,8 +1735,9 @@
        0.012698
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.010159,
+       "water_t2star_ms": 40.4,
        "t2star_ms": 1.9,
        "offset_hz": 24.32,
        "phase_vs_residual_deg": -71.7
@@ -1783,8 +1786,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1847,7 +1850,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -1893,7 +1896,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1939,7 +1942,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1985,7 +1988,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2031,7 +2034,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2077,7 +2080,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2123,7 +2126,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2237,7 +2240,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2298,7 +2301,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2364,7 +2367,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2430,7 +2433,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -2445,8 +2448,9 @@
        0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.0,
+       "water_t2star_ms": 34.2,
        "t2star_ms": 0.0,
        "offset_hz": 0.0,
        "phase_vs_residual_deg": 0.0
@@ -2495,8 +2499,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2559,7 +2563,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -2605,7 +2609,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2651,7 +2655,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2697,7 +2701,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2743,7 +2747,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2789,7 +2793,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2835,7 +2839,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2949,7 +2953,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3010,7 +3014,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3076,7 +3080,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3142,7 +3146,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -3157,8 +3161,9 @@
        0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.0,
+       "water_t2star_ms": 35.4,
        "t2star_ms": 0.0,
        "offset_hz": 0.0,
        "phase_vs_residual_deg": 0.0
@@ -3207,8 +3212,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3271,7 +3276,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -3317,7 +3322,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3363,7 +3368,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3409,7 +3414,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -3455,7 +3460,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3501,7 +3506,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3547,7 +3552,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -3661,7 +3666,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3722,7 +3727,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3788,7 +3793,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3854,7 +3859,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -3863,17 +3868,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.023865,
+      "value": 0.0,
       "prior": [
-       0.017899,
-       0.029831
+       0.0,
+       0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.023865,
-       "t2star_ms": 32.7,
-       "offset_hz": -0.91,
-       "phase_vs_residual_deg": -173.0
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "water_t2star_ms": 30.2,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -3919,8 +3925,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3983,7 +3989,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -4029,7 +4035,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4075,7 +4081,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4121,7 +4127,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4167,7 +4173,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4213,7 +4219,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4259,7 +4265,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4373,7 +4379,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4434,7 +4440,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4500,7 +4506,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4566,7 +4572,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -4581,8 +4587,9 @@
        0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.0,
+       "water_t2star_ms": 35.3,
        "t2star_ms": 0.0,
        "offset_hz": 0.0,
        "phase_vs_residual_deg": 0.0
@@ -4631,8 +4638,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4695,7 +4702,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -4741,7 +4748,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4787,7 +4794,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4833,7 +4840,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4879,7 +4886,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4925,7 +4932,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4971,7 +4978,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -5085,7 +5092,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5146,7 +5153,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5212,7 +5219,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5278,7 +5285,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -5287,17 +5294,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.015894,
+      "value": 0.0,
       "prior": [
-       0.011921,
-       0.019868
+       0.0,
+       0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.015894,
-       "t2star_ms": 27.6,
-       "offset_hz": -1.05,
-       "phase_vs_residual_deg": 175.8
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "water_t2star_ms": 38.2,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -5343,8 +5351,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5407,7 +5415,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -5453,7 +5461,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5499,7 +5507,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5545,7 +5553,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -5591,7 +5599,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5637,7 +5645,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5683,7 +5691,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -5797,7 +5805,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5858,7 +5866,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5924,7 +5932,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5990,7 +5998,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -6005,8 +6013,9 @@
        0.011116
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.008893,
+       "water_t2star_ms": 50.0,
        "t2star_ms": 1.6,
        "offset_hz": -20.46,
        "phase_vs_residual_deg": -86.4
@@ -6055,8 +6064,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6119,7 +6128,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -6165,7 +6174,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6211,7 +6220,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6257,7 +6266,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -6303,7 +6312,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6349,7 +6358,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6395,7 +6404,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -6509,7 +6518,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6570,7 +6579,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6636,7 +6645,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6702,7 +6711,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -6717,8 +6726,9 @@
        0.004458
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.003566,
+       "water_t2star_ms": 31.8,
        "t2star_ms": 6.9,
        "offset_hz": 1.03,
        "phase_vs_residual_deg": 7.8
@@ -6767,8 +6777,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6831,7 +6841,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -6877,7 +6887,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6923,7 +6933,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6969,7 +6979,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7015,7 +7025,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7061,7 +7071,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7107,7 +7117,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7221,7 +7231,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7282,7 +7292,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7348,7 +7358,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7414,7 +7424,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -7423,17 +7433,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.013621,
+      "value": 0.019259,
       "prior": [
-       0.010216,
-       0.017026
+       0.014444,
+       0.024073
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.013621,
-       "t2star_ms": 24.4,
-       "offset_hz": 0.69,
-       "phase_vs_residual_deg": -10.9
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.019259,
+       "water_t2star_ms": 31.7,
+       "t2star_ms": 21.4,
+       "offset_hz": 2.76,
+       "phase_vs_residual_deg": 167.1
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -7479,8 +7490,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7543,7 +7554,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -7589,7 +7600,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7635,7 +7646,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7681,7 +7692,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7727,7 +7738,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7773,7 +7784,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7819,7 +7830,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7867,23 +7878,23 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.93,
+      "value": 10.92,
       "prior": [
        8.19,
-       13.66
+       13.65
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 14.1,
-       "implied_value": 10.33,
+       "implied_value": 10.29,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 48.2,
-        "implied_value": 10.93
+        "implied_value": 10.92
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.99,
+        "lineshape.gauss_hz": 4.02,
         "water.adjusted_residual": 0.014966,
         "acquisition.delay_s": 6.61e-05,
         "acquisition.eddy_transient_rad": 0.1942
@@ -7933,7 +7944,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7942,10 +7953,10 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.99,
+      "value": 4.02,
       "prior": [
-       2.99,
-       4.99
+       3.01,
+       5.02
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
@@ -7994,7 +8005,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8060,7 +8071,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8126,7 +8137,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -8141,8 +8152,9 @@
        0.004307
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.003445,
+       "water_t2star_ms": 43.2,
        "t2star_ms": 3.9,
        "offset_hz": 21.85,
        "phase_vs_residual_deg": -46.8
@@ -8191,8 +8203,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8255,7 +8267,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -8301,7 +8313,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8347,7 +8359,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8393,7 +8405,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -8439,7 +8451,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8485,7 +8497,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8531,7 +8543,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -8645,7 +8657,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8706,7 +8718,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8772,7 +8784,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8838,7 +8850,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -8847,17 +8859,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.011035,
+      "value": 0.011331,
       "prior": [
-       0.008277,
-       0.013794
+       0.008498,
+       0.014164
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.011035,
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.011331,
+       "water_t2star_ms": 35.7,
        "t2star_ms": 23.0,
        "offset_hz": -1.98,
-       "phase_vs_residual_deg": 128.8
+       "phase_vs_residual_deg": 130.1
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -8903,8 +8916,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8967,7 +8980,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9013,7 +9026,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9059,7 +9072,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9105,7 +9118,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9151,7 +9164,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9197,7 +9210,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9243,7 +9256,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9357,7 +9370,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9418,7 +9431,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9484,7 +9497,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9550,7 +9563,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9559,17 +9572,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.017401,
+      "value": 0.012296,
       "prior": [
-       0.013051,
-       0.021751
+       0.009222,
+       0.01537
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.017401,
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.012296,
+       "water_t2star_ms": 33.6,
        "t2star_ms": 0.6,
        "offset_hz": -14.05,
-       "phase_vs_residual_deg": 173.6
+       "phase_vs_residual_deg": -75.5
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -9615,8 +9629,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9679,7 +9693,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9725,7 +9739,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9771,7 +9785,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9817,7 +9831,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9863,7 +9877,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9909,7 +9923,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9955,7 +9969,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -10069,7 +10083,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10130,7 +10144,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10196,7 +10210,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10262,7 +10276,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -10271,17 +10285,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.006199,
+      "value": 0.0,
       "prior": [
-       0.00465,
-       0.007749
+       0.0,
+       0.0
       ],
       "measured": {
-       "statistic": "the broad exponentials (T2* under 35 ms) of the suppressed mean FID within 0.4 ppm of the carrier at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.006199,
-       "t2star_ms": 17.6,
-       "offset_hz": -2.07,
-       "phase_vs_residual_deg": 13.0
+       "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
+       "over_full": 0.0,
+       "water_t2star_ms": 22.7,
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -10327,8 +10342,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at a T2* of 35 ms",
-      "date": "30/09/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10391,7 +10406,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -10437,7 +10452,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10483,7 +10498,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10529,7 +10544,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -10575,7 +10590,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10621,7 +10636,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10667,7 +10682,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "30/09/26",
+      "date": "01/10/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

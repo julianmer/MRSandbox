@@ -914,9 +914,11 @@ class WaterReading:
             scale.
         residual_fid: The residual water as the data show it, its fitted components narrow and
             broad, turned so its line has `water_phase_deg` against the metabolites' frame.
-        leak_over_full: The residual's broad part (T2* under 35 ms, the water outside the
-            voxel the localization leaks) at t = 0 over the reference's; inside
-            `residual_over_full`, which is the total.
+        water_t2star_s: The voxel's own water's decay: the reference's parts fitted the same
+            way, their amplitude-weighted T2*.
+        leak_over_full: The residual's broad part (decaying faster than LEAK_BELOW of the
+            voxel's own water, the water outside the voxel the localization leaks) at t = 0
+            over the reference's; inside `residual_over_full`, which is the total.
         leak_t2star_s, leak_offset_hz: The heaviest broad part's decay and its frequency
             from the carrier.
         leak_phase_deg: The broad parts' phase against the narrow ones'.
@@ -931,6 +933,7 @@ class WaterReading:
     creatine_offset_hz: float
     dry_amplitude: float
     residual_fid: np.ndarray
+    water_t2star_s: float
     leak_over_full: float
     leak_t2star_s: float
     leak_offset_hz: float
@@ -944,6 +947,11 @@ class WaterReading:
     f0_mhz: float
     header: dict
 
+    # the water the localization leaks decays faster than the voxel's own: a part of the
+    # residual below this share of the reference's T2* is leak (the voxel's own water spreads
+    # to about there across the voxel's shim)
+    LEAK_BELOW = 0.7
+
     #*******************#
     #   from arrays     #
     #*******************#
@@ -953,21 +961,26 @@ class WaterReading:
         suppressed run and its unsuppressed reference, in the standard's frame (the
         carrier at 4.65 ppm)."""
         suppressed = _combined(data).mean(axis=1)
-        full = float(np.abs(_combined(reference, like=data).mean(axis=1)[0]))
+        reference_fid = _combined(reference, like=data).mean(axis=1)
+        full = float(np.abs(reference_fid[0]))
         # the residual water: the decaying exponentials within 0.4 ppm of the carrier, at t = 0
         m = min(1024, suppressed.size)
         freqs, damping, amplitudes = _exponentials(suppressed[:m], dwell_s)
         # within 0.4 ppm of the carrier, as the records
         water = (np.abs(freqs) < 0.4 * f0_mhz) & (damping < 0.0)
         residual = complex(amplitudes[water].sum())
+        # the voxel's own water: the reference's parts the same way, their weighted T2*
+        own_freqs, own_damping, own_amplitudes = _exponentials(reference_fid[:m], dwell_s)
+        own = (np.abs(own_freqs) < 0.4 * f0_mhz) & (own_damping < 0.0)
+        weights = np.abs(own_amplitudes[own])
+        own_t2star = float((weights / -own_damping[own]).sum() / weights.sum())
         # the broad parts, the water the localization leaks; the narrow ones the voxel's own
         # residual
         t2star = -1.0 / damping[water]
-        broad = t2star < 0.035
+        broad = t2star < cls.LEAK_BELOW * own_t2star
         leak, narrow = (complex(amplitudes[water][broad].sum()),
                         complex(amplitudes[water][~broad].sum()))
         heaviest = int(np.argmax(np.abs(amplitudes[water][broad]))) if broad.any() else None
-        reference_fid = _combined(reference, like=data).mean(axis=1)
         t = np.arange(suppressed.size) * dwell_s
         fitted = sum(a * np.exp((1j * 2.0 * np.pi * f + d) * t)
                      for f, d, a in zip(freqs[water], damping[water], amplitudes[water]))
@@ -991,6 +1004,7 @@ class WaterReading:
                    residual_fid=(fitted if _axis(suppressed, dwell_s, f0_mhz, WATER_PPM)[0] > 0
                                  else np.conj(fitted))
                    * np.exp(1j * (np.radians(beyond) - np.angle(residual_line))),
+                   water_t2star_s=own_t2star,
                    leak_over_full=abs(leak) / full,
                    leak_t2star_s=float(t2star[broad][heaviest]) if heaviest is not None else 0.0,
                    leak_offset_hz=(float(freqs[water][broad][heaviest]) if heaviest is not None
@@ -1110,21 +1124,18 @@ class WaterReading:
         return Calibration(
             leaf="oov.fraction", value=float(round(value, 6)),
             prior=(round(0.75 * value, 6), round(1.25 * value, 6)),
-            measured={"statistic": "the broad exponentials (T2* under 35 ms) of the suppressed "
-                                   "mean FID within 0.4 ppm of the carrier at t = 0 over the "
-                                   "reference's full water (scan.calibrate.WaterReading)",
+            measured={"statistic": "the broad exponentials of the suppressed mean FID within "
+                                   "0.4 ppm of the carrier (decaying faster than 0.7 of the "
+                                   "reference's own T2*) at t = 0 over the reference's full "
+                                   "water (scan.calibrate.WaterReading)",
                       "over_full": round(value, 6),
+                      "water_t2star_ms": round(1000.0 * self.water_t2star_s, 1),
                       "t2star_ms": round(1000.0 * self.leak_t2star_s, 1),
                       "offset_hz": round(self.leak_offset_hz, 2),
                       "phase_vs_residual_deg": round(self.leak_phase_deg, 1)},
             processing="NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on "
-                       "both files, the exponentials within 0.4 ppm of the carrier split at a T2* "
-                       "of 35 ms",
-            # the rule: the split is a 3 T number; at 7 T the voxel's own water decays within
-            # it, so the broad part is not the leak there
-            failed="" if self.f0_mhz < 4.0 * 42.5774785 else (
-                "the split at a T2* of 35 ms is set for 3 T: above 4 T the voxel's own water "
-                "decays within it"),
+                       "both files, the exponentials within 0.4 ppm of the carrier split at 0.7 "
+                       "of the reference's amplitude-weighted T2*",
             presets=tuple(presets), **self._conditions(voxel, dataset, citation, url))
 
     def record_eddy(self, voxel, dataset, presets=(), citation=None, url=None):
