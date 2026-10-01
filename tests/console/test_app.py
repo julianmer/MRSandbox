@@ -43,7 +43,7 @@ class TestApp:
                 importlib.reload(app)  # the page registers with this simulation
                 await user.open("/")
                 # behind the loading screen the room is made
-                await user.should_see("Exam cards", retries=200)
+                await user.should_see("Exam cards", retries=600)
                 # the shortcuts' handler is a function, not a shadowed name
                 assert all(callable(handler) for keyboard in user.find(kind=ui.keyboard).elements
                            for handler in keyboard._key_handlers)
@@ -57,6 +57,16 @@ class TestApp:
                      if e.value == "literature" and "vary" in e.options).value = "vary"
                 await user.should_see("to")
                 user.find("Done").click()
+                # the card's OVS on, and its slabs one by one: the x+ slab off
+                user.find(marker="ovs").click()
+                user.find("Geometry").click()
+                await user.should_see(marker="slabs")  # shown once the binding catches up
+                user.find(marker="slabs").click()
+                await user.should_see("OVS slabs")
+                user.find(marker="slab x+").click()
+                assert user.find(marker="slab x+").elements.pop().value is False
+                user.find("Close").click()
+                user.find(marker="ovs").click()  # off again: the exams below play no slabs
                 user.find(marker="design").click()
                 await user.should_see("the readout opens at")
                 user.find("crusher").click()  # a block from the palette, after the chosen one

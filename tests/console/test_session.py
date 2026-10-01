@@ -544,6 +544,33 @@ class TestSession:
         assert (drawn["groups"][0][1] == pytest.approx(drawn["groups"][1][0])
                 and drawn["adc"][0] > 30.0)
 
+    def test_the_slabs_are_placed_one_by_one_and_kept_with_the_protocol(self, tmp_path):
+        session = Session(ICBM)
+        session.protocol.ovs = True
+        assert len(session.slabs()) == 6
+        planned = session.plan(queued=False)         # a planned exam keeps the card's six
+        # one slab off, one with a gap and thickness of its own: 25 clear of a 20 mm voxel's face
+        session.set_slab("x", 1.0, on=False)
+        session.set_slab("z", -1.0, gap_mm=25.0, mm=40.0)
+        slabs = dict(((axis, centre > 0), (centre, thick)) for axis, centre, thick in session.slabs())
+        assert len(slabs) == 5 and ("x", True) not in slabs
+        assert slabs[("z", False)] == (-(10.0 + 40.0 / 2.0 + 25.0), 40.0)
+        assert len(session.slabs(planned.card)) == 6
+        # dragging a band: the point of a plane's picture in millimetres, and the same place
+        column, row = 80, 70
+        before = list(session.position_mm)
+        session.place("cor", column, row)
+        assert session.at("cor", column, row) == session.position_mm != before
+        # the slabs travel with the saved protocol
+        session.LIBRARY = tmp_path
+        session.save_protocol("slabs")
+        fresh = Session(ICBM)
+        fresh.LIBRARY = tmp_path
+        fresh.load_protocol("slabs")
+        assert fresh.protocol.ovs and len(fresh.slabs()) == 5
+        fresh.set_slab("x", 1.0, on=True)
+        assert len(fresh.slabs()) == 6
+
     def test_the_operators_own_maps_go_through_a_scan(self, tmp_path):
         import nibabel as nib
 

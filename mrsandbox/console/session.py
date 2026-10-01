@@ -447,6 +447,12 @@ class Protocol:
     ovs: bool = False
     ovs_mm: float = 30.0
     ovs_gap_mm: float = 10.0
+    # the six slabs, a pair along every axis: on or off, and a gap and thickness of their own
+    # (None: the card's); replaced as a whole, never changed in place, so a planned exam keeps
+    # the card it was planned with
+    ovs_slabs: tuple = dataclasses.field(default_factory=lambda: tuple(
+        {"axis": axis, "side": side, "on": True, "gap_mm": None, "mm": None}
+        for axis in "xyz" for side in (-1.0, 1.0)))
     real: bool = True
     water_reference: int = 1
     water_reference_first: bool = True
@@ -1960,14 +1966,45 @@ class Session:
         return design
 
     def slabs(self, card=None):
-        """The six outer-volume suppression slabs of a card, [(axis, centre, thickness)] in mm from
-        the voxel's centre: a pair along every axis, each `ovs_mm` thick and `ovs_gap_mm` clear of
-        the voxel's face. The gap matters: the slabs are placed for water, and under their 3 ms
-        sinc (about 60 Hz per mm on a 30 mm slab) NAA's slab lies 5 mm nearer on one side, with a
-        transition band of several mm more."""
+        """The outer-volume suppression slabs of a card that are on, [(axis, centre, thickness)]
+        in mm from the voxel's centre: a pair along every axis, each `ovs_mm` thick and
+        `ovs_gap_mm` clear of the voxel's face unless the slab has a gap or thickness of its own
+        (`ovs_slabs`). The gap matters: the slabs are placed for water, and under their 3.7 kHz
+        pulse (122 Hz per mm on a 30 mm slab) NAA's slab lies 2.8 mm nearer on one side, the
+        lipids' 3.5 mm, with a transition band of about a millimetre more."""
         card = self.protocol if card is None else card
-        return [(axis, side * (0.5 * (edge + card.ovs_mm) + card.ovs_gap_mm), float(card.ovs_mm))
-                for axis, edge in zip("xyz", self.size_mm) for side in (-1.0, 1.0)]
+        found = []
+        for slab in card.ovs_slabs:
+            if not slab["on"]:
+                continue
+            gap = card.ovs_gap_mm if slab["gap_mm"] is None else slab["gap_mm"]
+            thickness = card.ovs_mm if slab["mm"] is None else slab["mm"]
+            edge = self.size_mm["xyz".index(slab["axis"])]
+            found.append((slab["axis"], slab["side"] * (0.5 * (edge + thickness) + gap),
+                          float(thickness)))
+        return found
+
+    def set_slab(self, axis, side, **settings):
+        """One of the card's slabs changed ("on", "gap_mm", "mm"; None puts a gap or thickness
+        back to the card's): the tuple is replaced, so a planned exam keeps its own."""
+        self.protocol.ovs_slabs = tuple(
+            {**slab, **settings} if (slab["axis"], slab["side"]) == (axis, side) else slab
+            for slab in self.protocol.ovs_slabs)
+
+    def at(self, plane, column, row):
+        """The world point of (column, row) in a plane's picture, (x, y, z) in mm, the
+        coordinate the plane does not show being the slice on view."""
+        body = self.body()
+        step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
+        nx, ny, nz = body.gm.shape
+        side = max(nx, ny, nz)
+        # the planes are centred in squares of the largest grid side (`planes`)
+        px, py, pz = ((side - n) // 2 for n in (nx, ny, nz))
+        index = {"tra": (column - px, ny - 1 - (row - py), None),
+                 "sag": (None, column - py, nz - 1 - (row - pz)),
+                 "cor": (column - px, None, nz - 1 - (row - pz))}[plane]
+        return [self.view_mm[axis] if value is None else float(origin[axis] + step[axis] * value)
+                for axis, value in enumerate(index)]
 
     def designed(self):
         """The own design as the card plays it: the card's preludes (its water suppression and
@@ -1983,8 +2020,12 @@ class Session:
         if card.water_suppression in SUPPRESSION:
             found[card.water_suppression] = SUPPRESSION[card.water_suppression](real=card.real)
         if card.ovs:
-            found["OVS"] = OuterVolumeSuppression(self.slabs(card),
-                                                  42.5774785 * self.profile().scanner.b0_t,
+            scanner = self.profile().scanner
+            # the slab pulse played longer where the transmitter is short of its peak
+            probe = ShapedPulse.slr(90.0, 0.003, OuterVolumeSuppression.TIME_BANDWIDTH, "excitation")
+            grow = max(1.0, probe.played_peak_hz / (42.5774785 * scanner.peak_b1_ut))
+            found["OVS"] = OuterVolumeSuppression(self.slabs(card), 42.5774785 * scanner.b0_t,
+                                                  duration_s=0.003 * grow,
                                                   extent_mm=float(max(self.size_mm)))
         return found
 
@@ -2287,18 +2328,7 @@ class Session:
     def place(self, plane, column, row):
         """Move the voxel to the point clicked in a plane, (column, row) in image pixels; the
         coordinate the plane does not show becomes the slice on view, as the click was on it."""
-        body = self.body()
-        step, origin = np.diag(body.affine)[:3], body.affine[:3, 3]
-        nx, ny, nz = body.gm.shape
-        side = max(nx, ny, nz)
-        # the planes are centred in squares of the largest grid side (`planes`)
-        px, py, pz = ((side - n) // 2 for n in (nx, ny, nz))
-        index = {"tra": (column - px, ny - 1 - (row - py), None),
-                 "sag": (None, column - py, nz - 1 - (row - pz)),
-                 "cor": (column - px, None, nz - 1 - (row - pz))}[plane]
-        for axis, value in enumerate(index):
-            self.position_mm[axis] = (self.view_mm[axis] if value is None
-                                      else float(origin[axis] + step[axis] * value))
+        self.position_mm = self.at(plane, column, row)
 
     #***********#
     #   scene   #

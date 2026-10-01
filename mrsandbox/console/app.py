@@ -501,6 +501,7 @@ async def console(client: Client):
      chosen) = ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [],
                 {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None,
                  "editing": None, "flipped": False, "ready": False, "dragging": False,
+                 "bands": {}, "slab": None,
                  "looking": False, "every": True, "cell": None, "grid": None,
                  "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra", "slabs": True})
 
@@ -595,6 +596,8 @@ async def console(client: Client):
                         + (f'stroke="#fff" stroke-width="{0.6 * pen:.2f}" />'
                            if chosen["cell"] == (i, j, layer) else 'stroke="none" />')
                         for i in range(across) for j in range(down))
+            chosen["bands"][name] = {which: rect for which, rect in shifted.items()
+                                     if which.startswith("ovs") and chosen["slabs"]}
             views[name].content = (painted +
                 f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45">'
                 f'<line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
@@ -2532,6 +2535,33 @@ async def console(client: Client):
                     frame(exam, -1)
                     paint()
                     return
+            x, y = event.args.get("image_x", 0.0), event.args.get("image_y", 0.0)
+            if kind == "mousedown" and not event.args.get("shiftKey"):
+                # a press on a saturation slab's band takes the slab along
+                chosen["slab"] = next((
+                    (which[4], 1.0 if which[5] == "+" else -1.0)
+                    for which, (bx, by, bw, bh) in chosen["bands"].get(plane, {}).items()
+                    if bx <= x <= bx + bw and by <= y <= by + bh), None)
+            if chosen["slab"] is not None and (kind == "mousedown"
+                                              or (kind == "mousemove" and pressed)):
+                axis, side = chosen["slab"]
+                n = "xyz".index(axis)
+                slab = next(s for s in session.protocol.ovs_slabs
+                            if (s["axis"], s["side"]) == (axis, side))
+                thick = session.protocol.ovs_mm if slab["mm"] is None else slab["mm"]
+                # the band's centre follows the mouse along its axis; the gap is what is left
+                # between the voxel's face and the slab's inner face
+                gap = (side * (session.at(plane, x, y)[n] - session.position_mm[n])
+                       - 0.5 * session.size_mm[n] - 0.5 * thick)
+                session.set_slab(axis, side, gap_mm=float(round(max(gap, 0.0))))
+                chosen["dragging"] = True
+                paint()
+                return
+            if chosen["slab"] is not None and chosen["dragging"]:
+                chosen["slab"], chosen["dragging"] = None, False
+                room()
+                draw()
+                return
             if kind == "mousedown" or (kind == "mousemove" and pressed):
                 # with shift the press looks around (the other planes come to this point), without
                 # it it places the voxel
@@ -2586,6 +2616,48 @@ async def console(client: Client):
             card.water_suppression = schemes[
                 (schemes.index(card.water_suppression) + 1) % len(schemes)]
         draw()
+
+    def slabs():
+        """The card's six saturation slabs one by one: on or off, and a gap and thickness of its
+        own in place of the card's; a band on the planes drags its slab too."""
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 560px"):
+            ui.label("OVS slabs").classes("label")
+            ui.label("A pair along every axis, placed for water about the voxel's faces. A gap "
+                     "or thickness left empty is the card's. Drag a slab's band on a plane to "
+                     "move it.").style(f"color: {DIM}")
+
+            def set_slab(axis, side, **settings):
+                session.set_slab(axis, side, **settings)
+                room()
+                draw()
+
+            with ui.grid(columns=4).classes("w-full items-center").style("gap: 6px 12px"):
+                for caption in ("slab", "on", "gap to the voxel (mm)", "thickness (mm)"):
+                    ui.label(caption).classes("label")
+                for slab in session.protocol.ovs_slabs:
+                    axis, side = slab["axis"], slab["side"]
+                    sign = "+" if side > 0 else "−"
+                    ui.label(f"{axis} {sign}").classes("value")
+                    ui.switch(value=slab["on"], on_change=lambda e, a=axis, s=side: set_slab(
+                        a, s, on=bool(e.value))).mark(f"slab {axis}{'+' if side > 0 else '-'}")
+                    ui.number(value=slab["gap_mm"], min=0.0, step=1.0, format="%.6g",
+                              placeholder=f"{session.protocol.ovs_gap_mm:g}",
+                              on_change=lambda e, a=axis, s=side: set_slab(
+                                  a, s, gap_mm=None if e.value is None else float(e.value))
+                              ).props("dense outlined dark clearable").style("width: 150px")
+                    ui.number(value=slab["mm"], min=5.0, step=5.0, format="%.6g",
+                              placeholder=f"{session.protocol.ovs_mm:g}",
+                              on_change=lambda e, a=axis, s=side: set_slab(
+                                  a, s, mm=None if e.value is None else float(e.value))
+                              ).props("dense outlined dark clearable").style("width: 150px")
+            with ui.row().classes("w-full"):
+                ui.button("all alike", on_click=lambda: (
+                    [set_slab(s["axis"], s["side"], on=True, gap_mm=None, mm=None)
+                     for s in session.protocol.ovs_slabs], dialog.close(), slabs())).props(
+                    "flat dense no-caps").tooltip("every slab on, at the card's gap and thickness")
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+        dialog.open()
 
     def patient():
         """The person on the table, as a scanner's registration takes them: age, sex, health;
@@ -3152,6 +3224,11 @@ async def console(client: Client):
                                                     "w-full").bind_visibility_from(
                                                     card, "ovs").tooltip(
                                                     "six saturation slabs, a pair along every axis")
+                                                ui.button("OVS slabs one by one", icon="tune",
+                                                          on_click=lambda: slabs()).mark(
+                                                    "slabs").props(
+                                                    "outline dense no-caps").classes(
+                                                    "w-full").bind_visibility_from(card, "ovs")
                                             # what a scanner adjusts before it scans
                                             with ui.tab_panel("Adjustments"):
                                                 ui.select(list(FieldMap.SHIMS), value=session.shim,
@@ -3346,7 +3423,8 @@ async def console(client: Client):
                                                         "fast")
                                                     tools["ovs"] = ui.button(
                                                         "OVS", icon="border_outer",
-                                                        on_click=lambda: toggle("ovs")).props(
+                                                        on_click=lambda: toggle("ovs")).mark(
+                                                        "ovs").props(
                                                         "flat dense no-caps stack").classes(
                                                         "tool").tooltip(
                                                         "outer-volume suppression: six saturation "

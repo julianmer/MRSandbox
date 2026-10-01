@@ -17,7 +17,7 @@
 #*************#
 import numpy as np
 
-from mrsandbox.database import pulses, suppression
+from mrsandbox.database import suppression
 from mrsandbox.sequences.events import (CoherenceFilter, Delay, Gradient, Projection, Pulse,
                                         SelectivePulse, Sequence, ShapedPulse)
 
@@ -685,11 +685,14 @@ class OuterVolumeSuppression(Sequence):
     """Outer-volume suppression as physics: slab-selective saturation of the regions
     around the voxel, played before the localization (`Ovs(...) + Press(...)`).
 
-    Every band is a three-lobe sinc 90 under a slice gradient on its axis, its
-    carrier set so the slab of `thickness_mm` sits at `centre_mm` from the voxel
-    centre for spins at `reference_ppm` (other shifts displace by their chemical
-    shift over the gradient, the same displacement the localization suffers),
-    followed by a coherence filter keeping the longitudinal magnetization only: the
+    Every band is a Shinnar-Le Roux 90 of `time_bandwidth` under a slice gradient on
+    its axis (11 over 3 ms: 3.7 kHz at 23 uT, the most an amplitude-modulated 90 reaches
+    under a 25 uT transmitter; the swept pulses real sequences play, hyperbolic secants
+    of 9 kHz in 4.6 ms (Oz and Tkac, MRM 65 (2011) 901), are beyond it), its carrier
+    set so the slab of `thickness_mm` sits at `centre_mm` from the voxel centre for
+    spins at `reference_ppm` (other shifts displace by their chemical shift over the
+    gradient, the same displacement the localization suffers; the wider the band, the
+    less), followed by a coherence filter keeping the longitudinal magnetization only: the
     idealization of the crusher (a scanner's crusher moment aliases on the discrete
     ensemble, and a smaller one a later slice lobe can undo, so the filter states the
     dephasing exactly; the spurious echo of a band is not modelled). The voxel's own
@@ -702,25 +705,30 @@ class OuterVolumeSuppression(Sequence):
     Args:
         bands: ((axis, centre_mm, thickness_mm), ...), each axis "x", "y", or "z".
         f0_mhz: The spectrometer frequency, which sets the carriers in ppm.
-        duration_s: Each saturation pulse's length.
+        duration_s: Each saturation pulse's length; a transmitter short of its peak
+            plays it longer at the same time-bandwidth (narrower), as the console does.
+        time_bandwidth: The pulse's time-bandwidth product, its bandwidth over its length.
         extent_mm: The isochromat span of the voxel (its size along the axes).
         reference_ppm: The scanner reference the slab positions hold at (water).
     """
 
+    TIME_BANDWIDTH = 11.0
+
     #**********#
     #   init   #
     #**********#
-    def __init__(self, bands, f0_mhz, duration_s=0.003, extent_mm=20.0, reference_ppm=4.65):
+    def __init__(self, bands, f0_mhz, duration_s=0.003, time_bandwidth=TIME_BANDWIDTH,
+                 extent_mm=20.0, reference_ppm=4.65):
         self.bands = tuple((axis, float(centre), float(thickness))
                            for axis, centre, thickness in bands)
-        bandwidth_hz = pulses.DE_GRAAF[("sinc", 90)]["r_bw"] / duration_s
+        bandwidth_hz = time_bandwidth / duration_s
         events = []
         for axis, centre_mm, thickness_mm in self.bands:
             gradient = bandwidth_hz / thickness_mm  # Hz per mm
-            events.append(ShapedPulse.sinc(90.0, duration_s,
-                                           offset_ppm=reference_ppm + gradient * centre_mm / f0_mhz,
-                                           gradient_hz_per_mm=gradient, gradient_axis=axis,
-                                           extent_mm=extent_mm))
+            events.append(ShapedPulse.slr(90.0, duration_s, time_bandwidth, "excitation",
+                                          offset_ppm=reference_ppm + gradient * centre_mm / f0_mhz,
+                                          gradient_hz_per_mm=gradient, gradient_axis=axis,
+                                          extent_mm=extent_mm))
             events.append(CoherenceFilter(0))
         super().__init__(*events)
 

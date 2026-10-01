@@ -494,6 +494,19 @@ class ShapedPulse(Event):
         frame = frame * ops.cast(ctx.q, "float32")
         return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))
 
+    #**********#
+    #   peak   #
+    #**********#
+    @property
+    def played_peak_hz(self):
+        """The peak RF the pulse plays, in Hz: its own peak where it has one (an adiabatic
+        pulse), else what its flip asks of its envelope."""
+        if self.peak_hz is not None:
+            return float(self.peak_hz)
+        envelope = np.asarray(self.envelope, dtype=np.float64)
+        dt = float(self.duration_s) / envelope.size
+        return float(envelope.max() * (float(self.flip_deg) / 360.0) / (envelope.sum() * dt))
+
     #****************#
     #   propagator   #
     #****************#
@@ -787,7 +800,10 @@ class Projection(Event):
     coherences are gone. The cost of a voxel of n^3 positions falls to 3 n with the
     same result. It holds while nothing later addresses that axis again and nothing
     before addressed another one, so coherence filters select the pathway here, not
-    crushers on the other axes.
+    crushers on the other axes. The one thing before a localization that addresses
+    its axes, outer-volume saturation slabs, is separable too, and Sequence folds
+    each slab into the projection of its own axis (`saturation`): what the slab
+    leaves of each isochromat's longitudinal magnetization weighs it in the average.
 
     Args:
         gain: The factor on the average: the ensemble's extent over the nominal slab
@@ -806,9 +822,24 @@ class Projection(Event):
     #***********#
     #   apply   #
     #***********#
-    def apply(self, rho, ctx):
+    def apply(self, rho, ctx, saturation=(), propagators=None):
         if ops.ndim(rho) == 3:
-            rho = ops.mean(rho, axis=0)
+            if saturation:
+                left = ctx.rho_eq
+                for event in saturation:
+                    if isinstance(event, ShapedPulse):
+                        if id(event) not in propagators:
+                            propagators[id(event)] = event.propagator(ctx)
+                        left = event.apply(left, ctx, propagators[id(event)])
+                    else:
+                        left = event.apply(left, ctx)
+                fz = nops.cast(ctx.fz, "complex64")
+                weights = (ops.real(ops.einsum("iab,ba->i", left, fz))
+                           / ops.real(ops.einsum("ab,ba->", nops.cast(ctx.rho_eq, "complex64"), fz)))
+                rho = ops.mean(ops.reshape(nops.cast(weights, "complex64"), (-1, 1, 1)) * rho,
+                               axis=0)
+            else:
+                rho = ops.mean(rho, axis=0)
         return rho * nops.cast(ops.convert_to_tensor(self.gain, dtype="float32"), "complex64")
 
 
@@ -904,14 +935,45 @@ class Sequence:
     def _pass(self, rho, ctx, propagators):
         # a shaped pulse object played more than once (a refocusing pair, the passes
         # of a steady state) is computed once: its propagator does not see the state
-        for event in self.events:
+        held, folded = self._slabs()
+        for k, event in enumerate(self.events):
+            if k in held:
+                continue
             if isinstance(event, ShapedPulse):
                 if id(event) not in propagators:
                     propagators[id(event)] = event.propagator(ctx)
                 rho = event.apply(rho, ctx, propagators[id(event)])
+            elif isinstance(event, Projection):
+                rho = event.apply(rho, ctx, folded.get(k, ()), propagators)
             else:
                 rho = event.apply(rho, ctx)
         return rho
+
+    def _slabs(self):
+        """The saturation slabs a projected design folds into its projections: before the
+        localization, a slice-selective pulse followed by a filter on order zero alone is
+        an outer-volume suppression slab. Played in place, a slab along y would be averaged
+        into the x projection as a loss over the whole voxel, so each slab is held back and
+        weighed into the projection of its own axis instead (Projection.apply), which is
+        where the factorization puts it. A slab along an axis no projection localizes plays
+        in place. Returns (the indices held back, {projection index: its slab events})."""
+        events = self.events
+        if not any(isinstance(event, Projection) for event in events):
+            return set(), {}
+        first = next(k for k, event in enumerate(events) if isinstance(event, Projection))
+        slabs = [k for k in range(first - 1)
+                 if isinstance(events[k], ShapedPulse) and events[k].gradient_hz_per_mm
+                 and isinstance(events[k + 1], CoherenceFilter) and events[k + 1].orders == (0,)]
+        held, folded, since = set(), {}, set()
+        for k, event in enumerate(events):
+            if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm and k not in slabs:
+                since.add(event.gradient_axis)
+            elif isinstance(event, Projection):
+                mine = [j for j in slabs if events[j].gradient_axis in since and j not in held]
+                held.update(j + i for j in mine for i in (0, 1))
+                folded[k] = tuple(events[j + i] for j in mine for i in (0, 1))
+                since = set()
+        return held, folded
 
     #**************#
     #   duration   #
@@ -960,12 +1022,7 @@ class Sequence:
             if isinstance(event, Delay):
                 owed = max(owed - float(event.t_s), 0.0)
             elif isinstance(event, ShapedPulse):
-                envelope = np.asarray(event.envelope, dtype=np.float64)
-                if event.peak_hz is not None:
-                    peak = float(event.peak_hz)
-                else:
-                    dt = float(event.duration_s) / envelope.size
-                    peak = envelope.max() * (float(event.flip_deg) / 360.0) / (envelope.sum() * dt)
+                peak = event.played_peak_hz
                 if peak > peak_hz:
                     reasons.append(f"shaped pulse peak {peak / gamma_mhz_t:.1f} uT exceeds the "
                                    f"scanner's {scanner.peak_b1_ut:.1f} uT")

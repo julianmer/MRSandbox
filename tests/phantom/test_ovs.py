@@ -23,7 +23,8 @@ from keras import ops
 
 from mrsandbox import (Brain, Delay, Engine, Gradient, OuterVolumeSuppression, Params, Pulse,
                        Scanner, Sequence, ShapedPulse, SpinSystem, VirtualScan)
-from mrsandbox.sequences.events import CoherenceFilter
+from mrsandbox.phantom.water import WaterSource
+from mrsandbox.sequences.events import CoherenceFilter, Projection
 
 GAMMA = 42.5774785
 F0 = GAMMA * 3.0
@@ -146,6 +147,30 @@ class TestLipids:
                                Gradient(0.15, 20.0, axis="x"), Delay(0.0115))
         centred, _ = self.lipid_amplitude(unlocalized)
         assert abs(shifted / centred - expected) < 0.1 * expected
+
+    def test_slabs_before_a_projected_design_weigh_into_their_own_axis(self):
+        # six slabs 5 mm clear of a 20 mm real PRESS voxel: played in place, the x projection
+        # averaged the y and z slabs' saturation into a loss of half the signal; folded into
+        # their own axes they cost what the full ensemble says, a few percent
+        from mrsandbox.sequences.library import LocalizedPress
+
+        press = LocalizedPress(0.011, 0.024, F0, size_mm=20.0)
+        slabs = OuterVolumeSuppression([(axis, side * 30.0, 30.0) for axis in "xyz"
+                                        for side in (-1.0, 1.0)], F0, extent_mm=20.0)
+        engine, water = Engine(F0 / 42.5774785), WaterSource.system(gamma_mhz_t=42.5774785)
+        naa = (4.65 - 2.01) * F0
+
+        def amplitude(sequence, isochromats):
+            _, amps = engine.lines(sequence, water, offset_hz=naa, isochromats=isochromats)
+            return float(np.abs(np.asarray(ops.convert_to_numpy(amps))).sum())
+
+        def unprojected(sequence):
+            return Sequence(*(e for e in sequence.events if not isinstance(e, Projection)))
+
+        projected = amplitude(slabs + press, 64) / amplitude(press, 64)
+        full = (amplitude(unprojected(slabs + press), 512)
+                / amplitude(unprojected(press), 512))
+        assert projected > 0.97 and abs(projected - full) < 0.02, (projected, full)
 
     @pytest.mark.slow
 
