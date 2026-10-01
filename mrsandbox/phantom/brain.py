@@ -167,27 +167,19 @@ class Brain:
         """The Colin27 2008 fuzzy phantom: one subject's tissue classes at 0.5 mm, each a
         fraction of the cell (resources.colin27), of which grey, white and CSF, and the
         scalp's fat with the skull's marrow as the fat-bearing layer (the classes part the
-        scalp's fat from its muscle, so no distance rule is needed). Block-averaged to 1 mm,
-        which keeps the fractions exact and the memory an eighth."""
+        scalp's fat from its muscle, so no distance rule is needed)."""
         import nibabel as nib
 
         from mrsandbox.resources import Resources
 
-        def map_1mm(label):
-            image = nib.load(str(Resources.path(f"colin27/{label}")))
-            # the files hold the fractions, 0 to 1; their header's slope is NaN, under which
-            # nibabel's scaled read shrinks them, so they are read as stored
-            data = np.asarray(image.dataobj.get_unscaled(), dtype=np.float32)
-            nx, ny, nz = (n // 2 for n in data.shape)
-            return data.reshape(nx, 2, ny, 2, nz, 2).mean(axis=(1, 3, 5)), image.affine
-
-        maps = {label: map_1mm(label) for label in ("gm", "wm", "csf", "fat", "marrow")}
-        affine = np.array(maps["gm"][1], dtype=np.float64)
-        # the first 1 mm cell's centre lies half a 0.5 mm cell in along each axis
-        affine[:3, 3] += affine[:3, :3] @ np.full(3, 0.5)
-        affine[:3, :3] *= 2.0
-        return cls(gm=maps["gm"][0], wm=maps["wm"][0], csf=maps["csf"][0], affine=affine,
-                   name="colin27", fat=maps["fat"][0] + maps["marrow"][0])
+        images = {label: nib.load(str(Resources.path(f"colin27/{label}")))
+                  for label in ("gm", "wm", "csf", "fat", "marrow")}
+        # the files hold the fractions, 0 to 1; their header's slope is NaN, under which
+        # nibabel's scaled read shrinks them, so they are read as stored
+        maps = {label: np.asarray(image.dataobj.get_unscaled(), dtype=np.float32)
+                for label, image in images.items()}
+        return cls(gm=maps["gm"], wm=maps["wm"], csf=maps["csf"], affine=images["gm"].affine,
+                   name="colin27", fat=maps["fat"] + maps["marrow"])
 
     #***********#
     #   scalp   #

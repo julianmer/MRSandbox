@@ -51,7 +51,7 @@ class TestBrain:
     #*********************#
     def test_the_colin27_head_carries_the_scalps_fat_in_the_mni_frame(self):
         head, adult = Brain.load("colin27"), Brain.load("icbm152")
-        assert head.shape == (181, 217, 181) and np.allclose(np.diag(head.affine)[:3], 1.0)
+        assert head.shape == (362, 434, 362) and np.allclose(np.diag(head.affine)[:3], 0.5)
         place, size = (0.0, -35.0, 20.0), (20.0, 20.0, 20.0)
         # the same frame: one subject's parietal tissue within a tenth of the average's
         own, average = head.fractions(place, size), adult.fractions(place, size)

@@ -63,7 +63,7 @@ SUBJECTS = {
        for band in NIHPD_BANDS},
     "Brain, BigBrain-MR, 0.8 mm": lambda: Brain.load("bigbrain_mr"),
     "Head, QSM challenge, 0.64 mm": lambda: Brain.load("qsm_rc2"),
-    "Head, Colin27 fuzzy, 1 mm": lambda: Brain.load("colin27"),
+    "Head, Colin27 fuzzy, 0.5 mm": lambda: Brain.load("colin27"),
     # a round sphere on the planes, not 4 mm blocks
     "Phantom, SPECTRE sphere": lambda: Phantom.spectre(temperature_c=21.0, cell_mm=1.0),
     "Phantom, Braino sphere": lambda: Phantom.braino(temperature_c=21.0, cell_mm=1.0),
@@ -157,7 +157,7 @@ RUN_OF = {"scanner": ("drift_hz_per_min", "ar_sigma_hz", "phase_jitter_deg", "am
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr",
           **{f"Brain, NIHPD {band} years, 2 mm": "bigbrain_mr" for band in NIHPD_BANDS},
           "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
-          "Head, Colin27 fuzzy, 1 mm": "bigbrain_mr",
+          "Head, Colin27 fuzzy, 0.5 mm": "bigbrain_mr",
           "Head, QSM challenge, 0.64 mm": "qsm_rc2_measured"}
 # what the realism pop-up can switch off, each the leaves it sets to nothing: the console starts
 # real

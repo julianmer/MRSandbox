@@ -481,6 +481,8 @@ async def console(client: Client):
     take seconds) is made behind it."""
     ui.add_head_html(f"<style>{STYLE}</style>")
     ui.dark_mode(True)
+    # a decimal point whatever the machine's region: the native input takes the lang
+    ui.number.default_props("lang=en-US")
     ui.colors(primary=COPPER, accent=SAND, positive=GOOD, negative=BAD)
     with ui.element("div").style(f"position: fixed; inset: 0; z-index: 9999; "
                                  f"background: {GROUND}; display: flex; flex-direction: column; "
