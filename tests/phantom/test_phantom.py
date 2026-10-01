@@ -46,6 +46,22 @@ class TestBrain:
         assert (float(np.sum(child.gm)) > float(np.sum(adult.gm))
                 and float(np.sum(child.wm)) < float(np.sum(adult.wm)))
 
+    #*********************#
+    #   the colin27 head  #
+    #*********************#
+    def test_the_colin27_head_carries_the_scalps_fat_in_the_mni_frame(self):
+        head, adult = Brain.load("colin27"), Brain.load("icbm152")
+        assert head.shape == (181, 217, 181) and np.allclose(np.diag(head.affine)[:3], 1.0)
+        place, size = (0.0, -35.0, 20.0), (20.0, 20.0, 20.0)
+        # the same frame: one subject's parietal tissue within a tenth of the average's
+        own, average = head.fractions(place, size), adult.fractions(place, size)
+        assert (abs(own.gm - average.gm) < 0.1 and abs(own.wm - average.wm) < 0.1
+                and head.lipid_weight(place, size) == 0.0)
+        # the fractions are read as stored, 0 to 1, and the fat lies above the vertex
+        assert float(head.fat.data.max()) == pytest.approx(1.0, abs=0.01)
+        vertex = (0.0, -20.0, 88.0)
+        assert head.lipid_weight(vertex, size) > 0.03 and head.lipid_offset(vertex, size)[2] > 2.0
+
     #**********************************#
     #   fractions inside and outside   #
     #**********************************#

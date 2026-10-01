@@ -26,7 +26,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from mrsandbox.resources.fetch import Resources
+from mrsandbox.resources.fetch import Resources, _read
 from mrsandbox.resources.functional import RestingState7T
 from mrsandbox.resources.hmri import HMRI
 from mrsandbox.resources.relaxometry import IXI, Developmental, RadialMESE
@@ -42,18 +42,6 @@ XNAT = "https://www.nitrc.org/ir"
 #*************#
 #   fetched   #
 #*************#
-def _read(url, headers=None):
-    """The bytes at `url`, tried three times (a mirror drops a request now and then)."""
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}),
-                                        timeout=120) as response:
-                return response.read()
-        except OSError:
-            if attempt == 2:
-                raise
-
-
 def _openneuro(accession, pattern):
     """A fetcher of the files of OpenNeuro `accession` whose paths within the dataset match
     `pattern` (a regular expression), off the public bucket into the local copy, laid out as
@@ -81,43 +69,11 @@ def _openneuro(accession, pattern):
     return fetch
 
 
-class _Ranged(io.RawIOBase):
-    """A remote file read by HTTP range requests, for zipfile to take the members it needs out of
-    an archive without the archive being downloaded."""
-
-    def __init__(self, url):
-        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD")) as response:
-            self.url, self.size = response.geturl(), int(response.headers["Content-Length"])
-        self.at = 0
-
-    def seekable(self):
-        return True
-
-    def readable(self):
-        return True
-
-    def tell(self):
-        return self.at
-
-    def seek(self, offset, whence=io.SEEK_SET):
-        self.at = (offset, self.at + offset, self.size + offset)[whence]
-        return self.at
-
-    def readinto(self, buffer):
-        if self.at >= self.size or not len(buffer):
-            return 0
-        end = min(self.at + len(buffer), self.size) - 1
-        data = _read(self.url, {"Range": f"bytes={self.at}-{end}"})
-        buffer[:len(data)] = data
-        self.at += len(data)
-        return len(data)
-
-
 def _zipped(url, members):
     """A fetcher of `members` of a zip archive at `url` into the local copy at their paths in
     the archive, read by range requests (zipfile checks each member's CRC as it reads it)."""
     def fetch(root):
-        with zipfile.ZipFile(io.BufferedReader(_Ranged(url), buffer_size=1 << 20)) as archive:
+        with Resources._archive(url) as archive:
             for member in members:
                 path = root / member
                 if path.exists():

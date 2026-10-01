@@ -6,8 +6,8 @@
 #                                                                                                  #
 # Created: 05/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Registry entries for the ICBM152 2009c template, one dict for this source with the      #
-#          citation beside it.                                                                     #
+# Purpose: Registry entries for the ICBM152 2009c template and the NIHPD pediatric templates,       #
+#          one dict per source with the citation beside it, and the age band a child stands in.    #
 #                                                                                                  #
 ####################################################################################################
 
@@ -76,3 +76,18 @@ NIHPD = {
     for band, cohort in NIHPD_BANDS.items()
     for tissue, md5 in zip(("gm", "wm", "csf"), NIHPD_MD5[cohort])
 }
+
+
+#**************#
+#   the band   #
+#**************#
+def nihpd_band(age_y):
+    """The pediatric template's band of a person `age_y` years old: the one centred nearest the age
+    among those holding it (the youngest band under 4.5 years); None past 18.5 or with no age,
+    an adult."""
+    if age_y is None or age_y > 18.5:
+        return None
+    bands = {band: tuple(float(v) for v in band.split("-")) for band in NIHPD_BANDS}
+    held = [band for band, (low, high) in bands.items() if low <= max(age_y, 4.5) <= high]
+    return min(held, key=lambda band: (abs(sum(bands[band]) / 2.0 - age_y),
+                                       bands[band][1] - bands[band][0]))

@@ -22,7 +22,7 @@ import numpy as np
 
 from mrsandbox.hardware import Scanner
 from mrsandbox.resources import participants
-from mrsandbox.resources.icbm import NIHPD_BANDS
+from mrsandbox.resources.icbm import nihpd_band
 from mrsandbox.scan import maps
 from mrsandbox.scan.cohort import Cohort, Member
 from mrsandbox.scan.maps import MapReading
@@ -99,14 +99,8 @@ class Developmental:
             if records:
                 traits = {**people.get(subject, {"health": "healthy"}),
                           **({} if age is None else {"age_y": age})}
-                band = "4.5-18.5"
-                if age is not None:
-                    bands = {b: tuple(float(v) for v in b.split("-")) for b in NIHPD_BANDS}
-                    held = [b for b, (low, high) in bands.items() if low <= max(age, 4.5) <= high]
-                    band = min(held, key=lambda b: (abs(sum(bands[b]) / 2.0 - age),
-                                                    bands[b][1] - bands[b][0]))
                 members.append(_subject(subject, "siemens_prisma_3t", records, traits,
-                                        f"nihpd_{band}"))
+                                        f"nihpd_{nihpd_band(age) or '4.5-18.5'}"))
         return Cohort("ds004611_prisma_3t", tuple(members))
 
     @classmethod

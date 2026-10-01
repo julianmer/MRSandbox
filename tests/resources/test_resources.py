@@ -19,6 +19,7 @@
 import hashlib
 import pathlib
 import re
+import zipfile
 
 import pytest
 
@@ -108,6 +109,20 @@ class TestFetch:
     #*******************#
     #   placed by hand  #
     #*******************#
+    def test_a_member_of_an_archive_is_taken_out_by_itself(self, tmp_path, monkeypatch):
+        monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path / "cache"))
+        archive = tmp_path / "bundle.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("other.bin", b"not this one")
+            bundle.writestr("maps/wanted.bin", b"the member's bytes")
+        # the archive opened locally in place of the ranged reader over HTTP
+        monkeypatch.setattr(Resources, "_archive", staticmethod(lambda url: zipfile.ZipFile(archive)))
+        monkeypatch.setitem(Resources.REGISTRY, "test/member", {
+            "url": "https://example.org/bundle.zip", "member": "maps/wanted.bin",
+            "md5": hashlib.md5(b"the member's bytes").hexdigest(), "filename": "test/wanted.bin"})
+        assert Resources.path("test/member").read_bytes() == b"the member's bytes"
+        assert Resources.cached("test/member")
+
     def test_a_page_resource_is_never_fetched_and_says_where_to_put_it(self, tmp_path, monkeypatch):
         monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path))
         monkeypatch.setitem(Resources.REGISTRY, "test/placed",

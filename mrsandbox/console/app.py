@@ -105,13 +105,14 @@ CHOICES = {"shape": ["sinc", "gaussian", "hermite", "slr"], "slice_axis": ["none
            "axis": ["x", "y", "z"], "scheme": list(SUPPRESSION), "pulses": ["played", "ideal"]}
 # the designer's blocks in plain words: an icon, what the block is, and its settings with their
 # units
-BLOCK_ICONS = {FIXED: "lock", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive",
+BLOCK_ICONS = {FIXED: "push_pin", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive",
                "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
                "crusher": "signal_cellular_alt", "coherence filter": "filter_alt",
                "water suppression": "water_drop"}
 BLOCK_NOTES = {
-    FIXED: "A real pulse of the card's sequence. Its shape is the card's; its flip, duration, "
-           "carrier, phase, peak B1 and slice gradient are yours to set.",
+    FIXED: "A block of the card's own sequence, as the card plays it. A pulse keeps the card's "
+           "shape; its flip, duration, carrier, phase, peak B1 and slice gradient are yours to "
+           "set. A gradient keeps its span; its dephasing is yours. A projection is ideal.",
     "hard pulse": "An ideal pulse of no duration. It turns every spin alike, whatever its "
                   "frequency.",
     "own pulse": "A pulse of your own shape. Type its envelope or load it from a file; the flip "
@@ -129,6 +130,19 @@ BLOCK_NOTES = {
     "water suppression": "A train of selective pulses on the water line before the excitation: "
                          "VAPOR, WET, CHESS or COWS, its pulses played in time or ideal.",
 }
+
+
+#****************#
+#   block name   #
+#****************#
+def block_name(kind, settings):
+    """A block's kind in the designer's words: the card's own blocks by what they are."""
+    if kind != FIXED:
+        return kind
+    event = type(settings["event"]).__name__
+    return "card's " + {"ShapedPulse": "pulse"}.get(event, event.lower())
+
+
 CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)",
             "duration_ms": "duration (ms)", "offset_ppm": "centre (ppm)", "shape": "shape",
             "slice_axis": "slice along",
@@ -479,6 +493,8 @@ async def console(client: Client):
         ui.spinner("bars", size="34px", color=SAND)
     await client.connected()
     session = await run.io_bound(Session)
+    if session is None:         # the page was left while the room was being made
+        return
     (views, shown, hung, letters, crosses, texts, tools, pickers, origins, levels, places, edges,
      chosen) = ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [],
                 {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None,
@@ -1197,47 +1213,26 @@ async def console(client: Client):
         diagram; a block is chosen on the strip, set in the inspector beside the palette, and new
         blocks go in after it. The diagram marks the chosen block, and the design's spectrum at
         the planned voxel is one press away."""
-        state = {"at": 0}
+        state, switches = {"at": 0}, {}
 
         def refresh():
-            """Redraw the diagram with the chosen block marked, the strip, and the inspector."""
-            strip.clear()
+            """Redraw the diagram with the chosen block marked, the strip, the inspector, and the
+            card's three switches as they stand."""
             card = session.protocol
+            for name, on in (("real", card.real), ("ovs", card.ovs),
+                             ("water", card.water_suppression in SUPPRESSION)):
+                switches[name].classes(add="on" if on else "", remove="" if on else "on")
+            switches["water"].text = "water " + card.water_suppression
+            strip.clear()
             with strip:
-                # the card's own preludes first, grey: the same switches as the toolbar's
-                shown = {**({card.water_suppression: "water_drop"}
-                            if card.water_suppression in SUPPRESSION
-                            else {"assumed residual, no train": "water_drop"}
-                            if card.water_suppression == ASSUMED else {}),
-                         **({"OVS": "crop_free"} if card.ovs else {})}
-                for name, icon in shown.items():
-                    with ui.column().style("gap: 0; align-items: center"):
-                        ui.button(name, icon=icon).props("flat dense no-caps stack").classes(
-                            "chip prelude").tooltip(
-                            "the card's " + ("outer-volume suppression" if name == "OVS"
-                                             else "water suppression")
-                            + ", played before the design; remove it to design your own")
-                        ui.button(icon="close", on_click=lambda _, name=name: prelude(
-                            name, False)).props("flat dense round size=xs").mark(
-                            f"remove {'OVS' if name == 'OVS' else 'water suppression'}")
-                if not shown.keys() - {"OVS"}:
-                    with ui.button("add water suppression", icon="add").props(
-                            "flat dense no-caps stack").classes("chip prelude").mark(
-                            "add water suppression"):
-                        with ui.menu().props("dark"):
-                            for scheme in SUPPRESSION:
-                                ui.menu_item(scheme, lambda scheme=scheme: prelude(
-                                    scheme, True)).mark(f"scheme {scheme}")
-                if "OVS" not in shown:
-                    ui.button("add OVS", icon="add", on_click=lambda: prelude("OVS", True)).props(
-                        "flat dense no-caps stack").classes("chip prelude").mark("add OVS")
                 for index, (kind, settings) in enumerate(session.design):
                     brief = next((f"{value:g}" + unit
                                   for key, unit in (("flip_deg", "°"), ("ms", " ms"),
                                                     ("cycles_per_mm", " /mm"), ("order", ""))
                                   if (value := settings.get(key)) is not None),
-                                 settings.get("scheme", settings.get("what", "")))
-                    chip = ui.button(f"{index + 1} · {kind} {brief}", icon=BLOCK_ICONS[kind],
+                                 settings.get("scheme", ""))
+                    chip = ui.button(f"{index + 1} · {block_name(kind, settings)} {brief}",
+                                     icon=BLOCK_ICONS[kind],
                                      on_click=lambda _, i=index: (
                                          state.__setitem__("at", i), refresh())).props(
                         "flat dense no-caps stack draggable").classes(
@@ -1262,7 +1257,8 @@ async def console(client: Client):
                     kind, settings = session.design[state["at"]]
                     with ui.row().classes("w-full items-center"):
                         ui.icon(BLOCK_ICONS[kind], size="20px").style(f"color: {GLOW}")
-                        ui.label(f"Block {state['at'] + 1} · {kind}").style(f"color: {SAND}")
+                        ui.label(f"Block {state['at'] + 1} · {block_name(kind, settings)}").style(
+                            f"color: {SAND}")
                         ui.space()
                         if kind in ("hard pulse", "shaped pulse"):
                             ui.button(
@@ -1311,17 +1307,6 @@ async def console(client: Client):
                                     "width: 170px")
             redraw()
 
-        def prelude(name, on):
-            """The card's water suppression (a scheme, or off) or its OVS, set from the designer:
-            the toolbar's switches, which the diagram and the spectrum follow."""
-            if name == "OVS":
-                session.protocol.ovs = on
-                room()
-            else:
-                session.protocol.water_suppression = name if on else "off"
-            refresh()
-            draw()
-
         def redraw():
             try:
                 # the design after the card's preludes, as the card plays it
@@ -1355,6 +1340,17 @@ async def console(client: Client):
                 parts()
                 refresh()
 
+            def cycle(steps):
+                """The chosen pulse phase cycled over `steps` sub-acquisitions; a block that is
+                no pulse is said so, not raised."""
+                try:
+                    session.phase_cycle(state["at"], steps)
+                except ValueError as error:
+                    ui.notify(str(error), type="warning")
+                    return
+                parts()
+                refresh()
+
             def without():
                 session.designs.pop(session.condition)
                 session.condition = next(iter(session.designs))
@@ -1382,9 +1378,8 @@ async def console(client: Client):
                     if session.design and "phase_deg" in session.design[state["at"]][1]:
                         for steps in (2, 4):
                             ui.button(f"phase cycle the chosen pulse, {steps} steps", icon="cached",
-                                      on_click=lambda _, steps=steps: (
-                                          session.phase_cycle(state["at"], steps), parts(),
-                                          refresh())).props("flat dense no-caps").tooltip(
+                                      on_click=lambda _, steps=steps: cycle(steps)).props(
+                                "flat dense no-caps").tooltip(
                                 "the pulse's phase steps over the transients and the receiver "
                                 "follows, so the wanted pathway adds and the rest cancels")
                     if len(session.designs) > 1:
@@ -1435,6 +1430,20 @@ async def console(client: Client):
                 state["at"] = onto
                 refresh()
 
+        def flip(name):
+            """One of the card's switches pressed in the designer. Real pulses also turns the
+            design: the card's own sequence is taken over again as the card now plays it, an own
+            design's pulses become shaped, or ideal again."""
+            toggle(name)
+            if name == "real":
+                if session.protocol.sequence != "Custom":
+                    session.adopt()
+                    state["at"] = min(state["at"], len(session.design) - 1)
+                else:
+                    for index in range(len(session.design)):
+                        reshape(index, session.protocol.real)
+            refresh()
+
         def reshape(index, shaped):
             """An ideal pulse becomes a shaped one of the same flip and phase, or back."""
             kind, settings = session.design[index]
@@ -1469,9 +1478,9 @@ async def console(client: Client):
             refresh()
 
         async def look():
-            """What the design does to a spectrum (Session.showcase): a fixed subject in normal
-            tissue, a uniform field, no noise, the card's water suppression and OVS as the strip
-            shows them."""
+            """What the design does to a spectrum (Session.showcase): the subject on the table at
+            the planned voxel, a uniform field, no noise, the card's water suppression and OVS as
+            the strip shows them."""
             busy.set_visibility(True)
             try:
                 ppm, real = await run.io_bound(session.showcase)
@@ -1505,16 +1514,17 @@ async def console(client: Client):
                 place(state["copied"][0], dict(state["copied"][1]))
 
         with ui.dialog() as dialog, ui.card().classes("pane").style(
-                "min-width: 1300px; max-width: 1500px"):
-            with ui.row().classes("w-full items-center"):
-                ui.label("Sequence designer").style(f"color: {SAND}; font-size: 15px")
+                "min-width: 1300px; max-width: 1600px"):
+            with ui.row().classes("w-full items-center no-wrap"):
+                ui.label("Sequence designer").style(
+                    f"color: {SAND}; font-size: 15px; white-space: nowrap")
                 # its pulses as the card has them, real or ideal
                 ui.select(list(TEMPLATES), label="start from", on_change=lambda e: e.value and (
                     setattr(session, "design", [(kind, {**BLOCKS[kind][0], **settings})
                                                 for kind, settings in TEMPLATES[e.value]]),
                     [reshape(i, True) for i in range(len(session.design)) if session.protocol.real],
                     state.__setitem__("at", 0), refresh())).props("dense outlined dark").style(
-                    "width: 300px").tooltip(
+                    "width: 240px").tooltip(
                     "a template's pulses are shaped where the card plays real pulses, ideal where "
                     "it plays ideal ones")
 
@@ -1535,24 +1545,26 @@ async def console(client: Client):
                     "outline dense no-caps").style("width: 150px").tooltip(
                     "the file's pulses, delays and gradients up to its first readout become "
                     "blocks; the card plays it as Custom")
-                problem = ui.label("").classes("value")
+                # the card's switches, here too: the water suppression steps through its schemes
+                for name, caption, icon, tip in (
+                        ("real", "real pulses", "waves", "the design's pulses and the card's: "
+                                                         "shaped, played in time, or ideal"),
+                        ("water", "water", "water_drop", "the card's water suppression scheme, "
+                                                         "played before the design"),
+                        ("ovs", "OVS", "crop_free", "the card's outer-volume suppression, played "
+                                                    "before the design")):
+                    switches[name] = ui.button(caption, icon=icon, on_click=lambda _, name=name: (
+                        flip(name))).props("flat dense no-caps").classes("tool").style(
+                        "flex: none").tooltip(tip)
+                problem = ui.label("").classes("value").style("white-space: nowrap")
                 ui.space()
-                ui.button("all pulses ideal", icon="bolt", on_click=lambda: (
-                    [reshape(i, False) for i in range(len(session.design))], refresh())).props(
-                    "outline dense no-caps")
-                ui.button("all pulses shaped", icon="waves", on_click=lambda: (
-                    [reshape(i, True) for i in range(len(session.design))], refresh())).props(
-                    "outline dense no-caps")
-                ui.button("Spectrum of this design", icon="insights", on_click=look).props(
-                    "outline dense no-caps")
                 ui.button("Close", on_click=lambda: (
                     setattr(keys, "active", False), setattr(planning, "active", True),
                     dialog.close())).props("flat dense no-caps").tooltip(
                     "the design is kept; the card plays what it played")
                 ui.button("Use this design", icon="check", on_click=use).props(
-                    "unelevated dense no-caps").tooltip(
-                    "the card plays this design, after the water suppression and OVS shown before "
-                    "it")
+                    "unelevated dense no-caps").style("flex: none").tooltip(
+                    "the card plays this design, after its water suppression and OVS")
                 keys = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
@@ -1563,10 +1575,13 @@ async def console(client: Client):
                     busy = ui.spinner(size="56px", color=SAND).style(
                         "position: absolute; top: 42%; left: 46%")
                     busy.set_visibility(False)
+                    ui.button("Spectrum of this design", icon="insights", on_click=look).props(
+                        "outline dense no-caps").style(
+                        "position: absolute; bottom: 72px; right: 12px")
             several = ui.column().classes("w-full").style("gap: 4px")
-            ui.label("The design, in the order it plays · the card's water suppression and OVS "
-                     "first, grey (x removes, + adds) · press a block to choose it · drag one "
-                     "onto another to move it there").classes("label")
+            ui.label("The design, in the order it plays, after the card's water suppression and "
+                     "OVS · press a block to choose it · drag one onto another to move it "
+                     "there").classes("label")
             strip = ui.row().classes("w-full").style("gap: 4px")
             with ui.row().classes("w-full no-wrap").style(
                     "gap: 10px; align-items: stretch; flex: 1"):
@@ -1884,7 +1899,7 @@ async def console(client: Client):
                         told.text = ("Cropping the neck, extracting the brain and segmenting it "
                                      "with FSL: about two minutes")
                         await run.io_bound(session.segment, own["anatomy"], label)
-                    pickers["subject"].set_options(list(session.subjects), value=label)
+                    pickers["subject"].set_options(session.anatomies(), value=label)
                 elif shown_now["anatomy"] != session.subject:
                     pickers["subject"].set_value(shown_now["anatomy"])
                 for what in ("B0", "B1+", "lipid"):
@@ -1913,7 +1928,7 @@ async def console(client: Client):
                 values)
 
         fat = getattr(session.body(), "fat", None)
-        entries = (("anatomy", "anatomy (T1-weighted)", list(session.subjects), session.subject),
+        entries = (("anatomy", "anatomy (T1-weighted)", session.anatomies(), session.subject),
                  ("GM", "grey matter", [f"of {session.subject}"], f"of {session.subject}"),
                  ("WM", "white matter", [f"of {session.subject}"], f"of {session.subject}"),
                  ("CSF", "CSF", [f"of {session.subject}"], f"of {session.subject}"),
@@ -2160,8 +2175,8 @@ async def console(client: Client):
                 status["folder"].text = f"not read: {error}"[:200]
                 return
             pickers["scanner"].set_options(session.scanners(), value=session.scanner)
-            pickers["subject"].set_options(list(session.subjects), value=session.subject)
-            pickers["coil"].set_options(list(session.coils), value=session.coil)
+            pickers["subject"].set_options(session.anatomies(), value=session.subject)
+            pickers["coil"].set_options(session.arrays(), value=session.coil)
             room()
             reopen()
 
@@ -2370,7 +2385,7 @@ async def console(client: Client):
             try:
                 if kind == "maps":
                     session.coil_maps(str(picked_file), picked_file.name.split(".")[0])
-                    pickers["coil"].set_options(list(session.coils), value=session.coil)
+                    pickers["coil"].set_options(session.arrays(), value=session.coil)
                 else:
                     await run.io_bound(session.coil_noise, str(picked_file))
             except Exception as error:
@@ -2391,7 +2406,7 @@ async def console(client: Client):
             with ui.column().classes("w-full").style("gap: 0"):
                 with row("array", "the loops the room shows on the head; one ideal channel has "
                                   "uniform sensitivity and the scanner's noise"):
-                    ui.select(list(session.coils), value=session.coil, on_change=lambda e: (
+                    ui.select(session.arrays(), value=session.coil, on_change=lambda e: (
                         setattr(session, "coil", e.value), pickers["coil"].set_value(e.value),
                         reopen())).props("dense outlined dark options-dense").style("width: 260px")
                     published = (ARRAY_PRESETS[session.ARRAYS[session.coil]]
@@ -2595,9 +2610,13 @@ async def console(client: Client):
                 ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
 
                 def admit():
+                    before = session.subject
                     session.admit(age_y=age.value, sex=sex.value,
                                   health=None if health.value == "healthy" else health.value)
                     dialog.close()
+                    if session.subject != before:    # the template of the person's age
+                        pickers["subject"].set_options(session.anatomies(), value=session.subject)
+                        room()
                     draw()
                     ui.notify("Registered: " + (", ".join(
                         f"{value:g} years" if key == "age_y" else str(value)
@@ -2878,8 +2897,8 @@ async def console(client: Client):
         ui.label("MRSandbox").style(f"color: {SAND}; font-size: 16px; letter-spacing: .1em")
         for attribute, caption, options, width in (
                 ("scanner", "scanner", session.scanners(), 230),
-                ("coil", "receive array", list(session.coils), 215),
-                ("subject", "anatomy or phantom", list(session.subjects), 240)):
+                ("coil", "receive array", session.arrays(), 215),
+                ("subject", "anatomy or phantom", session.anatomies(), 240)):
             pickers[attribute] = ui.select(options, value=getattr(session, attribute),
                                            label=caption, on_change=changed(attribute)).props(
                 "dense outlined dark").style(f"min-width: {width}px")

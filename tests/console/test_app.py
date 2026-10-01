@@ -59,19 +59,11 @@ class TestApp:
                 user.find("Done").click()
                 user.find(marker="design").click()
                 await user.should_see("the readout opens at")
-                # the card's water suppression, grey before the design: removed, another added
-                await user.should_see("COWS(7;236)")
-                user.find(marker="remove water suppression").click()
-                await user.should_see("add water suppression")
-                user.find(marker="add water suppression").click()
-                user.find(marker="scheme WET").click()
-                await user.should_see(marker="remove water suppression")
                 user.find("crusher").click()  # a block from the palette, after the chosen one
                 # the card's real PRESS came over, 15 blocks, and one more
                 await user.should_see("16 blocks")
                 # its slice-selective 90, kept as the card plays it
-                await user.should_see("1 · fixed pulse 90°")
-                user.find("all pulses ideal").click()
+                await user.should_see("1 · card's pulse 90°")
                 # a second sub-acquisition, and how the two combine
                 user.find("another, a copy of this one").click()
                 await user.should_see("remove this one")

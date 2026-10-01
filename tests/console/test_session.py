@@ -329,6 +329,23 @@ class TestSession:
         assert tall > 10.0 * flat  # opposite signs add in the difference
         assert session.showcase()[1].shape == session.showcase()[0].shape
 
+    def test_the_designers_preview_renders_the_planned_voxel(self):
+        session = Session(ICBM)
+        session.protocol.npoints, session.protocol.water_suppression = 512, "off"
+        session.protocol.ovs = False
+
+        def bands():
+            ppm, real = session.showcase()
+            return (float(np.abs(real[(ppm > 0.9) & (ppm < 1.5)]).max()),
+                    float(np.abs(real[(ppm > 1.9) & (ppm < 2.1)]).max()))
+        # a voxel at the vertex, in the scalp: the lipids stand over NAA
+        session.position_mm = [0.0, -20.0, 90.0]
+        lipids, naa = bands()
+        assert lipids > 3.0 * naa > 0.0
+        # beyond the head: nothing
+        session.position_mm = [0.0, 0.0, 300.0]
+        assert bands() == (0.0, 0.0)
+
     def test_the_designer_shows_the_cards_preludes_before_the_design(self):
         session = Session(ICBM)
         session.adopt()
@@ -452,6 +469,23 @@ class TestSession:
         assert "1631 Hz at most" in session.outlook()["violations"][-1]
         session.scanner = "generic_7t"  # stronger and no faster gradients: the slew decides
         assert "1631 Hz" in session.encoding()["said"]
+
+    def test_a_registered_child_lies_in_the_template_of_their_age(self):
+        session = Session(ICBM)
+        session.admit(age_y=9)
+        assert session.subject == "Brain, NIHPD 7-11 years, 2 mm"
+        assert session.body().name == "nihpd_7-11" and session.body().fractions(
+            session.position_mm, session.size_mm).gm > 0.0
+        session.admit(age_y=3)                      # under the youngest band: that band
+        assert session.subject == "Brain, NIHPD 4.5-8.5 years, 2 mm"
+        session.admit(age_y=40)                     # an adult: the average brain
+        assert session.subject == ICBM
+        session.admit()
+        assert session.subject == ICBM
+        # a head that is not a template stays
+        session.subject = "Brain, BigBrain-MR, 0.8 mm"
+        session.admit(age_y=9)
+        assert session.subject == "Brain, BigBrain-MR, 0.8 mm"
 
     def test_the_person_stays_the_scanners_state_is_drawn_anew_and_the_water_is_physics(self):
         session = Session(ICBM)

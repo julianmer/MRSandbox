@@ -16,12 +16,65 @@
 #   imports   #
 #*************#
 import hashlib
+import io
 import os
 import pathlib
 import shutil
 import urllib.request
+import zipfile
 
-from mrsandbox.resources import bigbrain, challenge, girf, hmri, icbm, mrshub, qsm, uk7t
+from mrsandbox.resources import (bigbrain, challenge, colin27, girf, hmri, icbm, mrshub, qsm,
+                                 uk7t)
+
+
+#*************#
+#   fetched   #
+#*************#
+def _read(url, headers=None):
+    """The bytes at `url`, tried three times (a mirror drops a request now and then)."""
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}),
+                                        timeout=120) as response:
+                return response.read()
+        except OSError:
+            if attempt == 2:
+                raise
+
+
+#**************************************************************************************************#
+#                                          Class _Ranged                                           #
+#**************************************************************************************************#
+class _Ranged(io.RawIOBase):
+    """A remote file read by HTTP range requests, for zipfile to take the members it needs out of
+    an archive without the archive being downloaded."""
+
+    def __init__(self, url):
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD")) as response:
+            self.url, self.size = response.geturl(), int(response.headers["Content-Length"])
+        self.at = 0
+
+    def seekable(self):
+        return True
+
+    def readable(self):
+        return True
+
+    def tell(self):
+        return self.at
+
+    def seek(self, offset, whence=io.SEEK_SET):
+        self.at = (offset, self.at + offset, self.size + offset)[whence]
+        return self.at
+
+    def readinto(self, buffer):
+        if self.at >= self.size or not len(buffer):
+            return 0
+        end = min(self.at + len(buffer), self.size) - 1
+        data = _read(self.url, {"Range": f"bytes={self.at}-{end}"})
+        buffer[:len(data)] = data
+        self.at += len(data)
+        return len(data)
 
 
 #**************************************************************************************************#
@@ -48,9 +101,9 @@ class Resources:
     CACHE_ENV = "MRSANDBOX_CACHE"
 
     # one dict per data source, each in its own cited module
-    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **icbm.NIHPD, **mrshub.MM_CONSENSUS,
-                **hmri.HMRI_DEMO, **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT, **girf.REVERSE_DEPOSIT,
-                **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2}
+    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **icbm.NIHPD, **colin27.COLIN27,
+                **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO, **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT,
+                **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2}
 
     #*************#
     #   lookup    #
@@ -70,7 +123,7 @@ class Resources:
                                         f"{entry['page']} and place it at {local}")
             checkout = pathlib.Path(__file__).parents[2] / entry.get("repo", "")
             source = checkout.as_uri() if "repo" in entry and checkout.is_file() else entry["url"]
-            cls._fetch(source, local, entry["md5"])
+            cls._fetch(source, local, entry["md5"], entry.get("member"))
         return local
 
     @classmethod
@@ -88,15 +141,17 @@ class Resources:
     #   fetch     #
     #*************#
     @classmethod
-    def _fetch(cls, url, destination, md5):
+    def _fetch(cls, url, destination, md5, member=None):
         """Download to a temporary sibling, verify the checksum (none where `md5` is None: the
-        publisher states none), move into place."""
+        publisher states none), move into place; with `member`, that file out of the zip archive
+        at `url`, read by range requests (the archive itself is never downloaded)."""
         destination.parent.mkdir(parents=True, exist_ok=True)
         partial = destination.with_suffix(destination.suffix + ".partial")
-        print(f"fetching {url} -> {destination}")
+        print(f"fetching {url}{'' if member is None else '/' + member} -> {destination}")
         try:
             # a stalled connection raises after the timeout instead of hanging a job
-            with urllib.request.urlopen(url, timeout=120) as response, open(partial, "wb") as f:
+            with (urllib.request.urlopen(url, timeout=120) if member is None
+                  else cls._archive(url).open(member)) as response, open(partial, "wb") as f:
                 shutil.copyfileobj(response, f)
             digest = None if md5 is None else cls._md5(partial)
             if digest != md5:
@@ -104,6 +159,12 @@ class Resources:
             partial.replace(destination)
         finally:
             partial.unlink(missing_ok=True)
+
+    @staticmethod
+    def _archive(url):
+        """The zip archive at `url` opened over HTTP range requests, for zipfile to take the
+        members it needs out of it (checking each member's CRC as it reads it)."""
+        return zipfile.ZipFile(io.BufferedReader(_Ranged(url), buffer_size=1 << 20))
 
     @staticmethod
     def _md5(path):

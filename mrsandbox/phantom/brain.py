@@ -44,8 +44,8 @@ class Brain:
     """
 
     # the NIHPD pediatric templates, one per age band in years (resources.icbm NIHPD_BANDS)
-    PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2", "nihpd_4.5-18.5", "nihpd_4.5-8.5", "nihpd_7-11",
-               "nihpd_7.5-13.5", "nihpd_10-14", "nihpd_13-18.5")
+    PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2", "colin27", "nihpd_4.5-18.5", "nihpd_4.5-8.5",
+               "nihpd_7-11", "nihpd_7.5-13.5", "nihpd_10-14", "nihpd_13-18.5")
 
     # the water content per tissue class that anchors the water signal (phantom.water)
     water_content = tissue.MRSI_CHALLENGE["water_content"]
@@ -91,7 +91,8 @@ class Brain:
     def load(cls, name="icbm152", fat=None):
         """Load a named brain preset; its maps are fetched on first use and cached. A
         "nihpd_<band>" preset is the pediatric template of that age band, a child's tissue in
-        the ICBM152 frame. `fat="qsm_rc2"` lends a preset without a scalp the fat-bearing layer
+        the ICBM152 frame; "colin27" one subject's fuzzy classes with the scalp's fat as the
+        fat layer. `fat="qsm_rc2"` lends a preset without a scalp the fat-bearing layer
         of the QSM challenge head, carried into its world (resources.QSMHead.fat; the head's
         files are placed by hand)."""
         if name not in cls.PRESETS:
@@ -109,6 +110,8 @@ class Brain:
             return cls._load_bigbrain()
         if name == "qsm_rc2":
             return cls._load_qsm()
+        if name == "colin27":
+            return cls._load_colin27()
         import nibabel as nib
 
         from mrsandbox.resources import Resources
@@ -158,6 +161,33 @@ class Brain:
         masks["fat"] = cls.scalp(masks["fat"], masks["gm"] + masks["wm"] + masks["csf"],
                                  volume.affine)
         return cls(affine=volume.affine, name="qsm_rc2", **masks)
+
+    @classmethod
+    def _load_colin27(cls):
+        """The Colin27 2008 fuzzy phantom: one subject's tissue classes at 0.5 mm, each a
+        fraction of the cell (resources.colin27), of which grey, white and CSF, and the
+        scalp's fat with the skull's marrow as the fat-bearing layer (the classes part the
+        scalp's fat from its muscle, so no distance rule is needed). Block-averaged to 1 mm,
+        which keeps the fractions exact and the memory an eighth."""
+        import nibabel as nib
+
+        from mrsandbox.resources import Resources
+
+        def map_1mm(label):
+            image = nib.load(str(Resources.path(f"colin27/{label}")))
+            # the files hold the fractions, 0 to 1; their header's slope is NaN, under which
+            # nibabel's scaled read shrinks them, so they are read as stored
+            data = np.asarray(image.dataobj.get_unscaled(), dtype=np.float32)
+            nx, ny, nz = (n // 2 for n in data.shape)
+            return data.reshape(nx, 2, ny, 2, nz, 2).mean(axis=(1, 3, 5)), image.affine
+
+        maps = {label: map_1mm(label) for label in ("gm", "wm", "csf", "fat", "marrow")}
+        affine = np.array(maps["gm"][1], dtype=np.float64)
+        # the first 1 mm cell's centre lies half a 0.5 mm cell in along each axis
+        affine[:3, 3] += affine[:3, :3] @ np.full(3, 0.5)
+        affine[:3, :3] *= 2.0
+        return cls(gm=maps["gm"][0], wm=maps["wm"][0], csf=maps["csf"][0], affine=affine,
+                   name="colin27", fat=maps["fat"][0] + maps["marrow"][0])
 
     #***********#
     #   scalp   #

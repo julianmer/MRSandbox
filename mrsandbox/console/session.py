@@ -36,6 +36,7 @@ from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
 from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
+from mrsandbox.resources.icbm import NIHPD_BANDS, nihpd_band
 from mrsandbox.io import read_seq
 from mrsandbox.scan.calibrate import CovarianceReading
 from mrsandbox.scan.maps import MapReading
@@ -48,7 +49,7 @@ from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Del
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
                                  OuterVolumeSuppression, Press, PulseAcquire, SelectivePulse,
                                  Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
-from mrsandbox.sequences.events import trapezoid
+from mrsandbox.sequences.events import Projection, trapezoid
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 
 #**************#
@@ -57,8 +58,12 @@ from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 # who can lie on the table: a name for the picker and how to make them
 SUBJECTS = {
     "Brain, ICBM152 average, 2 mm": lambda: Brain.load("icbm152"),
+    # a child's tissue in the same frame, one template per age band in years
+    **{f"Brain, NIHPD {band} years, 2 mm": (lambda band=band: Brain.load(f"nihpd_{band}"))
+       for band in NIHPD_BANDS},
     "Brain, BigBrain-MR, 0.8 mm": lambda: Brain.load("bigbrain_mr"),
     "Head, QSM challenge, 0.64 mm": lambda: Brain.load("qsm_rc2"),
+    "Head, Colin27 fuzzy, 1 mm": lambda: Brain.load("colin27"),
     # a round sphere on the planes, not 4 mm blocks
     "Phantom, SPECTRE sphere": lambda: Phantom.spectre(temperature_c=21.0, cell_mm=1.0),
     "Phantom, Braino sphere": lambda: Phantom.braino(temperature_c=21.0, cell_mm=1.0),
@@ -150,7 +155,9 @@ RUN_OF = {"scanner": ("drift_hz_per_min", "ar_sigma_hz", "phase_jitter_deg", "am
 # the measured B0 field a subject lies in unless the operator chooses another
 # (phantom.FieldMap.PRESETS); a sphere of solution has none
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr",
+          **{f"Brain, NIHPD {band} years, 2 mm": "bigbrain_mr" for band in NIHPD_BANDS},
           "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr",
+          "Head, Colin27 fuzzy, 1 mm": "bigbrain_mr",
           "Head, QSM challenge, 0.64 mm": "qsm_rc2_measured"}
 # what the realism pop-up can switch off, each the leaves it sets to nothing: the console starts
 # real
@@ -314,8 +321,12 @@ def shaped(block):
 #   an event in words   #
 #**********************#
 def named(event):
-    """What a fixed block says of its event: the flip or "adiabatic", the duration, the slice
-    axis."""
+    """What a block of the card's says of its event: a pulse's flip or "adiabatic", duration and
+    slice axis; a gradient's axis and span; a projection, which has nothing to set."""
+    if isinstance(event, Gradient):
+        return f"along {event.axis}, over {float(event.extent_mm):g} mm"
+    if isinstance(event, Projection):
+        return "ideal, nothing to set"
     return ("adiabatic" if isinstance(event, ShapedPulse) and event.flip_deg is None
             else f"{float(event.flip_deg):.0f}°" if getattr(event, "flip_deg", None) is not None
             else type(event).__name__) + (
@@ -332,7 +343,8 @@ def adjusted(block):
     event = copy.copy(block["event"])
     for key, name in (("flip_deg", "flip_deg"), ("phase_deg", "phase_deg"),
                       ("offset_ppm", "offset_ppm"), ("peak_hz", "peak_hz"),
-                      ("slice_hz_per_mm", "gradient_hz_per_mm")):
+                      ("slice_hz_per_mm", "gradient_hz_per_mm"),
+                      ("cycles_per_mm", "moment_per_mm")):
         if key in block:
             setattr(event, name, float(block[key]))
     if ("flip_deg" in block and event.peak_hz is not None
@@ -1560,9 +1572,26 @@ class Session:
     def admit(self, age_y=None, sex=None, health=None):
         """Admit the person on the table (`person`) as a scanner's patient registration does: their
         age in years, sex ("F", "M") and health ("healthy" or the condition by name); what is
-        not given is not asked, so nothing given is a healthy adult."""
+        not given is not asked, so nothing given is a healthy adult. A template brain on the
+        table becomes the one of the person's age: a child's band, an adult's average."""
         self.person = {key: value for key, value in
                        dict(age_y=age_y, sex=sex, health=health).items() if value is not None}
+        average = "Brain, ICBM152 average, 2 mm"
+        if self.subject == average or self.subject.startswith("Brain, NIHPD "):
+            band = nihpd_band(age_y)
+            self.subject = average if band is None else f"Brain, NIHPD {band} years, 2 mm"
+
+    def anatomies(self):
+        """The subject picker's entries: every subject but the pediatric templates, which a
+        registration picks by the person's age (the one on the table is listed)."""
+        return [name for name in self.subjects
+                if not name.startswith("Brain, NIHPD ") or name == self.subject]
+
+    def arrays(self):
+        """The receive array picker's entries, {key: label}: the generic arrays say so, as the
+        generic scanner does; the vendors' arrays carry their maker."""
+        return {key: key if key == "one ideal channel" or key in self.ARRAYS else f"Generic · {key}"
+                for key in self.coils}
 
     def pick_cohort(self, name):
         """Put a package cohort on the floor, or none: its subject's scanner (where it is a
@@ -1914,6 +1943,8 @@ class Session:
                                                cycles_per_mm=float(event.moment_per_mm))))
             else:
                 knobs = {}
+                if isinstance(event, Gradient):
+                    knobs = {"cycles_per_mm": float(event.moment_per_mm)}
                 if isinstance(event, ShapedPulse):
                     # one amplitude knob: the flip where the pulse is flip calibrated, the peak B1
                     # where it is adiabatic
@@ -2423,14 +2454,18 @@ class Session:
         return self._drift
 
     def showcase(self):
-        """What the own design does to a spectrum as the card plays it: two transients of a fixed
-        subject (seed 0) in the average brain's parietal white and grey matter, a uniform field,
-        the card's water suppression and OVS before the design (the water and the scalp's lipids
-        in, so what they leave shows, or what the design alone leaves where they are off), and
-        the rest of IDEALS off (no noise, macromolecules, leaked water, frequency and phase
-        errors, eddy currents, spurious echoes), the run still. Returns (ppm, real spectrum) on
-        0.2 to 4.2 ppm."""
+        """What the own design does to a spectrum as the card plays it: two transients of the
+        subject on the table (seed 0, the registered person) at the planned voxel, a uniform
+        field, the card's water suppression and OVS before the design (the water and the scalp's
+        lipids in, so what they leave shows, or what the design alone leaves where they are
+        off), and the rest of IDEALS off (no noise, macromolecules, leaked water, frequency and
+        phase errors, eddy currents, spurious echoes), the run still. Returns (ppm, real
+        spectrum) on 0.2 to 4.2 ppm."""
         clean = Session("Brain, ICBM152 average, 2 mm")
+        clean.subjects, clean.pictures, clean.images, clean._bodies = (
+            self.subjects, self.pictures, self.images, self._bodies)
+        clean.subject, clean.person = self.subject, dict(self.person)
+        clean.position_mm, clean.size_mm = list(self.position_mm), list(self.size_mm)
         clean.scanner, clean.field = self.scanner, "uniform"
         clean.designs, clean.condition, clean.weights = self.designs, self.condition, self.weights
         clean.protocol = dataclasses.replace(self.protocol, sequence="Custom",
