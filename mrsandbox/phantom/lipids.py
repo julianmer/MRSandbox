@@ -119,11 +119,11 @@ class Skull(LipidSource):
         if (voxel.scan.brain.fat is not None
                 and any(isinstance(e, Projection) for e in sequence.events)):
             return self._profiled(engine, sequence, voxel, truth, f0_mhz)
-        weight = voxel.scan.brain.lipid_weight(voxel.position_mm, voxel.size_mm)
+        weight = voxel.scan.brain.lipid_weight(voxel.position_mm, voxel.size_mm, voxel.turn)
         if weight == 0.0:
             return None
         amplitude = truth.lipids.amplitude_mm * weight
-        offset = voxel.scan.brain.lipid_offset(voxel.position_mm, voxel.size_mm)
+        offset = voxel.scan.brain.lipid_offset(voxel.position_mm, voxel.size_mm, voxel.turn)
         placed = voxel.shift_mm or {}
         shift = {axis: float(offset[k]) + placed.get(axis, 0.0) for k, axis in enumerate("xyz")}
         args = [ops.convert_to_tensor(np.float32(v)) for v in
@@ -144,7 +144,7 @@ class Skull(LipidSource):
         extents = engine.extents(sequence)
         edges = np.asarray(voxel.size_mm, dtype=np.float64) * np.ones(3)
         span = [extents.get(axis, edges[k]) for k, axis in enumerate("xyz")]
-        offsets, volumes = voxel.scan.brain.lipid_cells(voxel.position_mm, span)
+        offsets, volumes = voxel.scan.brain.lipid_cells(voxel.position_mm, span, voxel.turn)
         if volumes.size == 0:
             return None
         b1_scale, offset_hz = voxel.b1_scale(truth), voxel.offset_hz(truth)

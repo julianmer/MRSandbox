@@ -21,6 +21,7 @@ import numpy as np
 from mrsandbox.engine import Engine
 from mrsandbox.phantom.macromolecules import CoupledMM
 from mrsandbox.phantom.solution import Phantom
+from mrsandbox.phantom.volume import turning
 from mrsandbox.scan.virtual_scan import VirtualScan
 from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
 
@@ -207,7 +208,7 @@ class Multiplex:
     def transients(self, position_mm, size_mm, schedule, tr_s=2.0, seed=None,
                    npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None,
                    motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0), step=0,
-                   frequency_start_hz=0.0):
+                   frequency_start_hz=0.0, turn_deg=None):
         """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
@@ -260,6 +261,9 @@ class Multiplex:
                 `pivot_mm`, the phantom's origin unless given, before the displacement;
                 None for a head that does not turn. The voxel's box stays aligned with
                 the head's axes (small angles; stated).
+            turn_deg: The voxel's own turn as the scanner placed it, angles about x, y, z
+                in degrees applied in that order (phantom.volume.turning); None leaves it
+                square to the world. Recorded in the header.
             pivot_mm: The point the head turns about.
             frequency_start_hz: Where the scanner's frequency stands when the run starts, added to
                 the whole frequency track: a scanner that drifted through earlier runs and was
@@ -316,20 +320,16 @@ class Multiplex:
         turned = (np.zeros((n, 3)) if rotation_deg is None
                   else np.asarray(rotation_deg, dtype=np.float64).reshape(n, 3))
         places = []
-        for shift, angles in zip(moved, np.radians(turned)):
-            rotation = np.eye(3)
-            for axis, angle in enumerate(angles):
-                c, s = np.cos(angle), np.sin(angle)
-                i, j = [k for k in range(3) if k != axis]
-                turn = np.eye(3)
-                turn[i, i], turn[i, j], turn[j, i], turn[j, j] = c, -s, s, c
-                rotation = turn @ rotation
-            places.append(tuple(np.round(rotation.T @ (planned - pivot - shift) + pivot, 9)))
+        for shift, angles in zip(moved, turned):
+            places.append(tuple(np.round(turning(angles).T @ (planned - pivot - shift) + pivot,
+                                         9)))
+        box = None if turn_deg is None or not np.any(turn_deg) else turning(turn_deg)
         clean, echo = {}, {}
         for name, place in set(zip(schedule, places)):
             still = np.allclose(place, planned)
             voxel = self.scans[name].voxel(place, size_mm, compiled=self.compiled,
-                                           shim_at_mm=None if still else tuple(planned))
+                                           shim_at_mm=None if still else tuple(planned),
+                                           turn=box)
             parts = voxel._component_fids(truth, npoints, dwell_s)
             echo[name, place] = parts.pop("spurious", None)
             clean[name, place] = sum(parts.values())
@@ -359,7 +359,7 @@ class Multiplex:
                 fid = fid + receiver_noise(rng, sigma, npoints, voxel.scan.receiver)
             data[0, 0, 0, :, k] = fid
 
-        voxel = self.scans[schedule[0]].voxel(position_mm, size_mm)
+        voxel = self.scans[schedule[0]].voxel(position_mm, size_mm, turn=box)
         hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
         hdr.set_dim_info(0, "DIM_DYN")
         hdr.set_user_def(
@@ -393,7 +393,8 @@ class Multiplex:
         hdr.set_user_def(
             "SimulationPhantom",
             {"brain": self.brain.name, "position_mm": [float(x) for x in position_mm],
-             "size_mm": list(size_mm) if hasattr(size_mm, "__len__") else float(size_mm)},
+             "size_mm": list(size_mm) if hasattr(size_mm, "__len__") else float(size_mm),
+             "turn_deg": None if box is None else [float(x) for x in turn_deg]},
             "MRSandbox: the virtual brain and the voxel placement.",
         )
         return nifti_mrs(data, dwell_s, hdr)

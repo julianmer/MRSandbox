@@ -142,8 +142,12 @@ class Voxel:
     #   init   #
     #**********#
     def __init__(self, scan, position_mm, size_mm, compiled=False, box_center_mm=None,
-                 box_axes="xyz", shim_at_mm=None):
+                 box_axes="xyz", shim_at_mm=None, turn=None):
         self.scan = scan
+        # a turned voxel: its rotation from its own frame (the design's axes) to the world's;
+        # the subject is read over the turned box, the design plays in the voxel's frame as
+        # ever (its eddy currents too, a stated approximation)
+        self.turn = None if turn is None else np.asarray(turn, dtype=np.float64)
         # a cell of a lattice inside the box a localized design selects: the design is
         # played confined to the cell, its ensemble shifted from the box's centre
         # (along `box_axes`; the design keeps its own extent along the others, a slab
@@ -156,7 +160,7 @@ class Voxel:
         self.position_mm = tuple(float(x) for x in position_mm)
         self.size_mm = (tuple(float(x) for x in size_mm) if hasattr(size_mm, "__len__")
                         else float(size_mm))
-        self.fractions = scan.brain.fractions(position_mm, self.size_mm)
+        self.fractions = scan.brain.fractions(position_mm, self.size_mm, self.turn)
         self.compiled = compiled
         self._kernels = {}
         self._field_offset_hz = 0.0  # the field group the sequence is being played for
@@ -174,7 +178,7 @@ class Voxel:
             return value.weighted(self.fractions)
         if isinstance(value, Volume):
             if value not in self._locals:
-                mean = value.mean(self.position_mm, self.size_mm)
+                mean = value.mean(self.position_mm, self.size_mm, self.turn)
                 self._locals[value] = 0.0 if mean is None else float(mean)
             return self._locals[value]
         return value
@@ -216,6 +220,8 @@ class Voxel:
         offsets = np.zeros((count, 3), dtype=np.float64)
         for axis, values in positions.items():
             offsets[:, "xyz".index(axis)] = values
+        if self.turn is not None:  # the ensemble lies along the voxel's own axes
+            offsets = offsets @ self.turn.T
         local = [self.scan.transmit.nearest(np.asarray(self.position_mm) + offset)
                  for offset in offsets]
         values = np.asarray([self._transmit if v is None else float(v) for v in local])
@@ -274,9 +280,9 @@ class Voxel:
             noise, factor = self.scan.noise_map, 1.0
             if noise is not None and self.scan.coils is None:
                 if hasattr(noise, "noise_gain"):
-                    factor = noise.noise_gain(self.position_mm, self.size_mm)
+                    factor = noise.noise_gain(self.position_mm, self.size_mm, self.turn)
                 else:
-                    here = noise.mean(self.position_mm, self.size_mm)
+                    here = noise.mean(self.position_mm, self.size_mm, self.turn)
                     there = noise.mean(self.scan.noise_reference_mm, self.size_mm)
                     if here is not None and there is not None and min(here, there) > 0.0:
                         factor = float(here) / float(there)
@@ -629,7 +635,7 @@ class Voxel:
                 water = np.zeros(npoints, dtype=np.complex64)
                 for mean_hz, weight, part_kernel in self.scan.field.groups(
                         self.position_mm, self.size_mm, grid, self.scan.water_groups,
-                        shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz)):
+                        shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz), turn=self.turn):
                     self._field_offset_hz = mean_hz
                     try:
                         lorentzian, _ = self._flat_lines(self._water_parts(
@@ -645,7 +651,7 @@ class Voxel:
             fids = {}
             for mean_hz, weight, kernel in self.scan.field.groups(
                     self.position_mm, self.size_mm, grid, self.scan.field_groups,
-                    shim_at_mm=self.shim_at_mm):
+                    shim_at_mm=self.shim_at_mm, turn=self.turn):
                 self._field_offset_hz = mean_hz
                 try:
                     part = sources(None if basis is None
@@ -748,7 +754,8 @@ class Voxel:
         if key not in self._kernels:
             t = start_s + np.arange(npoints) * dwell_s
             self._kernels[key] = self.scan.field.kernel(self.position_mm, self.size_mm, t,
-                                                        shim_at_mm=self.shim_at_mm)
+                                                        shim_at_mm=self.shim_at_mm,
+                                                        turn=self.turn)
         return self._kernels[key]
 
     def _response(self, truth):
@@ -867,7 +874,8 @@ class Voxel:
             data = fid.reshape(1, 1, 1, npoints)
         else:
             _, fid = self._clean_fid(truth, npoints, dwell_s)
-            channels = coils.sensitivities(self.position_mm, self.size_mm)[:, None] * fid[None, :]
+            channels = (coils.sensitivities(self.position_mm, self.size_mm, self.turn)[:, None]
+                        * fid[None, :])
             if sigma > 0.0:
                 channels = channels + receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
             data = np.transpose(channels.astype(np.complex64)).reshape(1, 1, 1, npoints, len(coils))
@@ -899,7 +907,7 @@ class Voxel:
                          else np.zeros(npoints, dtype=np.complex64))
             data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(stack))
         else:
-            sensitivities = coils.sensitivities(self.position_mm, self.size_mm)
+            sensitivities = coils.sensitivities(self.position_mm, self.size_mm, self.turn)
             channels = [sensitivities[:, None] * fid[None, :] for fid in stack]
             channels.append(receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
                             if sigma > 0.0

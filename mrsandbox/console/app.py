@@ -498,10 +498,10 @@ async def console(client: Client):
     if session is None:         # the page was left while the room was being made
         return
     (views, shown, hung, letters, crosses, texts, tools, pickers, origins, levels, places, edges,
-     chosen) = ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [],
+     turns, chosen) = ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, [], [], [],
                 {"exam": None, "box": None, "stop": False, "shifts": True, "snr": None,
                  "editing": None, "flipped": False, "ready": False, "dragging": False,
-                 "bands": {}, "slab": None,
+                 "bands": {}, "slab": None, "handles": {}, "handle": None,
                  "looking": False, "every": True, "cell": None, "grid": None,
                  "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra", "slabs": True})
 
@@ -534,16 +534,20 @@ async def console(client: Client):
             centre, size = drawn["voxel"]
             # the saturation slabs, 160 mm wide, their thickness along their normals (a box's z
             # turned onto the normal, as the loops are)
+            # a turned voxel turns its box and its slabs (a spectroscopic image's grid stands
+            # square)
+            facing = (np.eye(3) if session.turn is None or session.protocol.sequence == MRSI
+                      else session.turn)
             for axis, offset, thick, *tilted in (session.slabs() if session.protocol.ovs
                                                  and chosen["slabs"] else ()):
-                n = np.asarray(tilted[0]) if tilted else np.eye(3)["xyz".index(axis)]
+                n = facing @ (np.asarray(tilted[0]) if tilted else np.eye(3)["xyz".index(axis)])
                 a = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
                 a = a / np.linalg.norm(a)
                 ui.scene.box(160.0 * MM, 160.0 * MM, thick * MM).material(SLAB, 0.18).move(
                     *((np.asarray(centre) + offset * n) * MM)).rotate_R(
                     np.stack([a, np.cross(n, a), n], axis=1).tolist())
             chosen["box"] = ui.scene.box(*(edge * MM for edge in size), wireframe=True).material(
-                GLOW).move(*(np.asarray(centre) * MM))
+                GLOW).move(*(np.asarray(centre) * MM)).rotate_R(facing.tolist())
 
     async def estimate():
         """The card's compute time beside its scan time, found off the page's thread (a tilted
@@ -556,6 +560,14 @@ async def console(client: Client):
     def paint():
         """Redraw the planes (the slice on view, the voxel's outline where the slice cuts it, the
         other planes' cross, a spectroscopic image's grid) and the 3D box: what a drag needs."""
+        def drawn(shape):
+            """An outline as the planes give it, a box (left, top, width, height) or a polygon of
+            points, as the opening of its SVG element."""
+            if len(shape) == 4 and np.isscalar(shape[0]):
+                x, y, w, h = shape
+                return f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+            return '<polygon points="' + " ".join(f"{x:.1f},{y:.1f}" for x, y in shape) + '" '
+
         card = session.protocol
         counts = ((int(card.matrix), int(card.matrix_y), int(card.slices)) if card.sequence == MRSI
                   else (1, 1, 1))
@@ -609,28 +621,45 @@ async def console(client: Client):
                         for i in range(across) for j in range(down))
             chosen["bands"][name] = {which: points for which, points in shifted.items()
                                      if which.startswith("ovs") and chosen["slabs"]}
+            # where the voxel's corners scale it and the dot above it turns it (not a grid's)
+            handles = {} if not cut or card.sequence == MRSI else {
+                "corners": (shifted["voxel"] if "voxel" in shifted else
+                            [(left + du * width, top + dv * height)
+                             for du, dv in ((0, 0), (1, 0), (1, 1), (0, 1))]),
+                "turn": (left + 0.5 * width,
+                         top + 0.5 * height - 0.5 * np.hypot(width, height) - 3.0 * pen),
+                "reach": 2.0 * pen}
+            chosen["handles"][name] = handles
             views[name].content = (painted +
                 f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45">'
                 f'<line x1="{column}" x2="{column}" y1="0" y2="{side}" />'
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
                 f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">'
                 f'{grid}</g>'
-                + "".join('<polygon points="' + " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-                          + f'" fill="{SLAB}" fill-opacity="0.22" stroke="{SLAB}" '
+                + "".join(drawn(points) + f'fill="{SLAB}" fill-opacity="0.22" stroke="{SLAB}" '
                           f'stroke-width="{0.3 * pen:.2f}" />'
                           for which, points in chosen["bands"][name].items())
-                + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
-                          f'fill="none" stroke="{SHIFT_COLOURS[which]}" '
+                + "".join(drawn(box) + f'fill="none" stroke="{SHIFT_COLOURS[which]}" '
                           f'stroke-width="{0.5 * pen:.2f}" opacity="{0.9 if cut else 0.4}" />'
-                          for which, (x, y, w, h) in (
-                              (which, box) for which, box in shifted.items()
-                              if not which.startswith("ovs"))
-                          if chosen["shifts"] or which == "shim")
-                + f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" '
-                  f'fill="none" stroke="{GLOW}" '
+                          for which, box in shifted.items()
+                          if not which.startswith("ovs") and which != "voxel"
+                          and (chosen["shifts"] or which == "shim"))
+                # the voxel: its box, or the polygon a turned one cuts from this plane
+                + drawn(shifted.get("voxel", (left, top, width, height)))
+                + f'fill="none" stroke="{GLOW}" '
                 + (f'stroke-width="{0.8 * pen:.2f}" />' if cut else
                    f'stroke-width="{0.5 * pen:.2f}" '
-                   f'stroke-dasharray="{2 * pen:.1f} {1.5 * pen:.1f}" opacity="0.55" />'))
+                   f'stroke-dasharray="{2 * pen:.1f} {1.5 * pen:.1f}" opacity="0.55" />')
+                + "".join(f'<rect class="corner" x="{u - 0.8 * pen:.1f}" y="{v - 0.8 * pen:.1f}" '
+                          f'width="{1.6 * pen:.1f}" height="{1.6 * pen:.1f}" fill="{GLOW}" />'
+                          for u, v in handles.get("corners", ()))
+                + ("" if not handles else
+                   f'<line x1="{handles["turn"][0]:.1f}" y1="{top + 0.5 * height:.1f}" '
+                   f'x2="{handles["turn"][0]:.1f}" y2="{handles["turn"][1]:.1f}" stroke="{GLOW}" '
+                   f'stroke-width="{0.3 * pen:.2f}" opacity="0.6" />'
+                   f'<circle class="turn" cx="{handles["turn"][0]:.1f}" '
+                   f'cy="{handles["turn"][1]:.1f}" '
+                   f'r="{1.1 * pen:.2f}" fill="{GLOW}" />'))
             axis, letter = EDGES[name][4:]
             texts[name].text = f"{name.upper()}  {letter} {session.view_mm[axis]:+.0f} mm" + (
                 f"  ×{chosen['zoom'][name]:.2g}" if chosen["zoom"][name] != 1.0 else "")
@@ -675,6 +704,10 @@ async def console(client: Client):
             texts["window"].text = "no such map on: choose one in maps"
         for axis, field in enumerate(places):
             field.value = round(session.position_mm[axis], 1)
+        for axis, field in enumerate(edges):
+            field.value = session.size_mm[axis]
+        for axis, field in enumerate(turns):
+            field.value = session.turn_deg[axis]
 
     def draw():
         """Redraw everything the card and the room decide: the planes, the diagram, the outlook."""
@@ -878,10 +911,13 @@ async def console(client: Client):
                           value=exam.shown if exam.builds else next(iter(exam.maps), None))
         for field in dataclasses.fields(exam.card):  # in place: the tabs' fields hold this card
             setattr(session.protocol, field.name, getattr(exam.card, field.name))
-        session.position_mm, session.view_mm, session.size_mm = (
-            list(exam.position_mm), list(exam.position_mm), list(exam.size_mm))
+        session.position_mm, session.view_mm, session.size_mm, session.turn_deg = (
+            list(exam.position_mm), list(exam.position_mm), list(exam.size_mm),
+            list(exam.turn_deg))
         for axis, field in enumerate(edges):
             field.value = exam.size_mm[axis]
+        for axis, field in enumerate(turns):
+            field.value = exam.turn_deg[axis]
         for name, value in exam.room.items():  # the room it was planned in comes back with it
             setattr(session, name, value)
         for name in ("scanner", "coil", "subject"):
@@ -2551,7 +2587,46 @@ async def console(client: Client):
                     return
             x, y = event.args.get("image_x", 0.0), event.args.get("image_y", 0.0)
             here = np.asarray(session.at(plane, x, y)) - np.asarray(session.position_mm)
-            if kind == "mousedown" and not event.args.get("shiftKey"):
+            # this plane's two axes and its normal; the angle of the mouse about the voxel in it
+            normal = EDGES[plane][4]
+            across, up = [k for k in range(3) if k != normal]
+            angle = float(np.degrees(np.arctan2(here[up], here[across])))
+            handles = chosen["handles"].get(plane, {})
+            # the throttle may drop a press: the first pressed move of a drag stands for it
+            pressing = (not event.args.get("shiftKey")
+                        and (kind == "mousedown"
+                             or (kind == "mousemove" and pressed and not chosen["dragging"])))
+            if pressing and handles:
+                near = lambda u, v: np.hypot(x - u, y - v) <= handles["reach"]
+                chosen["handle"] = (("turn", angle, list(session.turn_deg))
+                                    if near(*handles["turn"])
+                                    else ("scale",) if any(near(u, v)
+                                                           for u, v in handles["corners"])
+                                    else None)
+            if chosen["handle"] is not None and (pressing or (kind == "mousemove" and pressed)):
+                facing = np.eye(3) if session.turn is None else session.turn
+                if chosen["handle"][0] == "turn":
+                    # about the plane's normal: counterclockwise in the picture is a positive
+                    # turn where (across, up, normal) runs as x, y, z do
+                    _, began, before = chosen["handle"]
+                    cyclic = (across, up, normal) in ((0, 1, 2), (1, 2, 0), (2, 0, 1))
+                    sign = 1.0 if cyclic else -1.0
+                    session.turn_deg[normal] = round(float(
+                        (before[normal] + sign * (angle - began) + 180.0) % 360.0 - 180.0), 1)
+                else:
+                    # the corner follows the mouse: the voxel's two edges that lie most in this
+                    # plane, about its centre
+                    for k in np.argsort(np.abs(facing[across]) + np.abs(facing[up]))[-2:]:
+                        session.size_mm[k] = max(3.0, round(4.0 * abs(facing[:, k] @ here)) / 2.0)
+                chosen["dragging"] = True
+                paint()
+                return
+            if chosen["handle"] is not None and chosen["dragging"]:
+                chosen["handle"], chosen["dragging"] = None, False
+                room()
+                draw()
+                return
+            if pressing and chosen["handle"] is None:
                 # a press inside a saturation slab's band (a convex polygon: the point on one
                 # side of every edge) takes the slab along, if its axis lies in this plane
                 chosen["slab"] = next((
@@ -2572,8 +2647,7 @@ async def console(client: Client):
                     along = abs(here[j] * normal[k] - here[k] * normal[j]) / np.hypot(
                         normal[k], normal[j])
                     chosen["slab"] = (axis, side, along > 1.5 * max(session.size_mm))
-            if chosen["slab"] is not None and (kind == "mousedown"
-                                              or (kind == "mousemove" and pressed)):
+            if chosen["slab"] is not None and (pressing or (kind == "mousemove" and pressed)):
                 axis, side, turning = chosen["slab"]
                 k = "xyz".index(axis)
                 slab = next(s for s in session.protocol.ovs_slabs
@@ -3265,6 +3339,28 @@ async def console(client: Client):
                                                                      room(), draw()))).props(
                                                             "dense outlined dark").style(
                                                             "flex: 1; min-width: 0"))
+                                                # the voxel turned about x, then y, then z: the
+                                                # dot above it on a plane turns it there too
+                                                with ui.row().classes("w-full no-wrap").style(
+                                                        "gap: 4px"):
+                                                    for axis, caption in enumerate(
+                                                            ("turn x", "turn y", "turn z")):
+                                                        turns.append(ui.number(
+                                                            caption, value=session.turn_deg[axis],
+                                                            step=5.0, min=-180.0, max=180.0,
+                                                            on_change=lambda e, axis=axis: (
+                                                                e.value is not None
+                                                                and e.value
+                                                                != session.turn_deg[axis]
+                                                                and (session.turn_deg.__setitem__(
+                                                                         axis, float(e.value)),
+                                                                     room(), draw()))).props(
+                                                            "dense outlined dark").style(
+                                                            "flex: 1; min-width: 0").mark(
+                                                            f"turn {'xyz'[axis]}").tooltip(
+                                                            "the voxel turned about x, then y, "
+                                                            "then z, in degrees; a spectroscopic "
+                                                            "image's grid stands square"))
                                                 ui.select({axes: ", ".join(axes)
                                                            for axes in ("xyz", "xzy", "yxz", "yzx",
                                                                         "zxy", "zyx")},

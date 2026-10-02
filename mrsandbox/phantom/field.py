@@ -154,7 +154,7 @@ class FieldMap:
     #**************#
     #   offsets    #
     #**************#
-    def offsets(self, position_mm, size_mm, shim=None, shim_at_mm=None):
+    def offsets(self, position_mm, size_mm, shim=None, shim_at_mm=None, turn=None):
         """The Hz offsets of the map cells a voxel box (cubic, or per-axis edges)
         overlaps, after the voxel shim, flat.
 
@@ -166,19 +166,21 @@ class FieldMap:
         harmonics 2z^2 - x^2 - y^2, xz, yz, x^2 - y^2, xy in world coordinates, the
         terms a second-order shim set provides; a non-harmonic r^2 component stays,
         as it does on a scanner), every fit weighted by the cells' overlap with the
-        box. None takes the map's own default. Empty outside the map.
+        box. None takes the map's own default. Empty outside the map. A turned box (`turn`,
+        its rotation from its own frame to the world's) is shimmed as it stands.
         """
-        values, _ = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
+        values, _ = self._shimmed(position_mm, size_mm, shim, shim_at_mm, turn)
         return values
 
-    def _shimmed(self, position_mm, size_mm, shim, shim_at_mm=None):
+    def _shimmed(self, position_mm, size_mm, shim, shim_at_mm=None, turn=None):
         """The post-shim offsets of the overlapped cells and their overlap weights.
         With `shim_at_mm` the shim is the one fitted for the box at that place and
         kept in the scanner while the object moved: the box now at `position_mm` in
         the object's frame sits under the shim fields of the planned place."""
-        values, weights = self.volume.box(position_mm, size_mm)
+        values, weights = self.volume.box(position_mm, size_mm, turn)
         keep = weights > 0.0
-        xyz = self.volume.centres(position_mm, size_mm)[keep] if keep.any() else np.empty((0, 3))
+        xyz = (self.volume.centres(position_mm, size_mm, turn)[keep] if keep.any()
+               else np.empty((0, 3)))
         v, w = values[keep].astype(np.float64), weights[keep]
         if self.weights is not None and xyz.size:
             w = w * np.asarray(self.weights.at(xyz), dtype=np.float64)
@@ -189,9 +191,9 @@ class FieldMap:
                  else np.asarray(shim_at_mm, float) - np.asarray(position_mm, float))
         return v - self.shim_field(xyz + moved,
                                    position_mm if shim_at_mm is None else shim_at_mm,
-                                   size_mm, shim), w
+                                   size_mm, shim, turn), w
 
-    def shim_field(self, xyz_mm, position_mm, size_mm, shim=None):
+    def shim_field(self, xyz_mm, position_mm, size_mm, shim=None, turn=None):
         """The field in Hz the shim set plays at the world points `xyz_mm` (n, 3), once fitted
         for the voxel box at `position_mm` (or for `shim_box` where the operator set one): what
         the adjustment takes off the map everywhere, not in the box alone. Zeros for "none",
@@ -199,12 +201,14 @@ class FieldMap:
         shim = self.shim if shim is None else shim
         if shim not in self.SHIMS:
             raise ValueError(f"unknown shim {shim!r}; known: {', '.join(self.SHIMS)}")
-        at, size = self.shim_box if self.shim_box is not None else (position_mm, size_mm)
-        values, weights = self.volume.box(at, size)
+        # the operator's shim box stands square; the voxel's turns with it
+        at, size, around = ((*self.shim_box, None) if self.shim_box is not None
+                            else (position_mm, size_mm, turn))
+        values, weights = self.volume.box(at, size, around)
         keep = weights > 0.0
         if shim == "none" or not keep.any() or len(xyz_mm) == 0:
             return np.zeros(len(xyz_mm))
-        planned = self.volume.centres(at, size)[keep]
+        planned = self.volume.centres(at, size, around)[keep]
         centre = np.average(planned, axis=0, weights=weights[keep])
 
         def columns(xyz):
@@ -222,7 +226,8 @@ class FieldMap:
     #*************#
     #   kernel    #
     #*************#
-    def kernel(self, position_mm, size_mm, t_s, shim=None, bins=256, shim_at_mm=None):
+    def kernel(self, position_mm, size_mm, t_s, shim=None, bins=256, shim_at_mm=None,
+               turn=None):
         """The complex dephasing kernel k(t) of a voxel box on a time grid.
 
         The post-shim box offsets are histogrammed with their overlap weights (the
@@ -231,13 +236,13 @@ class FieldMap:
         nothing.
         """
         t = np.asarray(t_s, dtype=np.float64)
-        offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
+        offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm, turn)
         if offsets.size == 0:
             return np.ones_like(t, dtype=np.complex64)
         return self._dephasing(offsets, overlap, t, bins)
 
     def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256, shim_at_mm=None,
-               spread_hz=0.0):
+               spread_hz=0.0, turn=None):
         """The box's post-shim offsets split into `count` groups of equal weight along
         the offset axis, as [(mean_hz, weight, kernel)]: each group's mean offset, its
         share of the box, and its own dephasing kernel, so the weighted kernels sum
@@ -251,7 +256,7 @@ class FieldMap:
         `kernel` times the Gaussian's envelope: a spin is then played at the frequency
         it actually has, not at the map's mean over its cell."""
         t = np.asarray(t_s, dtype=np.float64)
-        offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm)
+        offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm, turn)
         if offsets.size == 0:
             return [(0.0, 1.0, np.ones_like(t, dtype=np.complex64))]
         if spread_hz > 0.0:

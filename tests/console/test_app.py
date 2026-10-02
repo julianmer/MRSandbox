@@ -69,6 +69,11 @@ class TestApp:
                 user.find(marker="tilt x- y").elements.pop().value = 20
                 await user.should_see("computing")
                 user.find("Close").click()
+                # the voxel turned about z, and square again for the exams below
+                turn = user.find(marker="turn z").elements.pop()
+                turn.value = 30
+                await user.should_see(marker="turn z")
+                turn.value = 0
                 user.find(marker="ovs").click()  # off again: the exams below play no slabs
                 user.find(marker="design").click()
                 await user.should_see("the readout opens at")

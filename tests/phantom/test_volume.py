@@ -81,6 +81,24 @@ class TestVolume:
         assert along_y.shape == (5, 1, 1) and np.ptp(along_y) == 4.0
         assert along_x.shape == (1, 5, 1) and np.ptp(along_x) == 0.0
 
+    #************#
+    #   turned   #
+    #************#
+    def test_a_turned_box_reads_what_it_covers(self):
+        from mrsandbox.phantom.volume import turning
+
+        # a box long along x turned a quarter about z lies along y: it sees the y ramp as the
+        # box long along y does, and nothing of the x ramp; turned 45 degrees it keeps its volume
+        volume = Volume(np.stack([ramp((30, 30, 30), axis=0), ramp((30, 30, 30), axis=1)], -1),
+                        np.eye(4))
+        long_y = volume.box((14.0, 14.0, 14.0), (3.0, 11.0, 3.0))[0]
+        turned = volume.box((14.0, 14.0, 14.0), (11.0, 3.0, 3.0), turning((0.0, 0.0, 90.0)))
+        assert np.ptp(long_y[..., 1]) == np.ptp(turned[0][..., 1]) == 10.0
+        assert np.allclose(volume.mean((14.0, 14.0, 14.0), (11.0, 3.0, 3.0),
+                                       turning((0.0, 0.0, 90.0))), (14.0, 14.0))
+        _, slanted = volume.box((14.0, 14.0, 14.0), (11.0, 7.0, 5.0), turning((0.0, 0.0, 45.0)))
+        assert abs(slanted.sum() - 385.0) < 0.01 * 385.0
+
     #*********************#
     #   trailing axes     #
     #*********************#

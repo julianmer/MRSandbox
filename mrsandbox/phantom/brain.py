@@ -210,7 +210,7 @@ class Brain:
     #**********************#
     #   tissue fractions   #
     #**********************#
-    def fractions(self, position_mm, size_mm):
+    def fractions(self, position_mm, size_mm, turn=None):
         """Mean tissue fractions inside a voxel box, the map cells weighted by their
         overlap with the box (see phantom.Volume).
 
@@ -218,12 +218,13 @@ class Brain:
             position_mm: Voxel centre in world millimetres (x, y, z).
             size_mm: Edge length of the cubic voxel in millimetres, or the three
                 (x, y, z) edges of an anisotropic box.
+            turn: The box's rotation from its own frame to the world's, or None.
 
         Returns:
             Tissues(gm, wm, csf) mean probabilities; all zero when the box lies
             outside the maps.
         """
-        mean = self.maps.mean(position_mm, size_mm)
+        mean = self.maps.mean(position_mm, size_mm, turn)
         if mean is None:
             return Tissues(gm=0.0, wm=0.0, csf=0.0)
         return Tissues(gm=float(mean[0]), wm=float(mean[1]), csf=float(mean[2]))
@@ -231,7 +232,7 @@ class Brain:
     #*******************#
     #   lipid weight    #
     #*******************#
-    def lipid_weight(self, position_mm, size_mm):
+    def lipid_weight(self, position_mm, size_mm, turn=None):
         """Fraction of the voxel box that holds scalp, the fat layer.
 
         A brain with a `fat` map weighs the box by that tissue. The tissue probability
@@ -242,11 +243,11 @@ class Brain:
         the box holds brain as well.
         """
         if self.fat is None:
-            values, weights = self.maps.box(position_mm, size_mm)
+            values, weights = self.maps.box(position_mm, size_mm, turn)
             if (weights.sum() <= 0.0
                     or not bool((values.sum(axis=-1)[weights > 0.0] > 0.5).any())):
                 return 0.0
-        mean = self.layer.mean(position_mm, size_mm)
+        mean = self.layer.mean(position_mm, size_mm, turn)
         return 0.0 if mean is None else float(mean)
 
     @property
@@ -266,30 +267,32 @@ class Brain:
                                  name=self.name + "/scalp")
         return self._shell
 
-    def lipid_cells(self, position_mm, size_mm):
+    def lipid_cells(self, position_mm, size_mm, turn=None):
         """The fat inside a box, cell by cell: (offsets, volumes) with the cell centres
-        in mm from the box centre, (n, 3), and the fat each holds inside the box in
-        cubic mm, (n,); empty outside the layer."""
-        values, weights = self.layer.box(position_mm, size_mm)
+        in mm from the box centre along the box's own axes, (n, 3), and the fat each
+        holds inside the box in cubic mm, (n,); empty outside the layer."""
+        values, weights = self.layer.box(position_mm, size_mm, turn)
         held = (values * weights).ravel()
         if held.size == 0 or held.sum() <= 0.0:
             return np.empty((0, 3)), np.empty(0)
         keep = held > 0.0
-        centres = self.layer.centres(position_mm, size_mm).reshape(-1, 3)[keep]
+        centres = self.layer.centres(position_mm, size_mm, turn).reshape(-1, 3)[keep]
         cell_mm3 = abs(float(np.linalg.det(self.layer.affine[:3, :3])))
-        return centres - np.asarray(position_mm, dtype=np.float64), held[keep] * cell_mm3
+        offsets = centres - np.asarray(position_mm, dtype=np.float64)
+        return (offsets if turn is None else offsets @ turn), held[keep] * cell_mm3
 
-    def lipid_offset(self, position_mm, size_mm):
+    def lipid_offset(self, position_mm, size_mm, turn=None):
         """Where the fat layer sits: the centroid of the box's fat (the `layer` cells
-        `lipid_weight` counts) relative to the voxel centre, (x, y, z) in millimetres;
-        zeros when the box holds none."""
+        `lipid_weight` counts) relative to the voxel centre, in millimetres along the
+        box's own axes; zeros when the box holds none."""
         source = self.layer
-        values, weights = source.box(position_mm, size_mm)
+        values, weights = source.box(position_mm, size_mm, turn)
         if weights.sum() <= 0.0:
             return np.zeros(3)
         outside = weights * values
         if outside.sum() <= 0.0:
             return np.zeros(3)
-        centres = source.centres(position_mm, size_mm).reshape(-1, 3)
-        return (np.average(centres, axis=0, weights=outside.ravel())
-                - np.asarray(position_mm, dtype=np.float64))
+        centres = source.centres(position_mm, size_mm, turn).reshape(-1, 3)
+        offset = (np.average(centres, axis=0, weights=outside.ravel())
+                  - np.asarray(position_mm, dtype=np.float64))
+        return offset if turn is None else offset @ turn

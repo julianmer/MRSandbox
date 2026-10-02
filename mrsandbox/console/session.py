@@ -35,6 +35,7 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Empirical, Fixed, Mapped, Normal, Params, Sourced, Uniform
 from mrsandbox.params.values import Tissues
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
+from mrsandbox.phantom.volume import turning
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
 from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
@@ -539,6 +540,7 @@ class Exam:
     card: Protocol
     position_mm: tuple
     size_mm: tuple
+    turn_deg: tuple = (0.0, 0.0, 0.0)
     status: str = "planned"
     problem: str = ""
     data: object = None
@@ -669,6 +671,8 @@ class Session:
         self.position_mm = list(PLACES.get(subject, PLACE))
         self.view_mm = list(self.position_mm)
         self.size_mm = [20.0, 20.0, 20.0]
+        # the voxel turned about x, then y, then z, in degrees (phantom.volume.turning)
+        self.turn_deg = [0.0, 0.0, 0.0]
         self.calibration = None
         # {field of hardware.Scanner: value}: the operator's own limits (custom)
         self.hardware = {}
@@ -883,7 +887,7 @@ class Session:
         place holds no tissue (a subject of the operator's own lies in their scanner's
         coordinates, not the atlas's)."""
         body = self.body()
-        if sum(body.fractions(tuple(self.position_mm), tuple(self.size_mm))) < 0.2:
+        if sum(body.fractions(tuple(self.position_mm), tuple(self.size_mm), self.turn)) < 0.2:
             tissue = np.asarray(body.gm) + np.asarray(body.wm)
             middle = [float((tissue.sum(axis=tuple(b for b in range(3) if b != a))
                              * np.arange(tissue.shape[a])).sum() / tissue.sum()) for a in range(3)]
@@ -978,7 +982,7 @@ class Session:
         self.position_mm = [float(v) for v in position_mm]
         try:
             scan = self.twin()
-            voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm))
+            voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm), turn=self.turn)
             drawn, fields = voxel.sample(self.seed), self.fields()
             gm, wm = float(voxel.fractions.gm), float(voxel.fractions.wm)
 
@@ -1009,13 +1013,13 @@ class Session:
             field = {}
             if fields["field"] is not None:
                 offsets = fields["field"].offsets(tuple(self.position_mm), tuple(self.size_mm),
-                                                  shim="none")
+                                                  shim="none", turn=self.turn)
                 field["B0 offset, unshimmed (Hz)"] = (float(np.mean(offsets)) if len(offsets)
                                                       else 0.0)
                 field["line width from B0 (Hz)"] = self.linewidth()
             if fields["transmit"] is not None:
                 values, weights = fields["transmit"].box(tuple(self.position_mm),
-                                                         tuple(self.size_mm))
+                                                         tuple(self.size_mm), self.turn)
                 field["B1+ (of nominal)"] = float((values * weights).sum()
                                                   / max(weights.sum(), 1e-9))
             lipid = self.lipid_mm()
@@ -1056,10 +1060,12 @@ class Session:
             moved = np.asarray(self.displacement(SHIFTED["lipid"]))
         except Exception:
             moved = np.zeros(3)
-        return tuple(float(np.linalg.norm(np.maximum(np.abs(points - centre) - half, 0.0),
+        # the boxes along their own axes
+        turn = np.eye(3) if self.turn is None else self.turn
+        return tuple(float(np.linalg.norm(np.maximum(np.abs((points - centre) @ turn) - half, 0.0),
                                           axis=1).min())
                      for centre in (np.asarray(self.position_mm),
-                                    np.asarray(self.position_mm) + moved))
+                                    np.asarray(self.position_mm) + turn @ moved))
 
     def encoding(self):
         """Whether the scanner's gradients can play a spectroscopic image's encoding, as {"said":
@@ -1118,11 +1124,13 @@ class Session:
         if field is None:
             return None
         # the same voxel in the same field: the same width
-        key = (id(field), tuple(self.position_mm), tuple(self.size_mm), self.shim, self.shim_mm)
+        key = (id(field), tuple(self.position_mm), tuple(self.size_mm), tuple(self.turn_deg),
+               self.shim, self.shim_mm)
         if self._linewidth_memo[0] == key:
             return self._linewidth_memo[1]
         t = np.arange(8192) / 1000.0
-        line = np.fft.fft(field.kernel(tuple(self.position_mm), tuple(self.size_mm), t)
+        line = np.fft.fft(field.kernel(tuple(self.position_mm), tuple(self.size_mm), t,
+                                       turn=self.turn)
                           * np.exp(-np.pi * t), 8 * t.size).real
         # between the outermost crossings: a coarse map's cells give a comb of lines, one width
         above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())
@@ -1740,7 +1748,7 @@ class Session:
         # the readers' twin plays ideal pulses, as the cohorts' did
         card = dataclasses.replace(self.protocol, real=False)
         twin = self.twin(card=card, params=self.params() | CALM).voxel(
-            tuple(self.position_mm), tuple(self.size_mm), compiled=True)
+            tuple(self.position_mm), tuple(self.size_mm), compiled=True, turn=self.turn)
         folder = (pathlib.Path(folder) if folder is not None
                   else pathlib.Path.home() / "MRSandbox" / "profiles")
         folder.mkdir(parents=True, exist_ok=True)
@@ -2042,8 +2050,15 @@ class Session:
                                                   extent_mm=float(max(self.size_mm)))
         return found
 
+    @property
+    def turn(self):
+        """The voxel's rotation from its own frame to the world's, or None while it stands
+        square."""
+        return turning(self.turn_deg) if any(self.turn_deg) else None
+
     def displacement(self, ppm):
-        """Where the voxel of spins at `ppm` lies from the planned one, (x, y, z) in mm: under a
+        """Where the voxel of spins at `ppm` lies from the planned one, along the voxel's own
+        (x, y, z) axes in mm (turned with it, `turn`): under a
         slice gradient of G Hz per mm a pulse centred for its reference selects a shift d ppm away
         at -d f0 / G. Zero along an axis no played pulse selects (an ideal design: all three). The
         card's preludes do not count: an OVS slab's carrier places the slab, it is no reference."""
@@ -2243,11 +2258,14 @@ class Session:
         side = max(nx, ny, nz)
 
         try:
-            moved = {name: np.asarray(self.displacement(ppm)) / step
-                     for name, ppm in SHIFTED.items()}
+            moved_mm = {name: np.asarray(self.displacement(ppm)) for name, ppm in SHIFTED.items()}
         except Exception:        # a card that is no design yet draws its voxel alone
-            moved = {}
-        moved = {name: by for name, by in moved.items() if np.any(by)}
+            moved_mm = {}
+        moved_mm = {name: by for name, by in moved_mm.items() if np.any(by)}
+        moved = {name: by / step for name, by in moved_mm.items()}
+        # a turned voxel (a spectroscopic image's grid stands square) and what turns with it
+        turned = self.turn is not None and self.protocol.sequence != MRSI
+        facing = self.turn if turned else np.eye(3)
 
         def framed(cutting, left, top, width, height, cut, cross, across, up):
             """A plane shaded to 8 bits and centred in a square of the largest grid side, all three
@@ -2289,23 +2307,19 @@ class Session:
                     point[across] = float(origin[across] + step[across] * (column - columns))
                     point[up] = float(origin[up] + step[up] * (tissue.shape[up] - 1 - (row - rows)))
                     corners[-1].append(point)
-            # the saturation slabs that cross this plane: the strip between a slab's two faces,
-            # n_a u + n_u v = centre -+ thick / 2 - n_w w with u, v the plane's mm from the voxel's
-            # centre and w the plane's own, cut out of the whole picture as a polygon of pixels
-            bands = {}
+            # what crosses this plane, as polygons of pixels cut out of the whole picture: a point
+            # r, in mm from the voxel's centre, lies (u, v) along the plane's two axes and w, the
+            # plane's own offset, along its normal, and every side (n, bound) keeps n . r >= bound
             middle = (left + columns + 0.5 * width, top + rows + 0.5 * height)
             w = float(origin[normal] + step[normal] * (a, b, c)[normal]) - self.position_mm[normal]
-            for axis, centre, thick, *tilted in (self.slabs() if self.protocol.ovs else ()):
-                n = np.asarray(tilted[0]) if tilted else np.eye(3)["xyz".index(axis)]
-                if not (n[across] or n[up]):
-                    continue
+
+            def clipped(*sides):
                 polygon = [(0.0, 0.0), (float(side), 0.0), (float(side), float(side)),
                            (0.0, float(side))]
-                for sign, bound in ((1.0, centre - 0.5 * thick), (-1.0, centre + 0.5 * thick)):
-                    # what keeps sign (n_a u + n_u v + n_w w - bound) >= 0, edge by edge
-                    def level(x, y, sign=sign, bound=bound):
-                        return sign * (n[across] * (x - middle[0]) * step[across]
-                                       + n[up] * (middle[1] - y) * step[up] + n[normal] * w - bound)
+                for n, bound in sides:
+                    def level(x, y, n=n, bound=bound):
+                        return (n[across] * (x - middle[0]) * step[across]
+                                + n[up] * (middle[1] - y) * step[up] + n[normal] * w - bound)
                     kept = []
                     for start, end in zip(polygon, polygon[1:] + polygon[:1]):
                         here, there = level(*start), level(*end)
@@ -2316,13 +2330,32 @@ class Session:
                             kept.append((start[0] + t * (end[0] - start[0]),
                                          start[1] + t * (end[1] - start[1])))
                     polygon = kept
-                if polygon:
-                    bands[f"ovs {axis}{centre:+.0f}"] = polygon
+                return polygon
+
+            # the saturation slabs: the strip between a slab's two faces, turned with the voxel
+            bands = {}
+            for axis, centre, thick, *tilted in (self.slabs() if self.protocol.ovs else ()):
+                n = facing @ (np.asarray(tilted[0]) if tilted else np.eye(3)["xyz".index(axis)])
+                if n[across] or n[up]:
+                    polygon = clipped((n, centre - 0.5 * thick), (-n, -centre - 0.5 * thick))
+                    if polygon:
+                        bands[f"ovs {axis}{centre:+.0f}"] = polygon
+            # a turned voxel and its displaced ones: the six sides of each box
+            boxes = {}
+            if turned:
+                halves = 0.5 * np.asarray(self.size_mm)
+                for name, by in {"voxel": np.zeros(3),
+                                 **{name: facing @ d for name, d in moved_mm.items()}}.items():
+                    boxes[name] = clipped(*((sign * facing[:, k],
+                                             sign * (facing[:, k] @ by) - halves[k])
+                                            for k in range(3) for sign in (1.0, -1.0)))
+                cut = bool(boxes["voxel"])
             return (square, (left + columns, top + rows, width, height), bool(cut),
                     (cross[0] + columns, cross[1] + rows),
                     {**bands,
-                     **{name: (left + columns + by[across], top + rows - by[up], width, height)
-                        for name, by in moved.items()},
+                     **(boxes if turned else {
+                         name: (left + columns + by[across], top + rows - by[up], width, height)
+                         for name, by in moved.items()}),
                      **({} if self.shim_mm is None else {"shim": (
                          left + columns + 0.5 * width - 0.5 * self.shim_mm / step[across],
                          top + rows + 0.5 * height - 0.5 * self.shim_mm / step[up],
@@ -2397,9 +2430,8 @@ class Session:
         sequence = self.sequence()
         profile = self.profile()
         scan = self.twin(sequence, profile=profile)
-        fractions = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).fractions
-        limits = profile.scanner
-        drawn = scan.voxel(tuple(self.position_mm), tuple(self.size_mm)).sample(self.seed)
+        voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm), turn=self.turn)
+        fractions, limits, drawn = voxel.fractions, profile.scanner, voxel.sample(self.seed)
         return {"subject": {"concentrations (mM)": {
                                 name: float(drawn["conc"][name])
                                 for name in ("NAA", "Cr", "PCr", "PCho", "GPC", "Ins", "Glu",
@@ -2456,6 +2488,8 @@ class Session:
         name = f"{number} {card.sequence}" + (f" TE {card.te_ms:g}" if timed else "")
         exam = Exam(name=name, card=card, position_mm=tuple(self.position_mm),
                     size_mm=tuple(self.size_mm),
+                    # a spectroscopic image's grid stands square
+                    turn_deg=(0.0, 0.0, 0.0) if card.sequence == MRSI else tuple(self.turn_deg),
                     overrides=dict(self.overrides), run={},
                     room={name: getattr(self, name) for name in self.ROOM},
                     records=self.outlook()["records"], sequence=self.sequence(card))
@@ -2649,8 +2683,10 @@ class Session:
                                 if isinstance(node, dict) else [(group, node)]):
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     state[path] = float(value)
-        exam.adjustment = self.adjust(exam, scan.voxel(exam.position_mm, exam.size_mm), truth,
-                                      state)
+        exam.adjustment = self.adjust(exam, scan.voxel(exam.position_mm, exam.size_mm,
+                                                       turn=turning(exam.turn_deg)
+                                                       if any(exam.turn_deg) else None),
+                                      truth, state)
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records,
                          params=self.params({**state, **exam.overrides}),
                          # one engine per field for every exam: its graphs are built once, not
@@ -2673,7 +2709,7 @@ class Session:
         if exam in self.queue:      # a preview leaves the scanner's clock alone
             self.clock_s += card.scan_time_s
         exam.data = room.transients(exam.position_mm, exam.size_mm, exam.schedule,
-                                    tr_s=card.tr_ms / 1000.0, seed=seed,
+                                    tr_s=card.tr_ms / 1000.0, seed=seed, turn_deg=exam.turn_deg,
                                     step=self.queue.index(exam) + 1 if exam in self.queue else 0,
                                     frequency_start_hz=started, **run,
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)

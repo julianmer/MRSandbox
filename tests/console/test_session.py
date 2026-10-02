@@ -581,6 +581,29 @@ class TestSession:
         fresh.set_slab("x", -1.0, tilt_deg=(0.0, 0.0))
         assert len(fresh.slabs()) == 6 and not fresh.sequence().unfolded
 
+    def test_a_turned_voxel_reads_the_subject_as_it_lies_and_the_exam_keeps_it(self):
+        session = Session(ICBM)
+        # a voxel long along x turned a quarter about z holds what one long along y holds
+        session.size_mm = [30.0, 10.0, 10.0]
+        session.turn_deg = [0.0, 0.0, 90.0]
+        body = session.body()
+        turned = body.fractions(tuple(session.position_mm), (30.0, 10.0, 10.0), session.turn)
+        square = body.fractions(tuple(session.position_mm), (10.0, 30.0, 10.0))
+        assert np.allclose(turned, square, atol=0.01)
+        # in the transverse plane its outline is the turned box: 10 mm across, 30 mm up (2 mm cells)
+        outline = session.planes()["tra"][4]["voxel"]
+        columns, rows = (np.ptp([point[k] for point in outline]) for k in (0, 1))
+        assert abs(columns - 5.0) < 0.6 and abs(rows - 15.0) < 0.6
+        # the exam plays it so and says so
+        session.protocol.water_reference, session.protocol.water_suppression = 0, "assumed residual"
+        (session.protocol.averages, session.protocol.npoints, session.protocol.real) = 2, 512, False
+        exam = session.run(session.plan(), seed=3)
+        header = exam.data.hdr_ext.to_dict()
+        assert exam.turn_deg == (0.0, 0.0, 90.0)
+        assert header["SimulationPhantom"]["turn_deg"] == [0.0, 0.0, 90.0]
+        assert np.allclose(list(header["SimulationGroundTruth"]["tissue_fractions"].values()),
+                           turned, atol=1e-6)
+
     def test_the_operators_own_maps_go_through_a_scan(self, tmp_path):
         import nibabel as nib
 

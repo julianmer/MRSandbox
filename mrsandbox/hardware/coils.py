@@ -255,27 +255,27 @@ class CoilArray:
         scaled.gain = self.gain * self.noise_gain(reference_mm, size_mm)
         return scaled
 
-    def noise_gain(self, position_mm, size_mm=None):
+    def noise_gain(self, position_mm, size_mm=None, turn=None):
         """What the optimum combination makes of the channel noise at a position:
         1 / sqrt(b^H R^-1 b), the factor on sigma (one at the calibrated place)."""
-        b = self.sensitivities(position_mm, size_mm).astype(np.complex128)
+        b = self.sensitivities(position_mm, size_mm, turn).astype(np.complex128)
         return float(1.0 / np.sqrt(np.real(np.vdot(b, np.linalg.solve(self.noise_resistance, b)))))
 
     #********************#
     #   sensitivities    #
     #********************#
-    def sensitivities(self, position_mm, size_mm=None):
+    def sensitivities(self, position_mm, size_mm=None, turn=None):
         """Complex sensitivity vector b at a position (Roemer's transverse field vector).
 
-        The loop fields are analytic point samples at the position; `size_mm` is the
-        shared signature of the mapped arrays and is ignored here (stated)."""
+        The loop fields are analytic point samples at the position; `size_mm` and `turn`
+        are the shared signature of the mapped arrays and are ignored here (stated)."""
         b = np.asarray([loop.sensitivity(position_mm) for loop in self.loops], dtype=np.complex128)
         return (self.gain * (b if self.modes is None else self.modes @ b)).astype(np.complex64)
 
     #*****************#
     #   combination   #
     #*****************#
-    def combine(self, channels, position_mm, size_mm=None):
+    def combine(self, channels, position_mm, size_mm=None, turn=None):
         """Optimum combination P = lambda p^T R^-1 b (Roemer Eq. [20]).
 
         lambda is chosen as 1 / (b^H R^-1 b) so a noise-free input b s returns exactly s:
@@ -287,8 +287,9 @@ class CoilArray:
             position_mm: Where the voxel sits; sets the weights.
             size_mm: Its size; a mapped array then weights with the same box-averaged
                 sensitivities the voxel received with.
+            turn: The box's rotation from its own frame to the world's, or None.
         """
-        b = self.sensitivities(position_mm, size_mm).astype(np.complex128)
+        b = self.sensitivities(position_mm, size_mm, turn).astype(np.complex128)
         rinv_b = np.linalg.solve(self.noise_resistance, b)
         weights = rinv_b.conj() / np.real(np.vdot(b, rinv_b))
         return weights @ np.asarray(channels, dtype=np.complex128)
@@ -425,12 +426,12 @@ class MappedCoilArray(CoilArray):
     #********************#
     #   sensitivities    #
     #********************#
-    def sensitivities(self, position_mm, size_mm=None):
+    def sensitivities(self, position_mm, size_mm=None, turn=None):
         """Complex sensitivity vector at a position: the nearest mapped cell, or with
-        `size_mm` the overlap-weighted mean over that voxel box, what a voxel of that
-        size receives with; zero outside the mapped volume."""
+        `size_mm` the overlap-weighted mean over that voxel box (turned by `turn`), what
+        a voxel of that size receives with; zero outside the mapped volume."""
         value = (self.volume.nearest(position_mm) if size_mm is None
-                 else self.volume.mean(position_mm, size_mm))
+                 else self.volume.mean(position_mm, size_mm, turn))
         if value is None:
             return np.zeros(len(self), dtype=np.complex64)
         return self.gain * np.asarray(value, dtype=np.complex64)
