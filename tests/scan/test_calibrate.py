@@ -260,6 +260,29 @@ class TestCovarianceReading:
 
 
 #**************************************************************************************************#
+#                                    Class TestReceiverReading                                     #
+#**************************************************************************************************#
+class TestReceiverReading:
+
+    def test_the_noise_colour_gives_back_the_filter_that_made_it(self):
+        # noise through a receiver's filter and decimation reads back that filter, to a dwell (the
+        # colours of neighbouring spans lie close); white noise reads none, as a flat band does (a
+        # vendor's cropped files)
+        from mrsandbox.hardware.receiver import Receiver
+        from mrsandbox.scan.calibrate import ReceiverReading
+
+        rng = np.random.default_rng(0)
+        for span in (3, 5, 9):
+            truth = Receiver(8, span)
+            n = truth.noise_points(1024)
+            noise = truth.colour(rng.standard_normal((64, n)) + 1j * rng.standard_normal((64, n)))
+            found = ReceiverReading.from_arrays(noise.T).receiver()
+            assert found.oversampling == 8 and abs(found.span_dwells - span) <= 1
+        white = rng.standard_normal((1024, 64)) + 1j * rng.standard_normal((1024, 64))
+        assert ReceiverReading.from_arrays(white).receiver() is None
+
+
+#**************************************************************************************************#
 #                                    Class TestSpectrumReading                                     #
 #**************************************************************************************************#
 @pytest.mark.render

@@ -22,8 +22,8 @@ import numpy as np
 
 from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
-from mrsandbox.scan.calibrate import (CovarianceReading, NoiseReading, SpectrumReading,
-                                      WaterReading, _raw)
+from mrsandbox.scan.calibrate import (CovarianceReading, NoiseReading, ReceiverReading,
+                                      SpectrumReading, WaterReading, _raw)
 from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
 
@@ -102,7 +102,8 @@ class ScannerProfile:
         noise the drawn sigma at the twin's place. With `reference`, the same voxel's
         unsuppressed water (NIfTI-MRS, transients apart), or the water transients the run
         interleaves with its own, the residual water the scanner's suppression leaves and
-        its receiver delay become records too (WaterReading)."""
+        its receiver delay become records too (WaterReading). The transients' tails give the
+        receiver's filter (ReceiverReading), none where the band shows none."""
         interleaved = reference is None and _raw(source, water=True)[0].shape[2] > 0
         return cls.from_readings(
             SpectrumReading.from_nifti(source), NoiseReading.from_nifti(source, excitations),
@@ -111,21 +112,21 @@ class ScannerProfile:
             array=array, load=load,
             water=(WaterReading.from_nifti(source, reference)
                    if reference is not None or interleaved else None),
-            seeds=seeds)
+            seeds=seeds, receiver=ReceiverReading.from_nifti(source).receiver())
 
     #*********************#
     #   from readings     #
     #*********************#
     @classmethod
     def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None,
-                      load="a head", water=None, seeds=None):
+                      load="a head", water=None, seeds=None, receiver=None):
         """The profile the readings of one acquisition give (`read` makes them from files; a
         cohort's builder from arrays): the spectrum's width first, with `water` the
         residual, the receiver delay, the leaked water and the eddy transient, then the noise
         against a twin held at those readings (the leak aside, which the twin holds calm);
         with `covariance` and `array` the channels' own noise and the array so loaded.
         `seeds` draws the twin that many times per reading in place of the readers' own
-        counts (fewer for a twin that plays shaped pulses)."""
+        counts (fewer for a twin that plays shaped pulses); `receiver` is the filter read."""
         few = {} if seeds is None else {"seeds": seeds}
         shim = spectrum.record(voxel, dataset, **few)
         read = ()
@@ -153,7 +154,7 @@ class ScannerProfile:
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
         records += tuple(dataclasses.replace(record, scanner=sigma.scanner) for record in read)
-        return cls(voxel.scan.scanner, records, coils=coils)
+        return cls(voxel.scan.scanner, records, coils=coils, receiver=receiver)
 
     #**********#
     #   save   #

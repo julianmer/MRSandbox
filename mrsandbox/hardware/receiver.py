@@ -89,6 +89,17 @@ class Receiver:
         filtered = signal.fftconvolve(white, taps, mode="valid", axes=-1)
         return filtered[..., ::self.oversampling].astype(np.complex64)
 
+    def power(self, fractions):
+        """The power white noise keeps after the filter and the decimation at `fractions` of
+        the output band from its centre: the filter's power response summed over the
+        oversampled band's aliases that fold onto each output frequency."""
+        count = 1 << 14
+        response = np.fft.fftshift(np.abs(np.fft.fft(self.taps, count)) ** 2)
+        grid = np.fft.fftshift(np.fft.fftfreq(count))
+        fractions = np.asarray(fractions, dtype=np.float64)
+        return sum(np.interp(np.mod((fractions + k) / self.oversampling + 0.5, 1.0) - 0.5, grid,
+                             response) for k in range(self.oversampling))
+
     #**************#
     #   decimate   #
     #**************#
@@ -103,7 +114,8 @@ class Receiver:
 #****************************#
 #   the vendors' receivers   #
 #****************************#
-# The receiver filters raw data show: GE's MR750 decimates through a Hamming-windowed sinc of five
-# output dwells a side (Big GABA's GE files). A scanner not listed plays no filter (stated).
-RECEIVERS = {"ge_mr750_3t": Receiver(oversampling=8, span_dwells=5)}
+# The receiver filters raw data show (scan.calibrate ReceiverReading, the transients' tails): GE's
+# MR750 decimates through a Hamming-windowed sinc of four output dwells a side (Big GABA's GE
+# files). A scanner not listed plays no filter (stated).
+RECEIVERS = {"ge_mr750_3t": Receiver(oversampling=8, span_dwells=4)}
 

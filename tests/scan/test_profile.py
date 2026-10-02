@@ -173,14 +173,14 @@ class TestScannerProfile:
         assert header["noise.sigma"]["source"] == "a virtual scanner"
 
     def test_a_vendors_receiver_colours_the_noise_as_its_raw_data_do(self):
-        # GE's noise rolls off to half power at the band's edges (Big GABA, the five dwell
+        # GE's noise rolls off to half power at the band's edges (Big GABA, the four dwell
         # filter), Siemens' stays flat since its files are cropped from twice the band: the GE
         # presets carry a receiver, the Siemens none
         from mrsandbox import NoDownfield, NoLipids, NoMM, NoWater, Params
 
         assert ScannerProfile.preset("siemens_prisma_3t").receiver is None
         profile = ScannerProfile.preset("ge_mr750_3t")
-        assert profile.receiver.span_dwells == 5
+        assert profile.receiver.span_dwells == 4
         quiet = Params(conc={name: 0.0 for name in ScannerProfile.preset("ge_mr750_3t").scan(
             Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024)).params.conc})
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024), params=quiet,

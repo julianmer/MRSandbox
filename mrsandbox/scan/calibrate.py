@@ -21,6 +21,7 @@ import functools
 
 import numpy as np
 
+from mrsandbox.hardware.receiver import Receiver
 from mrsandbox.phantom.solution import Phantom
 from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.voxel import noise_scale
@@ -884,6 +885,79 @@ class CovarianceReading:
             note="the modelled array stands in for the coil's unpublished geometry; made by "
                  "scan.calibrate",
         )
+
+
+#**************************************************************************************************#
+#                                       Class ReceiverReading                                      #
+#**************************************************************************************************#
+#                                                                                                  #
+# The receiver's colour: the noise power across the band, and the filter that leaves it.          #
+#                                                                                                  #
+#**************************************************************************************************#
+class ReceiverReading:
+    """The receiver's colour: the noise power across the spectral band, read off samples that
+    hold noise only, every channel and transient apart (the last quarter of every transient,
+    or a noise-only scan's vectors at the spectral band), on FRACTIONS of the band from its
+    centre over its median; and the hardware.Receiver whose filter and decimation leave the
+    nearest colour. The central fifth of the band is left out of the comparison: there a
+    noise-only vector keeps its slow drift and a transient's tail the signal still in it.
+
+    Attributes:
+        power: The measured power on FRACTIONS, over its median.
+        vectors: How many noise vectors it averages.
+    """
+
+    FRACTIONS = np.linspace(-0.5, 0.5, 512, endpoint=False)
+    SPANS = range(2, 65)
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, power, vectors):
+        self.power = np.asarray(power, dtype=np.float64)
+        self.vectors = int(vectors)
+
+    #*****************#
+    #   from arrays   #
+    #*****************#
+    @classmethod
+    def from_arrays(cls, noise):
+        """Read (points, ...) of noise, every column a vector of its own."""
+        x = np.asarray(noise).reshape(np.shape(noise)[0], -1)
+        x = x - x.mean(axis=0, keepdims=True)
+        spectra = np.abs(np.fft.fftshift(np.fft.fft(x * np.hanning(x.shape[0])[:, None], axis=0),
+                                         axes=0)) ** 2
+        power = np.interp(cls.FRACTIONS, np.linspace(-0.5, 0.5, x.shape[0], endpoint=False),
+                          spectra.mean(axis=1))
+        return cls(power / np.median(power), x.shape[1])
+
+    @classmethod
+    def from_nifti(cls, source):
+        """Read the last quarter of every transient of a NIfTI-MRS file with DIM_DYN (a path, or
+        a loaded image), every channel apart."""
+        x = _raw(source)[0]
+        return cls.from_arrays(x[-x.shape[0] // 4:])
+
+    #**************#
+    #   receiver   #
+    #**************#
+    def miss(self, power):
+        """The mean absolute log ratio of the measured colour to `power` over the band's
+        outer four fifths, each over its median there."""
+        kept = np.abs(self.FRACTIONS) >= 0.1
+        measured, model = self.power[kept], np.asarray(power, dtype=np.float64)[kept]
+        return float(np.mean(np.abs(np.log((measured / np.median(measured))
+                                           / (model / np.median(model))))))
+
+    def receiver(self, oversampling=8):
+        """The hardware.Receiver of the span that leaves the nearest colour, or None where no
+        filter does better than a flat band (a vendor whose files keep the band's middle, or
+        whose roll-off the windowed sinc's family does not hold: compare `miss`)."""
+        nearest = min(self.SPANS, key=lambda span: self.miss(
+            Receiver(oversampling, span).power(self.FRACTIONS)))
+        found = Receiver(oversampling, nearest)
+        flat = self.miss(np.ones_like(self.FRACTIONS))
+        return found if self.miss(found.power(self.FRACTIONS)) < flat else None
 
 
 #**************************************************************************************************#

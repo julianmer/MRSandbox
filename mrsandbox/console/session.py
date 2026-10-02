@@ -1294,9 +1294,12 @@ class Session:
             except Exception as error:
                 report.append((run.path.name, run.kind, f"not read: {error}"[:160]))
                 continue
+            receiver = self.profile().receiver
             report.append((run.path.name, run.kind, "the card and the scanner as acquired ("
                            + ", ".join(f"{k} {v}" for k, v in was.items())
-                           + "); the scanner's noise level and line width" + (
+                           + "); the scanner's noise level and line width, "
+                           + ("no receiver filter in the band" if receiver is None else
+                              f"its receiver filter ({receiver.span_dwells} dwells a side)") + (
                 f", and with {reference.path.name} the residual water, the receiver delay, the "
                 "eddy transient, the leaked water" if reference else "")))
             break                   # one run calibrates; the others are listed as read
