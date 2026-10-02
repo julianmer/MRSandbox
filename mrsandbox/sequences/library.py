@@ -703,7 +703,9 @@ class OuterVolumeSuppression(Sequence):
     factor.
 
     Args:
-        bands: ((axis, centre_mm, thickness_mm), ...), each axis "x", "y", or "z".
+        bands: ((axis, centre_mm, thickness_mm), ...), each axis "x", "y", or "z"; a fourth
+            item, a unit (x, y, z) vector, tilts that slab off its axis (its centre and
+            thickness then run along the vector; None leaves it on its axis).
         f0_mhz: The spectrometer frequency, which sets the carriers in ppm.
         duration_s: Each saturation pulse's length; a transmitter short of its peak
             plays it longer at the same time-bandwidth (narrower), as the console does.
@@ -719,15 +721,16 @@ class OuterVolumeSuppression(Sequence):
     #**********#
     def __init__(self, bands, f0_mhz, duration_s=0.003, time_bandwidth=TIME_BANDWIDTH,
                  extent_mm=20.0, reference_ppm=4.65):
-        self.bands = tuple((axis, float(centre), float(thickness))
-                           for axis, centre, thickness in bands)
+        self.bands = tuple((axis, float(centre), float(thickness), *normal)
+                           for axis, centre, thickness, *normal in bands)
         bandwidth_hz = time_bandwidth / duration_s
         events = []
-        for axis, centre_mm, thickness_mm in self.bands:
+        for axis, centre_mm, thickness_mm, *normal in self.bands:
             gradient = bandwidth_hz / thickness_mm  # Hz per mm
             events.append(ShapedPulse.slr(90.0, duration_s, time_bandwidth, "excitation",
                                           offset_ppm=reference_ppm + gradient * centre_mm / f0_mhz,
                                           gradient_hz_per_mm=gradient, gradient_axis=axis,
+                                          gradient_normal=normal[0] if normal else None,
                                           extent_mm=extent_mm))
             events.append(CoherenceFilter(0))
         super().__init__(*events)

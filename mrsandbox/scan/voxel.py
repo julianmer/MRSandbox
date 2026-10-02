@@ -1014,7 +1014,9 @@ class Voxel:
             return cached[key]
         groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         sequence = self.design(truth)
-        if self.compiled:
+        # a design played as a whole (a tilted slab) runs plain, its ensemble in chunks: a
+        # graph would hold every chunk at once
+        if self.compiled and not sequence.unfolded:
             # one graph for all metabolites, or, where shaped pulses play on an
             # isochromat ensemble, one per metabolite: a graph holds its intermediates,
             # and the step propagators of an ensemble of every system at once outgrow

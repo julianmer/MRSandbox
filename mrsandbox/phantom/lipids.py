@@ -16,12 +16,13 @@
 #   imports   #
 #*************#
 import abc
+import copy
 
 import numpy as np
 from keras import ops
 
 from mrsandbox.database import lipids as lipid_table
-from mrsandbox.sequences.events import Projection
+from mrsandbox.sequences.events import CoherenceFilter, Projection, Pulse, Sequence, ShapedPulse
 from mrsandbox.spins import SpinSystem
 
 
@@ -103,7 +104,10 @@ class Skull(LipidSource):
     of its three axis profiles (Engine.profile) over the centre's, and the signal is
     that response summed over every fat cell inside the ensemble's span, in units of
     the nominal voxel volume. Fat outside the nominal box that a profile's foot or a
-    displaced slab reaches is then in the spectrum, as on a scanner.
+    displaced slab reaches is then in the spectrum, as on a scanner. A saturation slab
+    tilted off its axis is no axis profile: each cell is weighed instead by what the
+    slab leaves of its longitudinal magnetization at the cell's place along the slab's
+    normal (the slab's own profile, the tilted slabs' factors multiplied).
     """
 
     PROFILE_POINTS = 129
@@ -145,10 +149,22 @@ class Skull(LipidSource):
             return None
         b1_scale, offset_hz = voxel.b1_scale(truth), voxel.offset_hz(truth)
         placed = voxel.shift_mm or {}  # a cell of a box: the profiles are the box's
+        # the tilted slabs (each with its filter) leave the axis profiles
+        tilted = [k for k, event in enumerate(sequence.events[:-1])
+                  if isinstance(event, ShapedPulse) and event.gradient_normal is not None
+                  and isinstance(sequence.events[k + 1], CoherenceFilter)]
+        slabs = [sequence.events[k] for k in tilted]
+        if tilted:
+            sequence = Sequence(*(event for k, event in enumerate(sequence.events)
+                                  if k not in tilted and k - 1 not in tilted),
+                                tr_s=sequence.tr_s, cycles=sequence.cycles)
         freqs_all, amps_all = [], []
         for system in self.systems(f0_mhz / engine.b0_t):
             system = system.with_relaxation(t1_s=truth.lipids.t1_s, t2_s=truth.lipids.t2_s)
             response, centre = np.ones(volumes.size, dtype=np.complex128), None
+            for slab in slabs:
+                response *= self._left(engine, slab, system, offsets, placed, b1_scale,
+                                       offset_hz)
             for k, axis in enumerate("xyz"):
                 if axis not in extents:
                     continue
@@ -165,3 +181,26 @@ class Skull(LipidSource):
             amps_all.append((centre * seen * truth.lipids.amplitude_mm).astype(np.complex64))
         return (ops.convert_to_tensor(np.concatenate(freqs_all)),
                 ops.convert_to_tensor(np.concatenate(amps_all)))
+
+    #**********#
+    #   left   #
+    #**********#
+    def _left(self, engine, slab, system, offsets, placed, b1_scale, offset_hz):
+        """The share of a cell's longitudinal magnetization a tilted slab leaves, per cell:
+        the slab played along its own axis at the cells' places along its normal, read by
+        an ideal 90 against the 90 alone."""
+        normal = np.asarray(slab.gradient_normal, dtype=np.float64)
+        moved = np.array([placed.get(axis, 0.0) for axis in "xyz"])
+        along = (offsets + moved) @ normal
+        grid = np.linspace(along.min(), along.max(), self.PROFILE_POINTS)
+        upright = copy.copy(slab)
+        upright.gradient_normal = None
+        read = Pulse(90.0)
+        _, with_slab = engine.profile(Sequence(upright, CoherenceFilter(0), read), system,
+                                      slab.gradient_axis, grid, b1_scale, offset_hz)
+        # the 90 alone reads the same everywhere
+        _, alone = engine.lines(Sequence(read), system, b1_scale=b1_scale, offset_hz=offset_hz)
+        alone = np.asarray(ops.convert_to_numpy(alone))
+        line = np.argmax(np.abs(alone))
+        left = with_slab[:, line] / alone[line]
+        return np.interp(along, grid, left.real) + 1j * np.interp(along, grid, left.imag)

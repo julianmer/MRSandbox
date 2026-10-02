@@ -20,11 +20,13 @@ import dataclasses
 import functools
 import json
 import pathlib
+import time
 
 import numpy as np
 from keras import ops
 
 from mrsandbox.backend import Backend
+from mrsandbox.database import Database, concentrations
 from mrsandbox.engine import Engine
 from mrsandbox.hardware import CoilArray
 from mrsandbox.hardware.arrays import PRESETS as ARRAY_PRESETS
@@ -51,6 +53,7 @@ from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Del
                                  Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.events import Projection, trapezoid
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
+from mrsandbox.spins import SpinSystem
 
 #**************#
 #   subjects   #
@@ -447,12 +450,13 @@ class Protocol:
     ovs: bool = False
     ovs_mm: float = 30.0
     ovs_gap_mm: float = 10.0
-    # the six slabs, a pair along every axis: on or off, and a gap and thickness of their own
-    # (None: the card's); replaced as a whole, never changed in place, so a planned exam keeps
+    # the six slabs, a pair along every axis: on or off, a gap and thickness of their own (None:
+    # the card's), and a tilt toward the first and the second of the other two axes in x, y, z
+    # order, in degrees; replaced as a whole, never changed in place, so a planned exam keeps
     # the card it was planned with
     ovs_slabs: tuple = dataclasses.field(default_factory=lambda: tuple(
-        {"axis": axis, "side": side, "on": True, "gap_mm": None, "mm": None}
-        for axis in "xyz" for side in (-1.0, 1.0)))
+        {"axis": axis, "side": side, "on": True, "gap_mm": None, "mm": None,
+         "tilt_deg": (0.0, 0.0)} for axis in "xyz" for side in (-1.0, 1.0)))
     real: bool = True
     water_reference: int = 1
     water_reference_first: bool = True
@@ -699,6 +703,8 @@ class Session:
                               for kind, settings in STARTER]}
         self.condition, self.weights = "A", {}
         self._bodies = {}
+        # what exams took here, by kind, and a whole-voxel design's cost per isochromat
+        self._took, self._probes = {}, {}
         try:
             self.body()
         except Exception:
@@ -1971,7 +1977,9 @@ class Session:
         `ovs_gap_mm` clear of the voxel's face unless the slab has a gap or thickness of its own
         (`ovs_slabs`). The gap matters: the slabs are placed for water, and under their 3.7 kHz
         pulse (122 Hz per mm on a 30 mm slab) NAA's slab lies 2.8 mm nearer on one side, the
-        lipids' 3.5 mm, with a transition band of about a millimetre more."""
+        lipids' 3.5 mm, with a transition band of about a millimetre more. A tilted slab carries
+        its unit normal fourth, its axis tipped toward the other two by its tilt, the centre
+        along the normal; the voxel then plays as a whole (Sequence.unfolded)."""
         card = self.protocol if card is None else card
         found = []
         for slab in card.ovs_slabs:
@@ -1979,14 +1987,19 @@ class Session:
                 continue
             gap = card.ovs_gap_mm if slab["gap_mm"] is None else slab["gap_mm"]
             thickness = card.ovs_mm if slab["mm"] is None else slab["mm"]
-            edge = self.size_mm["xyz".index(slab["axis"])]
-            found.append((slab["axis"], slab["side"] * (0.5 * (edge + thickness) + gap),
-                          float(thickness)))
+            n = "xyz".index(slab["axis"])
+            normal, others = np.eye(3)[n], [k for k in range(3) if k != n]
+            # a protocol saved before slabs tilted has no tilt
+            normal[others] = np.tan(np.radians(slab.get("tilt_deg", (0.0, 0.0))))
+            found.append((slab["axis"], slab["side"] * (0.5 * (self.size_mm[n] + thickness) + gap),
+                          float(thickness))
+                         + ((tuple(normal / np.linalg.norm(normal)),) if normal[others].any()
+                            else ()))
         return found
 
     def set_slab(self, axis, side, **settings):
-        """One of the card's slabs changed ("on", "gap_mm", "mm"; None puts a gap or thickness
-        back to the card's): the tuple is replaced, so a planned exam keeps its own."""
+        """One of the card's slabs changed ("on", "gap_mm", "mm", "tilt_deg"; None puts a gap or
+        thickness back to the card's): the tuple is replaced, so a planned exam keeps its own."""
         self.protocol.ovs_slabs = tuple(
             {**slab, **settings} if (slab["axis"], slab["side"]) == (axis, side) else slab
             for slab in self.protocol.ovs_slabs)
@@ -2276,19 +2289,35 @@ class Session:
                     point[across] = float(origin[across] + step[across] * (column - columns))
                     point[up] = float(origin[up] + step[up] * (tissue.shape[up] - 1 - (row - rows)))
                     corners[-1].append(point)
-            # the saturation slabs that stand on this plane: a band across the whole picture, along
-            # the plane's two axes
+            # the saturation slabs that cross this plane: the strip between a slab's two faces,
+            # n_a u + n_u v = centre -+ thick / 2 - n_w w with u, v the plane's mm from the voxel's
+            # centre and w the plane's own, cut out of the whole picture as a polygon of pixels
             bands = {}
-            for axis, centre, thick in (self.slabs() if self.protocol.ovs else ()):
-                n = "xyz".index(axis)
-                if n == across:
-                    bands[f"ovs {axis}{centre:+.0f}"] = (
-                        left + columns + 0.5 * width + (centre - 0.5 * thick) / step[n], 0.0,
-                        thick / step[n], float(side))
-                elif n == up:
-                    bands[f"ovs {axis}{centre:+.0f}"] = (
-                        0.0, top + rows + 0.5 * height - (centre + 0.5 * thick) / step[n],
-                        float(side), thick / step[n])
+            middle = (left + columns + 0.5 * width, top + rows + 0.5 * height)
+            w = float(origin[normal] + step[normal] * (a, b, c)[normal]) - self.position_mm[normal]
+            for axis, centre, thick, *tilted in (self.slabs() if self.protocol.ovs else ()):
+                n = np.asarray(tilted[0]) if tilted else np.eye(3)["xyz".index(axis)]
+                if not (n[across] or n[up]):
+                    continue
+                polygon = [(0.0, 0.0), (float(side), 0.0), (float(side), float(side)),
+                           (0.0, float(side))]
+                for sign, bound in ((1.0, centre - 0.5 * thick), (-1.0, centre + 0.5 * thick)):
+                    # what keeps sign (n_a u + n_u v + n_w w - bound) >= 0, edge by edge
+                    def level(x, y, sign=sign, bound=bound):
+                        return sign * (n[across] * (x - middle[0]) * step[across]
+                                       + n[up] * (middle[1] - y) * step[up] + n[normal] * w - bound)
+                    kept = []
+                    for start, end in zip(polygon, polygon[1:] + polygon[:1]):
+                        here, there = level(*start), level(*end)
+                        if here >= 0.0:
+                            kept.append(start)
+                        if (here >= 0.0) != (there >= 0.0):
+                            t = here / (here - there)
+                            kept.append((start[0] + t * (end[0] - start[0]),
+                                         start[1] + t * (end[1] - start[1])))
+                    polygon = kept
+                if polygon:
+                    bands[f"ovs {axis}{centre:+.0f}"] = polygon
             return (square, (left + columns, top + rows, width, height), bool(cut),
                     (cross[0] + columns, cross[1] + rows),
                     {**bands,
@@ -2516,11 +2545,45 @@ class Session:
         # in the room the exam was planned in; what stands there now comes back after
         for name, value in exam.room.items():
             setattr(self, name, value)
+        began = time.perf_counter()
         try:
             return self.acquire(exam, seed)
         finally:
             for name, value in now.items():
                 setattr(self, name, value)
+            if exam.status == "done":
+                self._took[(exam.card.sequence, exam.card.real,
+                            getattr(exam.sequence, "unfolded", False))] = (
+                    time.perf_counter() - began)
+
+    def compute_s(self, card=None):
+        """About how long this computer takes to simulate a card, in seconds, or None until
+        something tells: what the last exam of its kind took here. A card that plays the whole
+        voxel at once (a tilted slab, Sequence.unfolded) is costed, its metabolites being nearly
+        all of it: the design timed once on glutamate at two small ensembles (the difference
+        leaves the fixed cost out), the time per isochromat scaled by every metabolite system's
+        dimension cubed and the whole ensemble, and what the card takes untilted added."""
+        card = self.protocol if card is None else card
+        design = self.sequence(card)
+        took = self._took.get((card.sequence, card.real, design.unfolded))
+        if not design.unfolded or took is not None:
+            return took
+        engine = Engine(self.profile().scanner)
+        key = design.structure()
+        if key not in self._probes:
+            probe, spent = SpinSystem.from_database("Glu"), []
+            for side in (3, 6):
+                began = time.perf_counter()
+                engine.lines(design, *probe, isochromats=side)
+                spent.append(time.perf_counter() - began)
+            self._probes[key] = ((spent[1] - spent[0]) / (6 ** 3 - 3 ** 3),
+                                 max(system.dim for system in probe))
+        per, dim = self._probes[key]
+        database = Database()
+        systems = [system for name in database.metabolites() if name in concentrations.DE_GRAAF
+                   for system in SpinSystem.from_database(name, database=database)]
+        return (sum(per * (system.dim / dim) ** 3 for system in systems) * engine.isochromats ** 3
+                + self._took.get((card.sequence, card.real, False), 0.0))
 
     def acquire(self, exam, seed=None):
         """`run` in the room as it stands."""

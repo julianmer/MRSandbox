@@ -178,10 +178,30 @@ class Engine:
             ctx = self._ensemble_context(
                 sequence, self.context(system, b1_scale=b1_scale, offset_hz=offset_hz),
                 isochromats, shift_mm)
-            freqs, amps = self._system_lines(sequence, ctx)
+            freqs, amps = self._chunked_lines(sequence, ctx, system.dim)
             all_freqs.append(freqs)
             all_amps.append(amps)
         return ops.concatenate(all_freqs), ops.concatenate(all_amps)
+
+    def _chunked_lines(self, sequence, ctx, dim):
+        """`_system_lines` over the ensemble in chunks of at most ShapedPulse's
+        STEP_BLOCK_ELEMENTS density matrix elements, the amplitudes averaged by the chunks'
+        sizes: a whole voxel's ensemble of a large system does not fit at once."""
+        from mrsandbox.sequences.events import ShapedPulse
+
+        batched = {name: value for name in ("gradient_x", "gradient_y", "gradient_z", "b1_scale")
+                   if np.ndim(value := getattr(ctx, name)) > 0}
+        size = max((int(np.shape(value)[0]) for value in batched.values()), default=1)
+        chunk = max(1, ShapedPulse.STEP_BLOCK_ELEMENTS // dim ** 2)
+        if size <= chunk:
+            return self._system_lines(sequence, ctx)
+        total = 0.0
+        for start in range(0, size, chunk):
+            part = dataclasses.replace(ctx, **{name: value[start:start + chunk]
+                                               for name, value in batched.items()})
+            freqs, amps = self._system_lines(sequence, part)
+            total = total + amps * float(min(chunk, size - start))
+        return freqs, total / float(size)
 
     def positions(self, sequence, isochromats=None):
         """The isochromat positions of a gradient-bearing design, {axis: (isochromats,)
@@ -195,10 +215,17 @@ class Engine:
         cross-axis moments dephase instead of spuriously refocusing, while each axis's
         own marginal stays the exact uniform grid. Cross-axis combinations are thereby
         sampled along a torus line, a stated approximation; raise `isochromats` for
-        dense multi-axis schemes."""
+        dense multi-axis schemes. A design played as a whole (a tilted slab before its
+        localization, Sequence.unfolded) takes the full grid instead, `isochromats` along
+        every axis and all their combinations: without the tilt it sums exactly what the
+        projections factorize."""
         isochromats = isochromats if isochromats is not None else self.isochromats
         extents = self.extents(sequence)
         grid = (np.arange(isochromats) + 0.5) / isochromats - 0.5
+        if getattr(sequence, "unfolded", False):
+            axes = sorted(extents)
+            full = np.meshgrid(*(grid * extents[axis] for axis in axes), indexing="ij")
+            return {axis: values.ravel().astype(np.float32) for axis, values in zip(axes, full)}
         positions = {}
         for order, axis in enumerate(sorted(extents)):
             target = max(1, int(round(isochromats * 0.6180339887 ** order)))
@@ -212,7 +239,8 @@ class Engine:
     @staticmethod
     def extents(sequence):
         """The span of the isochromat ensemble per axis in mm, {axis: extent} over the
-        axes a design's gradients use: the largest extent its events name."""
+        axes a design's gradients use: the largest extent its events name (a tilted slab
+        names all three)."""
         from mrsandbox.sequences.events import Gradient, ShapedPulse
 
         extents = {}
@@ -220,8 +248,8 @@ class Engine:
             if isinstance(event, Gradient):
                 extents[event.axis] = max(extents.get(event.axis, 0.0), event.extent_mm)
             elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
-                extents[event.gradient_axis] = max(extents.get(event.gradient_axis, 0.0),
-                                                   event.extent_mm)
+                for axis in event.gradient_axis if event.gradient_normal is None else "xyz":
+                    extents[axis] = max(extents.get(axis, 0.0), event.extent_mm)
         return extents
 
     #*************#

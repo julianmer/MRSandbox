@@ -256,6 +256,9 @@ class ShapedPulse(Event):
         phase_deg: RF phase at t = 0 in degrees (0 = x, 90 = y).
         gradient_hz_per_mm: Slice gradient strength; 0 plays without a gradient.
         gradient_axis: The slice gradient axis, "x", "y", or "z".
+        gradient_normal: The slice gradient's direction as a unit (x, y, z) vector, a slab
+            tilted off its axis (`gradient_axis` stays the axis it is named for); None
+            plays it along `gradient_axis`.
         gradient_shape: Optional per-step modulation of the slice gradient, relative
             to gradient_hz_per_mm (gradient-modulated pulses); None plays it flat.
         extent_mm: Isochromat span when a gradient is set.
@@ -271,7 +274,7 @@ class ShapedPulse(Event):
     """
 
     free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz",
-            "phase_deg", "induced", "gradient_shape")
+            "phase_deg", "induced", "gradient_shape", "gradient_normal")
 
     # complex elements of step propagators held at once (2**24 is 128 MB in complex64)
     STEP_BLOCK_ELEMENTS = 2 ** 24
@@ -281,7 +284,8 @@ class ShapedPulse(Event):
     #**********#
     def __init__(self, flip_deg, duration_s, envelope, offset_ppm=0.0, phase_deg=0.0,
                  gradient_hz_per_mm=0.0, gradient_axis="x", extent_mm=20.0,
-                 frequency_hz=None, peak_hz=None, induced=None, gradient_shape=None):
+                 frequency_hz=None, peak_hz=None, induced=None, gradient_shape=None,
+                 gradient_normal=None):
         if gradient_axis not in ("x", "y", "z"):
             raise ValueError(f"unknown gradient axis {gradient_axis!r}; known: x, y, z")
         self.flip_deg = flip_deg
@@ -296,6 +300,8 @@ class ShapedPulse(Event):
         self.peak_hz = peak_hz
         self.induced = induced
         self.gradient_shape = gradient_shape
+        self.gradient_normal = (None if gradient_normal is None
+                                else np.asarray(gradient_normal, dtype=np.float32))
 
     #***************#
     #   gaussian    #
@@ -507,6 +513,20 @@ class ShapedPulse(Event):
         dt = float(self.duration_s) / envelope.size
         return float(envelope.max() * (float(self.flip_deg) / 360.0) / (envelope.sum() * dt))
 
+    #***********#
+    #   along   #
+    #***********#
+    def _along(self, ctx):
+        """Every isochromat's position along the slice gradient, in mm: along its axis, or
+        along its normal for a tilted slab."""
+        if self.gradient_normal is None:
+            return ops.convert_to_tensor(getattr(ctx, "gradient_" + self.gradient_axis),
+                                         dtype="float32")
+        normal = ops.cast(ops.convert_to_tensor(self.gradient_normal), "float32")
+        return sum(normal[k] * ops.convert_to_tensor(getattr(ctx, "gradient_" + axis),
+                                                     dtype="float32")
+                   for k, axis in enumerate("xyz"))
+
     #****************#
     #   propagator   #
     #****************#
@@ -537,8 +557,7 @@ class ShapedPulse(Event):
         # delta a scalar or one value per isochromat
         delta = -ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
         if self.gradient_hz_per_mm and self.gradient_shape is None:
-            delta = delta + self.gradient_hz_per_mm * ops.convert_to_tensor(
-                getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
+            delta = delta + self.gradient_hz_per_mm * self._along(ctx)
         offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype="float32") * ctx.f0_mhz
         t_mid = (ops.arange(0, steps, dtype="float32") + 0.5) * dt
         phase = (ops.convert_to_tensor(self.phase_deg, dtype="float32") * (math.pi / 180.0)
@@ -575,8 +594,7 @@ class ShapedPulse(Event):
         if self.gradient_hz_per_mm and self.gradient_shape is not None:
             # a modulated slice gradient: its running integral at the step midpoints
             shape = ops.cast(ops.convert_to_tensor(self.gradient_shape), "float32")
-            x = self.gradient_hz_per_mm * ops.convert_to_tensor(
-                getattr(ctx, "gradient_" + self.gradient_axis), dtype="float32")
+            x = self.gradient_hz_per_mm * self._along(ctx)
             run = (ops.cumsum(shape) - shape / 2.0) * dt
             turns = turns + ops.expand_dims(run, 1) * ops.expand_dims(x, 0)
             total = total + ops.sum(shape) * dt * x
@@ -804,6 +822,8 @@ class Projection(Event):
     its axes, outer-volume saturation slabs, is separable too, and Sequence folds
     each slab into the projection of its own axis (`saturation`): what the slab
     leaves of each isochromat's longitudinal magnetization weighs it in the average.
+    A slab tilted off its axis is not separable: then no projection averages, each
+    only scales (`scale`), and the whole voxel plays as one three-dimensional ensemble.
 
     Args:
         gain: The factor on the average: the ensemble's extent over the nominal slab
@@ -840,6 +860,10 @@ class Projection(Event):
                                axis=0)
             else:
                 rho = ops.mean(rho, axis=0)
+        return self.scale(rho)
+
+    def scale(self, rho):
+        """The gain alone, nothing averaged: a projection in a design played as a whole."""
         return rho * nops.cast(ops.convert_to_tensor(self.gain, dtype="float32"), "complex64")
 
 
@@ -944,7 +968,8 @@ class Sequence:
                     propagators[id(event)] = event.propagator(ctx)
                 rho = event.apply(rho, ctx, propagators[id(event)])
             elif isinstance(event, Projection):
-                rho = event.apply(rho, ctx, folded.get(k, ()), propagators)
+                rho = (event.scale(rho) if folded is None
+                       else event.apply(rho, ctx, folded.get(k, ()), propagators))
             else:
                 rho = event.apply(rho, ctx)
         return rho
@@ -956,7 +981,9 @@ class Sequence:
         into the x projection as a loss over the whole voxel, so each slab is held back and
         weighed into the projection of its own axis instead (Projection.apply), which is
         where the factorization puts it. A slab along an axis no projection localizes plays
-        in place. Returns (the indices held back, {projection index: its slab events})."""
+        in place. A tilted slab cannot be folded: then nothing is held back and the folds
+        are None, the design played as a whole (`unfolded`). Returns (the indices held
+        back, {projection index: its slab events})."""
         events = self.events
         if not any(isinstance(event, Projection) for event in events):
             return set(), {}
@@ -964,6 +991,8 @@ class Sequence:
         slabs = [k for k in range(first - 1)
                  if isinstance(events[k], ShapedPulse) and events[k].gradient_hz_per_mm
                  and isinstance(events[k + 1], CoherenceFilter) and events[k + 1].orders == (0,)]
+        if any(events[k].gradient_normal is not None for k in slabs):
+            return set(), None
         held, folded, since = set(), {}, set()
         for k, event in enumerate(events):
             if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm and k not in slabs:
@@ -974,6 +1003,12 @@ class Sequence:
                 folded[k] = tuple(events[j + i] for j in mine for i in (0, 1))
                 since = set()
         return held, folded
+
+    @property
+    def unfolded(self):
+        """Whether a tilted slab plays before the localization, so that the projections only
+        scale and the voxel is one three-dimensional ensemble (`_slabs`)."""
+        return self._slabs()[1] is None
 
     #**************#
     #   duration   #

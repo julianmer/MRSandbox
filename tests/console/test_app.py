@@ -65,6 +65,9 @@ class TestApp:
                 await user.should_see("OVS slabs")
                 user.find(marker="slab x+").click()
                 assert user.find(marker="slab x+").elements.pop().value is False
+                # the x- slab tilted toward y: the whole voxel at once, its compute time costed
+                user.find(marker="tilt x- y").elements.pop().value = 20
+                await user.should_see("computing")
                 user.find("Close").click()
                 user.find(marker="ovs").click()  # off again: the exams below play no slabs
                 user.find(marker="design").click()

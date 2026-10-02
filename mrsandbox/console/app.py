@@ -30,7 +30,7 @@ import sys
 import time
 
 import numpy as np
-from nicegui import Client, run, ui
+from nicegui import Client, background_tasks, run, ui
 from PIL import Image
 
 from mrsandbox.io.folder import reads
@@ -532,15 +532,26 @@ async def console(client: Client):
             if loops_only:
                 return
             centre, size = drawn["voxel"]
-            # the saturation slabs, 160 mm wide
-            for axis, offset, thick in (session.slabs() if session.protocol.ovs and chosen["slabs"]
-                                        else ()):
-                edges_mm = [thick if name == axis else 160.0 for name in "xyz"]
-                ui.scene.box(*(edge * MM for edge in edges_mm)).material(SLAB, 0.18).move(
-                    *((np.asarray(centre)
-                       + offset * np.asarray([name == axis for name in "xyz"], dtype=float)) * MM))
+            # the saturation slabs, 160 mm wide, their thickness along their normals (a box's z
+            # turned onto the normal, as the loops are)
+            for axis, offset, thick, *tilted in (session.slabs() if session.protocol.ovs
+                                                 and chosen["slabs"] else ()):
+                n = np.asarray(tilted[0]) if tilted else np.eye(3)["xyz".index(axis)]
+                a = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
+                a = a / np.linalg.norm(a)
+                ui.scene.box(160.0 * MM, 160.0 * MM, thick * MM).material(SLAB, 0.18).move(
+                    *((np.asarray(centre) + offset * n) * MM)).rotate_R(
+                    np.stack([a, np.cross(n, a), n], axis=1).tolist())
             chosen["box"] = ui.scene.box(*(edge * MM for edge in size), wireframe=True).material(
                 GLOW).move(*(np.asarray(centre) * MM))
+
+    async def estimate():
+        """The card's compute time beside its scan time, found off the page's thread (a tilted
+        slab's design is timed once, a few seconds)."""
+        took = await run.io_bound(session.compute_s)
+        texts["compute"].text = ("not timed yet" if took is None
+                                 else f"{took / 3600.0:.1f} h" if took >= 3600.0
+                                 else f"{took / 60.0:.0f} min" if took >= 90.0 else f"{took:.0f} s")
 
     def paint():
         """Redraw the planes (the slice on view, the voxel's outline where the slice cuts it, the
@@ -596,7 +607,7 @@ async def console(client: Client):
                         + (f'stroke="#fff" stroke-width="{0.6 * pen:.2f}" />'
                            if chosen["cell"] == (i, j, layer) else 'stroke="none" />')
                         for i in range(across) for j in range(down))
-            chosen["bands"][name] = {which: rect for which, rect in shifted.items()
+            chosen["bands"][name] = {which: points for which, points in shifted.items()
                                      if which.startswith("ovs") and chosen["slabs"]}
             views[name].content = (painted +
                 f'<g stroke="{SAND}" stroke-width="{0.3 * pen:.2f}" opacity="0.45">'
@@ -604,16 +615,17 @@ async def console(client: Client):
                 f'<line y1="{row}" y2="{row}" x1="0" x2="{side}" /></g>'
                 f'<g fill="none" stroke="{GLOW}" stroke-width="{0.35 * pen:.2f}" opacity="0.7">'
                 f'{grid}</g>'
-                + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
-                          f'fill="{SLAB}" fill-opacity="0.22" stroke="{SLAB}" '
+                + "".join('<polygon points="' + " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+                          + f'" fill="{SLAB}" fill-opacity="0.22" stroke="{SLAB}" '
                           f'stroke-width="{0.3 * pen:.2f}" />'
-                          for which, (x, y, w, h) in shifted.items()
-                          if which.startswith("ovs") and chosen["slabs"])
+                          for which, points in chosen["bands"][name].items())
                 + "".join(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
                           f'fill="none" stroke="{SHIFT_COLOURS[which]}" '
                           f'stroke-width="{0.5 * pen:.2f}" opacity="{0.9 if cut else 0.4}" />'
-                          for which, (x, y, w, h) in shifted.items()
-                          if not which.startswith("ovs") and (chosen["shifts"] or which == "shim"))
+                          for which, (x, y, w, h) in (
+                              (which, box) for which, box in shifted.items()
+                              if not which.startswith("ovs"))
+                          if chosen["shifts"] or which == "shim")
                 + f'<rect x="{left:.1f}" y="{top:.1f}" width="{width:.1f}" height="{height:.1f}" '
                   f'fill="none" stroke="{GLOW}" '
                 + (f'stroke-width="{0.8 * pen:.2f}" />' if cut else
@@ -685,6 +697,8 @@ async def console(client: Client):
         accept.text = "Accept" if chosen["editing"] is None else "Accept changes"
         discard.set_visibility(chosen["editing"] is not None)
         texts["time"].text = texts["time2"].text = f"{minutes:02d}:{seconds:02d}"
+        if chosen.get("estimate") is None or chosen["estimate"].done():
+            chosen["estimate"] = background_tasks.create(estimate())
         texts["timing"].text = f"{card.tr_ms:g} / {card.te_ms:g} ms"
         texts["needs"].text = (f"{1000.0 * look['needs_s']:.0f} ms of the TR "
                                f"(suppression, OVS, sequence, readout)")
@@ -2536,24 +2550,60 @@ async def console(client: Client):
                     paint()
                     return
             x, y = event.args.get("image_x", 0.0), event.args.get("image_y", 0.0)
+            here = np.asarray(session.at(plane, x, y)) - np.asarray(session.position_mm)
             if kind == "mousedown" and not event.args.get("shiftKey"):
-                # a press on a saturation slab's band takes the slab along
+                # a press inside a saturation slab's band (a convex polygon: the point on one
+                # side of every edge) takes the slab along, if its axis lies in this plane
                 chosen["slab"] = next((
                     (which[4], 1.0 if which[5] == "+" else -1.0)
-                    for which, (bx, by, bw, bh) in chosen["bands"].get(plane, {}).items()
-                    if bx <= x <= bx + bw and by <= y <= by + bh), None)
+                    for which, points in chosen["bands"].get(plane, {}).items()
+                    if "xyz".index(which[4]) != EDGES[plane][4]
+                    and len({np.sign((x2 - x1) * (y - y1) - (y2 - y1) * (x - x1))
+                             for (x1, y1), (x2, y2) in zip(points, points[1:] + points[:1])}
+                            - {0.0}) == 1), None)
+                if chosen["slab"] is not None:
+                    # near the voxel the press moves the slab; toward an end of the band it turns
+                    axis, side = chosen["slab"]
+                    k = "xyz".index(axis)
+                    j = 3 - k - EDGES[plane][4]
+                    normal = next(np.asarray(tilted[0]) if tilted else np.eye(3)[k]
+                                  for a, c, _, *tilted in session.slabs()
+                                  if a == axis and c * side > 0)
+                    along = abs(here[j] * normal[k] - here[k] * normal[j]) / np.hypot(
+                        normal[k], normal[j])
+                    chosen["slab"] = (axis, side, along > 1.5 * max(session.size_mm))
             if chosen["slab"] is not None and (kind == "mousedown"
                                               or (kind == "mousemove" and pressed)):
-                axis, side = chosen["slab"]
-                n = "xyz".index(axis)
+                axis, side, turning = chosen["slab"]
+                k = "xyz".index(axis)
                 slab = next(s for s in session.protocol.ovs_slabs
                             if (s["axis"], s["side"]) == (axis, side))
                 thick = session.protocol.ovs_mm if slab["mm"] is None else slab["mm"]
-                # the band's centre follows the mouse along its axis; the gap is what is left
-                # between the voxel's face and the slab's inner face
-                gap = (side * (session.at(plane, x, y)[n] - session.position_mm[n])
-                       - 0.5 * session.size_mm[n] - 0.5 * thick)
-                session.set_slab(axis, side, gap_mm=float(round(max(gap, 0.0))))
+                centre, normal = next((c, np.asarray(tilted[0]) if tilted else np.eye(3)[k])
+                                      for a, c, _, *tilted in session.slabs()
+                                      if a == axis and c * side > 0)
+                if turning:
+                    # the slab keeps its place along its normal and its tilt out of this plane, and
+                    # turns in it until its middle runs through the mouse: the tilt toward this
+                    # plane's other axis that solves normal . point = centre, nearest the last one
+                    j = 3 - k - EDGES[plane][4]
+                    others = [m for m in range(3) if m != k]
+                    tilt = list(slab.get("tilt_deg", (0.0, 0.0)))
+                    out = np.tan(np.radians(tilt[others.index(EDGES[plane][4])]))
+                    angles = np.radians(np.linspace(-60.0, 60.0, 241))
+                    miss = ((here[k] + np.tan(angles) * here[j] + out * here[EDGES[plane][4]])
+                            / np.sqrt(1.0 + np.tan(angles) ** 2 + out ** 2) - centre)
+                    roots = angles[:-1][np.sign(miss[:-1]) != np.sign(miss[1:])]
+                    if roots.size:
+                        last = np.radians(tilt[others.index(j)])
+                        tilt[others.index(j)] = round(float(np.degrees(
+                            roots[np.argmin(np.abs(roots - last))])), 1)
+                        session.set_slab(axis, side, tilt_deg=tuple(tilt))
+                else:
+                    # the band's middle follows the mouse along the slab's normal; the gap is what
+                    # is left between the voxel's face and the slab's inner face
+                    gap = side * float(normal @ here) - 0.5 * session.size_mm[k] - 0.5 * thick
+                    session.set_slab(axis, side, gap_mm=float(round(max(gap, 0.0))))
                 chosen["dragging"] = True
                 paint()
                 return
@@ -2618,21 +2668,25 @@ async def console(client: Client):
         draw()
 
     def slabs():
-        """The card's six saturation slabs one by one: on or off, and a gap and thickness of its
-        own in place of the card's; a band on the planes drags its slab too."""
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 560px"):
+        """The card's six saturation slabs one by one: on or off, a gap and thickness of its own
+        in place of the card's, and a tilt toward the other two axes; a band on the planes drags
+        its slab too, near its middle along, near its ends round."""
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 720px"):
             ui.label("OVS slabs").classes("label")
             ui.label("A pair along every axis, placed for water about the voxel's faces. A gap "
-                     "or thickness left empty is the card's. Drag a slab's band on a plane to "
-                     "move it.").style(f"color: {DIM}")
+                     "or thickness left empty is the card's. A tilt turns a slab toward the "
+                     "other two axes; the whole voxel is then simulated at once, exact and "
+                     "slow. Drag a slab's band on a plane to move it, near its ends to turn "
+                     "it.").style(f"color: {DIM}")
 
             def set_slab(axis, side, **settings):
                 session.set_slab(axis, side, **settings)
                 room()
                 draw()
 
-            with ui.grid(columns=4).classes("w-full items-center").style("gap: 6px 12px"):
-                for caption in ("slab", "on", "gap to the voxel (mm)", "thickness (mm)"):
+            with ui.grid(columns=5).classes("w-full items-center").style("gap: 6px 12px"):
+                for caption in ("slab", "on", "gap to the voxel (mm)", "thickness (mm)",
+                                "tilt (°)"):
                     ui.label(caption).classes("label")
                 for slab in session.protocol.ovs_slabs:
                     axis, side = slab["axis"], slab["side"]
@@ -2650,11 +2704,27 @@ async def console(client: Client):
                               on_change=lambda e, a=axis, s=side: set_slab(
                                   a, s, mm=None if e.value is None else float(e.value))
                               ).props("dense outlined dark clearable").style("width: 150px")
+                    with ui.row().classes("no-wrap").style("gap: 4px"):
+                        for place, other in enumerate(o for o in "xyz" if o != axis):
+                            # the other tilt as the slab holds it when this one changes
+                            ui.number(f"to {other}", value=slab.get("tilt_deg", (0.0, 0.0))[place],
+                                      min=-60.0, max=60.0, step=1.0, format="%.6g",
+                                      on_change=lambda e, a=axis, s=side, p=place: set_slab(
+                                          a, s, tilt_deg=tuple(
+                                              float(e.value or 0.0) if q == p else t
+                                              for q, t in enumerate(next(
+                                                  x for x in session.protocol.ovs_slabs
+                                                  if (x["axis"], x["side"]) == (a, s)).get(
+                                                  "tilt_deg", (0.0, 0.0)))))).props(
+                                "dense outlined dark").style("width: 72px").mark(
+                                f"tilt {axis}{'+' if side > 0 else '-'} {other}")
             with ui.row().classes("w-full"):
                 ui.button("all alike", on_click=lambda: (
-                    [set_slab(s["axis"], s["side"], on=True, gap_mm=None, mm=None)
+                    [set_slab(s["axis"], s["side"], on=True, gap_mm=None, mm=None,
+                              tilt_deg=(0.0, 0.0))
                      for s in session.protocol.ovs_slabs], dialog.close(), slabs())).props(
-                    "flat dense no-caps").tooltip("every slab on, at the card's gap and thickness")
+                    "flat dense no-caps").tooltip(
+                    "every slab on, untilted, at the card's gap and thickness")
                 ui.space()
                 ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
         dialog.open()
@@ -3477,6 +3547,11 @@ async def console(client: Client):
                             texts["name"] = ui.label("").style(f"color: {SAND}")
                             ui.label("duration").classes("label")
                             texts["time2"] = ui.label("").classes("value")
+                            ui.label("computing").classes("label").tooltip(
+                                "about how long this computer takes to simulate the card: what "
+                                "the last exam of its kind took here, or for a tilted slab (the "
+                                "whole voxel at once) its design timed once and scaled")
+                            texts["compute"] = ui.label("").classes("value")
                             texts["verdict"] = ui.label("").classes("value").style("flex: 1")
                             discard = ui.button("Discard", on_click=lambda: (
                                 chosen.__setitem__("editing", None), listing(), draw())).props(

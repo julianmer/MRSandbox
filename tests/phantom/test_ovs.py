@@ -172,6 +172,30 @@ class TestLipids:
                 / amplitude(unprojected(press), 512))
         assert projected > 0.97 and abs(projected - full) < 0.02, (projected, full)
 
+    def test_a_tilted_slab_plays_the_voxel_as_a_whole_along_its_normal(self):
+        # the six slabs 5 mm clear of a real PRESS voxel; the x+ slab given a normal plays the
+        # design as one 3-D ensemble: along its own axis it sums exactly what the projections
+        # factorize, and turned onto y it saturates as the y+ slab does
+        from mrsandbox.sequences.library import LocalizedPress
+
+        press = LocalizedPress(0.011, 0.024, F0, size_mm=20.0)
+        six = [(axis, side * 30.0, 30.0) for axis in "xyz" for side in (-1.0, 1.0)]
+        engine, water = Engine(F0 / 42.5774785), WaterSource.system(gamma_mhz_t=42.5774785)
+
+        def amplitude(bands):
+            design = OuterVolumeSuppression(bands, F0, extent_mm=20.0) + press
+            _, amps = engine.lines(design, water, offset_hz=(4.65 - 2.01) * F0, isochromats=12)
+            return design.unfolded, float(np.abs(np.asarray(ops.convert_to_numpy(amps))).sum())
+
+        folded, projected = amplitude(six)
+        whole, along = amplitude([six[1] + ((1.0, 0.0, 0.0),)] + six[:1] + six[2:])
+        assert not folded and whole and abs(along / projected - 1.0) < 1e-5, (along, projected)
+        # the x+ slab turned onto y doubles the y+ slab, which then saturates twice: as the
+        # projected design with the x+ slab moved to y
+        _, turned = amplitude([six[1] + ((0.0, 1.0, 0.0),)] + six[:1] + six[2:])
+        _, moved = amplitude([("y", 30.0, 30.0)] + six[:1] + six[2:])
+        assert abs(turned / moved - 1.0) < 1e-5, (turned, moved)
+
     @pytest.mark.slow
 
     def test_outer_volume_bands_saturate_the_fat_and_spare_the_voxel(self):
@@ -259,3 +283,18 @@ class TestProfiledLipids:
         # reference and its feet reach further; the 10 kHz GOIA slab moves 0.4 mm
         assert press > 100.0
         assert laser < 0.05 * press
+
+    def test_a_tilted_slab_weighs_the_fat_cell_by_cell_as_an_axis_slab_does(self):
+        from mrsandbox import LocalizedPress, OuterVolumeSuppression
+
+        # fat from 12 to 20 mm along z both ways, a slab over the upper layer: on its own z axis
+        # it plays inside the z profile, named x but turned onto z it weighs every fat cell
+        brain = self.head(lambda z: (np.abs(z) > 12.0) & (np.abs(z) < 20.0))
+        press = LocalizedPress(0.015, 0.015, F0)
+        none = np.abs(self.lipids(brain, press)[0]).sum()
+        axis = np.abs(self.lipids(brain, OuterVolumeSuppression(
+            [("z", 26.0, 30.0)], F0, extent_mm=20.0) + press)[0]).sum()
+        turned = np.abs(self.lipids(brain, OuterVolumeSuppression(
+            [("x", 26.0, 30.0, (0.0, 0.0, 1.0))], F0, extent_mm=20.0) + press)[0]).sum()
+        # placed for water the slab misses part of the fat's displaced voxel
+        assert axis < 0.95 * none and abs(turned / axis - 1.0) < 0.01, (none, axis, turned)

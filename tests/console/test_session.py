@@ -556,6 +556,15 @@ class TestSession:
         assert len(slabs) == 5 and ("x", True) not in slabs
         assert slabs[("z", False)] == (-(10.0 + 40.0 / 2.0 + 25.0), 40.0)
         assert len(session.slabs(planned.card)) == 6
+        # a slab tilted 30 degrees toward y: its normal, and the whole voxel played at once; in the
+        # transverse plane its band leans (a polygon whose columns move down the rows)
+        session.set_slab("x", -1.0, tilt_deg=(30.0, 0.0))
+        axis, centre, thick, normal = session.slabs()[0]
+        assert np.allclose(normal, (np.cos(np.radians(30.0)), np.sin(np.radians(30.0)), 0.0))
+        assert session.sequence().unfolded and not session.sequence(planned.card).unfolded
+        band = session.planes()["tra"][4][f"ovs x{centre:+.0f}"]
+        top, bottom = (np.mean([x for x, y in band if y == row]) for row in (0.0, 115.0))
+        assert abs(top - bottom) > 10.0
         # dragging a band: the point of a plane's picture in millimetres, and the same place
         column, row = 80, 70
         before = list(session.position_mm)
@@ -567,9 +576,10 @@ class TestSession:
         fresh = Session(ICBM)
         fresh.LIBRARY = tmp_path
         fresh.load_protocol("slabs")
-        assert fresh.protocol.ovs and len(fresh.slabs()) == 5
+        assert fresh.protocol.ovs and len(fresh.slabs()) == 5 and len(fresh.slabs()[0]) == 4
         fresh.set_slab("x", 1.0, on=True)
-        assert len(fresh.slabs()) == 6
+        fresh.set_slab("x", -1.0, tilt_deg=(0.0, 0.0))
+        assert len(fresh.slabs()) == 6 and not fresh.sequence().unfolded
 
     def test_the_operators_own_maps_go_through_a_scan(self, tmp_path):
         import nibabel as nib
