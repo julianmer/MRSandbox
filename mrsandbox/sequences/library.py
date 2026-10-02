@@ -247,12 +247,17 @@ def editing_pulse(edit_ppm, f0_mhz, duration_s):
     """The Gaussian editing 180 of the localized editing designs, its carrier reading
     zero phase at the pulse's centre: one band at `edit_ppm`, or for two centres a
     dual band, the Gaussian cosine-modulated about their middle at twice the single
-    band's amplitude (each band then turns its spins by 180 degrees)."""
+    band's amplitude (each band then turns its spins by 180 degrees).
+
+    The Gaussian is truncated at 5.71 percent of its peak, where it inverts a band 1.24
+    over its duration wide at half maximum: 82.7 Hz at 15 ms and 62.0 Hz at 20 ms, the
+    scanners' own (82.5 and 61.9 Hz on Philips, 81.7 and 61.3 Hz on GE, Mikkelsen et al.
+    2017, NeuroImage 159:32), and 88.6 Hz at 14 ms (de Graaf Table 5.1: 88 Hz)."""
     centres = tuple(edit_ppm) if isinstance(edit_ppm, (tuple, list)) else (edit_ppm,)
     if len(centres) > 2:
         raise ValueError(f"an editing pulse carries one or two bands, got {len(centres)}")
     middle = sum(centres) / len(centres)
-    pulse = ShapedPulse.gaussian(180.0, duration_s, offset_ppm=middle,
+    pulse = ShapedPulse.gaussian(180.0, duration_s, offset_ppm=middle, truncation=0.0571,
                                  phase_deg=-180.0 * middle * f0_mhz * duration_s)
     if len(centres) == 1:
         return pulse
