@@ -317,11 +317,12 @@ class Voxel:
         water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
         if water is None:
             return None
+        transferred = self.transfer(truth).get("water", 1.0)
         # the water line moves with the temperature, fourteen times more than the metabolites
         # (which take their systems at the same temperature, `_metabolite_lines`)
         warm = self.resolve(truth.water.temperature_c) - 37.0
         return [(w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz),
-                 w_amps * np.complex64(faded(truth.diffusion.water)),
+                 w_amps * np.complex64(faded(truth.diffusion.water) * transferred),
                  1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s in water]
 
     def _grouped(self, truth, metabolites=True):
@@ -401,13 +402,43 @@ class Voxel:
         attenuation of the local ADC under the drawn diffusion model."""
         faded = self._diffusion_factor(truth)
         sticks = truth.diffusion.model == "sticks"
+        transferred = self.transfer(truth)
         weights = []
         for name, concentration in truth.conc.items():
             r = truth.contrast[name]
             tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
             weights.append(self.resolve(concentration) * tissue
-                           * faded(truth.diffusion.adc[name], sticks))
+                           * faded(truth.diffusion.adc[name], sticks)
+                           * transferred.get(name, 1.0))
         return np.asarray(weights, dtype=np.complex64)
+
+    #**************#
+    #   transfer   #
+    #**************#
+    def transfer(self, truth):
+        """What magnetization transfer through the tissue's bound pool leaves of each metabolite
+        and of the water in this voxel under the design's saturation pulses (phantom.transfer),
+        {name: factor} with "water": empty where the tree carries no transfer or the voxel no
+        bound pool (CSF, a solution). The pulses' responses stay on the scan per design and
+        transmit scale, read to two percent (stated)."""
+        mt = getattr(truth, "mt", None)
+        fraction = 0.0 if mt is None else float(self.resolve(mt.pool_fraction))
+        if fraction <= 0.0:
+            return {}
+        from mrsandbox.phantom.transfer import Transfer
+        from mrsandbox.phantom.water import WaterSource
+
+        rates = {name: float(self.resolve(rate)) for name, rate in mt.rate.items()
+                 if name in truth.conc}
+        model = Transfer(fraction, float(self.resolve(mt.exchange_hz)),
+                         round(float(self.resolve(mt.t2_s)), 7))
+        return model.factors(
+            self.scan.engine, self.design(truth),
+            WaterSource.system(self._f0_mhz() / self.scan.engine.b0_t),
+            float(self.resolve(truth.water.t1_s)), rates,
+            {name: float(self.resolve(truth.t1[name])) for name in rates},
+            b1_scale=round(float(np.mean(self.b1_scale(truth))) / 0.02) * 0.02,
+            kept=self.scan._transfer)
 
     #***********#
     #   basis   #

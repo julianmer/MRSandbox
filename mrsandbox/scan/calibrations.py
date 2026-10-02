@@ -270,7 +270,58 @@ MM_MEASURED_LEVEL_3T = Calibration(
 # every leaf the cohorts hold readings of). A record serves the scanner presets it names; the
 # first record of a leaf is the fallback for every other scanner, and a scan's header says where
 # it departs from the record it got (`Calibration.departures`)
-CALIBRATIONS = (CREATINE_THREE_DATASETS_3T,)
+#****************************#
+#   magnetization transfer   #
+#****************************#
+# the rate at which a metabolite's protons exchange magnetization with the bound pool
+# (phantom.transfer), one per participant of Bacon et al.'s data (8 sLASER, then 8 MEGA-PRESS
+# OFF): each peak's raw height without over with water suppression, the rate at which the model on
+# the console's real card of the protocol makes the suppressed peak that much lower
+TRANSFER_RATES = {
+    ("Cr", "PCr"): ("total creatine, 3.03 ppm",
+                    (0.230, 0.549, 0.274, 0.304, 0.201, 0.475, 0.164, 0.418,
+                     0.171, 0.121, 0.172, 0.153, 0.154, 0.057, 0.214, 0.215)),
+    ("PCho", "GPC"): ("total choline, 3.21 ppm",
+                      (0.137, 0.000, 0.076, 0.125, 0.114, 0.065, 0.115, 0.153,
+                       0.000, 0.000, 0.000, 0.037, 0.000, 0.000, 0.000, 0.000)),
+    ("NAA", "NAAG"): ("NAA, 2.01 ppm",
+                      (0.050, 0.030, 0.000, 0.024, 0.040, 0.000, 0.000, 0.000,
+                       0.051, 0.035, 0.003, 0.003, 0.016, 0.000, 0.008, 0.005)),
+}
+TRANSFER_BACON_2026 = tuple(
+    Calibration(
+        leaf=f"mt.rate.{name}",
+        value=sorted(values)[len(values) // 2],
+        prior=(min(values), max(values)),
+        measured={"statistic": f"the transfer rate in 1/s that makes the {peak} peak as much "
+                               "lower under VAPOR as its raw height read without over with "
+                               "water suppression, through phantom.transfer on the console's "
+                               "real card of the protocol",
+                  "values": values,
+                  "datasets": ("bacon_2026_slaser",) * 8 + ("bacon_2026_mega_press_off",) * 8},
+        source={"dataset": "Bacon, Jezzard, Clarke: non-water-suppressed SVS, every "
+                           "participant's spectra with and without VAPOR",
+                "citation": "MRM 96 (2026) 530-541, doi 10.1002/mrm.70383",
+                "url": "https://github.com/jbbacon/NWS_Spectroscopy"},
+        scanner={"vendor": "siemens", "model": "Prisma", "software": None, "field_t": 3.0},
+        coil={"channels": None, "name": None},
+        sequence={"name": "sLASER (motor cortex), MEGA-PRESS OFF (visual cortex), VAPOR and OVS",
+                  "family": "", "te_s": (0.030, 0.068), "tr_s": (5.0, 1.5)},
+        acquisition={"subjects": (8, 8), "measured_on": "each participant's averaged spectrum"},
+        voxel={"region": "motor cortex, visual cortex",
+               "stand_in": "60 percent grey, 40 white matter"},
+        processing="their preprocessing (coil combination, alignment, averaging; the "
+                   "unsuppressed spectra GIRF-corrected); the water taken out of both by the "
+                   "package's exponentials within 0.4 ppm of 4.65, both on NAA and phased there, "
+                   "2 Hz, baseline-corrected peak heights; no fits",
+        date="02/10/26",
+        carried_by="subject",
+        note="the console's six SLR slabs stand in for their OVS modules; sLASER and MEGA-PRESS "
+             "ask different rates (median 0.29 and 0.16 per s for creatine): region, OVS load "
+             "or timing, open")
+    for names, (peak, values) in TRANSFER_RATES.items() for name in names)
+
+CALIBRATIONS = (CREATINE_THREE_DATASETS_3T, *TRANSFER_BACON_2026)
 
 
 

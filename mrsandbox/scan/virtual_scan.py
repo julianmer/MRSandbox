@@ -151,6 +151,8 @@ class VirtualScan:
                        | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
         self._lines = {}
+        # magnetization transfer: the design's pulses' responses (Voxel.transfer)
+        self._transfer = {}
         self._basis = None
         self._eddy = None
         self._systems = {}

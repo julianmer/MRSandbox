@@ -23,6 +23,7 @@ from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
+from mrsandbox.database.transfer import CREATINE_METHYL_RATE_HZ, NO_TRANSFER, STANISZ_2005_3T
 from mrsandbox.database.gudmundson import PooledValue
 from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS, WATER_T2_3T
 from mrsandbox.hardware.scanners import Scanner
@@ -50,6 +51,11 @@ RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about
              "events": "Rowland et al. 2017 and Hess et al. 2011: motion as sparse events; "
                        "the rate stated",
              "stated": "a stated range (Augmentrum's TransientSynthesizer default)"}
+TRANSFER_CITED = {"creatine": "MacMillan, Boesch, Kreis 2013, MRM 70:916: water to creatine "
+                                "methyl 0.39 and 0.30 per s in two human muscles at 3 T "
+                                "(database.transfer)",
+                  "none": "no transfer to NAA, NAAG or choline in human brain: Kruiskamp et al. "
+                          "2001, Helms and Frahm 1999, Meyerhoff 1999 (database.transfer)"}
 CREATINE = ("de Graaf, In Vivo NMR Spectroscopy, 3rd ed.: total creatine 4.5 to 10.5 mM with the "
             "phosphocreatine 3.0 to 5.5 mM inside it taken out, the free creatine "
             "(database.concentrations DE_GRAAF)")
@@ -398,7 +404,23 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0
                                 for name, (gm, wm) in rows.items()})
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
-    tree = Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections | run
+    # magnetization transfer (phantom.transfer): every tissue's bound pool (Stanisz et al. 2005 at
+    # 3 T, the one field typed, stated elsewhere; CSF holds none) and the rate at which each
+    # metabolite's protons exchange magnetization with it, creatine's literature the muscle rates,
+    # the others' none; the measured source the package's readings of Bacon et al.'s spectra
+    # (scan.calibrations TRANSFER_BACON_2026)
+    pool = STANISZ_2005_3T
+    transfer = Params(mt=dict(
+        **{key: PerTissue(gm=pool["gm"][key], wm=pool["wm"][key], csf=0.0 if key != "t2_s"
+                          else pool["wm"][key])
+           for key in ("pool_fraction", "exchange_hz", "t2_s")},
+        rate={name: _sourced(f"mt.rate.{name}", served, Uniform,
+                             literature=(Uniform(*CREATINE_METHYL_RATE_HZ)
+                                         if name not in NO_TRANSFER else Fixed(0.0)),
+                             cited=TRANSFER_CITED["none" if name in NO_TRANSFER else "creatine"])
+              for name in ("Cr", "PCr", *NO_TRANSFER) if name in names}))
+    tree = (Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections | run
+            | transfer)
     # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its
     # dataset source (a cohort subject's reading), chosen: a reading made on a given scan outranks
     # the pool; a record of the hardware outside the tree (the array's noise share) is the

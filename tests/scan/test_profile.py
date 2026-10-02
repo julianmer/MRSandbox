@@ -112,7 +112,8 @@ class TestScannerProfile:
         profile = ScannerProfile(Scanner.preset("siemens_prisma_3t"), records=(own,))
         scan = profile.scan(Brain.load("icbm152"), Press(te1_s=0.011, te2_s=0.024))
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == (7.0, 9.0)
-        assert set(profile.calibrations()) == {"conc.Cr", *cohorts.leaves()}
+        transfer = {f"mt.rate.{name}" for name in ("Cr", "PCr", "NAA", "NAAG", "PCho", "GPC")}
+        assert set(profile.calibrations()) == {"conc.Cr", *transfer, *cohorts.leaves()}
         data = scan.voxel(PLACE, SIZE).acquire(seed=0, npoints=256)
         named = data.hdr_ext["SimulationPhantom"]["calibrations"]["noise.sigma"]
         assert named["source"] == "my scanner" and named["value"] == 8.0

@@ -174,6 +174,8 @@ IDEALS = {
     "frequency and phase errors": {"acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0},
     "eddy currents": {"acquisition.eddy_std_rad": 0.0, "acquisition.eddy_transient_rad": 0.0},
     "spurious echoes": {"spurious.amplitude": 0.0},
+    # no bound pool: the saturation pulses take nothing through it (phantom.transfer)
+    "magnetization transfer": {"mt.pool_fraction": 0.0},
 }
 # what the planes can wash over the anatomy: the room's maps and the subject's tissues
 OVERLAYS = ("anatomy", "B0 field", "B1+", "grey matter", "white matter", "CSF", "lipid layer")
