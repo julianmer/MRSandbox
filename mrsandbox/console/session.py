@@ -1278,7 +1278,7 @@ class Session:
         for item in found:
             if (item.kind in ("MRS run", "MRS reference")
                     and item.path.suffix.lower() not in (".nii", ".gz")):
-                scans.convert(item, work)
+                scans.convert(item, work, f0_mhz=42.5774785 * self.profile().scanner.b0_t)
         used, later = set(), []
         for run, reference in scans.pairs(found):
             source = run.converted or run.path
@@ -1287,21 +1287,26 @@ class Session:
             with_reference = (reference.converted or reference.path if reference is not None
                               else None)
             used.update({id(run), id(reference)})
+            # a lab/raw's noise label, kept beside it when converted
+            label = work / (run.path.stem + "_noise.npy")
             try:
                 # the card and the scanner as the run was acquired: its twin
                 was = self.card_from(source)
-                self.calibrate(source, folder.name, reference=with_reference)
+                self.calibrate(source, folder.name, reference=with_reference,
+                               noise=np.load(label) if label.exists() else None)
             except Exception as error:
                 report.append((run.path.name, run.kind, f"not read: {error}"[:160]))
                 continue
-            receiver = self.profile().receiver
+            receiver, in_vitro = self.profile().receiver, hasattr(self.body(), "contents")
             report.append((run.path.name, run.kind, "the card and the scanner as acquired ("
-                           + ", ".join(f"{k} {v}" for k, v in was.items())
-                           + "); the scanner's noise level and line width, "
+                           + ", ".join(f"{k} {v}" for k, v in was.items()) + "); "
+                           + ("in vitro, the hardware alone: the channels' noise correlation, "
+                              if in_vitro else "the scanner's noise level and line width, ")
+                           + "its drift and jitters, "
                            + ("no receiver filter in the band" if receiver is None else
                               f"its receiver filter ({receiver.span_dwells} dwells a side)") + (
                 f", and with {reference.path.name} the residual water, the receiver delay, the "
-                "eddy transient, the leaked water" if reference else "")))
+                "eddy transient, the leaked water" if reference and not in_vitro else "")))
             break                   # one run calibrates; the others are listed as read
         for item in found:
             if id(item) in used:
@@ -1741,7 +1746,7 @@ class Session:
                 profile.scanner, **self.hardware))
         return profile
 
-    def calibrate(self, source, name, folder=None, reference=None):
+    def calibrate(self, source, name, folder=None, reference=None, noise=None):
         """Calibrate the scanner on the floor from one raw acquisition of the operator's own
         (scan.profile ScannerProfile.read): `source` is NIfTI-MRS with the transients apart (with
         the coils apart too and an array chosen in the room, the array's own noise share is read as
@@ -1749,7 +1754,10 @@ class Session:
         them as the scan was acquired first. The noise and the line broadening become records of a
         profile saved under `name` in ~/MRSandbox/profiles, which stays on this machine and is then
         this scanner's calibration; returns its path. With `reference`, the same voxel's water
-        reference file, the residual water and the receiver delay are read as well."""
+        reference file, the residual water and the receiver delay are read as well; `noise` is
+        the receiver's own noise samples (samples, coils), read where the FIDs still ring. A
+        phantom on the table makes the run in vitro: the hardware alone is read (ScannerProfile
+        .read)."""
         # the readers' twin plays ideal pulses, as the cohorts' did
         card = dataclasses.replace(self.protocol, real=False)
         twin = self.twin(card=card, params=self.params() | CALM).voxel(
@@ -1765,8 +1773,10 @@ class Session:
         tags = json.loads(nib.load(str(source)).header.extensions[0].get_content())
         array = (self.array() if "DIM_COIL" in (tags.get("dim_5"), tags.get("dim_6"),
                                                 tags.get("dim_7")) else None)
+        in_vitro = hasattr(self.body(), "contents")
         ScannerProfile.read(str(source), twin, dataset=name, array=array,
-                            reference=None if reference is None else str(reference),
+                            load="a phantom" if in_vitro else "a head", in_vitro=in_vitro,
+                            noise=noise, reference=None if reference is None else str(reference),
                             # a semi-LASER twin is fast enough to render three seeds
                             seeds=3 if "LASER" in card.sequence.upper() else None).save(
                                 folder / f"{name}.json")

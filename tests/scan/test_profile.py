@@ -158,6 +158,17 @@ class TestScannerProfile:
         shim = profile.scan(Brain.load("icbm152"),
                             Press(te1_s=0.011, te2_s=0.024)).params.lineshape.gauss_hz
         assert (shim.low, shim.high) == records["lineshape.gauss_hz"].prior
+        # the run's tracks: the scanner's drift and jitters, not the person's breathing or moves
+        assert {"run.drift_hz_per_min", "run.phase_jitter_deg"} <= set(records)
+        assert not {"run.resp_amp_hz", "run.events_per_min"} & {r.leaf for r in profile.records}
+        # read in vitro (a phantom on the table), the receiver's own noise samples given: the
+        # hardware alone; no noise level (a phantom's is but a head's lower bound) and no width
+        samples = truth.coils.noise(rng, 1.0, 4096).T
+        vitro = ScannerProfile.read(raw, twin, "a phantom scan", load="a phantom", in_vitro=True,
+                                    noise=samples)
+        assert {r.leaf for r in vitro.records} == {
+            "coils.partner_correlation", "run.drift_hz_per_min", "run.ar_sigma_hz",
+            "run.phase_jitter_deg", "run.amp_jitter_frac"}
         assert len(profile.coils) == 32 and abs(profile.coils.noise_gain(PLACE, SIZE) - 1.0) < 1e-6
         assert records["conc.Cr"].carried_by == "subject"
 

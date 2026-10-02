@@ -22,6 +22,8 @@ import shutil
 import subprocess
 import sys
 
+import numpy as np
+
 #***************#
 #   the kinds   #
 #***************#
@@ -130,6 +132,11 @@ def survey(folder):
             else:
                 found.append(Found(path, "MRS reference" if _says_reference(name) else "MRS run",
                                    note=f"raw spectroscopy, {RAW[suffix]} through spec2nii"))
+        elif suffix == ".raw" and all(path.with_suffix(ending).exists() or path.with_suffix(
+                ending.upper()).exists() for ending in (".lab", ".sin")):
+            found.append(Found(path, "MRS run", note="Philips lab/raw, decoded by the package "
+                                                     "(io.philips LabRaw), its water references "
+                                                     "and noise label inside"))
         elif name == "fid" and (path.parent / "method").exists():
             found.append(Found(path, "MRS run", note="Bruker, through spec2nii"))
         elif suffix in (".dcm", ".ima") or name == "dicomdir":
@@ -154,7 +161,7 @@ def survey(folder):
             except (ValueError, UnicodeDecodeError):
                 found.append(Found(path, "unknown", note="JSON the package cannot read"))
         elif suffix in (".spar", ".method", ".acqp", ".txt", ".md", ".tsv", ".csv", ".log", ".png",
-                        ".pdf"):
+                        ".pdf", ".lab", ".sin"):
             continue  # sidecars and notes, taken with what they belong to or not at all
         else:
             found.append(Found(path, "unknown",
@@ -201,12 +208,27 @@ def _nifti(path):
 #*************#
 #   convert   #
 #*************#
-def convert(item, work):
+def convert(item, work, f0_mhz=None):
     """Bring a raw spectroscopy file to NIfTI-MRS under `work` with spec2nii (auto), and note the
-    result on the Found; the NIfTI-MRS path or None."""
-    tool = shutil.which("spec2nii") or str(pathlib.Path(sys.executable).parent / "spec2nii")
+    result on the Found; the NIfTI-MRS path or None. A Philips lab/raw the package decodes itself
+    (io.philips LabRaw.nifti), its noise label kept beside as <stem>_noise.npy; its carrier is in
+    none of its files, so `f0_mhz` gives it, else a 3 T scanner's (stated)."""
     work = pathlib.Path(work)
     work.mkdir(parents=True, exist_ok=True)
+    if item.path.suffix.lower() == ".raw":
+        from mrsandbox.io.philips import LabRaw
+
+        made = work / (item.path.stem + ".nii.gz")
+        try:
+            run = LabRaw.load(item.path)
+            run.nifti(f0_mhz if f0_mhz is not None else 42.5774785 * 3.0).save(made)
+            np.save(work / (item.path.stem + "_noise.npy"), run.band_noise())
+        except Exception as error:                                            # noqa: BLE001
+            item.note = f"the lab/raw could not be decoded: {error}"[:160]
+            return None
+        item.converted = made
+        return made
+    tool = shutil.which("spec2nii") or str(pathlib.Path(sys.executable).parent / "spec2nii")
     stem = item.path.stem if item.path.name != "fid" else item.path.parent.name
     done = subprocess.run([tool, "auto", "-o", str(work), "-f", stem,
                            str(item.path if item.path.name != "fid" else item.path.parent)],
@@ -226,7 +248,8 @@ def convert(item, work):
 #***********#
 def pairs(found):
     """The MRS runs with their water references, [(run, reference or None)]: a reference belongs to
-    the run whose name it shares up to the part that says it is one, else the run of its folder."""
+    the run whose name it shares up to the part that says it is one, else the run of its folder; a
+    Philips lab/raw holds its own (interleaved, scan.calibrate _raw) and takes none."""
     runs = [f for f in found if f.kind == "MRS run"]
     references = [f for f in found if f.kind == "MRS reference"]
 
@@ -239,7 +262,8 @@ def pairs(found):
 
     paired = []
     for run in runs:
-        same = ([r for r in references if stem(r) == stem(run)]
+        same = ([] if run.path.suffix.lower() == ".raw"
+                else [r for r in references if stem(r) == stem(run)]
                 or [r for r in references if r.path.parent == run.path.parent])
         paired.append((run, same[0] if same else None))
     return paired

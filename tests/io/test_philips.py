@@ -120,3 +120,32 @@ def test_lab_raw_reads_the_older_plain_and_the_newer_bit_packed_stream(tmp_path)
         data = scan.data()
         assert data.shape == (samples, channels, 2) and np.allclose(data[:, :, 0], stored[1].T)
         assert np.allclose(data[:, :, 1], -stored[2].T[::-1], atol=1e-3)
+
+
+def test_lab_raw_comes_to_the_spectral_band_as_nifti_mrs(tmp_path):
+    # eightfold samples holding a tone inside the output band and one outside it: the band keeps the
+    # first at its amplitude and drops the second; the coils and the transients stay apart
+    channels, points, fold = 2, 8, 8
+    t = np.arange(points * fold)
+    inside, outside = np.exp(2j * np.pi * 2 * t / t.size), np.exp(2j * np.pi * 20 * t / t.size)
+    tone = 1000.0 * inside + 500.0 * outside
+    blocks = np.stack([np.stack([np.stack([tone.real, tone.imag], -1)] * channels)] * 3)
+    labels = np.zeros((3, 16), dtype="<u4")
+    labels[:, 3] = LabRaw.STANDARD_LABEL << 16
+    labels[0, 4] = LabRaw.NOISE_DATA
+    labels[:, 0] = channels * points * fold * 4
+    labels.tofile(tmp_path / "run.lab")
+    (tmp_path / "run.sin").write_text(
+        " 01 00 00: nr_measured_channels  :  2\n 01 00 00: enable_pda  :  1\n"
+        " 01 00 00: output_resolutions  :  8  1  1  1\n 00 00 00: sample_time_interval  :  62.5\n"
+        " 00 01 00: spectro_echo_times  :  35.0\n 00 01 00: spectro_rep_times  :  2000.0\n")
+    with open(tmp_path / "run.raw", "wb") as handle:
+        handle.write(bytes(512) + np.round(blocks).astype("<i2").tobytes())
+    run = LabRaw.load(tmp_path / "run.raw")
+    image = run.nifti(127.7)
+    fids = np.asarray(image[:])[0, 0, 0]
+    assert fids.shape == (points, channels, 2) and image.dim_tags[:2] == ["DIM_COIL", "DIM_DYN"]
+    assert abs(image.dwelltime - 62.5e-6 * fold) < 1e-12
+    assert image.hdr_ext["EchoTime"] == 0.035 and image.hdr_ext["RepetitionTime"] == 2.0
+    assert np.allclose(fids[:, 0, 0], 1000.0 * inside[::fold], atol=1.0)
+    assert run.band_noise().shape == (points, channels)

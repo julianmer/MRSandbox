@@ -175,6 +175,7 @@ class LabRaw:
         labels: {field: array over labels}, the parsed label fields.
         channels: Measured channels.
         packed: True for the newer generation.
+        parameters: The .sin file's entries, {name: [text values]} (the first of a name kept).
     """
 
     NORMAL_DATA, NOISE_DATA, STANDARD_LABEL = 0, 16, 32513
@@ -190,10 +191,11 @@ class LabRaw:
     #**********#
     #   init   #
     #**********#
-    def __init__(self, labels, channels, packed, raw_path):
+    def __init__(self, labels, channels, packed, raw_path, parameters=None):
         self.labels = labels
         self.channels = channels
         self.packed = packed
+        self.parameters = parameters or {}
         self._raw_path = raw_path
         # the blocks follow a 512-byte header one after another, by their stored size
         stored = labels["size"].astype(np.int64)
@@ -215,7 +217,12 @@ class LabRaw:
             sin = handle.read()
         channels = next(int(line.split()[-1]) for line in sin.splitlines()
                         if "nr_measured_channels" in line)
-        return cls(labels, channels, "enable_pda" not in sin, _sibling(path, ".raw"))
+        parameters = {}
+        for line in sin.splitlines():
+            if line.count(":") >= 2:
+                name, values = (part.strip() for part in line.split(":", 1)[1].split(":", 1))
+                parameters.setdefault(name, values.split())
+        return cls(labels, channels, "enable_pda" not in sin, _sibling(path, ".raw"), parameters)
 
     #************#
     #   blocks   #
@@ -244,6 +251,53 @@ class LabRaw:
         """The noise label's samples, (samples, channels) complex: the receiver with the
         RF off, measured before the scan."""
         return np.concatenate([self._block(k) for k in self.which(self.NOISE_DATA)], axis=0)
+
+    #***********#
+    #   nifti   #
+    #***********#
+    def nifti(self, f0_mhz):
+        """The run as NIfTI-MRS with the coils and the transients apart, at the spectral band:
+        the receiver's oversampled samples cropped to the band's middle in the spectrum (what
+        the .sin's output resolution keeps; the scanner's own export, its SDAT, agrees with it
+        but for its receiver filter), the water references of mix 1 after the run's own
+        transients, as a run interleaving its reference stores them (scan.calibrate _raw finds
+        them). The carrier is no entry of lab/raw/sin: `f0_mhz` gives it (a SPAR's synthesizer
+        frequency, or the field's)."""
+        from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
+        from nifti_mrs.hdr_ext import Hdr_Ext
+
+        mixes = [self.data(0)] + ([self.data(1)] if np.any(self.labels["mix"][self.which()] == 1)
+                                  else [])
+        x = np.concatenate(mixes, axis=-1)
+        fids, fold = self._band(x), x.shape[0] // int(self.parameters["output_resolutions"][0])
+        header = Hdr_Ext(float(f0_mhz), "1H")
+        header.set_dim_info(0, "DIM_COIL")
+        header.set_dim_info(1, "DIM_DYN")
+        for key, name, scale in (("EchoTime", "spectro_echo_times", 1e-3),
+                                 ("RepetitionTime", "spectro_rep_times", 1e-3)):
+            if name in self.parameters:
+                header.set_standard_def(key, float(self.parameters[name][0]) * scale)
+        header.set_standard_def("Manufacturer", "Philips")
+        header.set_standard_def("WaterSuppressed", True)
+        dwell_s = float(self.parameters["sample_time_interval"][0]) * 1e-6 * fold
+        return gen_nifti_mrs_hdr_ext(fids[None, None, None].astype(np.complex64), dwell_s, header)
+
+    def band_noise(self):
+        """The noise label at the spectral band as `nifti` crops the run, (samples, channels):
+        what scan.calibrate CovarianceReading.from_arrays reads where the FIDs still ring."""
+        # cropped readout by readout, at the length of the run's own
+        noise, samples = self.noise(), self._block(self.which()[0]).shape[0]
+        return np.concatenate([self._band(noise[start:start + samples])
+                               for start in range(0, noise.shape[0] - samples + 1, samples)])
+
+    def _band(self, x):
+        """The receiver's oversampled samples (samples, ...) cropped to the band's middle in the
+        spectrum, as many points as the .sin's output resolution keeps."""
+        points = int(self.parameters["output_resolutions"][0])
+        spectrum = np.fft.fftshift(np.fft.fft(x, axis=0), axes=0)
+        middle = spectrum.shape[0] // 2
+        return np.fft.ifft(np.fft.ifftshift(spectrum[middle - points // 2:middle + points // 2],
+                                            axes=0), axis=0) / (x.shape[0] // points)
 
     def _block(self, k):
         size, offset = int(self.labels["size"][k]), int(self._offsets[k])

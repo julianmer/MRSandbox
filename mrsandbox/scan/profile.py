@@ -24,6 +24,7 @@ from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
 from mrsandbox.scan.calibrate import (CovarianceReading, NoiseReading, ReceiverReading,
                                       SpectrumReading, WaterReading, _raw)
+from mrsandbox.scan.run import RunReading
 from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
 
@@ -89,7 +90,7 @@ class ScannerProfile:
     #*********************#
     @classmethod
     def read(cls, source, voxel, dataset, array=None, load="a head", excitations=1,
-             reference=None, seeds=None):
+             reference=None, seeds=None, in_vitro=False, noise=None):
         """The profile one raw acquisition gives: `source` is NIfTI-MRS with the coils and
         the transients apart, `voxel` its virtual twin (a Voxel of a scan set up as the
         acquisition was: field, sequence, timings, place, size; placed with `compiled=True`
@@ -98,37 +99,52 @@ class ScannerProfile:
         NAA width the lineshape.gauss_hz one (SpectrumReading). With `array`, the
         hardware.CoilArray standing in for the coil's geometry, the FIDs' tails give the
         share of the channels' noise that is their own (CovarianceReading; `load` says what
-        was in the coil), and the profile's coils are the array so loaded, its combined
-        noise the drawn sigma at the twin's place. With `reference`, the same voxel's
-        unsuppressed water (NIfTI-MRS, transients apart), or the water transients the run
-        interleaves with its own, the residual water the scanner's suppression leaves and
-        its receiver delay become records too (WaterReading). The transients' tails give the
-        receiver's filter (ReceiverReading), none where the band shows none."""
+        was in the coil; `noise`, the receiver's own noise-only samples (samples, coils), in
+        their place where the FIDs still ring at their end), and the profile's coils are the
+        array so loaded, its combined noise the drawn sigma at the twin's place. With
+        `reference`, the same voxel's unsuppressed water (NIfTI-MRS, transients apart), or
+        the water transients the run interleaves with its own, the residual water the
+        scanner's suppression leaves and its receiver delay become records too (WaterReading).
+        The transients' tails give the receiver's filter (ReceiverReading), none where the
+        band shows none, and the transients' tracks the scanner's drift, wander and jitters
+        (scan.run RunReading; the person's breathing and moves are no scanner's).
+
+        A run `in_vitro` (a phantom: the twin's subject) calibrates the hardware alone: the
+        channels' noise correlation (from `noise` where its FIDs ring), the receiver, the
+        scanner's drift and jitters; not the line width or the water, which are its contents',
+        nor the noise level, which under a phantom's lighter load is only a lower bound for the
+        heads the profile's noise level serves (NoiseReading line="water" reads it where
+        wanted)."""
         interleaved = reference is None and _raw(source, water=True)[0].shape[2] > 0
+        covariance = (CovarianceReading.from_arrays(noise) if noise is not None
+                      else None if array is None else CovarianceReading.from_nifti(source))
         return cls.from_readings(
-            SpectrumReading.from_nifti(source), NoiseReading.from_nifti(source, excitations),
-            voxel, dataset,
-            covariance=None if array is None else CovarianceReading.from_nifti(source),
-            array=array, load=load,
+            None if in_vitro else SpectrumReading.from_nifti(source),
+            None if in_vitro else NoiseReading.from_nifti(source, excitations), voxel, dataset,
+            covariance=covariance, array=array, load=load,
             water=(WaterReading.from_nifti(source, reference)
-                   if reference is not None or interleaved else None),
-            seeds=seeds, receiver=ReceiverReading.from_nifti(source).receiver())
+                   if not in_vitro and (reference is not None or interleaved) else None),
+            seeds=seeds, receiver=ReceiverReading.from_nifti(source).receiver(),
+            # a run of fewer than eight transients has no tracks to read
+            run=RunReading.from_nifti(source) if _raw(source)[0].shape[2] >= 8 else None)
 
     #*********************#
     #   from readings     #
     #*********************#
     @classmethod
     def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None,
-                      load="a head", water=None, seeds=None, receiver=None):
+                      load="a head", water=None, seeds=None, receiver=None, run=None):
         """The profile the readings of one acquisition give (`read` makes them from files; a
         cohort's builder from arrays): the spectrum's width first, with `water` the
         residual, the receiver delay, the leaked water and the eddy transient, then the noise
         against a twin held at those readings (the leak aside, which the twin holds calm);
         with `covariance` and `array` the channels' own noise and the array so loaded.
         `seeds` draws the twin that many times per reading in place of the readers' own
-        counts (fewer for a twin that plays shaped pulses); `receiver` is the filter read."""
+        counts (fewer for a twin that plays shaped pulses); `receiver` is the filter read; `run`
+        the transients' tracks, of which the scanner's leaves are kept. Without `spectrum` and
+        `noise` the run is in vitro: the hardware's records alone."""
         few = {} if seeds is None else {"seeds": seeds}
-        shim = spectrum.record(voxel, dataset, **few)
+        shim = None if spectrum is None else spectrum.record(voxel, dataset, **few)
         read = ()
         if water is not None:
             delay = water.record_delay(voxel, dataset, gauss_hz=shim.value, **few)
@@ -138,22 +154,26 @@ class ScannerProfile:
             read = (water.record_residual(voxel, dataset), delay, water.record_leak(voxel, dataset),
                     water.record_eddy(voxel, dataset))
         # the twin at this run's own readings, not the population's ranges (a failed one drawn)
-        held = {record.leaf: record.value for record in (shim,) + read
+        held = {record.leaf: record.value for record in ((shim,) if shim else ()) + read
                 if not record.failed and record.leaf != "oov.fraction"}
-        sigma = noise.record(voxel, dataset, held=held, **few)
-        if shim.failed:                          # what is read against the width fails with it
+        sigma = None if noise is None else noise.record(voxel, dataset, held=held, **few)
+        if shim is not None and shim.failed:     # what is read against the width fails with it
             sigma = dataclasses.replace(sigma, failed="read against a failed width: " + shim.failed)
-        records, coils = (sigma, shim), None
+        tracks = () if run is None else tuple(record for record in run.records(dataset)
+                                              if record.carried_by == "scanner")
+        # every record under the scanner the file names
+        stamp = sigma.scanner if sigma is not None else tracks[0].scanner if tracks else None
+        records, coils = tuple(r for r in (sigma, shim) if r is not None), None
         # the channels' own number, whatever the geometry
         if covariance is not None and covariance.coils > 1:
             records += (dataclasses.replace(covariance.record_correlation(dataset, load=load),
-                                            scanner=sigma.scanner),)
-        if array is not None:
+                                            scanner=stamp),)
+        if array is not None and covariance is not None:
             share = dataclasses.replace(covariance.record(array, dataset, load=load),
-                                        scanner=sigma.scanner)
+                                        scanner=stamp)
             records += (share,)
             coils = array.loaded(own_noise=share.value).calibrated(voxel.position_mm, voxel.size_mm)
-        records += tuple(dataclasses.replace(record, scanner=sigma.scanner) for record in read)
+        records += tuple(dataclasses.replace(record, scanner=stamp) for record in read + tracks)
         return cls(voxel.scan.scanner, records, coils=coils, receiver=receiver)
 
     #**********#

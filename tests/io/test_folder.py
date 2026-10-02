@@ -49,6 +49,9 @@ def scans(tmp_path):
     (tmp_path / "raw" / "S01_PRESS_35.dat").write_bytes(b"")
     (tmp_path / "raw" / "S01_PRESS_35_H2O.dat").write_bytes(b"")
     (tmp_path / "raw" / "lonely.SDAT").write_bytes(b"")
+    for ending in (".raw", ".lab", ".sin"):         # a Philips lab/raw triple, and a raw alone
+        (tmp_path / "raw" / f"SV_PRESS{ending}").write_bytes(b"")
+    (tmp_path / "raw" / "image.raw").write_bytes(b"")
     (tmp_path / "noise.mrd").write_bytes(b"")
     (tmp_path / "press.seq").write_text("")
     ScannerProfile(Scanner.preset("siemens_trio_3t")).save(tmp_path / "trio.json")
@@ -69,7 +72,8 @@ class TestFolder:
                          "sub-01_acq-slaser_mrsref.nii.gz": "MRS reference",
                          "sub-01_T1w.nii": "T1w", "sub-01_acq-fieldmap.nii.gz": "B0",
                          "S01_PRESS_35.dat": "MRS run", "S01_PRESS_35_H2O.dat": "MRS reference",
-                         "lonely.SDAT": "unknown", "noise.mrd": "noise scan",
+                         "lonely.SDAT": "unknown", "SV_PRESS.raw": "MRS run",
+                         "image.raw": "unknown", "noise.mrd": "noise scan",
                          "press.seq": "Pulseq", "trio.json": "scanner file",
                          "picture.jpg": "unknown"}
         assert "notes.txt" not in found  # a note goes with what it belongs to
@@ -83,8 +87,9 @@ class TestFolder:
         found = folder.survey(scans(tmp_path))
         paired = {run.path.name: (reference.path.name if reference else None)
                   for run, reference in folder.pairs(found)}
+        # a Philips lab/raw holds its own references and takes no other file's
         assert paired == {"sub-01_acq-slaser_svs.nii.gz": "sub-01_acq-slaser_mrsref.nii.gz",
-                          "S01_PRESS_35.dat": "S01_PRESS_35_H2O.dat"}
+                          "S01_PRESS_35.dat": "S01_PRESS_35_H2O.dat", "SV_PRESS.raw": None}
 
     def test_a_raw_file_that_will_not_convert_says_so(self, tmp_path):
         found = folder.survey(scans(tmp_path))
