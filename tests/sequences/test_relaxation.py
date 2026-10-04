@@ -7,8 +7,9 @@
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
 # Purpose: Relaxation gate: in-sequence relaxation follows the analytic laws. Echo attenuation is  #
-#          exactly exp(-TE/T2), suppression-train recovery is exactly 1 - exp(-delay/T1), systems  #
-#          without relaxation stay purely coherent, and the scan path carries the TE dependence.   #
+#          exactly exp(-TE/T2), a shaped pulse relaxes over its duration, suppression-train         #
+#          recovery is exactly 1 - exp(-delay/T1), systems without relaxation stay purely          #
+#          coherent, and the scan path carries the TE dependence.                                  #
 #                                                                                                  #
 ####################################################################################################
 
@@ -21,8 +22,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import (Brain, Delay, Engine, Params, Press, PulseAcquire, Scanner, SpinSystem,
-                       SuppressionTrain, VirtualScan)
+from mrsandbox import (Brain, CoherenceFilter, Delay, Engine, Params, Press, Pulse, PulseAcquire,
+                       Scanner, Sequence, ShapedPulse, SpinSystem, SuppressionTrain, VirtualScan)
 from mrsandbox.phantom.water import WaterSource
 
 
@@ -54,6 +55,26 @@ class TestInSequenceRelaxation:
         for te in (0.03, 0.06, 0.144):
             ratio = total_amplitude(engine, Press(te / 2, te / 2), relaxed) / reference
             assert abs(ratio - math.exp(-te / 0.1)) < 1e-3
+
+    #*******************#
+    #   shaped pulses   #
+    #*******************#
+    def test_a_shaped_pulse_relaxes_over_its_duration(self, engine):
+        # an echo whose 180 is a 15 ms Gaussian decays through the pulse too, not over its
+        # delays alone: by exp(-TE/T2) between the pulse centres were the magnetization
+        # transverse throughout, a little less since the turn passes through the
+        # longitudinal axis, where it recovers with T1 instead (the Bloch picture, which
+        # the per-step reference reproduces to a part in a thousand)
+        (scyllo,) = SpinSystem.from_database("sIns")
+        relaxed = scyllo.with_relaxation(t1_s=1.3, t2_s=0.1)
+        reference = total_amplitude(engine, PulseAcquire(), relaxed)
+        length, te = 0.015, 0.068
+        gaussian = ShapedPulse.gaussian(180.0, length, offset_ppm=3.34, truncation=0.0571)
+        echo = Sequence(Pulse(90.0), CoherenceFilter(+1), Delay(te / 2.0 - length / 2.0), gaussian,
+                        CoherenceFilter(-1), Delay(te / 2.0 - length / 2.0))
+        ratio = total_amplitude(engine, echo, relaxed) / reference
+        assert math.exp(-te / 0.1) < ratio < math.exp(-(te - length / 2.0) / 0.1)
+        assert abs(ratio - math.exp(-te / 0.1)) < 0.03 * math.exp(-te / 0.1)
 
     #*****************#
     #   t1 recovery   #

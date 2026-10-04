@@ -2834,16 +2834,22 @@ class Session:
                 * np.sign(record))
         target = (record - leak) * full
         # the water crosses the target on both sides of the train's null and again where the flips
-        # are far too low; a scanner lands past the null (as the Trio's raw residuals show), so the
-        # first crossing above the null is the scanner's
+        # are far too low; a scanner's adjustment starts from the nominal flips and lands past the
+        # nearest null (as the Trio's raw residuals show), so the first crossing above that null is
+        # the scanner's; a record the train cannot reach (a played train relaxing through its
+        # pulses nulls only so far) puts it at the null
         error = water - target
+        magnitude = np.abs(water)
+        dips = np.flatnonzero((magnitude[1:-1] <= magnitude[:-2])
+                              & (magnitude[1:-1] <= magnitude[2:])) + 1
+        null = dips[np.abs(factors[dips] - 1.0).argmin()] if dips.size else magnitude.argmin()
         crossings = np.flatnonzero(np.sign(error[:-1]) != np.sign(error[1:]))
-        above = crossings[crossings >= np.abs(water).argmin()]
-        if crossings.size:
-            k = above[0] if above.size else crossings[-1]
+        above = crossings[crossings >= null]
+        if above.size:
+            k = above[0]
             factor = float(factors[k if abs(error[k]) <= abs(error[k + 1]) else k + 1])
         else:
-            factor = float(factors[np.abs(error).argmin()])
+            factor = float(factors[null])
         tuned = train.scaled(factor)
         # the design with the tuned train in place of its own, its timings kept
         def adjusted(design):

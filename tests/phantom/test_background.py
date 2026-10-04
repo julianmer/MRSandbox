@@ -115,8 +115,9 @@ class TestWater:
         truth = voxel.sample(seed=7)
         parts = scan.water.lines(scan.engine, voxel.design(truth), voxel, truth, voxel._f0_mhz())
         present = [name for name in ("gm", "wm", "csf") if getattr(voxel.fractions, name) > 0.0]
-        assert [t2 for _, _, t2 in parts] == [getattr(truth.water.t2_s, name) for name in present]
-        assert max(t2 for _, _, t2 in parts) > 2.0 * min(t2 for _, _, t2 in parts)
+        assert [t2 for _, _, t2, _ in parts] == [getattr(truth.water.t2_s, name) for name in present]
+        assert [name for _, _, _, name in parts] == present
+        assert max(t2 for _, _, t2, _ in parts) > 2.0 * min(t2 for _, _, t2, _ in parts)
 
     #**********************#
     #   out-of-voxel water   #

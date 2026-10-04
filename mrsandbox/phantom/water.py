@@ -42,8 +42,9 @@ class WaterSource(abc.ABC):
     #***********#
     @abc.abstractmethod
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
-        """Return the water's parts, [(freqs, amps, t2_s)] line tensors each at the T2
-        its line decays with, or None when this source is silent.
+        """Return the water's parts, [(freqs, amps, t2_s, tissue)] line tensors each at
+        the T2 its line decays with and the tissue it is ("gm", "wm", "csf"; None for
+        the voxel's water as one), or None when this source is silent.
 
         The shared source signature: the placed scan.Voxel (fractions and geometry),
         the realized truth, and the spectrometer frequency in MHz."""
@@ -169,7 +170,8 @@ class Unsuppressed(WaterSource):
         t1_s, t2_s = truth.water.t1_s, truth.water.t2_s
         if not isinstance(t1_s, Tissues):
             freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
-            return [(freqs, amps * complex(self.full_amplitude_mm(voxel)), voxel.resolve(t2_s))]
+            return [(freqs, amps * complex(self.full_amplitude_mm(voxel)), voxel.resolve(t2_s),
+                     None)]
         fractions, content = voxel.fractions, voxel.scan.brain.water_content
         parts = []
         for name in ("gm", "wm", "csf"):
@@ -181,7 +183,7 @@ class Unsuppressed(WaterSource):
                                              t1_s=getattr(t1_s, name), t2_s=own_t2)
             parts.append((freqs,
                           amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share),
-                          own_t2))
+                          own_t2, name))
         return parts or None
 
 
@@ -205,4 +207,4 @@ class Suppressed(WaterSource):
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
         freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
         residual = truth.water.residual_fraction * self.full_amplitude_mm(voxel)
-        return [(freqs, amps * complex(residual), voxel.resolve(truth.water.t2_s))]
+        return [(freqs, amps * complex(residual), voxel.resolve(truth.water.t2_s), None)]

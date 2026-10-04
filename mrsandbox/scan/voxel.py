@@ -313,17 +313,20 @@ class Voxel:
 
     def _water_parts(self, truth, engine, sequence, f0_mhz, faded):
         """The water's line parts at the offset the voxel is being played at (one per
-        tissue under a per-tissue draw, each at its own T2), or None."""
+        tissue under a per-tissue draw, each at its own T2 and fading with its own
+        ADC), or None."""
         water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
         if water is None:
             return None
         transferred = self.transfer(truth).get("water", 1.0)
+        adc = truth.diffusion.water
         # the water line moves with the temperature, fourteen times more than the metabolites
         # (which take their systems at the same temperature, `_metabolite_lines`)
         warm = self.resolve(truth.water.temperature_c) - 37.0
         return [(w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz),
-                 w_amps * np.complex64(faded(truth.diffusion.water) * transferred),
-                 1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s in water]
+                 w_amps * np.complex64(faded(getattr(adc, part) if part and isinstance(adc, Tissues)
+                                             else adc) * transferred),
+                 1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s, part in water]
 
     def _grouped(self, truth, metabolites=True):
         """The parts of `components` grouped by source, {name: [parts]} in the order

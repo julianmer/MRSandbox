@@ -36,8 +36,11 @@ def b_value_ms_um2(sequence):
     +1 after excitation, and negates at refocusing pulses (flip >= 135 degrees) when
     no filter overrides; kicks played at order zero (a STEAM mixing time) add nothing
     while the stored helix keeps attenuating, exactly as a stimulated echo does.
-    Gradient events are instantaneous kicks, the zero-duration limit of the
-    Stejskal-Tanner delta/3 term; in-pulse slice gradients are not counted (stated).
+    A filter standing for a crusher (its crusher_per_mm) kicks a helix of its own on
+    the order it retains, so a pair around a pulse of length tau weights by
+    (2 pi m)^2 tau and rephases. Gradient events are instantaneous kicks, the
+    zero-duration limit of the Stejskal-Tanner delta/3 term; in-pulse slice gradients
+    are not counted (stated).
     """
     order = 1
     helix = {}
@@ -49,6 +52,7 @@ def b_value_ms_um2(sequence):
     for event in sequence.events:
         if isinstance(event, CoherenceFilter):
             order = event.orders[0]
+            helix["crusher"] = helix.get("crusher", 0.0) + order * float(event.crusher_per_mm)
         elif isinstance(event, Gradient):
             helix[event.axis] = helix.get(event.axis, 0.0) + order * float(event.moment_per_mm)
         elif isinstance(event, Delay):

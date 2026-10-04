@@ -347,9 +347,10 @@ class TestFieldGroups:
         # the microscopic field (lineshape.gauss_hz) is a spread of frequencies and a train
         # suppresses each at its own: without a train the spread is the Gaussian envelope on the
         # unspread water exactly (nothing the water meets depends on its frequency); Siemens' train
-        # played at its null (the flips scaled by 1.1) leaves parts of the spread water at phases
-        # apart, and half of what an envelope on the unspread residual would say cancels. The ideal
-        # train cannot show it: its box takes every spin alike.
+        # played at its null (the flips scaled by 1.2, where the relaxation through its 24 ms
+        # pulses leaves half a percent) leaves parts of the spread water at phases apart, and a
+        # tenth of what an envelope on the unspread residual would say cancels. The ideal train
+        # cannot show it: its box takes every spin alike.
         from mrsandbox import NoDownfield, NoLipids, NoMM, Params, Unsuppressed
         from mrsandbox.sequences import SiemensChess
 
@@ -375,10 +376,10 @@ class TestFieldGroups:
         sharp, spread = water(press, 0.0), water(press, 6.0)
         full = np.abs(sharp).max()
         np.testing.assert_allclose(spread, sharp * envelope, atol=2e-3 * full)
-        train = SiemensChess(real=True).scaled(1.1)
+        train = SiemensChess(real=True).scaled(1.2)
         sharp, spread = water(train + press, 0.0), water(train + press, 6.0)
-        assert np.abs(sharp).max() < 2e-3 * full  # at the null
-        assert np.abs(spread).max() < 0.75 * np.abs(sharp * envelope).max()
+        assert np.abs(sharp).max() < 6e-3 * full  # at the null
+        assert np.abs(spread).max() < 0.92 * np.abs(sharp * envelope).max()
 
     @pytest.mark.render
     def test_an_editing_pulse_misses_the_part_of_the_voxel_the_field_moves_away(self):

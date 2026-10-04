@@ -368,7 +368,12 @@ class LocalizedMegaPress(Sequence):
     filters on both sides of every refocusing and editing pulse select what the
     crusher pairs select: the order turns over at a refocusing pulse and stays
     across an editing pulse, so spins inside the editing band, which it turns over
-    too, are dephased, as on a scanner (the NAA methyl leaves the ON spectrum).
+    too, are dephased, as on a scanner (the NAA methyl leaves the ON spectrum). The
+    editing filters carry the moment of the crushers they stand for, so the design
+    weights by diffusion as a scanner's does (sequences.diffusion): about 9.7 cycles
+    per mm a side, read off the water references of Big GABA's Philips series, where
+    the CSF's water fades through the pairs as the data's; the refocusing pulses'
+    crushers stay unplayed, a few s/mm^2 (stated).
 
     Two editing centres make a dual-band pulse, the Gaussian cosine-modulated about
     their middle at twice the single band's amplitude (each band then turns its
@@ -390,6 +395,7 @@ class LocalizedMegaPress(Sequence):
     """
 
     EXCITATION_S, REFOCUSING_S = 0.0026, 0.0065
+    EDIT_CRUSHER_PER_MM = 9.7
 
     #**********#
     #   init   #
@@ -411,13 +417,14 @@ class LocalizedMegaPress(Sequence):
         refocus_z, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "z", edges[2], *frame, 90.0)
         # one editing pulse object played twice: computed once per run
         edit = editing_pulse(edit_ppm, f0_mhz, edit_s)
+        m = self.EDIT_CRUSHER_PER_MM
         super().__init__(
             excitation, Gradient(-press.REPHASE * slope * t90, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
             CoherenceFilter(-1), refocus_y, CoherenceFilter(+1), Projection(span), Delay(delays[1]),
-            CoherenceFilter(+1), edit, CoherenceFilter(+1), Delay(delays[2]),
+            CoherenceFilter(+1, m), edit, CoherenceFilter(+1, -m), Delay(delays[2]),
             CoherenceFilter(+1), refocus_z, CoherenceFilter(-1), Projection(span), Delay(delays[3]),
-            CoherenceFilter(-1), edit, CoherenceFilter(-1), Delay(delays[4]),
+            CoherenceFilter(-1, m), edit, CoherenceFilter(-1, -m), Delay(delays[4]),
             tr_s=tr_s,
         )
 
@@ -605,8 +612,9 @@ class LocalizedMegaSemiLaser(Sequence):
     TE/2 later with the last adiabatic pulse right behind it; the third follows from
     the spacings (TE 80 ms: AFPs at 3.8, 8.6, 32.3, 67.6 ms, editing pulses at 18.1
     and 58.1 ms; a stated schedule, the vendors' differ in the margins). Filters on
-    both sides of every adiabatic and editing pulse select what the crushers select;
-    each axis is averaged after its pair.
+    both sides of every adiabatic and editing pulse select what the crushers select,
+    the editing ones carrying the crushers' moment as in `LocalizedMegaPress`; each
+    axis is averaged after its pair.
 
     Args:
         edit_ppm: Editing pulse centre, or a tuple of one or two centres.
@@ -658,14 +666,15 @@ class LocalizedMegaSemiLaser(Sequence):
 
         afp_y, afp_z, edit = (afp("y", edges[1]), afp("z", edges[2]),
                               editing_pulse(edit_ppm, f0_mhz, edit_s))
+        m = LocalizedMegaPress.EDIT_CRUSHER_PER_MM
         super().__init__(
             excitation, Gradient(-laser.REPHASE * slope * t90, span * edges[0], axis="x"),
             CoherenceFilter(-1), Projection(span), Delay(delays[0]),
             CoherenceFilter(-1), afp_y, CoherenceFilter(+1), Delay(delays[1]),
             CoherenceFilter(+1), afp_y, CoherenceFilter(-1), Projection(span), Delay(delays[2]),
-            CoherenceFilter(-1), edit, CoherenceFilter(-1), Delay(delays[3]),
+            CoherenceFilter(-1, m), edit, CoherenceFilter(-1, -m), Delay(delays[3]),
             CoherenceFilter(-1), afp_z, CoherenceFilter(+1), Delay(delays[4]),
-            CoherenceFilter(+1), edit, CoherenceFilter(+1), Delay(delays[5]),
+            CoherenceFilter(+1, m), edit, CoherenceFilter(+1, -m), Delay(delays[5]),
             CoherenceFilter(+1), afp_z, CoherenceFilter(-1), Projection(span), Delay(delays[6]),
             tr_s=tr_s,
         )

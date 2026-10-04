@@ -248,6 +248,13 @@ class ShapedPulse(Event):
     spins all emerge. Pair it with a refocusing Gradient of minus half the pulse's
     gradient moment, as on a scanner.
 
+    The system relaxes through the pulse as through a Delay of its duration
+    (`relaxed`), in RELAXATION_SEGMENTS pieces of the propagation with the relaxation
+    between them, which is the phenomenological Bloch picture to within a part in a
+    thousand: what a 180 turns over spends part of the pulse longitudinal and keeps a
+    little more than exp(-duration/T2) says, and a long saturation pulse's null moves
+    with the T1 recovery inside it.
+
     Args:
         flip_deg: On-resonance flip angle in degrees.
         duration_s: Total pulse duration in seconds.
@@ -278,6 +285,8 @@ class ShapedPulse(Event):
 
     # complex elements of step propagators held at once (2**24 is 128 MB in complex64)
     STEP_BLOCK_ELEMENTS = 2 ** 24
+    # the pieces the propagation is cut into for the relaxation between them
+    RELAXATION_SEGMENTS = 8
 
     #**********#
     #   init   #
@@ -492,13 +501,26 @@ class ShapedPulse(Event):
     #***********#
     def apply(self, rho, ctx, propagator=None):
         """Play the pulse; `propagator` is a `propagator(ctx)` result to reuse."""
-        propagator, total = propagator if propagator is not None else self.propagator(ctx)
-        rho = self._sandwich(propagator, rho)
+        segments, total = propagator if propagator is not None else self.propagator(ctx)
+        bounds = self._bounds(int(ops.convert_to_tensor(self.envelope).shape[0]))
+        dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / float(bounds[-1])
+        for k in range(len(bounds) - 1):
+            # the relaxation straddles each segment, half before and half after
+            half = dt * (float(bounds[k + 1] - bounds[k]) / 2.0)
+            rho = relaxed(self._sandwich(segments[k], relaxed(rho, ctx, half)), ctx, half)
         frame = -2.0 * math.pi * total
         if ops.ndim(total) > 0:
             frame = ops.reshape(frame, (-1, 1, 1))
         frame = frame * ops.cast(ctx.q, "float32")
         return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))
+
+    #**************#
+    #   segments   #
+    #**************#
+    @classmethod
+    def _bounds(cls, steps):
+        """The step indices bounding the RELAXATION_SEGMENTS pieces of a pulse of `steps`."""
+        return np.linspace(0, steps, min(cls.RELAXATION_SEGMENTS, steps) + 1).astype(int)
 
     #**********#
     #   peak   #
@@ -531,10 +553,11 @@ class ShapedPulse(Event):
     #   propagator   #
     #****************#
     def propagator(self, ctx):
-        """The pulse's propagator in a context, per isochromat where an ensemble
-        plays, and the frame term's cycles over the pulse: everything the pulse costs,
-        and nothing of the state, so a sequence that plays one pulse object several
-        times computes it once per run (`Sequence.run`)."""
+        """The pulse's propagator in a context, in its RELAXATION_SEGMENTS pieces in
+        order (stacked on a leading axis), per isochromat where an ensemble plays, and
+        the frame term's cycles over the pulse: everything the pulse costs, and nothing
+        of the state, so a sequence that plays one pulse object several times computes
+        it once per run (`Sequence.run`)."""
         env = ops.cast(ops.convert_to_tensor(self.envelope), "float32")
         steps = int(env.shape[0])
         dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / steps
@@ -613,22 +636,46 @@ class ShapedPulse(Event):
         d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         # the step propagators of an ensemble of a large system do not fit at once
         # (steps x isochromats x d x d): they are formed and collapsed in blocks of
-        # steps that hold STEP_BLOCK_ELEMENTS, and the blocks multiply in order
+        # steps that hold STEP_BLOCK_ELEMENTS, and the blocks multiply in order, each
+        # relaxation segment collapsed on its own
         size = int(d.shape[1]) * int(d.shape[2]) ** 2
         block = max(1, min(steps, self.STEP_BLOCK_ELEMENTS // size))
-        propagator = None
-        for start in range(0, steps, block):
-            rows = d[start:start + block]
-            u = (ops.expand_dims(rows, -1) * w[start:start + block]
-                 * ops.expand_dims(ops.conj(rows), -2))
-            if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
-                u = u[:, 0]
-            while int(u.shape[0]) > 1:
-                n = int(u.shape[0])
-                pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
-                u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
-            propagator = u[0] if propagator is None else ops.matmul(u[0], propagator)
-        return propagator, total
+        bounds = self._bounds(steps)
+        segments = []
+        for first, last in zip(bounds[:-1], bounds[1:]):
+            propagator = None
+            for start in range(int(first), int(last), block):
+                rows = d[start:min(start + block, last)]
+                u = (ops.expand_dims(rows, -1) * w[start:min(start + block, last)]
+                     * ops.expand_dims(ops.conj(rows), -2))
+                if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
+                    u = u[:, 0]
+                while int(u.shape[0]) > 1:
+                    n = int(u.shape[0])
+                    pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
+                    u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
+                propagator = u[0] if propagator is None else ops.matmul(u[0], propagator)
+            segments.append(propagator)
+        return ops.stack(segments), total
+
+
+#****************#
+#   relaxation   #
+#****************#
+def relaxed(rho, ctx, t_s):
+    """The phenomenological relaxation of `t_s` seconds on a state: every coherence
+    decays with exp(-t/T2) (zero-quantum terms included, the standard approximation),
+    the populations recover toward thermal equilibrium with exp(-t/T1); a missing
+    partner is infinite, and without any relaxation times the state stays as it is."""
+    if ctx.t1_s is None and ctx.t2_s is None:
+        return rho
+    t = ops.convert_to_tensor(t_s)
+    one = nops.cast(ops.ones_like(t), "complex64")
+    e2 = nops.cast(ops.exp(-t / ctx.t2_s), "complex64") if ctx.t2_s is not None else one
+    e1 = nops.cast(ops.exp(-t / ctx.t1_s), "complex64") if ctx.t1_s is not None else one
+    off = (rho - rho * ctx.eye) * e2
+    equilibrium = ctx.rho_eq * ctx.eye
+    return off + equilibrium + (rho * ctx.eye - equilibrium) * e1
 
 
 #**************************************************************************************************#
@@ -642,11 +689,11 @@ class Delay(Event):
     """Free evolution under the system Hamiltonian for a duration in seconds.
 
     When the system carries relaxation times, the phenomenological model applies after
-    the coherent evolution: every coherence decays with exp(-t/T2) (zero-quantum terms
-    included, the standard approximation), and the populations recover toward thermal
-    equilibrium with exp(-t/T1). A missing partner is treated as infinite, so a
-    T1-only system still recovers and a T2-only system still dephases. Without any
-    relaxation times the delay stays purely coherent.
+    the coherent evolution (`relaxed`): every coherence decays with exp(-t/T2), and
+    the populations recover toward thermal equilibrium with exp(-t/T1). A missing
+    partner is treated as infinite, so a T1-only system still recovers and a T2-only
+    system still dephases. Without any relaxation times the delay stays purely
+    coherent.
 
     The frame offset of the context evolves alongside: a uniform offset commutes with
     the Hamiltonian, so its evolution exp(+i 2 pi offset Fz t) is a phase per
@@ -675,15 +722,7 @@ class Delay(Event):
         angle = (2.0 * math.pi * ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
                  * ops.convert_to_tensor(self.t_s, dtype="float32") * ops.cast(ctx.q, "float32"))
         rho = rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
-        if ctx.t1_s is None and ctx.t2_s is None:
-            return rho
-        t = ops.convert_to_tensor(self.t_s)
-        one = nops.cast(ops.ones_like(t), "complex64")
-        e2 = nops.cast(ops.exp(-t / ctx.t2_s), "complex64") if ctx.t2_s is not None else one
-        e1 = nops.cast(ops.exp(-t / ctx.t1_s), "complex64") if ctx.t1_s is not None else one
-        off = (rho - rho * ctx.eye) * e2
-        equilibrium = ctx.rho_eq * ctx.eye
-        return off + equilibrium + (rho * ctx.eye - equilibrium) * e1
+        return relaxed(rho, ctx, self.t_s)
 
 
 #**************************************************************************************************#
@@ -881,13 +920,19 @@ class CoherenceFilter(Event):
 
     Args:
         orders: A coherence order, or a tuple of orders, to retain.
+        crusher_per_mm: The moment of the crusher kick the filter stands for, in cycles
+            per millimetre like Gradient's; the diffusion walk (sequences.diffusion)
+            counts it, the mask does not. A pair rephases when its moments cancel on
+            the retained pathway: equal across a refocusing pulse (the order turns
+            over), opposite across an editing pulse (the order stays).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, orders):
+    def __init__(self, orders, crusher_per_mm=0.0):
         self.orders = (orders,) if isinstance(orders, int) else tuple(orders)
+        self.crusher_per_mm = crusher_per_mm
 
     #***********#
     #   apply   #

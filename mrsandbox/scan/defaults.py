@@ -358,12 +358,17 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     #     et al. 2018, database.tissue DEELCHAND_2018: Glu fastest at 1.17, mIns
     #     slowest at 0.86); the tissue contrast per metabolite is not measured, so
     #     one ratio serves grey and white matter, and the others stay at 1 (stated).
-    #   mm: the consensus's own range. water, lipids: stated.
+    #   water: per tissue, each water part fading with its own (phantom.water): the
+    #     tissues' stated; the CSF's is free water at 37 C, 3.02 um^2/ms on the
+    #     Arrhenius line through Holz, Heil and Sacco 2000 (PCCP 2:4740: 2.895 at
+    #     35 C, 3.222 at 40 C), which the crushers of an editing design fade as the
+    #     water references of Big GABA's Philips series fade.
+    #   mm: the consensus's own range. lipids: stated.
     diffusion = Params(diffusion=dict(
         model="sticks",
         adc={name: PerTissue(gm=0.10 * _adc_ratio(name), wm=0.15 * _adc_ratio(name),
                              csf=0.10 * _adc_ratio(name)) for name in names},
-        water=0.75,
+        water=PerTissue(gm=0.75, wm=0.75, csf=3.0),
         mm=(0.005, 0.01),
         lipids=0.0))
     # contrast: the GM to WM concentration ratio per metabolite, typed from the

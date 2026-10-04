@@ -8,7 +8,8 @@
 #                                                                                                  #
 # Purpose: Diffusion gate: the b-value built from the sequence's own gradient events matches the   #
 #          analytic law, stored helices keep attenuating through a mixing time, axes add           #
-#          independently, and exp(-b ADC) reaches the rendered voxel exactly.                      #
+#          independently, the filters standing for crushers weight as the crushers would, and      #
+#          exp(-b ADC) reaches the rendered voxel exactly, each water part with its tissue's ADC.  #
 #                                                                                                  #
 ####################################################################################################
 
@@ -20,8 +21,9 @@ import math
 import numpy as np
 import pytest
 
-from mrsandbox import (Brain, CoherenceFilter, Delay, Gradient, NoLipids, NoMM, NoWater,
-                       Params, Press, Pulse, Scanner, Sequence, VirtualScan)
+from mrsandbox import (Brain, CoherenceFilter, Delay, Gradient, LocalizedMegaPress, NoLipids,
+                       NoMM, NoWater, Params, PerTissue, Press, Pulse, Scanner, Sequence,
+                       Unsuppressed, VirtualScan)
 from mrsandbox.sequences.diffusion import b_value_ms_um2
 
 K, DELTA = 40.0, 0.05  # cycles per mm, seconds
@@ -72,6 +74,32 @@ class TestBValue:
                            Gradient(K, axis="y"), Delay(DELTA), Gradient(-K, axis="x"),
                            Gradient(-K, axis="y"), Delay(0.005))
         assert abs(b_value_ms_um2(crossed) - 2.0 * EXPECTED) < 1e-9 * EXPECTED
+
+    #*******************#
+    #   filter pairs    #
+    #*******************#
+    def test_a_filter_pair_weights_like_the_crushers_it_stands_for(self):
+        # an editing pair keeps the order and carries opposite moments; a refocusing pair
+        # carries equal moments across the order's turn: both rephase and both weight by
+        # (2 pi m)^2 tau, and nothing is left helical afterwards (the trailing delay is free)
+        editing = Sequence(Pulse(90.0), CoherenceFilter(-1, K), Delay(DELTA),
+                           CoherenceFilter(-1, -K), Delay(0.5))
+        refocusing = Sequence(Pulse(90.0), CoherenceFilter(+1, K), Delay(DELTA / 2.0),
+                              Pulse(180.0, phase_deg=90.0), Delay(DELTA / 2.0),
+                              CoherenceFilter(-1, K), Delay(0.5))
+        for pair in (editing, refocusing):
+            assert abs(b_value_ms_um2(pair) - EXPECTED) < 1e-9 * EXPECTED
+
+    def test_the_editing_designs_carry_their_crusher_pairs(self, monkeypatch):
+        # LocalizedMegaPress's two editing pairs: 2 (2 pi m)^2 tau over the design without them
+        kw = dict(f0_mhz=127.77, edit_s=0.015, size_mm=30.0)
+        with_pairs = b_value_ms_um2(LocalizedMegaPress(7.43, **kw))
+        m = LocalizedMegaPress.EDIT_CRUSHER_PER_MM
+        monkeypatch.setattr(LocalizedMegaPress, "EDIT_CRUSHER_PER_MM", 0.0)
+        without = b_value_ms_um2(LocalizedMegaPress(7.43, **kw))
+        pairs = 2.0 * (2.0 * math.pi * m * 1e3) ** 2 * 0.015 * 1e-9
+        assert abs(with_pairs - without - pairs) < 1e-9 * pairs
+        assert without < 1e-3 * pairs  # the refocusing crushers stay unplayed
 
 
 #**************************************************************************************************#
@@ -128,6 +156,47 @@ class TestAttenuation:
         low = 0.05 * adc
         assert abs(math.sqrt(math.pi / (12.0 * low)) * math.erf(math.sqrt(3.0 * low))
                    - math.exp(-low)) < 1e-3
+
+    #*********************#
+    #   the water parts   #
+    #*********************#
+    @pytest.mark.render
+    def test_each_water_part_fades_with_its_tissues_adc(self):
+        # the water's parts, one per tissue, each faded by exp(-b ADC) of its own tissue:
+        # with the relaxation pinned equal across the tissues the parts are one line apart
+        # from their shares, so the peak falls by the share-weighted mean of the fadings;
+        # a CSF ADC alone fades the CSF's share by exp(-b 3.0) and nothing else
+        brain = Brain.load("icbm152")
+        pair = Sequence(Pulse(90.0), CoherenceFilter(-1, K / 3.0), Delay(DELTA),
+                        CoherenceFilter(-1, -K / 3.0), Delay(0.005))
+        b = EXPECTED / 9.0
+        conc = {name: 0.0 for name in VirtualScan.default_params().conc}
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
+                                        delay_s=0.0, eddy_transient_rad=0.0),
+                       conc=conc, diffusion=dict(mm=0.0075),
+                       water=dict(t1_s=PerTissue(1.0, 1.0, 1.0), t2_s=PerTissue(0.08, 0.08, 0.08)))
+        kw = dict(position_mm=(0.0, -20.0, 20.0), size_mm=20.0)
+        pieces = (Scanner.preset("generic_3t"), pair)
+        sources = dict(water=Unsuppressed(), lipids=NoLipids(), mm=NoMM())
+
+        def peak(water_adc):
+            params = quiet | Params(diffusion=dict(water=water_adc))
+            voxel = VirtualScan(brain, *pieces, params=params, **sources).voxel(**kw)
+            _, spectrum = voxel.spectrum(seed=7, npoints=2048)
+            return np.abs(np.asarray(spectrum)).max(), voxel
+
+        still, voxel = peak(PerTissue(0.0, 0.0, 0.0))
+        f, content = voxel.fractions, brain.water_content
+        share = {t: getattr(f, t) * content[t] for t in ("gm", "wm", "csf")}
+        assert share["csf"] > 0.1 * sum(share.values())
+        csf_only, _ = peak(PerTissue(0.0, 0.0, 3.0))
+        law = (share["gm"] + share["wm"] + share["csf"] * math.exp(-b * 3.0)) / sum(share.values())
+        assert abs(csf_only / still - law) < 1e-3 * law
+        drawn, voxel = peak(VirtualScan.default_params().diffusion.water)
+        adc = voxel.sample(seed=7).diffusion.water
+        law = sum(share[t] * math.exp(-b * getattr(adc, t)) for t in share) / sum(share.values())
+        assert abs(drawn / still - law) < 1e-3 * law
 
     #**************************#
     #   per metabolite adcs    #
