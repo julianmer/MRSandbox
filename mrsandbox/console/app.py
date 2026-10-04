@@ -126,7 +126,8 @@ BLOCK_NOTES = {
     "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the "
                "echo and spoils the rest.",
     "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes "
-                        "every other, without time.",
+                        "every other, without time; the dephasing it stands for counts toward "
+                        "the diffusion weighting.",
     "water suppression": "A train of selective pulses on the water line before the excitation: "
                          "VAPOR, WET, CHESS or COWS, its pulses played in time or ideal.",
 }
@@ -1283,7 +1284,7 @@ async def console(client: Client):
                 for index, (kind, settings) in enumerate(session.design):
                     brief = next((f"{value:g}" + unit
                                   for key, unit in (("flip_deg", "°"), ("ms", " ms"),
-                                                    ("cycles_per_mm", " /mm"), ("order", ""))
+                                                    ("order", ""), ("cycles_per_mm", " /mm"))
                                   if (value := settings.get(key)) is not None),
                                  settings.get("scheme", ""))
                     chip = ui.button(f"{index + 1} · {block_name(kind, settings)} {brief}",

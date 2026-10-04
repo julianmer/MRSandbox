@@ -297,7 +297,8 @@ BLOCKS = {
     "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15),
                 lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
-    "coherence filter": (dict(order=-1), lambda b: (CoherenceFilter(int(b["order"])),)),
+    "coherence filter": (dict(order=-1, cycles_per_mm=0.0),
+                         lambda b: (CoherenceFilter(int(b["order"]), b.get("cycles_per_mm", 0.0)),)),
     "water suppression": (dict(scheme="COWS(7;236)", pulses="played"),
                           lambda b: SUPPRESSION[b["scheme"]](
                               real=b.get("pulses", "ideal") == "played").events),
@@ -1972,7 +1973,8 @@ class Session:
             elif isinstance(event, Delay):
                 design.append(("delay", dict(ms=1000.0 * float(event.t_s))))
             elif isinstance(event, CoherenceFilter) and len(event.orders) == 1:
-                design.append(("coherence filter", dict(order=int(event.orders[0]))))
+                design.append(("coherence filter", dict(order=int(event.orders[0]),
+                                                        cycles_per_mm=float(event.crusher_per_mm))))
             elif isinstance(event, Gradient) and float(event.extent_mm) == 20.0:
                 design.append(("crusher", dict(axis=event.axis,
                                                cycles_per_mm=float(event.moment_per_mm))))

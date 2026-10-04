@@ -301,6 +301,36 @@ class TestSession:
         # phase)
         assert 0.0 < read["water.adjusted_residual"] < 0.05 and "acquisition.delay_s" in read
 
+    def test_a_filter_block_carries_the_crusher_moment_it_stands_for(self):
+        # the ideal crusher of an own design weights by diffusion as the kick it stands for
+        # would: a pair of 9.7 cycles/mm about a 180 gives (2 pi m)^2 times the time between
+        # them, and a library editing design shown as blocks keeps its pairs' moments
+        import math
+
+        from mrsandbox import LocalizedMegaPress
+        from mrsandbox.console.session import BLOCKS, TEMPLATES
+        from mrsandbox.sequences.diffusion import b_value_ms_um2
+
+        session = Session(ICBM)
+        session.protocol.sequence = "Custom"
+        press = [(kind, {**BLOCKS[kind][0], **settings})
+                 for kind, settings in TEMPLATES["PRESS, TE 30"]]
+        kinds = [kind for kind, _ in press]
+        assert kinds.count("coherence filter") >= 2 and BLOCKS["coherence filter"][0] == {
+            "order": -1, "cycles_per_mm": 0.0}
+        first = kinds.index("coherence filter")
+        second = kinds.index("coherence filter", first + 1)
+        press[first][1]["cycles_per_mm"] = press[second][1]["cycles_per_mm"] = 9.7
+        session.designs, session.condition = {"A": press}, "A"
+        between = sum(settings["ms"] / 1000.0
+                      for kind, settings in press[first + 1:second] if kind == "delay")
+        assert between > 0.0
+        expected = (2.0 * math.pi * 9.7e3) ** 2 * between * 1e-9
+        assert abs(b_value_ms_um2(session.sequence()) - expected) < 1e-9 * expected
+        blocks = Session._blocks(LocalizedMegaPress(7.5, 127.7, size_mm=30.0).events)
+        moments = [settings["cycles_per_mm"] for kind, settings in blocks if kind == "coherence filter"]
+        assert sorted(moments)[0] == -9.7 and sorted(moments)[-1] == 9.7 and moments.count(0.0) == 5
+
     def test_an_own_design_of_two_sub_acquisitions_is_multiplexed_as_its_weights_say(self):
         from mrsandbox.console.session import BLOCKS, TEMPLATES
 
