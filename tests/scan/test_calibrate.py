@@ -18,8 +18,8 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import (CovarianceReading, NoiseReading, RelaxationReading,
-                                      WaterSeriesReading,
+from mrsandbox.scan.calibrate import (CovarianceReading, MacromoleculeReading, NoiseReading,
+                                      RelaxationReading, WaterSeriesReading,
                                       SpectrumReading)
 from mrsandbox.scan.voxel import noise_scale
 
@@ -419,4 +419,57 @@ class TestWaterSeriesReading:
         scaled = {0.034: data[0.035], 0.0434: 0.766 * data[0.035]}
         refused = WaterSeriesReading.from_arrays(scaled, dwell_s, voxels[0.035]._f0_mhz())
         assert refused.apparent_t2_s < 0.04 and "scale" in refused.failed
+
+
+#**************************************************************************************************#
+#                                 Class TestMacromoleculeReading                                   #
+#**************************************************************************************************#
+@pytest.mark.render
+class TestMacromoleculeReading:
+
+    def test_the_twins_own_short_echo_run_gives_back_its_level(self):
+        from mrsandbox import CoupledMM
+
+        calm = Params(spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                       eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+        pieces = (Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                  Press(te1_s=0.011, te2_s=0.024, tr_s=2.0))
+        n, dwell_s = 2048, 1.0 / 2000.0
+
+        def raw(voxel):
+            _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
+            fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n)
+                                           * dwell_s)
+            rng = np.random.default_rng(4)
+            noise = 0.002 * np.abs(fid).max() * (rng.standard_normal((n, 2, 16))
+                                                 + 1j * rng.standard_normal((n, 2, 16)))
+            return np.array([0.8, 0.6])[None, :, None] * fid[:, None, None] + noise
+
+        kw = dict(position_mm=(0.0, -45.0, 35.0), size_mm=30.0)
+        voxel = VirtualScan(*pieces, params=calm).voxel(**kw)
+        reading = MacromoleculeReading.from_arrays(raw(voxel), dwell_s, voxel._f0_mhz())
+        twin = reading.twin(voxel, seeds=1)
+        assert abs(reading.peak_over_naa / twin["peak_over_naa"][0] - 1.0) < 0.05
+        assert twin["lipid_share"][0] < 0.2
+        # the measured source scales with its level, which the record reads back; a subject at
+        # twice the level reads twice
+        record = reading.record(voxel, "the twin", seeds=1)
+        drawn = float(voxel.sample(0).mm.level_mm)
+        assert record.leaf == "mm.level_mm" and record.carried_by == "subject" and not record.failed
+        assert record.value == pytest.approx(drawn, rel=0.05)
+        rich = VirtualScan(*pieces, params=calm | Params(mm=dict(level_mm=2.0 * drawn))).voxel(**kw)
+        doubled = MacromoleculeReading.from_arrays(raw(rich), dwell_s, voxel._f0_mhz())
+        assert 1.7 < doubled.record(voxel, "the twin", seeds=1).value / drawn < 2.3
+        # the coupled source scales with kappa
+        coupled = VirtualScan(*pieces, params=calm, mm=CoupledMM()).voxel(**kw)
+        kappa = MacromoleculeReading.from_arrays(raw(coupled), dwell_s, voxel._f0_mhz()).record(
+            coupled, "the twin", seeds=1)
+        assert kappa.leaf == "mm.kappa"
+        assert kappa.value == pytest.approx(float(coupled.sample(0).mm.kappa), rel=0.05)
+        # a long echo has taken the peak down: refused
+        late = VirtualScan(pieces[0], pieces[1], Press(te1_s=0.011, te2_s=0.069, tr_s=2.0),
+                           params=calm).voxel(**kw)
+        assert "echo" in MacromoleculeReading.from_arrays(raw(late), dwell_s, late._f0_mhz()).record(
+            late, "the twin", seeds=1).failed
 

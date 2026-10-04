@@ -8,8 +8,9 @@
 #                                                                                                  #
 # Purpose: A scanner's own data in, a calibration record out: the single-transient NAA signal to   #
 #          noise ratio off raw data and the noise level of the virtual scan that reproduces it,    #
-#          the noise covariance of a receive array's channels, and the tissue water's T2 off a    #
-#          series of water references over the echo time (scan.calibrations).                     #
+#          the noise covariance of a receive array's channels, the tissue water's T2 off a series #
+#          of water references over the echo time, and the macromolecules' level off the 0.9 ppm  #
+#          peak of a short-echo run (scan.calibrations).                                          #
 #                                                                                                  #
 ####################################################################################################
 
@@ -26,6 +27,7 @@ from keras import ops
 
 from mrsandbox.hardware.receiver import Receiver
 from mrsandbox.params.values import Tissues
+from mrsandbox.phantom.macromolecules import _echo_time_s
 from mrsandbox.phantom.solution import Phantom
 from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.voxel import noise_scale
@@ -826,6 +828,143 @@ class WaterSeriesReading:
             presets=tuple(presets), failed=self.failed,
             note="one subject's series; made by scan.calibrate")
             for tissue, value in (("gm", t2.gm), ("wm", t2.wm)))
+
+
+#**************************************************************************************************#
+#                                   Class MacromoleculeReading                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# The macromolecules' level read off the 0.9 ppm peak of a short-echo run, through the twin.       #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class MacromoleculeReading:
+    """The macromolecules' level read off the 0.9 ppm peak of a short-echo run, through
+    the twin.
+
+    The 0.9 ppm peak of a water-suppressed short-echo spectrum is the macromolecules'
+    methyls (and the lipids' where the voxel reaches fat). Its height over the level at
+    0.3 to 0.5 ppm, over NAA's over the same level, is the statistic: no fit, no model
+    of what lies beneath. The twin's own reading of its clean spectrum at the same
+    voxel through the same design carries everything else the peak holds (the sequence's
+    echo decay at the macromolecules' T2s, the neighbours, the baseline), so the level
+    is the scan's macromolecule leaf scaled by the data's reading over the twin's
+    (`record`), the leaf being the one the scan's source scales with (MeasuredMM's
+    level_mm, CoupledMM's kappa). The reading refuses where the twin's lipids make more
+    than LIPID_SHARE of its peak (the voxel's edge in fat) or the echo time has taken the
+    peak down (past LATEST_TE_S).
+
+    Args:
+        peak_over_naa: The 0.9 ppm peak's height over NAA's, both over the 0.3 to 0.5 ppm
+            level.
+    """
+
+    LIPID_SHARE = 0.2
+    LATEST_TE_S = 0.05
+
+    peak_over_naa: float
+    transients: int
+    npoints: int
+    coils: int
+    dwell_s: float
+    f0_mhz: float
+    header: dict
+
+    #*******************#
+    #   from arrays     #
+    #*******************#
+    @classmethod
+    def from_arrays(cls, data, dwell_s, f0_mhz, header=None):
+        """`data` (npoints, coils, transients) of the suppressed run, in the standard's
+        frame (the carrier at 4.65 ppm)."""
+        fid = _combined(data).mean(axis=1)
+        return cls(peak_over_naa=cls._peak_over_naa(fid, dwell_s, f0_mhz),
+                   transients=int(np.asarray(data).shape[2]), npoints=int(fid.size),
+                   coils=int(np.asarray(data).shape[1]), dwell_s=float(dwell_s),
+                   f0_mhz=float(f0_mhz), header=dict(header or {}))
+
+    @classmethod
+    def from_nifti(cls, source):
+        return cls.from_arrays(*_raw(source))
+
+    @staticmethod
+    def _peak_over_naa(fid, dwell_s, f0_mhz):
+        ppm, real = _spectrum(fid, dwell_s, lambda hz: WATER_PPM + hz / f0_mhz)
+        level = np.median(real[(ppm > 0.3) & (ppm < 0.5)])
+        return float((real[(ppm > 0.85) & (ppm < 0.97)].max() - level)
+                     / (real[np.abs(ppm - NAA_PPM) < 0.04].max() - level))
+
+    #**************#
+    #   the twin   #
+    #**************#
+    def twin(self, voxel, seeds=3):
+        """The twin's own reading at `voxel`: per draw the clean spectrum's peak over NAA
+        and the lipids' share of the peak (what the peak loses without them), as
+        {"peak_over_naa": [per seed], "lipid_share": [per seed]}."""
+        t = np.arange(self.npoints) * self.dwell_s
+        turn = np.exp(-2j * np.pi * WATER_PPM * voxel._f0_mhz() * t)
+        found = {"peak_over_naa": [], "lipid_share": []}
+        for seed in range(seeds):
+            parts = voxel._component_fids(voxel.sample(seed), self.npoints, self.dwell_s)
+            total = sum(np.asarray(fid) for fid in parts.values()) * turn
+            peak = self._peak_over_naa(total, self.dwell_s, voxel._f0_mhz())
+            lean = total - np.asarray(parts.get("lipids", 0.0)) * turn
+            found["peak_over_naa"].append(peak)
+            found["lipid_share"].append(
+                1.0 - self._peak_over_naa(lean, self.dwell_s, voxel._f0_mhz()) / peak)
+        return found
+
+    #************#
+    #   record   #
+    #************#
+    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=3):
+        """The Calibration of the scan's macromolecule level leaf (mm.level_mm or mm.kappa):
+        per draw the drawn leaf times the data's reading over the twin's, the median; the
+        prior a quarter either side; carried by the subject; failed by the stated rules."""
+        leaf = voxel.scan.mm.LEVEL_LEAF
+        if leaf is None:
+            raise ValueError(f"{type(voxel.scan.mm).__name__} scales with no mm leaf: nothing to record")
+        twin = self.twin(voxel, seeds)
+        drawn = [float(voxel.sample(seed).mm[leaf]) for seed in range(seeds)]
+        values = [d * self.peak_over_naa / peak for d, peak in zip(drawn, twin["peak_over_naa"])]
+        value = float(np.median(values))
+        lipid, te_s = float(np.median(twin["lipid_share"])), _echo_time_s(voxel.scan.sequence)
+        sequence = voxel.scan.sequence
+        return Calibration(
+            leaf=f"mm.{leaf}", value=float(round(value, 4)),
+            prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
+            measured={"statistic": "the 0.9 ppm peak over NAA, both over the 0.3 to 0.5 ppm level, "
+                                   "the data's over the twin's (scan.calibrate.MacromoleculeReading)",
+                      "peak_over_naa": round(self.peak_over_naa, 4),
+                      "twin_peak_over_naa": round(float(np.median(twin["peak_over_naa"])), 4),
+                      "factor": round(self.peak_over_naa
+                                      / float(np.median(twin["peak_over_naa"])), 3),
+                      "twin_lipid_share": round(lipid, 3)},
+            source={"dataset": dataset, "citation": citation, "url": url},
+            scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                     "model": self.header.get("ManufacturersModelName"),
+                     "software": self.header.get("SoftwareVersions"),
+                     "field_t": round(self.f0_mhz / 42.5774785, 2)},
+            coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+            sequence={"name": self.header.get("SequenceName") or type(sequence).__name__,
+                      "family": type(sequence).__name__, "te_s": self.header.get("EchoTime", te_s),
+                      "tr_s": self.header.get("RepetitionTime"),
+                      "simulated_as": type(sequence).__name__},
+            acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
+                         "transients": self.transients, "water_suppressed": True},
+            voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                   "simulated_position_mm": tuple(voxel.position_mm),
+                   "fractions": tuple(round(float(f), 3) for f in voxel.fractions)},
+            processing="the combined mean FID's spectrum phased on NAA, 2 Hz apodization, fourfold "
+                       "zero filled; the twin's clean spectrum read the same way",
+            date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
+            presets=tuple(presets),
+            failed=(f"the twin's lipids make {lipid:.2f} of the 0.9 ppm peak at this placement, past "
+                    f"{self.LIPID_SHARE}: the voxel's edge in fat" if lipid > self.LIPID_SHARE
+                    else f"the echo time {1e3 * te_s:.0f} ms has taken the peak down: read a short "
+                         f"echo, up to {1e3 * self.LATEST_TE_S:.0f} ms" if te_s > self.LATEST_TE_S
+                    else ""),
+            note="one acquisition; made by scan.calibrate")
 
 
 #**************************************************************************************************#

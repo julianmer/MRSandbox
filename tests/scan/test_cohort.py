@@ -314,7 +314,9 @@ class TestPooled:
     #***********************#
     def test_the_package_cohorts_are_the_records(self):
         # every record of a 3 T scanner is the median over the package's rows read under its
-        # conditions
+        # conditions: the plain median where one dataset serves, and where several do (a
+        # tissue's relaxation, read on every scanner) the datasets' weighted median, which
+        # lies between the datasets' own
         assert "big_gaba_trio" in Cohort.names()
         trio = Scanner.preset("siemens_trio_3t")
         served = ScannerProfile.preset("siemens_trio_3t").calibrations()
@@ -328,8 +330,12 @@ class TestPooled:
                                              on.get("model"), on.get("channels"),
                                              on.get("method"))
                         and (person is None or cohorts._suits(m.traits, person))]
-            assert (served[leaf].value == round(float(np.median(matching)), 7)
-                    and served[leaf].measured["subjects"] == len(matching))
+            per_cohort = served[leaf].measured["per_cohort_median"].values()
+            assert served[leaf].measured["subjects"] == len(matching)
+            if len(per_cohort) == 1:
+                assert served[leaf].value == round(float(np.median(matching)), 7)
+            else:
+                assert min(per_cohort) <= served[leaf].value <= max(per_cohort)
         assert served["noise.sigma"].measured["matched_on"]["model"] == trio.model
         failed = [r for c in cohorts.package() for m in c.members for r in m.profile.records
                   if r.failed]

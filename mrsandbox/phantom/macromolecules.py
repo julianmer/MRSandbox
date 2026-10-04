@@ -78,6 +78,9 @@ class MMSource(abc.ABC):
     signal (`fid`); the default for each is silence, a subclass implements one.
     """
 
+    # the mm leaf this source scales with, the one a level reading records (scan.calibrate)
+    LEVEL_LEAF = "level_mm"
+
     #***********#
     #   lines   #
     #***********#
@@ -385,6 +388,8 @@ class ChallengeMM(MeasuredMM):
     not read.
     """
 
+    LEVEL_LEAF = None
+
     MEASURED_TE_S = 0.0
     BASIS_MHZ = 123.24
     BASIS_DWELL_S = 8.03892e-05
@@ -468,6 +473,8 @@ class CoupledMM(MMSource):
     Appendix S1 3 T human columns where the tables carry a value (see default_params)
     and stated otherwise, so TE behaviour is component-faithful.
     """
+
+    LEVEL_LEAF = "kappa"
 
     # (name, groups as (ppm, protons), coupled group pairs, gauss width ppm); the J of
     # each pair is read from the cited CONSENSUS_COUPLINGS table by peak position
