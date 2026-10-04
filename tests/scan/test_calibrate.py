@@ -19,6 +19,7 @@ import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
 from mrsandbox.scan.calibrate import (CovarianceReading, NoiseReading, RelaxationReading,
+                                      WaterSeriesReading,
                                       SpectrumReading)
 from mrsandbox.scan.voxel import noise_scale
 
@@ -372,3 +373,50 @@ class TestRelaxationReading:
         assert read["Cr"] == pytest.approx(t2["Cr"], rel=0.04)
         assert read["NAA"] == pytest.approx(t2["NAA"], rel=0.08)
         assert 0.8 * t2["Cho"] < read["Cho"] < t2["Cho"]
+
+
+#**************************************************************************************************#
+#                                   Class TestWaterSeriesReading                                   #
+#**************************************************************************************************#
+class TestWaterSeriesReading:
+
+    def test_the_twins_own_water_series_gives_back_its_tissue_t2(self):
+        from mrsandbox import Multiplex, NoLipids, NoMM, Unsuppressed
+
+        n, dwell_s = 2048, 1.0 / 2000.0
+        calm = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0),
+                      conc={name: 0.0 for name in VirtualScan.default_params().conc})
+        series = {te: Press(te1_s=0.011, te2_s=te - 0.011, tr_s=2.0) for te in (0.035, 0.068, 0.08)}
+        twin = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"), series, params=calm,
+                         water=Unsuppressed(), mm=NoMM(), lipids=NoLipids())
+        voxels = {te: twin.scans[te].voxel((0.0, -20.0, 20.0), 20.0) for te in series}
+        truth = voxels[0.035].sample(0)
+        rng = np.random.default_rng(0)
+        data, sigma = {}, None
+        for te, voxel in voxels.items():
+            fid = np.asarray(voxel._component_fids(truth, n, dwell_s)["water"])
+            # a scanner's carrier sits on water; the package's FIDs are referenced to 0 ppm; the
+            # references carry one noise level, as one acquisition's do
+            fid = fid * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n) * dwell_s)
+            sigma = 1e-3 * abs(fid[0]) if sigma is None else sigma
+            noise = sigma * (rng.standard_normal(n) + 1j * rng.standard_normal(n))
+            data[te] = (fid + noise)[:, None, None]
+        reading = WaterSeriesReading.from_arrays(data, dwell_s, voxels[0.035]._f0_mhz(),
+                                                 {"Manufacturer": "generic"})
+        assert reading.te_s == (0.035, 0.068, 0.08) and reading.tops[0] == 1.0
+        assert 0.05 < reading.apparent_t2_s < 0.15 and reading.misfit < 0.01 and not reading.failed
+        # the draw the data were made with is read back, grey and white together
+        t2 = reading.tissue_t2_s(voxels, seeds=1)
+        assert t2.gm == pytest.approx(truth.water.t2_s.gm, rel=2e-3)
+        assert t2.wm == pytest.approx(truth.water.t2_s.wm, rel=2e-3)
+        records = reading.records(voxels, "the twin", seeds=1)
+        assert [r.leaf for r in records] == ["water.t2_s.gm", "water.t2_s.wm"]
+        assert records[0].value == pytest.approx(t2.gm, abs=1e-4) and records[0].carried_by == "subject"
+        assert records[0].sequence["te_s"] == (0.035, 0.068, 0.08) and not records[0].failed
+        # two scans a scale apart (water 0.766 over 9.4 ms, as a session of Julian's own read):
+        # not relaxation, refused
+        scaled = {0.034: data[0.035], 0.0434: 0.766 * data[0.035]}
+        refused = WaterSeriesReading.from_arrays(scaled, dwell_s, voxels[0.035]._f0_mhz())
+        assert refused.apparent_t2_s < 0.04 and "scale" in refused.failed
+

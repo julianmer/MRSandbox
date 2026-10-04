@@ -8,7 +8,8 @@
 #                                                                                                  #
 # Purpose: A scanner's own data in, a calibration record out: the single-transient NAA signal to   #
 #          noise ratio off raw data and the noise level of the virtual scan that reproduces it,    #
-#          and the noise covariance of a receive array's channels (scan.calibrations).             #
+#          the noise covariance of a receive array's channels, and the tissue water's T2 off a    #
+#          series of water references over the echo time (scan.calibrations).                     #
 #                                                                                                  #
 ####################################################################################################
 
@@ -20,8 +21,11 @@ import datetime
 import functools
 
 import numpy as np
+import scipy.optimize
+from keras import ops
 
 from mrsandbox.hardware.receiver import Receiver
+from mrsandbox.params.values import Tissues
 from mrsandbox.phantom.solution import Phantom
 from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.voxel import noise_scale
@@ -640,6 +644,188 @@ class RelaxationReading:
         t2_s = {name: float(-1.0 / np.polyfit(te_s, np.log(values), 1)[0])
                 for name, values in heights.items()}
         return cls(te_s=te_s, heights=heights, t2_s=t2_s)
+
+
+#**************************************************************************************************#
+#                                     Class WaterSeriesReading                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# The tissue water's T2 read off water references over the echo time, through the twin.            #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class WaterSeriesReading:
+    """The tissue water's T2 read off a series of water references over the echo time,
+    through the twin.
+
+    Each reference's echo top (the mean magnitude of the combined mean FID's points 2
+    to 8) falls with the echo time. The series is one scale when the tops fall as one
+    exponential (`misfit`) at a brain water's rate (`apparent_t2_s` inside PLAUSIBLE_S);
+    otherwise the series carries a scale between its scans (a reconstruction, a transmit
+    setting) and the reading refuses (`failed`). The water's decay is not the tissue's
+    T2 alone: the CSF's share, its own T2 and its diffusion through the crushers, the
+    tissue water's diffusion, the T1 over the repetition and the pulses' relaxation all
+    lie in it, and all of them in the twin. So the tissue's T2 is the value at which the
+    twin's water, played through the same designs at the data's voxel (its own tissue
+    fractions), falls as the data's (`tissue_t2_s`): the drawn grey and white T2s scaled
+    together (the data cannot part them; the table's ratio stays), the CSF's as drawn.
+
+    Args:
+        te_s: The echo times in seconds, ascending.
+        tops: The echo tops over the first.
+        apparent_t2_s: One exponential through the tops.
+        misfit: The rms of the tops' logarithms about that exponential.
+    """
+
+    # a brain water's T2 at any field lies inside; a series decaying faster or slower
+    # carries a scale between its scans
+    PLAUSIBLE_S = (0.04, 0.2)
+    MISFIT = 0.05
+
+    te_s: tuple
+    tops: tuple
+    apparent_t2_s: float
+    misfit: float
+    transients: tuple
+    npoints: int
+    coils: int
+    dwell_s: float
+    f0_mhz: float
+    header: dict
+
+    #*******************#
+    #   from a series   #
+    #*******************#
+    @classmethod
+    def from_arrays(cls, series, dwell_s, f0_mhz, header=None):
+        """Read {echo time in seconds: (npoints, coils, transients)} water references of
+        one voxel."""
+        te_s = tuple(sorted(series))
+        first = np.asarray(series[te_s[0]])
+        # one whitening and one set of weights for the series, the first reference's: each
+        # reference's own tail would put a few percent of its own on its top
+        tops = np.array([float(np.abs(_combined(series[te], like=first).mean(axis=1)[2:8]).mean())
+                         for te in te_s])
+        slope, offset = np.polyfit(te_s, np.log(tops), 1)
+        line = np.polyval((slope, offset), te_s)
+        return cls(te_s=te_s, tops=tuple(float(top / tops[0]) for top in tops),
+                   apparent_t2_s=float(-1.0 / slope),
+                   misfit=float(np.sqrt(np.mean((np.log(tops) - line) ** 2))),
+                   transients=tuple(int(np.asarray(series[te]).shape[2]) for te in te_s),
+                   npoints=int(first.shape[0]), coils=int(first.shape[1]),
+                   dwell_s=float(dwell_s), f0_mhz=float(f0_mhz), header=dict(header or {}))
+
+    @classmethod
+    def from_nifti(cls, sources):
+        """From {echo time in seconds: a NIfTI-MRS water reference}, the transients apart."""
+        series, dwells, f0s, headers = {}, set(), set(), {}
+        for te, source in sources.items():
+            series[te], dwell_s, f0_mhz, header = _raw(source)
+            dwells.add(round(dwell_s, 12))
+            f0s.add(round(f0_mhz, 6))
+            headers = headers or header
+        if len(dwells) > 1 or len(f0s) > 1:
+            raise ValueError("the references are sampled at different dwells or frequencies")
+        return cls.from_arrays(series, dwells.pop(), f0s.pop(), headers)
+
+    #**************#
+    #   the rule   #
+    #**************#
+    @property
+    def failed(self):
+        """Why the series is not one scale, by the stated rule; empty when it is."""
+        low, high = self.PLAUSIBLE_S
+        if not low <= self.apparent_t2_s <= high:
+            return (f"the water falls as T2 {1e3 * self.apparent_t2_s:.0f} ms, outside a brain "
+                    f"water's {1e3 * low:.0f} to {1e3 * high:.0f} ms: a scale between the scans, "
+                    "not relaxation")
+        if self.misfit > self.MISFIT:
+            return (f"the echo tops do not fall as one exponential (rms misfit {self.misfit:.3f} "
+                    f"of their logarithms, past {self.MISFIT}): a scale between the scans")
+        return ""
+
+    #**************#
+    #   the twin   #
+    #**************#
+    def tissue_t2_s(self, voxels, seeds=3):
+        """The tissue water's T2 as a Tissues record: {echo time: scan.Voxel} of the twin
+        at the data's voxel with the water unsuppressed, one design per echo time; per
+        draw, the factor on the drawn grey and white T2 at which the twin's echo tops
+        fall as the data's (least squares of the logarithms), the median over `seeds`."""
+        if tuple(sorted(voxels)) != self.te_s:
+            raise ValueError(f"the twin's echo times {sorted(voxels)} are not the series' "
+                             f"{self.te_s}")
+        data = np.log(self.tops)
+        # the twin's tops read as the data's, over the FID's points 2 to 8, where each water
+        # part has decayed at its own T2 (the lineshape they share cancels in the ratios)
+        t = np.arange(2, 8) * self.dwell_s
+        found = []
+        for seed in range(seeds):
+            truth = voxels[self.te_s[0]].sample(seed)
+            drawn = truth.water.t2_s
+            if not isinstance(drawn, Tissues):
+                raise ValueError("the twin's water T2 is not per tissue")
+
+            def tops(factor):
+                dict.__setitem__(truth.water, "t2_s", Tissues(gm=factor * drawn.gm,
+                                                              wm=factor * drawn.wm, csf=drawn.csf))
+                return np.array([abs(sum(
+                    complex(np.sum(np.asarray(ops.convert_to_numpy(amps))))
+                    * float(np.mean(np.exp(-np.pi * lw * t)))
+                    for _, amps, lw, _ in voxel._water_parts(
+                        truth, voxel.scan.engine, voxel.design(truth), voxel._f0_mhz(),
+                        voxel._diffusion_factor(truth))))
+                    for te, voxel in sorted(voxels.items())])
+
+            def misfit(factor):
+                twin = np.log(tops(factor))
+                return float(np.sum((twin[1:] - twin[0] - data[1:] + data[0]) ** 2))
+
+            factor = scipy.optimize.minimize_scalar(misfit, bounds=(0.3, 3.0), method="bounded").x
+            found.append((factor * drawn.gm, factor * drawn.wm, drawn.csf))
+        return Tissues(*(float(v) for v in np.median(found, axis=0)))
+
+    #*************#
+    #   records   #
+    #*************#
+    def records(self, voxels, dataset, presets=(), citation=None, url=None, seeds=3):
+        """The Calibrations of water.t2_s.gm and water.t2_s.wm, the twin's reading of this
+        series, the prior a quarter either side; carried by the subject; failed by the
+        series' own rule."""
+        t2 = self.tissue_t2_s(voxels, seeds)
+        voxel = voxels[self.te_s[0]]
+        designs = [type(v.scan.sequence).__name__ for _, v in sorted(voxels.items())]
+        return tuple(Calibration(
+            leaf=f"water.t2_s.{tissue}", value=float(round(value, 4)),
+            prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
+            measured={"statistic": "the tissue water's T2 at which the twin's water references "
+                                   "fall over the echo time as the data's, the drawn grey and "
+                                   "white T2 scaled together (scan.calibrate.WaterSeriesReading)",
+                      "tops": tuple(round(top, 4) for top in self.tops),
+                      "apparent_t2_ms": round(1e3 * self.apparent_t2_s, 1),
+                      "misfit": round(self.misfit, 4),
+                      "tissue_t2_ms": {"gm": round(1e3 * t2.gm, 1), "wm": round(1e3 * t2.wm, 1)}},
+            source={"dataset": dataset, "citation": citation, "url": url},
+            scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                     "model": self.header.get("ManufacturersModelName"),
+                     "software": self.header.get("SoftwareVersions"),
+                     "field_t": round(self.f0_mhz / 42.5774785, 2)},
+            coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+            sequence={"name": self.header.get("SequenceName") or "/".join(designs),
+                      "family": "/".join(designs), "te_s": self.te_s,
+                      "tr_s": self.header.get("RepetitionTime"), "simulated_as": "/".join(designs)},
+            acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
+                         "transients": self.transients, "water_suppressed": False},
+            voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                   "simulated_position_mm": tuple(voxel.position_mm),
+                   "fractions": tuple(round(float(f), 3) for f in voxel.fractions)},
+            processing="the water references' echo tops (the mean magnitude of the combined mean "
+                       "FID's points 2 to 8) over the first, the twin's water played through the "
+                       "same designs at the voxel's own tissue fractions",
+            date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
+            presets=tuple(presets), failed=self.failed,
+            note="one subject's series; made by scan.calibrate")
+            for tissue, value in (("gm", t2.gm), ("wm", t2.wm)))
 
 
 #**************************************************************************************************#
