@@ -466,7 +466,10 @@ class CoupledMM(MMSource):
     consensus flags as the GABA-relevant background); components without a listed
     partner stay uncoupled. Amplitudes follow the MRSI challenge model: kappa times the
     tissue-weighted component ratio times the drawn total creatine, so the background
-    scales with the subject. Chain partners at 2.04 and 2.99 are emitted by their chains;
+    scales with the subject; the 0.91 chain carries a stated weight on top (`WEIGHTS`),
+    the factor by which the challenge's ratio falls short of the measured 3 T shape and of
+    raw short-echo data at 0.9 ppm, both read through the twin against the other chains.
+    Chain partners at 2.04 and 2.99 are emitted by their chains;
     Gaussian widths come from the Osprey values at matching positions, stated where no
     label matches. The proton counts of the chains (3:1 and 2:2) are stated assumptions.
     Each system relaxes with its own mm.t1 and mm.t2 leaves, typed from the consensus
@@ -491,6 +494,9 @@ class CoupledMM(MMSource):
     # challenge component carrying each system's amplitude anchor
     ANCHORS = {"mm091": "M0.91", "mm121": "M1.21", "mm143": "M1.43", "mm167": "M1.67",
                "mm226": "M2.26", "mm321": "M3.21", "mm377": "M3.77"}
+    # a system's weight on top of its challenge ratio, where the ratio stands short of the
+    # measured shape and of raw data read through the twin (stated); the others carry one
+    WEIGHTS = {"mm091": 2.0}
 
     #**********#
     #   init   #
@@ -512,7 +518,8 @@ class CoupledMM(MMSource):
         for name, groups, couplings, width_ppm in self.SYSTEMS:
             anchor = components[self.ANCHORS[name]]
             weighted = fractions.gm * anchor["gm"] + fractions.wm * anchor["wm"]
-            weight = truth.mm.kappa * weighted * c_tcr / groups[0][1]
+            weight = (truth.mm.kappa * weighted * c_tcr * self.WEIGHTS.get(name, 1.0)
+                      / groups[0][1])
             line_f, line_a = self._unit_lines(engine, sequence, voxel, truth, f0_mhz)[name]
             line_a = line_a * weight
             keep = np.abs(line_a) > 1e-9

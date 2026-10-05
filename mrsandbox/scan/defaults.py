@@ -186,12 +186,15 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         # mm: the macromolecule background.
         #   kappa: scales the challenge tissue ratios times the drawn creatine
         #     (the CoupledMM default). The challenge's own 0.4 normalizes its
-        #     measured basis, not concentration units, so kappa is recalibrated
-        #     (stated) to land the short-TE MM area fraction in the consensus
-        #     10 to 25 percent ballpark. It carries the factor 11.75 / 8.5 by which
-        #     the calibrated creatine range lowers the middle of total creatine, so
-        #     the background does not move with the creatine range.
-        #   level_mm: drives the ParameterizedMM alternative.
+        #     measured basis, not concentration units, so kappa is retyped (stated)
+        #     to where the chains read raw short-echo data through the twin beside
+        #     the measured shape (the 1.2 to 1.7 ppm heights over NAA). It carries
+        #     the factor 11.75 / 8.5 by which the calibrated creatine range lowers
+        #     the middle of total creatine, so the background does not move with
+        #     the creatine range.
+        #   level_mm: the level of the measured shape (MeasuredMM) and of the Gaussian
+        #     components (ParameterizedMM): a stated range, the readings of the package's
+        #     cohorts (the 0.9 ppm peak over NAA through the twin) pooled beside it.
         #   t1, t2: per component, typed from the consensus Appendix S1 3 T human
         #     columns (T2: Landheer 2020, else Hoefemann 2020; T1: Hoefemann 2020,
         #     fit-limit rows excluded; the database.macromolecules CONSENSUS
@@ -202,7 +205,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     3 T the T1 of the components with a human row at that field (Xin 2013
         #     at 7 T, Kreis 2005 at 1.5 T; M0.94 and M1.22 only) replaces the 3 T
         #     value; T2 has no human rows off 3 T and keeps them (stated).
-        mm=dict(level_mm=(1.5, 4.0), kappa=(7.6, 13.1),
+        mm=dict(level_mm=_sourced("mm.level_mm", served, Uniform, literature=Uniform(1.5, 4.0),
+                                  cited="a stated range: the level of the measured 3 T shape"),
+                kappa=_sourced("mm.kappa", served, Uniform, literature=Uniform(20.1, 34.7),
+                               cited="a stated range: the coupled chains' anchor"),
                 t1={**dict(mm091=0.290, mm121=0.309, mm143=0.400, mm167=0.225,
                            mm226=0.263, mm321=0.400, mm377=0.400),
                     **{component: CONSENSUS_T1["t1_ms"][peak][MM_T1_STUDIES[tesla]][0] / 1000.0

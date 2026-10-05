@@ -233,7 +233,7 @@ class TestFieldPriors:
         assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma",
                                        "water.adjusted_residual", "acquisition.delay_s",
                                        "acquisition.eddy_transient_rad", "oov.fraction", "water.t1_s",
-                                       "water.t2_s", *(f"run.{key}" for key in (
+                                       "water.t2_s", "mm.level_mm", "mm.kappa", *(f"run.{key}" for key in (
                                            "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz",
                                            "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
                                            "broaden_hz", "events_per_min", "motion_mm")),
@@ -243,7 +243,7 @@ class TestFieldPriors:
             "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled",
             "water.adjusted_residual": "pooled", "acquisition.delay_s": "pooled",
             "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled",
-            "water.t1_s": "literature", "water.t2_s": "literature",
+            "water.t1_s": "literature", "water.t2_s": "literature", "mm.level_mm": "literature", "mm.kappa": "literature",
             **{path: "literature" for path in transfer}}
         # the run: the envelope until read; the head's move has no literature, the rows serve it
         assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items()
