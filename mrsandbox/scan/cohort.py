@@ -54,10 +54,11 @@ FAITHFUL = {
     "water.t1_s": ("inversion recovery", "MP2RAGE"),
     "water.t2_s": ("EPG multi-echo spin echo",),
 }
-# the tissue's relaxation, which the field sets (T1 lengthens and T2 shortens with it) and no
-# scanner's vendor, model or coil: its rows pool at the scanner's field alone, whatever system
-# read them, and with none there the leaf stays with the literature's own table
-RELAXATION = ("water.t1_s", "water.t2_s")
+# the tissue's relaxation (the water's, the metabolites' T2), which the field sets (T1 lengthens
+# and T2 shortens with it) and no scanner's vendor, model or coil: its rows pool at the scanner's
+# field alone, whatever system read them, and with none there the leaf stays with the
+# literature's own table
+RELAXATION = ("water.t1_s", "water.t2_s", "t2")
 
 
 #**************************************************************************************************#

@@ -18,9 +18,9 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import (CovarianceReading, MacromoleculeReading, NoiseReading,
-                                      RelaxationReading, WaterSeriesReading,
-                                      SpectrumReading)
+from mrsandbox.scan.calibrate import (CovarianceReading, MacromoleculeReading,
+                                      MetaboliteSeriesReading, NoiseReading, RelaxationReading,
+                                      SpectrumReading, WaterSeriesReading)
 from mrsandbox.scan.voxel import noise_scale
 
 
@@ -473,3 +473,73 @@ class TestMacromoleculeReading:
         assert "echo" in MacromoleculeReading.from_arrays(raw(late), dwell_s, late._f0_mhz()).record(
             late, "the twin", seeds=1).failed
 
+
+
+#**************************************************************************************************#
+#                               Class TestMetaboliteSeriesReading                                  #
+#**************************************************************************************************#
+@pytest.mark.render
+class TestMetaboliteSeriesReading:
+
+    def test_the_twins_own_series_gives_back_its_t2(self):
+        from mrsandbox import Multiplex, NoLipids, NoMM, Unsuppressed
+
+        n, dwell_s = 2048, 1.0 / 2000.0
+        calm = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                       eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+        series = {te: Press(te1_s=0.011, te2_s=te - 0.011, tr_s=2.0) for te in (0.035, 0.068, 0.08)}
+        pieces = (Brain.load("icbm152"), Scanner.preset("generic_3t"), series)
+        kw = dict(position_mm=(0.0, -20.0, 20.0), size_mm=20.0)
+        twin = Multiplex(*pieces, params=calm)
+        water = Multiplex(*pieces, params=calm | Params(conc={name: 0.0 for name in twin.params.conc}),
+                          water=Unsuppressed(), mm=NoMM(), lipids=NoLipids())
+        voxels = {te: twin.scans[te].voxel(**kw) for te in series}
+        truth = voxels[0.035].sample(0)
+        rng = np.random.default_rng(0)
+
+        def raw(fid, sigma):
+            # a scanner's carrier sits on water; the package's FIDs are referenced to 0 ppm
+            fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxels[0.035]._f0_mhz()
+                                           * np.arange(n) * dwell_s)
+            return (fid + sigma * (rng.standard_normal(n) + 1j * rng.standard_normal(n)))[:, None, None]
+
+        def data(twin, truth):
+            runs, refs = {}, {}
+            for te in series:
+                _, fid = twin.scans[te].voxel(**kw)._clean_fid(truth, n, dwell_s)
+                runs[te] = raw(fid, 2e-4 * np.abs(fid).max())
+                ref = np.asarray(water.scans[te].voxel(**kw)._component_fids(
+                    water.params.sample(0), n, dwell_s)["water"])
+                refs[te] = raw(ref, 1e-3 * abs(ref[0]))
+            return runs, refs
+
+        f0_mhz, header = voxels[0.035]._f0_mhz(), {"Manufacturer": "generic"}
+        runs, refs = data(twin, truth)
+        reading = MetaboliteSeriesReading.from_arrays(runs, refs, dwell_s, f0_mhz, header)
+        assert reading.te_s == (0.035, 0.068, 0.08) and not reading.water.failed
+        assert all(reading.ratios[name][0] == 1.0 for name in ("NAA", "Cr"))
+        # the draw the data were made with is read back, creatine and phosphocreatine together
+        t2 = reading.t2_s(voxels, seeds=1)
+        assert set(t2) == {"NAA", "Cr", "PCr"}
+        assert t2["NAA"] == pytest.approx(float(truth.t2.NAA), rel=0.03)
+        assert t2["Cr"] == pytest.approx(float(truth.t2.Cr), rel=0.03)
+        assert t2["PCr"] / t2["Cr"] == pytest.approx(float(truth.t2.PCr) / float(truth.t2.Cr),
+                                                     rel=1e-6)
+        # a subject whose NAA relaxes at half the drawn T2 reads half, the rest of the twin held
+        shorter = Multiplex(*pieces, params=calm | Params(t2=dict(NAA=0.5 * float(truth.t2.NAA))))
+        halved = MetaboliteSeriesReading.from_arrays(
+            *data(shorter, shorter.scans[0.035].voxel(**kw).sample(0)), dwell_s, f0_mhz,
+            header).t2_s(voxels, seeds=1)
+        assert halved["NAA"] == pytest.approx(0.5 * float(truth.t2.NAA), rel=0.1)
+        assert halved["Cr"] == pytest.approx(float(truth.t2.Cr), rel=0.1)
+        records = reading.records(voxels, "the twin", seeds=1)
+        assert [r.leaf for r in records] == ["t2.NAA", "t2.Cr", "t2.PCr"]
+        assert records[0].value == pytest.approx(t2["NAA"], abs=1e-4)
+        assert records[0].carried_by == "subject" and not records[0].failed
+        assert records[0].sequence["te_s"] == (0.035, 0.068, 0.08)
+        # references a scale apart fail the series by the water reader's rule
+        scaled = MetaboliteSeriesReading.from_arrays(
+            runs, {0.035: refs[0.035], 0.068: 0.3 * refs[0.035], 0.08: 0.1 * refs[0.035]},
+            dwell_s, f0_mhz, header)
+        assert "scale" in scaled.water.failed

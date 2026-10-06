@@ -235,6 +235,15 @@ def _spectrum(fid, dwell_s, ppm_of, fill=4, apodization_hz=2.0):
     return (ppm - (ppm[peak] - NAA_PPM))[order], real[order]
 
 
+def _echo_top(parts, dwell_s):
+    """The echo top of water line parts [(freqs, amps, lw_hz, tissue)] as the twin's
+    FID would show it over points 2 to 8, where each part has decayed at its own width
+    (the lineshape the parts share cancels in a series' ratios)."""
+    t = np.arange(2, 8) * dwell_s
+    return abs(sum(complex(np.sum(np.asarray(ops.convert_to_numpy(amps))))
+                   * float(np.mean(np.exp(-np.pi * lw * t))) for _, amps, lw, _ in parts))
+
+
 def _shape(ppm, real, f0_mhz):
     """What a spectrum says without a fit: the NAA singlet's full width at half maximum
     over the level at 1.6 ppm (hertz), not a number where the line does not fall to half
@@ -758,9 +767,6 @@ class WaterSeriesReading:
             raise ValueError(f"the twin's echo times {sorted(voxels)} are not the series' "
                              f"{self.te_s}")
         data = np.log(self.tops)
-        # the twin's tops read as the data's, over the FID's points 2 to 8, where each water
-        # part has decayed at its own T2 (the lineshape they share cancels in the ratios)
-        t = np.arange(2, 8) * self.dwell_s
         found = []
         for seed in range(seeds):
             truth = voxels[self.te_s[0]].sample(seed)
@@ -771,12 +777,9 @@ class WaterSeriesReading:
             def tops(factor):
                 dict.__setitem__(truth.water, "t2_s", Tissues(gm=factor * drawn.gm,
                                                               wm=factor * drawn.wm, csf=drawn.csf))
-                return np.array([abs(sum(
-                    complex(np.sum(np.asarray(ops.convert_to_numpy(amps))))
-                    * float(np.mean(np.exp(-np.pi * lw * t)))
-                    for _, amps, lw, _ in voxel._water_parts(
-                        truth, voxel.scan.engine, voxel.design(truth), voxel._f0_mhz(),
-                        voxel._diffusion_factor(truth))))
+                return np.array([_echo_top(voxel._water_parts(
+                    truth, voxel.scan.engine, voxel.design(truth), voxel._f0_mhz(),
+                    voxel._diffusion_factor(truth)), self.dwell_s)
                     for te, voxel in sorted(voxels.items())])
 
             def misfit(factor):
@@ -828,6 +831,236 @@ class WaterSeriesReading:
             presets=tuple(presets), failed=self.failed,
             note="one subject's series; made by scan.calibrate")
             for tissue, value in (("gm", t2.gm), ("wm", t2.wm)))
+
+
+#**************************************************************************************************#
+#                                 Class MetaboliteSeriesReading                                    #
+#**************************************************************************************************#
+#                                                                                                  #
+# A metabolite's T2 read off its area over a series of echo times, through the twin.               #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class MetaboliteSeriesReading:
+    """A metabolite's T2 read off its area in water-suppressed runs over the echo time,
+    beside their water references, through the twin.
+
+    Each echo's suppressed run gives the line's area (the NAA-phased real spectrum over
+    the 0.3 to 0.5 ppm level, within the line's band) over its water reference's echo top
+    (WaterSeriesReading's statistic, so each echo stands at its own export's scale), and
+    the ratios fall over the echo time. What they fall with is not the T2 alone: what lies
+    under the line and goes at its own rate (the macromolecules at a short echo, the
+    coupled neighbours), the pulses' relaxation and the water's own decay all lie in them,
+    and all of them in the twin. So the T2 is the value at which the twin's ratios, the
+    same statistic at the data's voxel through the same designs, fall as the data's
+    (`t2_s`): the metabolite's own lines swapped at the trial T2 (its systems alone
+    replayed through each design, the rest of the twin's spectrum held), the factor on the
+    drawn T2 fitted on the logarithms, the median over draws. Two lines: NAA's methyl, and
+    creatine's at 3.03 ppm, which is creatine's and phosphocreatine's (the two scaled
+    together). The reading refuses where the references are not one scale (the water
+    series' own rule) or no T2 within BOUNDS of the drawn makes the twin fall as the data.
+
+    Args:
+        te_s: The echo times in seconds, ascending.
+        ratios: {line: the area over the water top at each echo, over the first}.
+        water: The references' WaterSeriesReading.
+    """
+
+    LINES = {"NAA": (("NAA",), (1.93, 2.09)), "Cr": (("Cr", "PCr"), (2.96, 3.10))}
+    BOUNDS = (0.3, 3.0)
+
+    te_s: tuple
+    ratios: dict
+    water: WaterSeriesReading
+    transients: tuple
+    npoints: int
+    coils: int
+    dwell_s: float
+    f0_mhz: float
+    header: dict
+
+    #*******************#
+    #   from a series   #
+    #*******************#
+    @classmethod
+    def from_arrays(cls, series, references, dwell_s, f0_mhz, header=None):
+        """Read {echo time in seconds: (npoints, coils, transients)} suppressed runs of one
+        voxel beside their water references, {echo time: (npoints, coils, transients)}."""
+        water = WaterSeriesReading.from_arrays(references, dwell_s, f0_mhz, header)
+        if tuple(sorted(series)) != water.te_s:
+            raise ValueError("the runs and the references are not at the same echo times")
+        # one whitening and one set of weights for the runs, the first run's, as the references
+        first = np.asarray(series[water.te_s[0]])
+        areas = {te: cls._areas(_registered(_combined(series[te], like=first), dwell_s,
+                                            f0_mhz).mean(axis=1), dwell_s, f0_mhz)
+                 for te in water.te_s}
+        ratios = {}
+        for name in cls.LINES:
+            over = np.array([areas[te][name] for te in water.te_s]) / np.array(water.tops)
+            ratios[name] = tuple(float(r) for r in over / over[0])
+        return cls(te_s=water.te_s, ratios=ratios, water=water,
+                   transients=tuple(int(np.asarray(series[te]).shape[2]) for te in water.te_s),
+                   npoints=int(first.shape[0]), coils=int(first.shape[1]), dwell_s=float(dwell_s),
+                   f0_mhz=float(f0_mhz), header=dict(header or {}))
+
+    @classmethod
+    def from_nifti(cls, sources, references):
+        """From {echo time in seconds: a NIfTI-MRS suppressed run} and {echo time: its water
+        reference}, the transients apart."""
+        series, water, dwells, f0s, header = {}, {}, set(), set(), {}
+        for te in sources:
+            series[te], dwell_s, f0_mhz, header = _raw(sources[te])
+            water[te], _, _, _ = _raw(references[te])
+            dwells.add(round(dwell_s, 12))
+            f0s.add(round(f0_mhz, 6))
+        if len(dwells) > 1 or len(f0s) > 1:
+            raise ValueError("the runs are sampled at different dwells or frequencies")
+        return cls.from_arrays(series, water, dwells.pop(), f0s.pop(), header)
+
+    @classmethod
+    def _areas(cls, fid, dwell_s, f0_mhz):
+        """{line: its band's area over the 0.3 to 0.5 ppm level} of one FID whose carrier
+        sits on the water."""
+        ppm, real = _spectrum(fid, dwell_s, lambda hz: WATER_PPM + hz / f0_mhz)
+        level = np.median(real[(ppm > 0.3) & (ppm < 0.5)])
+        step = ppm[1] - ppm[0]
+        return {name: float((real[(ppm > low) & (ppm < high)] - level).sum() * step)
+                for name, (_, (low, high)) in cls.LINES.items()}
+
+    #**************#
+    #   the twin   #
+    #**************#
+    def factors(self, voxels, seeds=3):
+        """Per draw the factor on each line's drawn T2 at which the twin's ratios fall as
+        the data's: {echo time: scan.Voxel} of the suppressed twin at the data's voxel, one
+        design per echo time; returns ({line: [factor per seed]}, {leaf: [drawn T2 per
+        seed]})."""
+        if tuple(sorted(voxels)) != self.te_s:
+            raise ValueError(f"the twin's echo times {sorted(voxels)} are not the series' "
+                             f"{self.te_s}")
+        from mrsandbox.phantom.water import Unsuppressed
+
+        ordered = [voxels[te] for te in self.te_s]
+        n, dwell_s = self.npoints, self.dwell_s
+        turn = np.exp(-2j * np.pi * WATER_PPM * ordered[0]._f0_mhz() * np.arange(n) * dwell_s)
+        found = {name: [] for name in self.LINES}
+        drawn = {leaf: [] for leaves, _ in self.LINES.values() for leaf in leaves}
+        for seed in range(seeds):
+            truth = ordered[0].sample(seed)
+            # the twin's full water through each design, as a reference would show it
+            tops = np.array([_echo_top(voxel._water_parts(
+                truth, voxel.scan.engine, voxel.design(truth), voxel._f0_mhz(),
+                voxel._diffusion_factor(truth), source=Unsuppressed()), dwell_s)
+                for voxel in ordered])
+            for name, (leaves, _) in self.LINES.items():
+                own = {leaf: float(ordered[0].resolve(truth.t2[leaf])) for leaf in leaves}
+
+                def misfit(factor):
+                    areas = [self._areas(self._swapped(voxel, truth, own, factor, n, dwell_s)
+                                         * turn, dwell_s, voxel._f0_mhz())[name]
+                             for voxel in ordered]
+                    twin = np.log(np.array(areas) / tops)
+                    return float(np.sum((twin[1:] - twin[0] - np.log(self.ratios[name][1:])) ** 2))
+
+                factor = scipy.optimize.minimize_scalar(misfit, bounds=self.BOUNDS,
+                                                        method="bounded").x
+                for leaf, value in own.items():
+                    dict.__setitem__(truth.t2, leaf, value)
+                found[name].append(float(factor))
+                for leaf, value in own.items():
+                    drawn[leaf].append(value)
+        return found, drawn
+
+    @staticmethod
+    def _swapped(voxel, truth, own, factor, npoints, dwell_s):
+        """The twin's clean FID on the grid with the lines of the metabolites in `own`
+        ({leaf: drawn T2}) swapped at `factor` times their drawn T2: their systems alone
+        replayed through the design, the other metabolites' lines as the twin holds them
+        (left in the voxel's lines cache under the trial frame)."""
+        # the twin's lines at the drawn frame (held), then the trial on the truth
+        for leaf, value in own.items():
+            dict.__setitem__(truth.t2, leaf, value)
+        lines = dict(voxel._metabolite_lines(truth))
+        for leaf, value in own.items():
+            dict.__setitem__(truth.t2, leaf, factor * value)
+        engine, design = voxel.scan.engine, voxel.design(truth)
+        temperature_c = float(voxel.resolve(truth.water.temperature_c))
+        for leaf, value in own.items():
+            group = voxel.scan.systems(leaf, temperature_c)
+            freqs, amps = engine.lines(
+                design, *(s.with_relaxation(t1_s=float(voxel.resolve(truth.t1[leaf])),
+                                            t2_s=factor * value) for s in group),
+                b1_scale=voxel.b1_input(truth), offset_hz=voxel.offset_hz(truth),
+                shift_mm=voxel.shift_mm)
+            lines[leaf] = (np.asarray(ops.convert_to_numpy(freqs)),
+                           np.asarray(ops.convert_to_numpy(amps)))
+        key = (voxel.compiled, temperature_c) + voxel.frame(truth) + voxel._design_key(truth)
+        voxel._lines_cache(truth)[key] = lines
+        _, fid = voxel._clean_fid(truth, npoints, dwell_s)
+        return np.asarray(fid)
+
+    def t2_s(self, voxels, seeds=3):
+        """{leaf: T2 in seconds} of t2.NAA, t2.Cr and t2.PCr: per draw the drawn T2 times
+        the fitted factor, the median over `seeds`."""
+        factors, drawn = self.factors(voxels, seeds)
+        return {leaf: float(np.median([f * d for f, d in zip(factors[name], drawn[leaf])]))
+                for name, (leaves, _) in self.LINES.items() for leaf in leaves}
+
+    #*************#
+    #   records   #
+    #*************#
+    def records(self, voxels, dataset, presets=(), citation=None, url=None, seeds=3):
+        """The Calibrations of t2.NAA, t2.Cr and t2.PCr, the twin's reading of this series,
+        the prior a quarter either side; carried by the subject; failed by the stated
+        rules."""
+        factors, drawn = self.factors(voxels, seeds)
+        voxel = voxels[self.te_s[0]]
+        designs = [type(v.scan.sequence).__name__ for _, v in sorted(voxels.items())]
+        low, high = self.BOUNDS
+        at_bound = [name for name, values in factors.items()
+                    if not low * 1.01 < float(np.median(values)) < high / 1.01]
+        failed = self.water.failed or ("" if not at_bound else (
+            f"no T2 between {low} and {high} of the drawn makes the twin's "
+            f"{' and '.join(at_bound)} fall as the data's: not relaxation"))
+        found = []
+        for name, (leaves, _) in self.LINES.items():
+            for leaf in leaves:
+                value = float(np.median([f * d for f, d in zip(factors[name], drawn[leaf])]))
+                found.append(Calibration(
+                    leaf=f"t2.{leaf}", value=float(round(value, 4)),
+                    prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
+                    measured={"statistic": f"the {name} area over the water reference's echo "
+                                           "top at each echo, over the first; the T2 at which "
+                                           "the twin's ratios fall as the data's, its own lines "
+                                           "swapped (scan.calibrate.MetaboliteSeriesReading)",
+                              "ratios": tuple(round(r, 4) for r in self.ratios[name]),
+                              "factor": round(float(np.median(factors[name])), 3),
+                              "t2_ms": round(1e3 * value, 1),
+                              "water_apparent_t2_ms": round(1e3 * self.water.apparent_t2_s, 1)},
+                    source={"dataset": dataset, "citation": citation, "url": url},
+                    scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                             "model": self.header.get("ManufacturersModelName"),
+                             "software": self.header.get("SoftwareVersions"),
+                             "field_t": round(self.f0_mhz / 42.5774785, 2)},
+                    coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+                    sequence={"name": self.header.get("SequenceName") or "/".join(designs),
+                              "family": "/".join(designs), "te_s": self.te_s,
+                              "tr_s": self.header.get("RepetitionTime"),
+                              "simulated_as": "/".join(designs)},
+                    acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
+                                 "transients": self.transients, "water_suppressed": True},
+                    voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                           "simulated_position_mm": tuple(voxel.position_mm),
+                           "fractions": tuple(round(float(f), 3) for f in voxel.fractions)},
+                    processing="the combined mean FID's spectrum phased on NAA, 2 Hz apodization, "
+                               "fourfold zero filled, the band's area over the 0.3 to 0.5 ppm "
+                               "level, over the reference's echo top; the twin's clean spectrum "
+                               "read the same way through the same designs at the voxel's own "
+                               "tissue fractions",
+                    date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
+                    presets=tuple(presets), failed=failed,
+                    note="one subject's series; made by scan.calibrate"))
+        return tuple(found)
 
 
 #**************************************************************************************************#

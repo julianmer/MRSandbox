@@ -311,11 +311,11 @@ class Voxel:
         """
         return [part for parts in self._grouped(truth, metabolites).values() for part in parts]
 
-    def _water_parts(self, truth, engine, sequence, f0_mhz, faded):
+    def _water_parts(self, truth, engine, sequence, f0_mhz, faded, source=None):
         """The water's line parts at the offset the voxel is being played at (one per
         tissue under a per-tissue draw, each at its own T2 and fading with its own
-        ADC), or None."""
-        water = self.scan.water.lines(engine, sequence, self, truth, f0_mhz)
+        ADC), or None; from `source` (a phantom.WaterSource) in place of the scan's."""
+        water = (source or self.scan.water).lines(engine, sequence, self, truth, f0_mhz)
         if water is None:
             return None
         transferred = self.transfer(truth).get("water", 1.0)

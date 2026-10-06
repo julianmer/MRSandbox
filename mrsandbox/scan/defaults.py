@@ -59,6 +59,8 @@ TRANSFER_CITED = {"creatine": "MacMillan, Boesch, Kreis 2013, MRM 70:916: water 
 CREATINE = ("de Graaf, In Vivo NMR Spectroscopy, 3rd ed.: total creatine 4.5 to 10.5 mM with the "
             "phosphocreatine 3.0 to 5.5 mM inside it taken out, the free creatine "
             "(database.concentrations DE_GRAAF)")
+GUDMUNDSON = ("the metabolite T2 pooled over the studies of the Gudmundson et al. 2023 database "
+              "(Imaging Neuroscience, imag_a_00025) at the scanner's field")
 
 # the consensus MM T1 study per field beyond 3 T and the default components it covers
 # (the only human rows the consensus table carries off 3 T; the rest keep the 3 T values)
@@ -130,6 +132,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5),
                                          cited=CREATINE))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
+    # a metabolite's T2 read off the package's cohorts' echo series through the twin
+    # (scan.calibrate.MetaboliteSeriesReading) pooled beside the literature, which stays chosen
+    t2 = Params({name: _sourced(f"t2.{name}", served, Uniform, literature=leaf, cited=GUDMUNDSON)
+                 if f"t2.{name}" in served else leaf for name, leaf in t2.items()})
     literature_t1, literature_t2 = _water_relaxation(tesla)
     # the 3 T T2 studies each a voice of the mixed source, where their range is the literature
     # (at 1.5 T too, the 3 T values reused, stated); each drawn about its value with its own
