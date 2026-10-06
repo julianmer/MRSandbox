@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import (CovarianceReading, MacromoleculeReading,
+from mrsandbox.scan.calibrate import (CovarianceReading, GIRFReading, MacromoleculeReading,
                                       MetaboliteSeriesReading, NoiseReading, RelaxationReading,
                                       SpectrumReading, WaterSeriesReading)
 from mrsandbox.scan.voxel import noise_scale
@@ -543,3 +543,109 @@ class TestMetaboliteSeriesReading:
             runs, {0.035: refs[0.035], 0.068: 0.3 * refs[0.035], 0.08: 0.1 * refs[0.035]},
             dwell_s, f0_mhz, header)
         assert "scale" in scaled.water.failed
+
+
+#**************************************************************************************************#
+#                                       Class TestGIRFReading                                      #
+#**************************************************************************************************#
+class TestGIRFReading:
+
+    def test_a_synthetic_thin_slice_measurement_gives_back_its_response(self, tmp_path):
+        from mrsandbox.resources import GIRF
+        from mrsandbox.resources.girf import GIRF_MEASUREMENT
+        from mrsandbox.scan.profile import ScannerProfile
+
+        # the truth: one exponential eddy term (5 ms) in the B0 and self terms, a damped
+        # resonance at 1.5 kHz (100 Hz wide, causal: a Lorentzian and its mirror) in the B0
+        # term, a flat cross term of 0.2 percent into y
+        dt, n, gammabar = 1e-5, 5000, GIRF_MEASUREMENT["gammabar_hz_per_mt"]
+        grid = np.fft.fftshift(np.fft.fftfreq(n, dt))
+        w = 2.0 * np.pi * grid
+        decay = 1j * w * 0.005 / (1.0 + 1j * w * 0.005)
+        lorentzian = lambda f: 1.0 / (1.0 + 1j * (f - 1500.0) / 100.0)
+        b0 = 0.4 / gammabar * decay + 1e-4 * (lorentzian(grid) + np.conj(lorentzian(-grid)))
+        truth = GIRF({axis: {"b0": (grid, b0), axis: (grid, 1.0 - 0.01 * decay),
+                             "y" if axis != "y" else "z": (grid, np.full(n, 0.002 + 0j))}
+                      for axis in "xyz"}, name="truth")
+        # the measurement: triangles of six amplitudes at a slew of 180 T/m/s, both
+        # polarities, four thin slices along the axis (the deposit's offsets), nine in-plane
+        # places each
+        slew, t = 180e3, np.arange(n) * dt
+        inputs = []
+        for amplitude in (9.0, 15.0, 21.0, 27.0, 33.0, 39.0):
+            rise = amplitude / slew
+            triangle = np.interp(t, [0.002, 0.002 + rise, 0.002 + 2 * rise], [0.0, amplitude, 0.0],
+                                 left=0.0, right=0.0)
+            inputs.extend([triangle, -triangle])
+        inputs = np.array(inputs)
+        rng = np.random.default_rng(0)
+        readings = {}
+        for k, axis in enumerate("xyz"):
+            positions = np.array([[0.0, 0.0, 0.0] for _ in range(36)])
+            places = [(a, b) for a in (-20.0, 0.0, 20.0) for b in (-20.0, 0.0, 20.0)]
+            for i, offset in enumerate((-16.0, -8.0, 8.0, 16.0)):
+                for j, (a, b) in enumerate(places):
+                    row = positions[9 * i + j]
+                    row[k] = offset
+                    row[(k + 1) % 3], row[(k + 2) % 3] = a, b
+
+            def induced(waveform):
+                # the truth's fields on the window's own grid, bin for bin (GIRF's own call
+                # interpolates a response onto a longer buffer, which windows its tail)
+                spectrum = np.fft.rfft(waveform)
+                fields = {}
+                for term, (_, response) in truth.terms[axis].items():
+                    h = np.fft.ifftshift(response)[: n // 2 + 1] - (1.0 if term == axis else 0.0)
+                    fields[term] = np.fft.irfft(spectrum * h, n) * (gammabar if term == "b0" else 1.0)
+                return fields
+
+            signals = []
+            for waveform in inputs:
+                fields = induced(waveform)
+                gradient = {term: np.zeros(n) for term in "xyz"}
+                gradient.update({term: field for term, field in fields.items() if term != "b0"})
+                gradient[axis] = gradient[axis] + waveform
+                rate = fields["b0"] + gammabar * sum(
+                    gradient[term][None, :] * positions[:, m, None] / 1e3
+                    for m, term in enumerate("xyz"))
+                # the phase at each sample: the band-limited field's exact integral, interval by
+                # interval (the dwell's sinc and half-sample delay in the frequency domain)
+                f = np.fft.rfftfreq(n, dt)
+                steps = np.fft.irfft(np.fft.rfft(rate, axis=-1) * dt * np.sinc(f * dt)
+                                     * np.exp(-1j * np.pi * f * dt), n, axis=-1)
+                phase = 2.0 * np.pi * np.cumsum(steps, axis=-1)
+                signals.append(np.exp(1j * phase))
+            signals = np.array(signals)
+            # a little noise: the reader's algebra is gated here, the measurement's SNR (the
+            # deposit's 121 places and 18 amplitudes a slice) is its own
+            noise = 1e-5 * (rng.standard_normal(signals.shape) + 1j * rng.standard_normal(signals.shape))
+            references = np.ones((36, n), dtype=complex)
+            readings[axis] = GIRFReading.from_arrays(axis, inputs, signals + noise, references,
+                                                     positions, dt)
+        reading = readings["x"]
+        assert reading.runs == 12 and reading.positions == 36 and set(reading.terms) == set(GIRFReading.TERMS)
+        # within the triangles' band the terms come back: the self term one minus the eddy
+        # term, the B0 term with its resonance, the cross term flat, the other nothing
+        band = np.abs(grid) < 2000.0
+        np.testing.assert_allclose(reading.terms["x"][band] - 1.0, (-0.01 * decay)[band], atol=1e-4)
+        np.testing.assert_allclose(reading.terms["b0"][band], b0[band], atol=0.02 * np.abs(b0).max())
+        np.testing.assert_allclose(reading.terms["y"][band], 0.002, atol=2e-4)
+        np.testing.assert_allclose(reading.terms["z"][band], 0.0, atol=2e-4)
+        # the three readings make the response, which predicts the truth's fields, and a
+        # profile keeps it by its file
+        with pytest.raises(ValueError):
+            GIRFReading.girf({"x": reading}, "own")
+        girf = GIRFReading.girf(readings, "own")
+        waveform = np.interp(t, [0.01, 0.0102, 0.0122, 0.0124], [0.0, 30.0, 30.0, 0.0],
+                             left=0.0, right=0.0)
+        found, expected = (g("x", waveform, dt, bandwidth_hz=4000.0) for g in (girf, truth))
+        for term in ("b0", "x", "y"):
+            np.testing.assert_allclose(found[term], expected[term],
+                                       atol=0.02 * np.abs(expected[term]).max())
+        path = tmp_path / "own.girf.npz"
+        girf.save(path)
+        profile = ScannerProfile(Scanner.preset("generic_3t"), (), girf=GIRF.open(path))
+        profile.save(tmp_path / "profile.json")
+        loaded = ScannerProfile.load(tmp_path / "profile.json")
+        assert loaded.girf.name == str(path)
+        np.testing.assert_allclose(loaded.girf.terms["z"]["b0"][1], readings["z"].terms["b0"])

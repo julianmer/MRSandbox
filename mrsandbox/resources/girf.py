@@ -190,8 +190,37 @@ class GIRF:
     #**********#
     @classmethod
     def named(cls, name):
-        """The measurement a saved scan.profile names."""
+        """The measurement a saved scan.profile names: a package deposit's, or the file an
+        own reading was saved to (`save`)."""
+        if str(name).endswith(".npz"):
+            return cls.open(name)
         return cls.load() if name == "nws/prisma_3t" else cls.philips(name.rsplit("_", 1)[1])
+
+    #**********#
+    #   file   #
+    #**********#
+    def save(self, path):
+        """Write the response as one npz: per axis and term its frequency grid and complex
+        response (`axis.term.freq_hz`, `axis.term.response`); `open` reads it back, named
+        by its path."""
+        arrays = {}
+        for axis, terms in self.terms.items():
+            for term, (grid, response) in terms.items():
+                arrays[f"{axis}.{term}.freq_hz"] = np.asarray(grid)
+                arrays[f"{axis}.{term}.response"] = np.asarray(response)
+        np.savez(path, **arrays)
+
+    @classmethod
+    def open(cls, path):
+        """The response `save` wrote, named by its path."""
+        stored = np.load(path)
+        terms = {}
+        for key in stored.files:
+            if key.endswith(".freq_hz"):
+                axis, term, _ = key.split(".")
+                terms.setdefault(axis, {})[term] = (stored[key],
+                                                    stored[f"{axis}.{term}.response"])
+        return cls(terms, name=str(path))
 
     #**************#
     #   response   #

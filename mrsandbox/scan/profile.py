@@ -182,13 +182,15 @@ class ScannerProfile:
     def save(self, path):
         """Write the profile as one JSON file, readable as it stands: the scanner, the
         records with their conditions, the coils as loops with their noise resistance and
-        gain, the receiver, and the GIRF by name. A mapped array and a GIRF other than the
-        package's deposits live in files of their own and are refused."""
+        gain, the receiver, and the GIRF by name (a package deposit's, or the file an own
+        reading was saved to, resources.GIRF.save). A mapped array lives in its maps and is
+        refused."""
         if self.coils is not None and not self.coils.loops:
             raise ValueError("only an array of loops is saved; a mapped array lives in its maps")
-        if self.girf is not None and self.girf.name not in GIRF_NAMES:
-            raise ValueError(f"only the package's GIRFs ({', '.join(GIRF_NAMES)}) "
-                             "are saved, by name")
+        if (self.girf is not None and self.girf.name not in GIRF_NAMES
+                and not self.girf.name.endswith(".npz")):
+            raise ValueError(f"only the package's GIRFs ({', '.join(GIRF_NAMES)}) and one "
+                             "saved to a file (GIRF.save) are saved, by name")
         with open(path, "w") as file:
             json.dump(self.to_dict(), file, indent=2)
 

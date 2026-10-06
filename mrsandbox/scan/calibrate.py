@@ -1519,6 +1519,110 @@ class ReceiverReading:
 
 
 #**************************************************************************************************#
+#                                         Class GIRFReading                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# One axis's gradient impulse response, read off a phantom's phase under test gradients.          #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class GIRFReading:
+    """One axis's gradient impulse response, read off a phantom's phase under test
+    gradients.
+
+    The thin-slice, phase-encoded measurement (Vannesjo et al. 2013, MRM 69:583, in the
+    form of Bacon's GIRF_PE_Python, which the package's Prisma response came from): a
+    water phantom's signal at known positions (thin slices offset along the axis, phase
+    encoded in plane) over a long readout while a test gradient plays on the axis
+    (triangles of many amplitudes, both polarities, one run each), and the same
+    positions' signal with no gradient, the reference. Per run and position the phase
+    over the reference, unwrapped, has as its derivative the frequency the field at
+    that place makes, over gammabar a field in millitesla; per time point the solid
+    harmonics to first order are fitted over the positions ([1, x, y, z]: the B0 term
+    in mT, the three gradient terms in mT/m, each per mT/m of input; a term the positions
+    do not resolve, slices along one axis alone, comes out zero); per term the response
+    is the runs' spectra against the inputs' by least squares over the runs, sum of
+    O conj(I) over the sum of |I|^2 plus `regularizer` of the peak input power (the
+    deposit's regularized division: where the inputs carry no power the response is
+    nothing, not noise; the self term is fitted as its deviation from the nominal
+    waveform and stored as the full response, one plus it, as resources.GIRF takes it).
+    Three axes' readings make the scanner's response (`girf`).
+
+    Args:
+        axis: The input axis, "x", "y" or "z".
+        freq_hz: The frequency grid, ascending, both signs.
+        terms: {"b0", "x", "y", "z": the complex response on the grid}.
+    """
+
+    TERMS = ("b0", "x", "y", "z")
+
+    axis: str
+    freq_hz: np.ndarray
+    terms: dict
+    runs: int
+    positions: int
+    dwell_s: float
+
+    #*******************#
+    #   from arrays     #
+    #*******************#
+    @classmethod
+    def from_arrays(cls, axis, inputs_mt_m, signals, references, positions_mm, dwell_s,
+                    gammabar_hz_per_mt=42576.0, regularizer=1e-3):
+        """`inputs_mt_m` (runs, points): each run's test waveform on the readout's grid,
+        signed; `signals` (runs, positions, points) complex, the positions' signal under
+        each run; `references` (positions, points), or (repeats, positions, points) to
+        average, with no gradient; `positions_mm` (positions, 3)."""
+        inputs = np.asarray(inputs_mt_m, dtype=np.float64)
+        signals = np.asarray(signals)
+        references = np.asarray(references)
+        if references.ndim == 3:
+            references = references.mean(axis=0)
+        if inputs.shape != (signals.shape[0], signals.shape[2]):
+            raise ValueError("the inputs are not one waveform per run on the signals' grid")
+        # the phase each position gains over the reference, sample to sample: the field
+        # there, averaged over the dwell (undone below as the dwell's sinc and half-sample
+        # delay on the spectra, exact for the average)
+        phase = np.unwrap(np.angle(signals * np.conj(references)[None]), axis=-1)
+        field = np.diff(phase, axis=-1, prepend=phase[..., :1]) / (2.0 * np.pi * gammabar_hz_per_mt
+                                                                   * dwell_s)
+        basis = np.column_stack([np.ones(signals.shape[1]),
+                                 np.asarray(positions_mm, dtype=np.float64) / 1e3])
+        coefficients = np.einsum("mp,kpt->kmt", np.linalg.pinv(basis), field)
+        f = np.fft.fftfreq(inputs.shape[1], dwell_s)
+        spectra_in = np.fft.fft(inputs, axis=-1)
+        spectra_out = np.fft.fft(coefficients, axis=-1) / (np.sinc(f * dwell_s)
+                                                            * np.exp(-1j * np.pi * f * dwell_s))
+        # the self term as its deviation from the nominal waveform (the regularizer then
+        # weighs on the deviation, not on the one it rides on), the one put back after
+        spectra_out[:, 1 + "xyz".index(axis)] -= spectra_in
+        power = np.abs(spectra_in) ** 2
+        denominator = power.sum(axis=0) + regularizer * power.max()
+        order = np.fft.fftshift(np.arange(inputs.shape[1]))
+        terms = {term: ((spectra_out[:, m] * np.conj(spectra_in)).sum(axis=0) / denominator)[order]
+                 for m, term in enumerate(cls.TERMS)}
+        terms[axis] = terms[axis] + 1.0
+        return cls(axis=str(axis), freq_hz=np.fft.fftshift(np.fft.fftfreq(inputs.shape[1], dwell_s)),
+                   terms=terms, runs=int(inputs.shape[0]), positions=int(signals.shape[1]),
+                   dwell_s=float(dwell_s))
+
+    #**************#
+    #   the girf   #
+    #**************#
+    @staticmethod
+    def girf(readings, name):
+        """The scanner's response (resources.GIRF) from the three axes' readings, {axis:
+        GIRFReading}, named `name`; GIRF.save keeps it for a profile."""
+        from mrsandbox.resources.girf import GIRF
+
+        if set(readings) != set("xyz"):
+            raise ValueError(f"the three axes are needed, {sorted(readings)} given")
+        return GIRF({axis: {term: (reading.freq_hz, response)
+                            for term, response in reading.terms.items()}
+                     for axis, reading in readings.items()}, name=name)
+
+
+#**************************************************************************************************#
 #                                        Class WaterReading                                        #
 #**************************************************************************************************#
 #                                                                                                  #
