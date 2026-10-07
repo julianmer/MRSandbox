@@ -2850,14 +2850,16 @@ async def console(client: Client):
     def database():
         """What the simulation draws from, to browse: the measured datasets, each cohort's
         subjects with their traits and readings, and the typed literature with its sources."""
-        with ui.dialog() as dialog, ui.card().classes("pane").style(
-                "min-width: 1100px; max-width: 96vw"):
+        # one height whatever a tab holds: the tabs stay where they are and the content scrolls
+        # under them, a long table and its foot included
+        with ui.dialog() as dialog, ui.card().classes("pane no-wrap").style(
+                "min-width: 1100px; max-width: 96vw; height: 90vh; max-height: 90vh"):
             ui.label("Database").classes("label")
             with ui.tabs().props("dense no-caps align=left") as tabs:
                 measured, literature = ui.tab("Measured datasets"), ui.tab("Literature")
                 parameters = ui.tab("Parameters")
             with ui.tab_panels(tabs, value=measured).classes("w-full").style(
-                    "background: transparent"):
+                    "background: transparent; flex: 1 1 auto; min-height: 0; overflow-y: auto"):
                 with ui.tab_panel(measured):
                     frame = table()
                     frame["field"] = (2.0 * frame["field_t"]).round() / 2.0
@@ -2996,6 +2998,10 @@ async def console(client: Client):
                     cards = Database.cards()
                     names = {f"{c['module']} · {c['name']}": c for c in cards}
                     ui.label(f"{len(cards)} typed tables, each with its source").classes("value")
+                    # the choice on top, the chosen table under it, as long as it is
+                    ui.select(list(names), label="table", with_input=True,
+                              on_change=lambda event: read(event.value)).props(
+                        "dense outlined dark").style("width: 420px").mark("literature table")
                     card = ui.column().classes("w-full")
 
                     def read(name):
@@ -3010,9 +3016,6 @@ async def console(client: Client):
                                         ui.label(names[name][field]).classes("value").style(
                                             "white-space: normal")
                             ui.code(names[name]["text"], language="python").classes("w-full")
-                    ui.select(list(names), label="table", with_input=True,
-                              on_change=lambda event: read(event.value)).props(
-                        "dense outlined dark").style("width: 420px").mark("literature table")
                 with ui.tab_panel(parameters):
                     ui.label("every subject's reading of one leaf against age: in colour the "
                              "datasets this room's pool draws on, in grey the rows its "
