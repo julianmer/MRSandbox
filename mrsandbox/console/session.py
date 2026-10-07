@@ -2986,8 +2986,10 @@ class Session:
 
         def snr(fid):
             real = (np.fft.fftshift(np.fft.fft(fid, 2 * card.npoints)) * phase).real
-            return float(real[upfield].max() / (real[quiet] - np.polyval(
-                np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])).std())
+            noise = (real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1),
+                                              ppm[quiet])).std()
+            # a noise-free preview has no floor: its SNR is not a number
+            return float(real[upfield].max() / noise) if noise > 0.0 else float("nan")
 
         weights = exam.combinations[exam.shown]
         exam.snr = (snr(combined(weights, fids.shape[1])),

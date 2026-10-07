@@ -166,6 +166,11 @@ class TestVirtualScan:
     #*******************************#
     #   physics through the stack   #
     #*******************************#
+    def test_a_metabolite_added_without_its_leaves_is_refused(self):
+        with pytest.raises(ValueError, match="Foo in conc but not in t1"):
+            VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                        Press(te1_s=0.011, te2_s=0.019), params=Params(conc=dict(Foo=1.0)))
+
     def test_knocking_out_naa_removes_its_peak(self, scan):
         # quiet the receiver-side imperfections: this gates composition, and a drawn
         # frequency shift, phase, or spurious echo would move or pollute the read bin

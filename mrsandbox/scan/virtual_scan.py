@@ -150,6 +150,14 @@ class VirtualScan:
                        | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=self.temperature_c))
                        | (params if params is not None else Params()))
+        # a metabolite added through params needs its relaxation, contrast and ADC leaves too
+        for path, node in (("t1", self.params.t1), ("t2", self.params.t2),
+                           ("contrast", self.params.contrast),
+                           ("diffusion.adc", self.params.diffusion.adc)):
+            missing = [name for name in self.params.conc if name not in node]
+            if missing:
+                raise ValueError(f"{', '.join(missing)} in conc but not in {path}: a metabolite "
+                                 f"needs its t1, t2, contrast and diffusion.adc leaves")
         self._lines = {}
         # magnetization transfer: the design's pulses' responses (Voxel.transfer)
         self._transfer = {}

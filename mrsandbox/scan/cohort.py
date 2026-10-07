@@ -17,6 +17,7 @@
 #   imports   #
 #*************#
 import dataclasses
+import datetime
 import functools
 import json
 import pathlib
@@ -549,7 +550,8 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None, methods=None):
         voxel={"the subjects' own": True},
         processing="the rows as their readers made them (scan.calibrate), pooled by "
                    "scan.cohort.pooled",
-        date=max(r.date for r in records), carried_by=records[0].carried_by,
+        date=max((r.date for r in records), key=lambda d: datetime.datetime.strptime(d, "%d/%m/%y")),
+        carried_by=records[0].carried_by,
         note="the package's measured database pooled for this scanner; a scan's departures name "
              "what it does not match",
     )
