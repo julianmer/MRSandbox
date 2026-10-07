@@ -687,6 +687,9 @@ class Session:
         # a package cohort on the floor: every exam scans one of its real subjects
         self.cohort = None
         self.seed = int(np.random.default_rng().integers(2 ** 31))
+        # the metabolites replay each design's compiled graph (Engine.graph), which the persistent
+        # cache keeps from one launch to the next; off, they run op by op
+        self.compiled = True
         # the last design built, by what it depends on (Session.sequence)
         self._sequence_memo = (None, None)
         # the last voxel's width from the field (Session.linewidth)
@@ -2705,7 +2708,7 @@ class Session:
                                                        if any(exam.turn_deg) else None),
                                       truth, state)
         room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records,
-                         params=self.params({**state, **exam.overrides}),
+                         params=self.params({**state, **exam.overrides}), compiled=self.compiled,
                          # one engine per field for every exam: its graphs are built once, not
                          # once an exam
                          engine=self._bodies.setdefault(("engine", profile.scanner.b0_t),

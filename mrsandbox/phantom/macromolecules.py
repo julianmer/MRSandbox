@@ -285,10 +285,12 @@ class MeasuredMM(MMSource):
 
     def _repetition_factors(self, sequence, voxel, truth, f0_mhz):
         """The steady-state factor of every component under the sequence's TR, as
-        (positions ppm, complex factors): a one-spin probe at each component's
-        position with the drawn mm.t1 and mm.t2 runs the design at its TR and at a
-        TR of a thousand seconds (the same compiled graph, TR being a timing), and
-        the ratio of its detected amplitudes is the factor. Cached per truth and per
+        (positions ppm, complex factors): a one-spin probe with the drawn mm.t1 and
+        mm.t2 runs the design at its TR and at a TR of a thousand seconds (the same
+        compiled graph, TR being a timing), and the ratio of its detected amplitudes
+        is the factor. The probe sits on the carrier and the frame offset moves it to
+        each component's position (offset - ppm f0, as a shifted spin sees the pulses
+        and the delays), so one graph serves every component. Cached per truth and per
         engine, sequence, and transmit frame, like CoupledMM's lines."""
         from mrsandbox.sequences.events import Sequence
 
@@ -300,12 +302,13 @@ class MeasuredMM(MMSource):
         key = (engine, sequence, voxel.frame(truth)[2], offset_hz)
         if key not in cached[1]:
             relaxed = Sequence(*sequence.events, tr_s=1000.0, cycles=sequence.cycles)
+            probe = SpinSystem(name="MM", nucleus="1H", shifts_ppm=(0.0,), j_hz=((0.0,),),
+                               scale=1.0, gamma_mhz_t=f0_mhz / engine.b0_t)
             positions, factors = [], []
             for name, groups, _, _ in CoupledMM.SYSTEMS:
-                probe = SpinSystem(name=name, nucleus="1H", shifts_ppm=(groups[0][0],),
-                                   j_hz=((0.0,),), scale=1.0, gamma_mhz_t=f0_mhz / engine.b0_t)
                 args = tuple(ops.convert_to_tensor(np.float32(v)) for v in
-                             (truth.mm.t1[name], truth.mm.t2[name], b1_scale, offset_hz))
+                             (truth.mm.t1[name], truth.mm.t2[name], b1_scale,
+                              offset_hz - groups[0][0] * f0_mhz))
                 _, at_tr = engine.compiled(sequence, probe)(*args)
                 _, at_infinity = engine.compiled(relaxed, probe)(*args)
                 positions.append(groups[0][0])
