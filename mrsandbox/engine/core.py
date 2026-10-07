@@ -339,10 +339,11 @@ class Engine:
 
         `pruned` keeps the output to the elements that ever carry signal: the
         coherence filters silence most of the d*d transition elements exactly,
-        whatever the draw, so a static index found on generic replays (`_signal_index`)
-        is gathered inside the graph and a replay transfers and renders the few
-        thousand lines that matter instead of every element. The bounds then count the
-        kept elements per group. The complete layout stays the default.
+        whatever the draw, so a static index found on generic replays of the full graph
+        (`_signal_index`) gathers its output, and a replay renders the few thousand lines
+        that matter instead of every element; the full graph is the one compiled, so a
+        pruned graph costs no compilation of its own. The bounds then count the kept
+        elements per group. The complete layout stays the default.
 
         On jax with the persistent compilation cache configured, the graph is also
         kept as a serialized jax.export beside that cache (`_export_path`): a later
@@ -360,22 +361,30 @@ class Engine:
                isochromats, pruned)
         if key in self._compiled:
             return self._compiled[key]
-        path = self._export_path("graph", sequence, groups, isochromats, pruned)
+        if pruned:
+            full, bounds = self.graph(sequence, groups, isochromats)
+            index, kept = self._signal_index(full, sequence, groups, isochromats, bounds)
+
+            def gathered(*args):
+                freqs, amps = full(*args)
+                return ops.take(freqs, index), ops.take(amps, index)
+
+            self._compiled[key] = (gathered, kept)
+            return self._compiled[key]
+        path = self._export_path("graph", sequence, groups, isochromats, False)
         stored = self._load_export(path)
         if stored is not None:
-            exported, kept = stored
-            bounds = kept if pruned else self._group_bounds(groups)
-            fn = self._wrap_export(exported, lambda: self._raw_graph(sequence, groups,
-                                                                     isochromats, pruned)[0])
+            fn = self._wrap_export(stored[0], lambda: self._raw_graph(sequence, groups,
+                                                                      isochromats, False)[0])
         else:
-            raw, bounds = self._raw_graph(sequence, groups, isochromats, pruned)
+            raw, _ = self._raw_graph(sequence, groups, isochromats, False)
             if path is not None:
-                exported = self._store_export(path, raw, self._specs(sequence, groups),
-                                              kept=bounds if pruned else None)
-                fn = self._wrap_export(exported, lambda: raw)
+                fn = self._wrap_export(self._store_export(path, raw,
+                                                          self._specs(sequence, groups)),
+                                       lambda: raw)
             else:
                 fn = jit(raw)
-        self._compiled[key] = (fn, bounds)
+        self._compiled[key] = (fn, self._group_bounds(groups))
         return self._compiled[key]
 
     #*****************#
@@ -384,11 +393,11 @@ class Engine:
     def _raw_graph(self, sequence, groups, isochromats, pruned):
         """`graph`'s plain python function and bounds, unjitted and uncached: what a
         jit, an export, or a transformation fallback traces."""
-        from nifti_mrs_plus.backend import jit
-
         if pruned:
             full, bounds = self._raw_graph(sequence, groups, isochromats, False)
-            index, kept = self._signal_index(jit(full), sequence, bounds)
+            # the index off the full graph as `graph` compiles it, the one compilation
+            index, kept = self._signal_index(self.graph(sequence, groups, isochromats)[0],
+                                             sequence, groups, isochromats, bounds)
 
             def gathered(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
                 freqs, amps = full(t1_s, t2_s, b1_scale, offset_hz, timings, shift)
@@ -431,18 +440,21 @@ class Engine:
     #******************#
     #   signal index   #
     #******************#
-    def _signal_index(self, full, sequence, bounds):
+    def _signal_index(self, full, sequence, groups, isochromats, bounds):
         """The elements of a graph's output that carry signal on generic replays
-        (relaxation 1.5 and 0.2 s, transmit scales 0.8 to 1.25, offsets 0 and 7 Hz,
-        the sequence's own timings), as an index tensor and the groups' bounds in it.
-        An element under 1e-9 of its group's maximum in every replay is a structural
-        zero (a coherence filter's), two orders below float32 itself: a null one
-        timing happens to sit on cannot reach it.
+        (relaxation 1.5 and 0.2 s, the sequence's own timings, two frames: transmit
+        scale 0.8 on resonance and 1.25 at 7 Hz off), as an index tensor and the
+        groups' bounds in it. An element under 1e-9 of its group's maximum in both
+        replays is a structural zero (a coherence filter's, zero at every draw), two
+        orders below float32 itself: an element that carries signal sits on a null
+        at one frame only by coincidence, and the other frame lifts it.
 
-        The index is a pure function of the graph, so on jax with the persistent
-        compilation cache configured it is kept beside that cache (`_index_path`)
-        and a later session reads it back instead of replaying the full graph."""
-        relax, scales, offsets, floor = (1.5, 0.2), (0.8, 1.0, 1.25), (0.0, 7.0), 1e-9
+        The index is a pure function of the graph, so where graphs persist as exports
+        it is kept beside them, under the export's own key (`_export_path`: the code,
+        the field, the design's structure and timing shapes, the systems, the ensemble;
+        the probe recipe is code), and a later session reads it back instead of
+        replaying the full graph."""
+        relax, frames, floor = (1.5, 0.2), ((0.8, 0.0), (1.25, 7.0)), 1e-9
         timings, shift = self.tensors(sequence.timings()), ops.zeros((3,), dtype="float32")
         n = len(bounds) - 1
 
@@ -452,19 +464,18 @@ class Engine:
                     ops.convert_to_tensor(np.float32(b1)),
                     ops.convert_to_tensor(np.float32(offset)), timings, shift)
 
-        path = self._index_path(full, probe(scales[0], offsets[0]),
-                                (relax, scales, offsets, floor))
+        path = self._export_path("index", sequence, groups, isochromats, False)
+        path = None if path is None else path.parent.with_name("signal_index") / path.name
         if path is not None and path.exists():
             stored = np.load(path)
             return ops.convert_to_tensor(stored["index"]), stored["kept"]
         keep = np.zeros(int(bounds[-1]), dtype=bool)
-        for b1 in scales:
-            for offset in offsets:
-                _, amps = full(*probe(b1, offset))
-                amps = np.abs(np.asarray(ops.convert_to_numpy(amps)))
-                for g in range(n):
-                    part = amps[bounds[g]:bounds[g + 1]]
-                    keep[bounds[g]:bounds[g + 1]] |= part > floor * part.max()
+        for b1, offset in frames:
+            _, amps = full(*probe(b1, offset))
+            amps = np.abs(np.asarray(ops.convert_to_numpy(amps)))
+            for g in range(n):
+                part = amps[bounds[g]:bounds[g + 1]]
+                keep[bounds[g]:bounds[g + 1]] |= part > floor * part.max()
         kept = np.concatenate([[0], np.cumsum([int(keep[bounds[g]:bounds[g + 1]].sum())
                                                for g in range(n)])])
         index = np.flatnonzero(keep)
@@ -474,28 +485,6 @@ class Engine:
             np.savez(fresh, index=index, kept=kept)
             os.replace(fresh, path)
         return ops.convert_to_tensor(index), kept
-
-    #****************#
-    #   index path   #
-    #****************#
-    @staticmethod
-    def _index_path(full, args, recipe):
-        """Where a graph's signal index persists, or None to keep it in memory.
-        Only on jax with the persistent compilation cache configured (the console
-        and the tests turn it on). The key is the full graph's lowered module,
-        which fixes the design, the systems, the ensemble and every constant,
-        plus the probe recipe; a looser key could hand a graph a stale index and
-        silently drop signal. Lowering traces the graph without running it."""
-        if not nops.is_jax(args[0]):
-            return None
-        import jax
-
-        directory = jax.config.jax_compilation_cache_dir
-        if directory is None:
-            return None
-        module = jax.jit(full).lower(*args).as_text()
-        digest = hashlib.sha256(repr(recipe).encode() + module.encode()).hexdigest()
-        return pathlib.Path(directory) / "signal_index" / (digest + ".npz")
 
     #***************#
     #   exports     #

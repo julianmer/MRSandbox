@@ -2931,8 +2931,8 @@ class Session:
             return np.fft.fftshift(np.fft.fft(fid * window, 2 * card.npoints))
 
         # one zero-order phase for the whole exam, read at the tallest of the lines in the average
-        # of everything (of an own multiplexed design the plain sum may be what the scheme cancels, a
-        # phase cycle's unwanted signal: there the shown combination gives the phase; an edited
+        # of everything (of an own multiplexed design the plain sum may be what the scheme cancels,
+        # a phase cycle's unwanted signal: there the shown combination gives the phase; an edited
         # scan's sum is its unedited spectrum)
         own = card.sequence == "Custom" and len(names) > 1
         everything = spectrum(combined(exam.combinations[exam.shown] if own

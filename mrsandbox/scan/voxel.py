@@ -16,6 +16,8 @@
 #   imports   #
 #*************#
 import dataclasses
+import os
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import scipy.special
@@ -1069,8 +1071,8 @@ class Voxel:
             heavy = engine.positions(sequence) and any(
                 isinstance(event, ShapedPulse) for event in sequence.events)
             batches = [[i] for i in range(len(groups))] if heavy else [range(len(groups))]
-            freqs, amps, bounds = [], [], [0]
-            for batch in batches:
+
+            def played(batch):
                 fn, kept = engine.compiled_batch(sequence, tuple(groups[i] for i in batch),
                                                  shift_mm=self.shift_mm, pruned=True)
                 f, a = fn(ops.convert_to_tensor(np.asarray([t1[i] for i in batch],
@@ -1079,11 +1081,18 @@ class Voxel:
                                                            dtype=np.float32)),
                           ops.convert_to_tensor(np.asarray(b1_scale, dtype=np.float32)),
                           ops.convert_to_tensor(np.float32(offset_hz)))
-                freqs.append(np.asarray(ops.convert_to_numpy(f)))
-                amps.append(np.asarray(ops.convert_to_numpy(a)))
-                # the kept elements per group, the graph pruned to what carries signal
+                return (np.asarray(ops.convert_to_numpy(f)),
+                        np.asarray(ops.convert_to_numpy(a)), kept)
+
+            # the graphs side by side: a compilation and a replay run without holding python
+            with ThreadPoolExecutor(min(len(batches), os.cpu_count() or 1)) as pool:
+                done = list(pool.map(played, batches))
+            freqs = np.concatenate([f for f, _, _ in done])
+            amps = np.concatenate([a for _, a, _ in done])
+            # the kept elements per group, the graph pruned to what carries signal
+            bounds = [0]
+            for _, _, kept in done:
                 bounds.extend(bounds[-1] + kept[1:])
-            freqs, amps = np.concatenate(freqs), np.concatenate(amps)
         else:
             parts = [self.scan.engine.lines(
                 sequence, *(s.with_relaxation(t1_s=t1[i], t2_s=t2[i]) for s in group),
