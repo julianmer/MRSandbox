@@ -504,10 +504,15 @@ class ShapedPulse(Event):
         segments, total = propagator if propagator is not None else self.propagator(ctx)
         bounds = self._bounds(int(ops.convert_to_tensor(self.envelope).shape[0]))
         dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / float(bounds[-1])
+        # the relaxation straddles each segment, half before and half after, as one affine
+        # map per segment length (the segments differ by a step at most)
+        maps = {}
         for k in range(len(bounds) - 1):
-            # the relaxation straddles each segment, half before and half after
-            half = dt * (float(bounds[k + 1] - bounds[k]) / 2.0)
-            rho = relaxed(self._sandwich(segments[k], relaxed(rho, ctx, half)), ctx, half)
+            steps = int(bounds[k + 1] - bounds[k])
+            if steps not in maps:
+                maps[steps] = relaxation(ctx, dt * (steps / 2.0))
+            scale, shift = maps[steps]
+            rho = self._sandwich(segments[k], rho * scale + shift) * scale + shift
         frame = -2.0 * math.pi * total
         if ops.ndim(total) > 0:
             frame = ops.reshape(frame, (-1, 1, 1))
@@ -641,6 +646,29 @@ class ShapedPulse(Event):
         size = int(d.shape[1]) * int(d.shape[2]) ** 2
         block = max(1, min(steps, self.STEP_BLOCK_ELEMENTS // size))
         bounds = self._bounds(steps)
+        lengths = np.diff(bounds)
+        width = int(lengths.max())
+        if width <= block:
+            # whole segments fit: as many as fit at once, each padded to the longest with a
+            # step that does nothing (no phase, the identity), collapsed side by side
+            d = ops.concatenate([d, ops.ones_like(d[:1])], axis=0)
+            w = ops.concatenate([w, ops.broadcast_to(nops.cast(ops.eye(int(w.shape[-1])),
+                                                               "complex64"), w[:1].shape)], axis=0)
+            index = np.array([[first + j if j < n else steps for j in range(width)]
+                              for first, n in zip(bounds[:-1], lengths)])
+            segments, held = [], block // width
+            for start in range(0, len(lengths), held):
+                rows = ops.take(d, index[start:start + held], axis=0)
+                u = (ops.expand_dims(rows, -1) * ops.take(w, index[start:start + held], axis=0)
+                     * ops.expand_dims(ops.conj(rows), -2))
+                if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
+                    u = u[:, :, 0]
+                while int(u.shape[1]) > 1:
+                    n = int(u.shape[1])
+                    pairs = ops.matmul(u[:, 1:n:2], u[:, 0:n - n % 2:2])
+                    u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[:, n - 1:]], axis=1)
+                segments.append(u[:, 0])
+            return ops.concatenate(segments, axis=0), total
         segments = []
         for first, last in zip(bounds[:-1], bounds[1:]):
             propagator = None
@@ -659,23 +687,34 @@ class ShapedPulse(Event):
         return ops.stack(segments), total
 
 
-#****************#
-#   relaxation   #
-#****************#
+#*************#
+#   relaxed   #
+#*************#
 def relaxed(rho, ctx, t_s):
     """The phenomenological relaxation of `t_s` seconds on a state: every coherence
     decays with exp(-t/T2) (zero-quantum terms included, the standard approximation),
     the populations recover toward thermal equilibrium with exp(-t/T1); a missing
     partner is infinite, and without any relaxation times the state stays as it is."""
+    scale, shift = relaxation(ctx, t_s)
+    return rho * scale + shift
+
+
+#****************#
+#   relaxation   #
+#****************#
+def relaxation(ctx, t_s):
+    """`relaxed` as the affine map it is, (scale, shift) with rho * scale + shift the
+    relaxed state: exp(-t/T2) on the coherences, exp(-t/T1) on the populations, and
+    the populations' recovery toward thermal equilibrium; (1, 0) without relaxation
+    times."""
     if ctx.t1_s is None and ctx.t2_s is None:
-        return rho
+        return 1.0, 0.0
     t = ops.convert_to_tensor(t_s)
     one = nops.cast(ops.ones_like(t), "complex64")
     e2 = nops.cast(ops.exp(-t / ctx.t2_s), "complex64") if ctx.t2_s is not None else one
     e1 = nops.cast(ops.exp(-t / ctx.t1_s), "complex64") if ctx.t1_s is not None else one
-    off = (rho - rho * ctx.eye) * e2
-    equilibrium = ctx.rho_eq * ctx.eye
-    return off + equilibrium + (rho * ctx.eye - equilibrium) * e1
+    return (ctx.eye * e1 + (1.0 - ctx.eye) * e2,
+            ctx.rho_eq * ctx.eye * (one - e1))
 
 
 #**************************************************************************************************#

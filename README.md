@@ -6,8 +6,6 @@
 
 ---
 
-<img src="assets/console.png" alt="The virtual scanner console: three exam cards planned and run on the average brain, the last one's spectrum live" width="100%"/>
-
 MRSandbox creates magnetic resonance spectra from first principles. A virtual brain provides the
 tissue composition at any voxel position, a virtual scanner provides the field strength and the
 hardware limits, and fully flexible pulse sequences probe both through a density matrix engine.
@@ -67,11 +65,15 @@ The data are NIfTI-MRS with the receiver's centre at 4.65 ppm. The header of eve
 
 ## The console
 
+<img src="assets/console.png" alt="The virtual scanner console: three exam cards planned and run on the QSM challenge head, the last one's spectrum live" width="100%"/>
+
+<sub>The head is the QSM reconstruction challenge 2.0 head (Marques et al. 2021, MRM 86:526). Data were provided (in part) by the Donders Institute for Brain, Cognition and Behaviour.</sub>
+
 ```
 uvx --from "mrsandbox[console]" mrsandbox-console
 ```
 
-A virtual scanner console, the shot above. Choose the scanner (a preset, or your own saved profile), the receive array, and who lies on the table, or bring your own anatomy, B0, and B1+ maps. Leaf through three planes, place the voxel or the MRSI grid, switch water suppression and OVS, fill the exam cards, and run them: the spectrum builds up over the transients, which come with the drift and motion of a real run. Design your own sequence from blocks, your own pulse shapes among them, and see its pulse sequence diagram and its spectrum. Open any parameter of the simulation through the gears, as a number, a range, or a map. Review the spectra beside the truth, and export what a scanner exports: the raw transients as NIfTI-MRS and the sequence as Pulseq.
+A virtual scanner console. Choose the scanner (a preset, or your own saved profile), the receive array, and who lies on the table, or bring your own anatomy, B0, and B1+ maps. Leaf through three planes, place the voxel or the MRSI grid, switch water suppression and OVS, fill the exam cards, and run them: the spectrum builds up over the transients, which come with the drift and motion of a real run. Design your own sequence from blocks, your own pulse shapes among them, and see its pulse sequence diagram and its spectrum. Open any parameter of the simulation through the gears, as a number, a range, or a map. Review the spectra beside the truth, and export what a scanner exports: the raw transients as NIfTI-MRS and the sequence as Pulseq.
 
 ## Overview
 

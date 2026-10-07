@@ -117,17 +117,26 @@ class TestSession:
         # the Trio's pooled residual is a tenth of a percent: a train scaled well down
         assert 0.4 < exam.adjustment < 1.3 and exam.adjustment != 1.0
         assert exam.sequence.events[0].flip_deg == pytest.approx(90.0 * exam.adjustment)
-        # and it leaves what the Trio's record says it leaves, read the record's own way (HLSVD
-        # water of the mean FID at t = 0 over the dry maximum)
-        from fsl_mrs.utils.preproc.remove import hlsvd
+        # and it leaves what the Trio's record says it leaves, read the record's own way
+        # (scan.calibrate WaterReading: the exponentials within 0.4 ppm of the carrier in the
+        # mean FID at t = 0, over the maximum of the FID without them)
+        from mrsandbox.scan.calibrate import _exponentials
 
-        mean = np.asarray(exam.data[:])[0, 0, 0].mean(axis=1).astype(np.complex128)
-        dry = hlsvd(mean, 1.0 / session.protocol.bandwidth_hz,
-                    float(exam.data.hdr_ext["SpectrometerFrequency"][0]) * 1e6,
-                    (-0.25, 0.25), limitUnits="ppm")
-        assert 0.3 < abs(mean[0] - dry[0]) / np.abs(dry).max() < 3.0
+        def residual(data):
+            mean = np.asarray(data[:])[0, 0, 0].mean(axis=1).astype(np.complex128)
+            dwell_s = 1.0 / session.protocol.bandwidth_hz
+            freqs, damping, amplitudes = _exponentials(mean[:1024], dwell_s)
+            water = ((np.abs(freqs) < 0.4 * float(data.hdr_ext["SpectrometerFrequency"][0]))
+                     & (damping < 0.0))
+            t = np.arange(mean.size) * dwell_s
+            dry = mean - sum(a * np.exp((2j * np.pi * f + d) * t) for f, d, a in
+                             zip(freqs[water], damping[water], amplitudes[water]))
+            return amplitudes[water].sum() / np.abs(dry).max(), dry[0]
+
+        water, start = residual(exam.data)
+        assert 0.3 < abs(water) < 3.0
         # inverted, as the record's sign says of the Trio
-        assert abs(np.angle((mean[0] - dry[0]) / dry[0])) > np.pi / 2
+        assert abs(np.angle(water / start)) > np.pi / 2
         session.prescan = False
         assert session.run(session.plan(), seed=3).adjustment == 1.0
         # the train played real: its Gaussians' own band and the relaxation through them put its
@@ -136,12 +145,9 @@ class TestSession:
         session.prescan, session.protocol.real = True, True
         played = session.run(session.plan(), seed=3)
         assert exam.adjustment + 0.05 < played.adjustment < 1.5
-        mean = np.asarray(played.data[:])[0, 0, 0].mean(axis=1).astype(np.complex128)
-        dry = hlsvd(mean, 1.0 / session.protocol.bandwidth_hz,
-                    float(played.data.hdr_ext["SpectrometerFrequency"][0]) * 1e6,
-                    (-0.25, 0.25), limitUnits="ppm")
-        assert 0.3 < abs(mean[0] - dry[0]) / np.abs(dry).max() < 3.0
-        assert abs(np.angle((mean[0] - dry[0]) / dry[0])) > np.pi / 2
+        water, start = residual(played.data)
+        assert 0.3 < abs(water) < 3.0
+        assert abs(np.angle(water / start)) > np.pi / 2
 
     def test_a_played_localization_displaces_water_and_lipid_and_an_ideal_one_does_not(self):
         session = Session(ICBM)

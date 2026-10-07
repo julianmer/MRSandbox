@@ -2879,7 +2879,8 @@ class Session:
         PROCESS is the processed product of a toolbox, all Augmentrum's: aligned, the transients
         unlike the rest left out, the residual water taken out (HLSVD), and of a plain scan the
         spectrum shifted onto its reference peak and phased on creatine.
-        Every level shows with 2 Hz of apodization, zero filled, over the whole acquired band.
+        Every level shows zero filled over the whole acquired band, its averages with 2 Hz of
+        apodization and its single transients as acquired, as a scanner shows one.
         Fills `builds`, `frames`, `transients`, `spectra`, `snr`, `ppm` and `window`."""
         card, names = exam.card, list(exam.conditions)
         fids = np.array(exam.data[:])[0, 0, 0]
@@ -2923,7 +2924,7 @@ class Session:
                 total = total + weight * fids[:, mine].mean(axis=1)
             return total
 
-        def spectrum(fid):
+        def spectrum(fid, window=window):
             return np.fft.fftshift(np.fft.fft(fid * window, 2 * card.npoints))
 
         # one zero-order phase for the whole exam, read at the tallest line of the average of
@@ -2963,13 +2964,13 @@ class Session:
                                              (spectrum(np.asarray(clean)[0]) * phase).real[wide])
         # every transient that was kept, coils combined, under the view it belongs to (a
         # combination of several has none); 32 at most, evenly through the run
-        exam.transients = {name: [(spectrum(fids[:, k]) * phase).real[wide]
+        exam.transients = {name: [(spectrum(fids[:, k], 1.0) * phase).real[wide]
                                   for k in mine[:: max(1, -(-mine.size // 32))]]
                            for name, weights in views.items() if len(weights) == 1
                            for mine in (np.flatnonzero((played == next(iter(weights))) & kept),)}
         # the display as it builds up: the transients so far, their average in the shown
         # combination, and the last one alone
-        exam.frames = [(count, average, (spectrum(fids[:, count - 1]) * phase).real[wide])
+        exam.frames = [(count, average, (spectrum(fids[:, count - 1], 1.0) * phase).real[wide])
                        for count, average in exam.builds[exam.shown]]
         exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
         # the consensus SNR of what is shown (Near et al. 2021): the tallest real point within 0.2
