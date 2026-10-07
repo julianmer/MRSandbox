@@ -342,6 +342,9 @@ class TestSession:
         from mrsandbox.console.session import BLOCKS, TEMPLATES
 
         session = Session(ICBM)
+        # a room of its own: a session draws one, and its drift between the alternating
+        # sub-acquisitions (0.64 Hz a minute in one) spoils the cancellation the weights are read on
+        session.seed = 1
         session.protocol.water_reference = 0
         session.protocol.water_suppression = "assumed residual"
         (session.protocol.sequence, session.protocol.averages,
