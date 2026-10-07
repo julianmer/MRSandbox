@@ -97,9 +97,10 @@ class TestSession:
         # no apodization
         real = np.fft.fftshift(np.fft.fft(np.asarray(exam.data[:])[0, 0, 0].mean(axis=1),
                                           2 * 1024)).real
-        quiet, upfield = (ppm > 9.0) & (ppm < 12.0), (ppm > 0.2) & (ppm < 4.2)
+        # the signal is the tallest of the metabolite lines, not the residual water's wing
+        quiet, lines = (ppm > 9.0) & (ppm < 12.0), (ppm > 1.8) & (ppm < 3.4)
         floor = real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1), ppm[quiet])
-        assert exam.snr[0] == pytest.approx(real[upfield].max() / floor.std(), rel=1e-6)
+        assert exam.snr[0] == pytest.approx(real[lines].max() / floor.std(), rel=1e-6)
         session.processing = PROCESS
         session.display(exam)
         assert np.isfinite(exam.snr[1]) and exam.snr[1] > 0.0

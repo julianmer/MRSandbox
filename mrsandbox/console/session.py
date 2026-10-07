@@ -519,8 +519,8 @@ class Exam:
             transients' own spectra {view of one sub-experiment: [real spectrum]}, 32 at most;
             how many the processing left out as unlike the rest.
         snr: The signal to noise ratio of what is shown, (of the average, of one transient
-            alone), the tallest real point upfield over the noise of a signal-free stretch, no
-            apodization.
+            alone), the tallest real point of the metabolite lines (1.8 to 3.4 ppm; a reference's
+            water) over the noise of a signal-free stretch, no apodization.
         records: What the header says of the calibration records in force.
         sequence: The design as it was when the exam was planned (an edited card's first
             sub-experiment).
@@ -2912,6 +2912,9 @@ class Session:
             np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz
         # a water reference shows its water line, every other exam the metabolites upfield of it
         upfield = (ppm > 3.4) & (ppm < 5.9) if reference else (ppm > 0.2) & (ppm < 4.2)
+        # the lines the phase and the SNR are read on: a reference's water, else the metabolites'
+        # singlets from NAA to choline, clear of the residual water's wing at the band's edge
+        lines = upfield if reference else (ppm > 1.8) & (ppm < 3.4)
 
         def combined(weights, count):
             """The FID of a combination over the first `count` transients: every condition's mean
@@ -2927,8 +2930,8 @@ class Session:
         def spectrum(fid, window=window):
             return np.fft.fftshift(np.fft.fft(fid * window, 2 * card.npoints))
 
-        # one zero-order phase for the whole exam, read at the tallest line of the average of
-        # everything (of an own multiplexed design the plain sum may be what the scheme cancels, a
+        # one zero-order phase for the whole exam, read at the tallest of the lines in the average
+        # of everything (of an own multiplexed design the plain sum may be what the scheme cancels, a
         # phase cycle's unwanted signal: there the shown combination gives the phase; an edited
         # scan's sum is its unedited spectrum)
         own = card.sequence == "Custom" and len(names) > 1
@@ -2936,7 +2939,7 @@ class Session:
                                        else {name: 1.0 for name in names}, fids.shape[1]))
         phase = 1.0 if self.processing == COMBINE and not reference else np.exp(
             -1j * np.angle(
-                everything[np.flatnonzero(upfield)[np.abs(everything[upfield]).argmax()]]))
+                everything[np.flatnonzero(lines)[np.abs(everything[lines]).argmax()]]))
         # the whole band: the display opens on `window` and zooms out to it
         wide = np.ones(ppm.size, dtype=bool)
         exam.ppm, exam.window = ppm[wide], (float(ppm[upfield].min()), float(ppm[upfield].max()))
@@ -2973,8 +2976,8 @@ class Session:
         exam.frames = [(count, average, (spectrum(fids[:, count - 1], 1.0) * phase).real[wide])
                        for count, average in exam.builds[exam.shown]]
         exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
-        # the consensus SNR of what is shown (Near et al. 2021): the tallest real point within 0.2
-        # to 4.2 ppm (NAA in a brain) over the standard deviation of a signal-free stretch after a
+        # the consensus SNR of what is shown (Near et al. 2021): the tallest real point of the
+        # lines (NAA in a brain) over the standard deviation of a signal-free stretch after a
         # linear detrend; of the average and of one transient alone. The stretch lies inside the
         # band and away from the wings of the broad lines: 9 to 12 ppm where the band reaches
         # 12.3, else -4 to -1 ppm kept 0.3 ppm inside the band's low edge, clear of where a
@@ -2990,7 +2993,7 @@ class Session:
             noise = (real[quiet] - np.polyval(np.polyfit(ppm[quiet], real[quiet], 1),
                                               ppm[quiet])).std()
             # a noise-free preview has no floor: its SNR is not a number
-            return float(real[upfield].max() / noise) if noise > 0.0 else float("nan")
+            return float(real[lines].max() / noise) if noise > 0.0 else float("nan")
 
         weights = exam.combinations[exam.shown]
         exam.snr = (snr(combined(weights, fids.shape[1])),
