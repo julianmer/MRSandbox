@@ -123,11 +123,23 @@ class TestConsole:
                 or "the scanner" in report["sub-01_acq-slaser_svs.nii.gz"][1])
         assert (report["S01_PRESS_35.dat"][1].startswith("spec2nii could not convert it")
                 and report["lonely.SDAT"] == ("unknown", "an SDAT without its SPAR"))
+
         session.hardware["max_slew_t_m_s"] = 100.0
         session.choices["lineshape.gauss_hz"] = "pooled"
         session.reset_room()
         assert (session.scanner == "generic_3t" and session.hardware == {}
                 and session.choices == {} and session.calibration is None and session.files == {})
+
+    def test_the_package_replicates_a_folder_into_a_room(self, tmp_path):
+        import mrsandbox
+        from mrsandbox import Press, VirtualScan
+
+        room = mrsandbox.replicate(scans(tmp_path))
+        report = {file: (kind, gave) for file, kind, gave in room.report}
+        assert report["trio.json"] == ("scanner file", "the scanner's calibration")
+        assert room.scanner == "siemens_trio_3t"
+        twin = room.twin(Press(te1_s=0.011, te2_s=0.019, tr_s=2.0))
+        assert isinstance(twin, VirtualScan) and twin.scanner.name == "siemens_trio_3t"
 
     def test_the_card_takes_the_model_from_the_bids_sidecar_and_the_array_from_the_channels(
             self, tmp_path):

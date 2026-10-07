@@ -605,7 +605,9 @@ class Voxel:
         so T2 = 1 / sqrt(2 W). The eddy phase is Augmentrum's synthetic trajectory
         (low-pass filtered Gaussian phase noise, its linear trend removed) with the
         drawn standard deviation, cut-off, and seed, so it regenerates from the truth;
-        its phasor depends on the truth alone and is cached per truth.
+        its phasor depends on the truth alone and is cached per truth; it regenerates on
+        the readout's grid, so the same truth carries another trajectory at another
+        npoints or dwell (stated).
         """
         try:
             from augmentrum.augmentation import EddyCurrent, SpuriousEchoes

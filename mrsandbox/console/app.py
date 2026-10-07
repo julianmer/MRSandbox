@@ -861,7 +861,9 @@ async def console(client: Client):
             zooms = spectrum.options["dataZoom"]
             for zoom in zooms[:2]:
                 zoom["startValue"], zoom["endValue"] = exam.window
-            spectrum.options["xAxis"].update(min=float(exam.ppm.min()), max=float(exam.ppm.max()))
+            # the band's ends to a hundredth: an axis labels its own end in full
+            spectrum.options["xAxis"].update(min=float(np.floor(100.0 * exam.ppm.min()) / 100.0),
+                                             max=float(np.ceil(100.0 * exam.ppm.max()) / 100.0))
             everything = [v for series in spectrum.options["series"] for _, v in series["data"]]
             inside = [v for series in spectrum.options["series"] for p, v in series["data"]
                       if exam.window[0] <= p <= exam.window[1]]

@@ -55,3 +55,21 @@ from mrsandbox.sequences import (Chess, Cows, CoherenceFilter, Cycled, Delay, Gr
 from mrsandbox.spins import Operators, SpinSystem
 
 __version__ = "0.0.1"
+
+
+#***************#
+#   replicate   #
+#***************#
+def replicate(folder):
+    """A folder of scans read at once into a room: every file told apart by what it is and
+    used for what it can give (a run with its water reference calibrates the scanner, a T1
+    image is the anatomy, field and B1 maps the room's, coil maps the array, a noise scan the
+    channels' own noise share, a saved scanner its calibration; console.session.Session
+    .replicate), the report on `report` as [(file, kind, what it gave or why not)]. The room is
+    the console's session: `twin(sequence)` is a VirtualScan of it, `scanner`, `subject` and
+    the rest as the console shows them."""
+    from mrsandbox.console.session import Session
+
+    room = Session("Brain, ICBM152 average, 2 mm")
+    room.report = room.replicate(folder)
+    return room
