@@ -2952,31 +2952,41 @@ class Session:
         exam.builds = {name: [(count, (spectrum(partial) * phase).real[wide]) for count in counts
                               if (partial := combined(weights, count)) is not None]
                        for name, weights in views.items()}
+        # what turns a single transient as its average was turned: the exam's phase, or below the
+        # processed scan's shift and phase; and processed, the water fitted on a view's average,
+        # which each of its transients loses too (their mean is then the cleaned average)
+        turn, waters = phase, {}
         # the residual water out of what stands at the end
         if self.processing == PROCESS and not reference:
             for name, weights in views.items():
-                clean = processor.water_removal(combined(weights, fids.shape[1])[None, :],
-                                                card.bandwidth_hz, f0_mhz)
+                whole = combined(weights, fids.shape[1])
+                clean = processor.water_removal(whole[None, :], card.bandwidth_hz, f0_mhz)
+                waters[name] = whole - np.asarray(clean)[0]
                 # a plain scan: onto its reference peak, phased on creatine (the conditions of an
                 # edited one share the exam's phase)
                 if len(names) == 1:
-                    clean = processor.phase_correction(
+                    moved = processor.phase_correction(
                         processor.shift_to_reference(clean, card.bandwidth_hz, f0_mhz), None,
                         card.bandwidth_hz, f0_mhz)[0]
+                    # the shift's ramp and the phase together, point by point, for the transients
+                    turn = np.asarray(moved)[0] / np.asarray(clean)[0]
                     exam.builds[name][-1] = (exam.builds[name][-1][0],
-                                             spectrum(np.asarray(clean)[0]).real[wide])
+                                             spectrum(np.asarray(moved)[0]).real[wide])
                 else:
                     exam.builds[name][-1] = (exam.builds[name][-1][0],
                                              (spectrum(np.asarray(clean)[0]) * phase).real[wide])
         # every transient that was kept, coils combined, under the view it belongs to (a
         # combination of several has none); 32 at most, evenly through the run
-        exam.transients = {name: [(spectrum(fids[:, k], 1.0) * phase).real[wide]
+        exam.transients = {name: [spectrum((fids[:, k] - waters.get(name, 0.0)) * turn,
+                                           1.0).real[wide]
                                   for k in mine[:: max(1, -(-mine.size // 32))]]
                            for name, weights in views.items() if len(weights) == 1
                            for mine in (np.flatnonzero((played == next(iter(weights))) & kept),)}
         # the display as it builds up: the transients so far, their average in the shown
         # combination, and the last one alone
-        exam.frames = [(count, average, (spectrum(fids[:, count - 1], 1.0) * phase).real[wide])
+        exam.frames = [(count, average, spectrum((fids[:, count - 1]
+                                                  - waters.get(exam.shown, 0.0)) * turn,
+                                                 1.0).real[wide])
                        for count, average in exam.builds[exam.shown]]
         exam.spectra = {name: build[-1][1] for name, build in exam.builds.items()}
         # the consensus SNR of what is shown (Near et al. 2021): the tallest real point of the

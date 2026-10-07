@@ -105,6 +105,29 @@ class TestSession:
         session.display(exam)
         assert np.isfinite(exam.snr[1]) and exam.snr[1] > 0.0
 
+    def test_the_processed_transients_lie_under_their_average(self):
+        # processed, the average is moved onto its reference peak, phased on creatine and loses its
+        # residual water: the transients behind it are turned and cleaned the same way, so their
+        # mean, apodized as the average is, lies on it over the metabolite lines (they stood 0.74 of
+        # NAA apart when only the average was turned)
+        from mrsandbox.console.session import PROCESS
+
+        session = Session(ICBM)
+        session.seed = 1
+        session.protocol.water_reference, session.protocol.water_suppression = 0, "assumed residual"
+        session.protocol.averages, session.protocol.npoints = 8, 1024
+        exam = session.run(session.plan(), seed=5)
+        session.processing = PROCESS
+        session.display(exam)
+        n, bandwidth = session.protocol.npoints, session.protocol.bandwidth_hz
+        # the mean of the transients' real spectra, apodized by 2 Hz as the average is shown
+        fid = np.fft.ifft(np.fft.ifftshift(np.mean(exam.transients[exam.shown], axis=0)))
+        fid[:n] *= np.exp(-np.pi * 2.0 * np.arange(n) / bandwidth)
+        mean = np.fft.fftshift(np.fft.fft(fid)).real
+        average = exam.spectra[exam.shown]
+        lines = (exam.ppm > 1.8) & (exam.ppm < 3.4)
+        assert np.abs(mean - average)[lines].max() < 0.2 * np.abs(average[lines]).max()
+
     def test_the_prescan_adjusts_the_water_suppression_to_the_subject(self):
         # the scanner's water suppression adjustment: the train's flips scaled to leave the least
         # water at the excitation over the voxel's tissues, field groups and transmit scale; the
