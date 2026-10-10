@@ -72,9 +72,10 @@ class Cycled(Sequence):
     #*********#
     #   run   #
     #*********#
-    def run(self, rho, ctx):
+    def run(self, rho, ctx, propagators=None):
         """The average over the steps of the design run at each step's phases, each
-        step's result rotated by its receiver phase."""
+        step's result rotated by its receiver phase. Propagators built ahead
+        (Sequence.run) are not used: every step's pulses carry their own phases."""
         total = None
         jitter = (None if self.jitter_deg is None
                   else ops.convert_to_tensor(self.jitter_deg, dtype="float32"))

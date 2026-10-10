@@ -1030,10 +1030,12 @@ class Sequence:
     #*********#
     #   run   #
     #*********#
-    def run(self, rho, ctx):
+    def run(self, rho, ctx, propagators=None):
         """Apply every event in order and return the pre-readout density matrix, from
-        the spoiled steady state when the sequence carries a TR."""
-        propagators = {}
+        the spoiled steady state when the sequence carries a TR. `propagators` holds
+        shaped pulses' propagators built ahead, by id(event) (Engine.framed); the rest
+        are built as they are met."""
+        propagators = {} if propagators is None else propagators
         if self.tr_s is not None:
             crush, recover = CoherenceFilter(0), Delay(self.tr_s - self.duration_s)
             for _ in range(self.cycles):

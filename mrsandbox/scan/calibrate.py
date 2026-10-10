@@ -995,7 +995,7 @@ class MetaboliteSeriesReading:
             lines[leaf] = (np.asarray(ops.convert_to_numpy(freqs)),
                            np.asarray(ops.convert_to_numpy(amps)))
         key = (voxel.compiled, temperature_c) + voxel.frame(truth) + voxel._design_key(truth)
-        voxel._lines_cache(truth)[key] = lines
+        voxel._share(key, lines)
         _, fid = voxel._clean_fid(truth, npoints, dwell_s)
         return np.asarray(fid)
 

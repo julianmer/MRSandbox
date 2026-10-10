@@ -1041,23 +1041,23 @@ class Voxel:
         resolved frame, as {name: (freqs, amps)}.
 
         The lines depend on the draw (relaxation, b1, offset) but not on the voxel
-        position beyond the resolved values, so they are cached per truth on the scan
-        keyed by those values: one truth serving many voxels (MRSI, multiplex)
-        simulates the metabolites once, and every voxel applies only its own weights.
-        Compiled, all systems replay in one jitted graph (Engine.compiled_batch), so a
-        draw costs one dispatch and one transfer; plain, each metabolite runs through
-        Engine.lines.
+        position beyond the resolved values, so they are cached on the scan keyed by
+        those values (`_share`): one truth serving many voxels (MRSI, multiplex), or
+        many draws at one frame (a closed loop over concentrations and noise, which
+        never enter the lines), simulate the metabolites once, and every draw applies
+        only its own weights. Compiled, all systems replay in one jitted graph
+        (Engine.compiled_batch), so a draw costs one dispatch and one transfer; plain,
+        each metabolite runs through Engine.lines.
         """
         names = tuple(truth.conc)
         frame = self.frame(truth)
         t1, t2, _, offset_hz = frame
         b1_scale = self.b1_input(truth)
-        cached = self._lines_cache(truth)
         # the draw's tissue temperature: the metabolites' shifts and couplings follow it
         temperature_c = float(self.resolve(truth.water.temperature_c))
         key = (self.compiled, temperature_c) + frame + self._design_key(truth)
-        if key in cached:
-            return cached[key]
+        if key in self.scan._frame_lines:
+            return self.scan._frame_lines[key]
         groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         sequence = self.design(truth)
         # a design played as a whole (a tilted slab) runs plain, its ensemble in chunks: a
@@ -1103,13 +1103,20 @@ class Voxel:
             bounds = np.cumsum([0] + [sum(s.dim ** 2 for s in group) for group in groups])
         lines = {name: (freqs[bounds[i]:bounds[i + 1]], amps[bounds[i]:bounds[i + 1]])
                  for i, name in enumerate(names)}
-        cached[key] = lines
+        self._share(key, lines)
         return lines
 
+    def _share(self, key, lines):
+        """Metabolite lines into the scan's lines by frame, {key of `_metabolite_lines`:
+        {name: (freqs, amps)}}; the scan keeps the last 256 frames."""
+        shared = self.scan._frame_lines
+        if len(shared) >= 256:
+            shared.pop(next(iter(shared)))
+        shared[key] = lines
+
     def _lines_cache(self, truth):
-        """This truth's metabolite lines on the scan, {frame key: lines}; the scan keeps
-        the last 256 truths (a generator's batch and its neighbours, one truth serving
-        many voxels)."""
+        """This truth's rendered FIDs on the scan (`prepare`), {key: fid}; the scan keeps
+        the last 256 truths (a generator's batch and its neighbours)."""
         held = self.scan._lines
         entry = held.get(id(truth))
         if entry is None or entry[0] is not truth:
@@ -1121,47 +1128,105 @@ class Voxel:
     #*************#
     #   prepare   #
     #*************#
+    def _framed_lines(self, design, names, temperature_c, fresh):
+        """The metabolite lines of the frames `fresh` ({key of `_metabolite_lines`: a
+        truth at it}) under a played design on an ensemble, into the scan's lines by
+        frame: one graph per metabolite split at the transmit frame (Engine.framed),
+        the pulses of each transmit frame once, held on the scan (the latest transmit
+        frame alone, a closed loop's), the frames' relaxation mapped over them; the
+        graphs side by side in a thread pool as `_metabolite_lines` runs them."""
+        engine = self.scan.engine
+        groups = tuple(self.scan.systems(name, temperature_c) for name in names)
+        by_transmit = {}
+        for key, truth in fresh.items():
+            _, _, t1, t2, transmit, offset_hz, *tail = key
+            by_transmit.setdefault((transmit, offset_hz, tuple(tail)),
+                                   (self.b1_input(truth), []))[1].append((key, t1, t2))
+        held = self.scan._propagators
+        for (transmit, offset_hz, tail), (b1, frames) in by_transmit.items():
+            at = (temperature_c, id(design), transmit, offset_hz) + tail
+            if at not in held:
+                held.clear()
+                held[at] = [None] * len(names)
+            b1, offset = (ops.convert_to_tensor(np.asarray(b1, dtype=np.float32)),
+                          ops.convert_to_tensor(np.float32(offset_hz)))
+            t1 = np.asarray([t1 for _, t1, _ in frames], dtype=np.float32)
+            t2 = np.asarray([t2 for _, _, t2 in frames], dtype=np.float32)
+
+            def played(i):
+                frame, _, draws, _ = engine.framed(design, (groups[i],), shift_mm=self.shift_mm)
+                if held[at][i] is None:
+                    held[at][i] = frame(b1, offset)
+                # eight draws at a time: a mapped pass holds every draw's state over the
+                # ensemble, and more gain nothing
+                rows = [draws(ops.convert_to_tensor(t1[first:first + 8, i:i + 1]),
+                              ops.convert_to_tensor(t2[first:first + 8, i:i + 1]), b1, offset,
+                              held[at][i]) for first in range(0, len(frames), 8)]
+                return (np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _ in rows]),
+                        np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a in rows]))
+
+            with ThreadPoolExecutor(min(len(names), os.cpu_count() or 1)) as pool:
+                done = list(pool.map(played, range(len(names))))
+            for row, (key, _, _) in enumerate(frames):
+                self._share(key, {name: (f[row], a[row]) for name, (f, a) in zip(names, done)})
+
     def prepare(self, truths, npoints=None, dwell_s=None):
-        """The metabolite lines of many draws in ONE replay of the design's graph mapped
-        over the draws (Engine.replay_draws), left in the lines cache for each draw's
-        own render: what a generator does with its batch before rendering it. Draws
-        sharing their systems (the temperature step) and their design replay together;
-        a draw with a transmit profile, or under a played design on an ensemble (a graph
-        per metabolite), renders on its own, as does a plain voxel. Given the
-        grid, the draws' metabolite FIDs are rendered in one call too (Engine.render_fids,
-        a width per line and row) and left for `_rendered_fids`, where the field plays
+        """The metabolite lines of many draws ahead of their renders, into the scan's
+        lines by frame (`_metabolite_lines`): what a generator does with its batch.
+        Draws sharing their systems (the temperature step) and their design go
+        together and every distinct frame among them (the relaxation, the transmit
+        scale, the frequency offset, the temperature, and the gradient response the
+        design is induced with: the drawn gradients leaves, or the scan's GIRF) is made
+        once: in ONE replay of the design's graph mapped over the frames
+        (Engine.replay_draws), or, under a
+        played design on an ensemble (a graph per metabolite), through the graphs
+        split at the transmit frame (`_framed_lines`). A draw with a transmit profile
+        on an ideal design renders on its own, as does a plain voxel. Given the grid,
+        the draws' metabolite FIDs are rendered in one call too (Engine.render_fids, a
+        width per line and row) and left for `_rendered_fids`, where the field plays
         as one group."""
         if not self.compiled:
             return
-        engine = self.scan.engine
+        engine, shared = self.scan.engine, self.scan._frame_lines
         batches = {}
         for truth in truths:
             design = self.design(truth)
-            if self.b1_profile(truth) is not None or (engine.positions(design) and any(
-                    isinstance(event, ShapedPulse) for event in design.events)):
-                continue
             temperature_c = float(self.resolve(truth.water.temperature_c))
             key = (self.compiled, temperature_c) + self.frame(truth) + self._design_key(truth)
-            if key not in self._lines_cache(truth):
-                batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design)), []).append(
-                    (truth, key, design))
+            batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design)), []).append(
+                (truth, key, design))
         for (temperature_c, _), members in batches.items():
             names, design = tuple(members[0][0].conc), members[0][2]
-            replay, bounds = engine.replay_draws(
-                design, tuple(self.scan.systems(name, temperature_c) for name in names),
-                shift_mm=self.shift_mm)
-            t1, t2, b1, offset = (
-                ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
-                    [[self.resolve(truth.t1[name]) for name in names] for truth, _, _ in members],
-                    [[self.resolve(truth.t2[name]) for name in names] for truth, _, _ in members],
-                    [self.b1_scale(truth) for truth, _, _ in members],
-                    [self.offset_hz(truth) for truth, _, _ in members]))
-            freqs, amps = (np.asarray(ops.convert_to_numpy(value))
-                           for value in replay(t1, t2, b1, offset))
-            for row, (truth, key, _) in enumerate(members):
-                self._lines_cache(truth)[key] = {
-                    name: (freqs[row, bounds[i]:bounds[i + 1]], amps[row, bounds[i]:bounds[i + 1]])
-                    for i, name in enumerate(names)}
+            fresh = {}
+            for truth, key, _ in members:
+                if key not in shared:
+                    fresh.setdefault(key, truth)
+            if engine.positions(design) and any(
+                    isinstance(event, ShapedPulse) for event in design.events):
+                self._framed_lines(design, names, temperature_c, fresh)
+            else:
+                plain = {key: truth for key, truth in fresh.items()
+                         if self.b1_profile(truth) is None}
+                if plain:
+                    replay, bounds = engine.replay_draws(
+                        design, tuple(self.scan.systems(name, temperature_c) for name in names),
+                        shift_mm=self.shift_mm)
+                    t1, t2, b1, offset = (
+                        ops.convert_to_tensor(np.asarray(values, dtype=np.float32))
+                        for values in (
+                            [[self.resolve(truth.t1[name]) for name in names]
+                             for truth in plain.values()],
+                            [[self.resolve(truth.t2[name]) for name in names]
+                             for truth in plain.values()],
+                            [self.b1_scale(truth) for truth in plain.values()],
+                            [self.offset_hz(truth) for truth in plain.values()]))
+                    freqs, amps = (np.asarray(ops.convert_to_numpy(value))
+                                   for value in replay(t1, t2, b1, offset))
+                    for row, key in enumerate(plain):
+                        self._share(key, {
+                            name: (freqs[row, bounds[i]:bounds[i + 1]],
+                                   amps[row, bounds[i]:bounds[i + 1]])
+                            for i, name in enumerate(names)})
             self.scan.mm.prepare(engine, design, self, [truth for truth, _, _ in members],
                                  self._f0_mhz())
             self.scan.water.prepare(engine, design, self, [truth for truth, _, _ in members],
@@ -1170,10 +1235,17 @@ class Voxel:
                 continue
             # the draws' metabolite FIDs as `_grouped` and `_render_lines` would make them one
             # by one: each line's weight, the downfield cutoff, the draw's widths and receiver
-            # delay, the Gaussian envelope after
+            # delay, the Gaussian envelope after; the draws whose lines were made (a profile
+            # draw on an ideal design renders alone)
+            members = [member for member in members if member[1] in shared]
+            if not members:
+                continue
             n, dwell = ((npoints, dwell_s) if self.scan.receiver is None
                         else self.scan.receiver.grid(npoints, dwell_s))
-            f, cutoff = freqs[0], self.scan.downfield.replaces_above_ppm
+            lines = shared[members[0][1]]
+            f = np.concatenate([lines[name][0] for name in names])
+            bounds = np.cumsum([0] + [lines[name][0].size for name in names])
+            cutoff = self.scan.downfield.replaces_above_ppm
             keep = f <= cutoff * self._f0_mhz() if cutoff is not None else np.ones(f.size, bool)
             pad = -(-f.size // 512) * 512 - f.size
             grid = np.arange(n) * dwell
@@ -1181,14 +1253,14 @@ class Voxel:
                 chunk = members[first:first + 32]
                 rows_amps = np.zeros((len(chunk), f.size + pad), np.complex64)
                 rows_lw = np.ones((len(chunk), f.size + pad), np.float32)
-                for row, (truth, _, _) in enumerate(chunk):
-                    weights, start_s = (self.metabolite_weights(truth),
-                                        float(truth.acquisition.delay_s))
+                for row, (truth, key, _) in enumerate(chunk):
+                    weights, start_s, lines = (self.metabolite_weights(truth),
+                                               float(truth.acquisition.delay_s), shared[key])
                     for i, name in enumerate(names):
                         part, lw = (slice(bounds[i], bounds[i + 1]),
                                     1.0 / (np.pi * self.resolve(truth.t2[name])))
                         rows_lw[row, part] = lw
-                        rows_amps[row, part] = (amps[first + row, part] * weights[i]
+                        rows_amps[row, part] = (lines[name][1] * weights[i]
                                                 * self._advance(f[part], lw, start_s))
                     rows_amps[row, :f.size] *= keep
                 _, fids = self.scan.engine.render_fids(ops.convert_to_tensor(np.pad(f, (0, pad))),

@@ -794,7 +794,7 @@ class TestComponents:
         assert b1 == voxel.b1_scale(truth) and offset == voxel.offset_hz(truth)
         voxel._metabolite_lines(truth)
         # and the draw's temperature
-        assert (False, truth.water.temperature_c) + voxel.frame(truth) in voxel._lines_cache(truth)
+        assert (False, truth.water.temperature_c) + voxel.frame(truth) in scan._frame_lines
 
 
 #**************************************************************************************************#

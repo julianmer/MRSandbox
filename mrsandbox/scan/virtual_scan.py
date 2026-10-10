@@ -158,7 +158,11 @@ class VirtualScan:
             if missing:
                 raise ValueError(f"{', '.join(missing)} in conc but not in {path}: a metabolite "
                                  f"needs its t1, t2, contrast and diffusion.adc leaves")
-        self._lines = {}
+        self._lines = {}  # each truth's rendered FIDs (Voxel.prepare)
+        # the metabolite lines by resolved frame, shared by every draw at it
+        self._frame_lines = {}
+        # the pulses of the latest transmit frame under a played design (Voxel._framed_lines)
+        self._propagators = {}
         # magnetization transfer: the design's pulses' responses (Voxel.transfer)
         self._transfer = {}
         self._basis = None

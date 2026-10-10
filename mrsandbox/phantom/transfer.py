@@ -19,7 +19,7 @@ import numpy as np
 from keras import ops
 
 from mrsandbox.sequences.events import (CoherenceFilter, Delay, Pulse, SelectivePulse, Sequence,
-                                        ShapedPulse)
+                                        ShapedPulse, _hashable)
 
 
 #**********************#
@@ -101,7 +101,11 @@ class Transfer:
         pulses = {}
         for k, event in enumerate(events):
             if isinstance(event, (Pulse, SelectivePulse, ShapedPulse)):
-                key = (id(sequence), k, b1_scale, self.t2_s)
+                # the pulse itself (a design induced anew per draw, scan.eddy, plays the same
+                # pulses; the induced field is hertz against a pulse's kilohertz, stated)
+                key = (event.structure(), tuple(_hashable(getattr(event, name))
+                                                for name in event.free if name != "induced"),
+                       b1_scale, self.t2_s)
                 if key not in kept:
                     kept[key] = self._pulse(engine, event, water, b1_scale)
                 pulses[k] = kept[key]

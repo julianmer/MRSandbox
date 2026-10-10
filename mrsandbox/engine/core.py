@@ -293,11 +293,12 @@ class Engine:
             "gradient_" + axis: ops.convert_to_tensor(values + np.float32(shift.get(axis, 0.0)))
             for axis, values in positions.items()})
 
-    def _system_lines(self, sequence, ctx):
+    def _system_lines(self, sequence, ctx, propagators=None):
         """The (freqs, amps) of one system context, receiver phase applied; a vector
         gradient_x runs the whole isochromat ensemble as one batch, and the detected
-        amplitudes average over it."""
-        rho = sequence.run(ctx.rho_eq, ctx)
+        amplitudes average over it. `propagators` are shaped pulses' built ahead
+        (Sequence.run)."""
+        rho = sequence.run(ctx.rho_eq, ctx, propagators)
         rho_e = ops.einsum("ai,...ab,bj->...ij", ops.conj(ctx.v), rho, ctx.v)
         det_e = ops.einsum("ai,ab,bj->ij", ops.conj(ctx.v), ctx.fplus, ctx.v)
         freqs = ops.expand_dims(ctx.lam, 1) - ops.expand_dims(ctx.lam, 0)
@@ -677,14 +678,16 @@ class Engine:
         """`compiled_batch`, pruned, mapped over draws: (t1_s, t2_s, b1_scale, offset_hz)
         with a leading draw axis on every input, t1_s and t2_s (draws, groups), the lines
         back as (draws, kept); plus the groups' bounds in the kept lines. One graph runs
-        the whole batch (Backend.vmap); the mapped function is held per design, since
-        it closes over that design's timings. Where graphs persist as exports (`graph`),
-        the mapped graph keeps its own, with the draws axis a symbolic dimension (a
-        serialized call cannot go under vmap), so a session replays draws untraced too."""
-        held = self._draws.get(id(sequence))
-        signature = (groups, isochromats, tuple(sorted((shift_mm or {}).items())))
-        if held is None or held[0] is not sequence or held[1] != signature:
-            chromats = isochromats if isochromats is not None else self.isochromats
+        the whole batch (Backend.vmap); the mapped graph is keyed like `graph` and reads
+        the design's timings at each call like `compiled_batch` (a design induced anew
+        for every draw, scan.eddy, shares it). Where graphs persist as exports
+        (`graph`), the mapped graph keeps its own, with the draws axis a symbolic
+        dimension (a serialized call cannot go under vmap), so a session replays draws
+        untraced too."""
+        chromats = isochromats if isochromats is not None else self.isochromats
+        key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups, chromats,
+               "draws")
+        if key not in self._draws:
             path = self._export_path("draws", sequence, groups, chromats, True)
             stored = self._load_export(path)
             if stored is None and path is not None:
@@ -703,20 +706,94 @@ class Engine:
                 call = self._wrap_export(exported, lambda: jax.vmap(
                     self._raw_graph(sequence, groups, chromats, True)[0],
                     in_axes=(0, 0, 0, 0, None, None)))
-                timings = self.tensors(sequence.timings())
-                shift = ops.convert_to_tensor(np.asarray(
-                    [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"],
-                    dtype=np.float32))
-                fn = lambda t1_s, t2_s, b1_scale, offset_hz: call(t1_s, t2_s, b1_scale,
-                                                                  offset_hz, timings, shift)
-                held = self._draws[id(sequence)] = (sequence, signature, fn, kept)
+                self._draws[key] = (call, kept)
             else:
-                fn, bounds = self.compiled_batch(sequence, groups, isochromats, shift_mm,
-                                                 pruned=True)
-                held = self._draws[id(sequence)] = (sequence, signature,
-                                                    Backend.vmap(fn, in_axes=(0, 0, 0, 0)),
-                                                    bounds)
-        return held[2], held[3]
+                fn, bounds = self.graph(sequence, groups, chromats, pruned=True)
+                self._draws[key] = (Backend.vmap(fn, in_axes=(0, 0, 0, 0, None, None)), bounds)
+        call, kept = self._draws[key]
+        timings = self.tensors(sequence.timings())
+        shift = ops.convert_to_tensor(np.asarray(
+            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
+        return (lambda t1_s, t2_s, b1_scale, offset_hz: call(t1_s, t2_s, b1_scale, offset_hz,
+                                                             timings, shift),
+                kept)
+
+    #************#
+    #   framed   #
+    #************#
+    def framed(self, sequence, groups, isochromats=None, shift_mm=None):
+        """The design's pruned graph split at the transmit frame: `frame(b1_scale,
+        offset_hz)` plays every shaped pulse once (their propagators, which of a draw
+        only the transmit scale and the frequency offset decide), `lines(t1_s, t2_s,
+        b1_scale, offset_hz, frame)` runs the state through them at a draw's
+        relaxation, and `draws` is `lines` mapped over a leading draw axis of t1_s and
+        t2_s with one frame shared; plus the groups' bounds in the kept lines, as
+        `replay_draws` gives them. A batch of draws at one transmit frame pays the
+        pulses once and replays the pass alone, most of a played design's cost; the
+        lines equal the full graph's to float32. Keyed like `graph`, the index of
+        the kept lines the full graph's; the functions read the design's timings at
+        each call like `compiled_batch`."""
+        from nifti_mrs_plus.backend import jit
+
+        from mrsandbox.sequences.events import ShapedPulse
+
+        isochromats = isochromats if isochromats is not None else self.isochromats
+        key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups,
+               isochromats, "framed")
+        if key not in self._compiled:
+            contexts = [(group, self._ensemble_context(sequence, self.context(system), isochromats))
+                        for group, members in enumerate(groups) for system in members]
+            axes = sorted(self.extents(sequence))
+            index, kept = self._signal_index(
+                lambda *args: self.graph(sequence, groups, isochromats)[0](*args),
+                sequence, groups, isochromats, self._group_bounds(groups))
+
+            def placed(ctx0, shift, **values):
+                moved = {"gradient_" + axis:
+                         getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
+                         for axis in axes}
+                return dataclasses.replace(ctx0, **moved, **values)
+
+            def pulses(design):
+                # each shaped pulse object once, in order: what `frame` plays and `lines` zips
+                seen = {}
+                for event in design.events:
+                    if isinstance(event, ShapedPulse):
+                        seen.setdefault(id(event), event)
+                return tuple(seen.values())
+
+            def frame(b1_scale, offset_hz, timings, shift):
+                design = sequence.bound(timings)
+                return tuple(tuple(pulse.propagator(placed(ctx0, shift, b1_scale=b1_scale,
+                                                           offset_hz=offset_hz))
+                                   for pulse in pulses(design)) for _, ctx0 in contexts)
+
+            def lines(t1_s, t2_s, b1_scale, offset_hz, timings, shift, frame):
+                design = sequence.bound(timings)
+                freqs, amps = [], []
+                for (group, ctx0), held in zip(contexts, frame):
+                    ctx = placed(ctx0, shift, t1_s=t1_s[group], t2_s=t2_s[group],
+                                 b1_scale=b1_scale, offset_hz=offset_hz)
+                    f, a = self._system_lines(design, ctx,
+                                              dict(zip(map(id, pulses(design)), held)))
+                    freqs.append(f)
+                    amps.append(a)
+                return (ops.take(ops.concatenate(freqs), index),
+                        ops.take(ops.concatenate(amps), index))
+
+            self._compiled[key] = (
+                jit(frame), jit(lines),
+                Backend.vmap(jit(lines), in_axes=(0, 0, None, None, None, None, None)), kept)
+        frame, lines, draws, kept = self._compiled[key]
+        timings = self.tensors(sequence.timings())
+        shift = ops.convert_to_tensor(np.asarray(
+            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
+        return (lambda b1_scale, offset_hz: frame(b1_scale, offset_hz, timings, shift),
+                lambda t1_s, t2_s, b1_scale, offset_hz, held: lines(
+                    t1_s, t2_s, b1_scale, offset_hz, timings, shift, held),
+                lambda t1_s, t2_s, b1_scale, offset_hz, held: draws(
+                    t1_s, t2_s, b1_scale, offset_hz, timings, shift, held),
+                kept)
 
     #**************#
     #   spectrum   #

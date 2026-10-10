@@ -403,6 +403,38 @@ class TestGraph:
         # one graph per design, the batched replay included
         assert len(engine._compiled) == 2
 
+    #******************#
+    #   framed graph   #
+    #******************#
+    def test_a_framed_graph_equals_the_full_one(self):
+        # a played design's graph split at the transmit frame: the pulses once per (b1, offset),
+        # the relaxation pass per draw, mapped over draws with the frame shared; the kept lines
+        # are the full pruned graph's
+        from mrsandbox.sequences.library import LocalizedPress
+
+        engine = Engine(3.0, isochromats=8)
+        groups = (tuple(SpinSystem.from_database("Lac")),)
+        design = LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ, tr_s=1.5)
+        full, kept = engine.compiled_batch(design, groups, pruned=True)
+        frame, lines, draws, kept_framed = engine.framed(design, groups)
+        np.testing.assert_array_equal(kept, kept_framed)
+        b1, offset = ops.convert_to_tensor(np.float32(0.9)), ops.convert_to_tensor(np.float32(5.0))
+        held = frame(b1, offset)
+        t1 = np.asarray([[0.9], [1.2], [1.5]], dtype=np.float32)
+        t2 = np.asarray([[0.10], [0.25], [0.15]], dtype=np.float32)
+        f_many, a_many = (np.asarray(ops.convert_to_numpy(v)) for v in draws(
+            ops.convert_to_tensor(t1), ops.convert_to_tensor(t2), b1, offset, held))
+        assert a_many.shape == (3, kept[-1])
+        for k in range(3):
+            args = (ops.convert_to_tensor(t1[k]), ops.convert_to_tensor(t2[k]), b1, offset)
+            f_full, a_full = (np.asarray(ops.convert_to_numpy(v)) for v in full(*args))
+            f_one, a_one = (np.asarray(ops.convert_to_numpy(v)) for v in lines(*args, held))
+            np.testing.assert_array_equal(f_one, f_full)
+            np.testing.assert_array_equal(f_many[k], f_full)
+            scale = np.abs(a_full).max()
+            assert np.abs(a_one - a_full).max() < 1e-5 * scale
+            assert np.abs(a_many[k] - a_full).max() < 1e-5 * scale
+
     def test_a_pruned_graph_keeps_every_line_that_carries_signal(self):
         # the coherence filters silence most of the d*d elements exactly; the pruned graph gathers
         # the rest inside the jit, so a replay transfers a fraction of the elements and renders the
