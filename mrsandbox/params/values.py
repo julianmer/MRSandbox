@@ -18,6 +18,7 @@
 #*************#
 import abc
 import dataclasses
+import functools
 import numbers
 import typing
 
@@ -167,7 +168,7 @@ class Empirical(Value):
         centres = (np.cumsum(weights) - 0.5 * weights) / weights.sum()
         return float(np.interp(q / 100.0, centres, values))
 
-    @property
+    @functools.cached_property
     def bandwidth(self):
         """The kernel's width: the median distance of a value to its nearest neighbour;
         zero for one value."""

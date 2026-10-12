@@ -1246,13 +1246,15 @@ class Voxel:
             f = np.concatenate([lines[name][0] for name in names])
             bounds = np.cumsum([0] + [lines[name][0].size for name in names])
             cutoff = self.scan.downfield.replaces_above_ppm
-            keep = f <= cutoff * self._f0_mhz() if cutoff is not None else np.ones(f.size, bool)
-            pad = -(-f.size // 512) * 512 - f.size
+            # the lines above the cutoff carry nothing, so they leave the render
+            keep = (np.flatnonzero(f <= cutoff * self._f0_mhz()) if cutoff is not None
+                    else np.arange(f.size))
+            pad = -(-keep.size // 512) * 512 - keep.size
             grid = np.arange(n) * dwell
             for first in range(0, len(members), 32):
                 chunk = members[first:first + 32]
-                rows_amps = np.zeros((len(chunk), f.size + pad), np.complex64)
-                rows_lw = np.ones((len(chunk), f.size + pad), np.float32)
+                rows_amps = np.zeros((len(chunk), f.size), np.complex64)
+                rows_lw = np.ones((len(chunk), f.size), np.float32)
                 for row, (truth, key, _) in enumerate(chunk):
                     weights, start_s, lines = (self.metabolite_weights(truth),
                                                float(truth.acquisition.delay_s), shared[key])
@@ -1262,10 +1264,11 @@ class Voxel:
                         rows_lw[row, part] = lw
                         rows_amps[row, part] = (lines[name][1] * weights[i]
                                                 * self._advance(f[part], lw, start_s))
-                    rows_amps[row, :f.size] *= keep
-                _, fids = self.scan.engine.render_fids(ops.convert_to_tensor(np.pad(f, (0, pad))),
-                                                       ops.convert_to_tensor(rows_amps),
-                                                       npoints=n, dwell_s=dwell, lw_hz=rows_lw)
+                _, fids = self.scan.engine.render_fids(
+                    ops.convert_to_tensor(np.pad(f[keep], (0, pad))),
+                    ops.convert_to_tensor(np.pad(rows_amps[:, keep], ((0, 0), (0, pad)))),
+                    npoints=n, dwell_s=dwell,
+                    lw_hz=np.pad(rows_lw[:, keep], ((0, 0), (0, pad)), constant_values=1.0))
                 fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
                 for row, (truth, _, _) in enumerate(chunk):
                     start_s, gauss = (float(truth.acquisition.delay_s),
@@ -1296,25 +1299,32 @@ class Voxel:
             for (name, _, voigt), (f, draws) in alike.items():
                 for first in range(0, len(draws), 32):
                     chunk = draws[first:first + 32]
-                    pad = -(-f.size // (64 if voigt else 512)) * (64 if voigt else 512) - f.size
-                    rows_amps, rows_lw = (np.zeros((len(chunk), f.size + pad), np.complex64),
-                                          np.ones((len(chunk), f.size + pad), np.float32))
-                    rows_gauss = np.zeros((len(chunk), f.size + pad), np.float32)
-                    for row, (truth, amps, lw, gauss, start_s) in enumerate(chunk):
-                        amps = amps * self._advance(f, lw, start_s)
-                        if voigt:
-                            # a Gaussian line's cross term over the delay is a Lorentzian
-                            # width (as `_render_lines`)
-                            g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
-                            amps, lw = ((amps * np.exp(-g * start_s ** 2)).astype(np.complex64),
-                                        (lw + 2.0 * g * start_s / np.pi).astype(np.float32))
-                        (rows_amps[row, :f.size], rows_lw[row, :f.size],
-                         rows_gauss[row, :f.size]) = amps, lw, gauss
-                    padded = ops.convert_to_tensor(np.pad(f, (0, pad)))
-                    _, fids = self.scan.engine.render_fids(padded, ops.convert_to_tensor(rows_amps),
-                                                           npoints=n, dwell_s=dwell, lw_hz=rows_lw,
-                                                           gauss_hz=rows_gauss if voigt else None)
-                    fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
+                    if f.size * len(chunk) <= 64:
+                        # too few lines to be worth a dispatch: on the host, as a lone draw
+                        # renders them (`_render_lines`)
+                        fids = np.stack([self._render_lines(
+                            (f, amps, lw, gauss if voigt else None), n, dwell, start_s)
+                            for _, amps, lw, gauss, start_s in chunk])
+                    else:
+                        pad = -(-f.size // (64 if voigt else 512)) * (64 if voigt else 512) - f.size
+                        rows_amps, rows_lw = (np.zeros((len(chunk), f.size + pad), np.complex64),
+                                              np.ones((len(chunk), f.size + pad), np.float32))
+                        rows_gauss = np.zeros((len(chunk), f.size + pad), np.float32)
+                        for row, (truth, amps, lw, gauss, start_s) in enumerate(chunk):
+                            amps = amps * self._advance(f, lw, start_s)
+                            if voigt:
+                                # a Gaussian line's cross term over the delay is a Lorentzian
+                                # width (as `_render_lines`)
+                                g = (np.pi * gauss.astype(np.float64)) ** 2 / (4.0 * np.log(2.0))
+                                amps, lw = ((amps * np.exp(-g * start_s ** 2)).astype(np.complex64),
+                                            (lw + 2.0 * g * start_s / np.pi).astype(np.float32))
+                            (rows_amps[row, :f.size], rows_lw[row, :f.size],
+                             rows_gauss[row, :f.size]) = amps, lw, gauss
+                        padded = ops.convert_to_tensor(np.pad(f, (0, pad)))
+                        _, fids = self.scan.engine.render_fids(
+                            padded, ops.convert_to_tensor(rows_amps), npoints=n, dwell_s=dwell,
+                            lw_hz=rows_lw, gauss_hz=rows_gauss if voigt else None)
+                        fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
                     for row, (truth, _, _, _, start_s) in enumerate(chunk):
                         if not voigt:
                             gauss_hz = self.resolve(truth.lineshape.gauss_hz)

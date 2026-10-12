@@ -22,7 +22,7 @@ import hashlib
 
 import numpy as np
 
-from mrsandbox.params.values import Sourced, Value
+from mrsandbox.params.values import Fixed, Sourced, Value
 
 
 #**************************************************************************************************#
@@ -186,6 +186,9 @@ class Params(dict):
             value = self[key]
             if isinstance(value, Params):
                 drawn = value._realize(root, path + (key,))
+            elif isinstance(getattr(value, "current", value), Fixed):
+                # a fixed leaf never reads its generator, so it is not made
+                drawn = value.sample(None)
             else:
                 rng = np.random.default_rng(
                     np.random.SeedSequence([root, self._path_entropy(path + (key,))]))

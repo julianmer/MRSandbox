@@ -533,7 +533,7 @@ class Engine:
             return None
         shapes = self._timing_shapes(sequence.timings())
         systems = tuple(tuple((s.name, s.nucleus, s.shifts_ppm, s.j_hz, s.scale, s.gamma_mhz_t,
-                               s.spin) for s in group) for group in groups)
+                               s.spin, s.nuclei) for s in group) for group in groups)
         text = repr((self._export_salt(), self.b0_t, self.receiver_phase_deg, kind,
                      sequence.structure(), shapes, systems, isochromats, pruned))
         digest = hashlib.sha256(text.encode()).hexdigest()
@@ -585,12 +585,13 @@ class Engine:
     @staticmethod
     def _wrap_export(exported, build):
         """The loaded export behind the live graph's interface: a call whose leaves fit
-        the export's own signature runs the serialized module (each leaf made float32),
-        and any other call falls back to the live python graph, built once on first
-        need: a tracer among the leaves (vmap has no rule for a serialized call, a
-        gradient would need its VJP), or a shape the export was not made for (a vector
-        transmit scale over the ensemble), which a jit quietly retraces for and a
-        serialized module cannot. A symbolic dimension fits any size."""
+        the export's own signature runs the serialized module (each leaf made its own
+        input's dtype, float32 but for held propagators), and any other call falls back
+        to the live python graph, built once on first need: a tracer among the leaves
+        (vmap has no rule for a serialized call, a gradient would need its VJP), or a
+        shape the export was not made for (a vector transmit scale over the ensemble),
+        which a jit quietly retraces for and a serialized module cannot. A symbolic
+        dimension fits any size."""
         import jax
 
         from nifti_mrs_plus.backend import jit
@@ -611,8 +612,10 @@ class Engine:
                 if not live:
                     live.append(jit(build()))
                 return live[0](*args)
-            return call(*jax.tree_util.tree_map(
-                lambda leaf: ops.convert_to_tensor(leaf, dtype="float32"), args))
+            return call(*jax.tree_util.tree_unflatten(
+                jax.tree_util.tree_structure(args),
+                [ops.convert_to_tensor(leaf, dtype=aval.dtype)
+                 for leaf, aval in zip(leaves, exported.in_avals)]))
 
         return wrapped
 
@@ -732,7 +735,9 @@ class Engine:
         pulses once and replays the pass alone, most of a played design's cost; the
         lines equal the full graph's to float32. Keyed like `graph`, the index of
         the kept lines the full graph's; the functions read the design's timings at
-        each call like `compiled_batch`."""
+        each call like `compiled_batch`. Where graphs persist as exports (`graph`),
+        `frame` and `draws` keep their own (the draws axis a symbolic dimension), so a
+        later session plays a batch untraced; `lines` stays a live jit."""
         from nifti_mrs_plus.backend import jit
 
         from mrsandbox.sequences.events import ShapedPulse
@@ -741,49 +746,81 @@ class Engine:
         key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups,
                isochromats, "framed")
         if key not in self._compiled:
-            contexts = [(group, self._ensemble_context(sequence, self.context(system), isochromats))
-                        for group, members in enumerate(groups) for system in members]
-            axes = sorted(self.extents(sequence))
             index, kept = self._signal_index(
                 lambda *args: self.graph(sequence, groups, isochromats)[0](*args),
                 sequence, groups, isochromats, self._group_bounds(groups))
+            built = []
 
-            def placed(ctx0, shift, **values):
-                moved = {"gradient_" + axis:
-                         getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
-                         for axis in axes}
-                return dataclasses.replace(ctx0, **moved, **values)
+            def build():
+                # the python of `frame` and `lines`, made on first need: a session the
+                # exports serve never builds the contexts
+                if built:
+                    return built[0]
+                contexts = [(group, self._ensemble_context(sequence, self.context(system),
+                                                           isochromats))
+                            for group, members in enumerate(groups) for system in members]
+                axes = sorted(self.extents(sequence))
 
-            def pulses(design):
-                # each shaped pulse object once, in order: what `frame` plays and `lines` zips
-                seen = {}
-                for event in design.events:
-                    if isinstance(event, ShapedPulse):
-                        seen.setdefault(id(event), event)
-                return tuple(seen.values())
+                def placed(ctx0, shift, **values):
+                    moved = {"gradient_" + axis:
+                             getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
+                             for axis in axes}
+                    return dataclasses.replace(ctx0, **moved, **values)
 
-            def frame(b1_scale, offset_hz, timings, shift):
-                design = sequence.bound(timings)
-                return tuple(tuple(pulse.propagator(placed(ctx0, shift, b1_scale=b1_scale,
-                                                           offset_hz=offset_hz))
-                                   for pulse in pulses(design)) for _, ctx0 in contexts)
+                def pulses(design):
+                    # each shaped pulse object once, in order: what `frame` plays and `lines` zips
+                    seen = {}
+                    for event in design.events:
+                        if isinstance(event, ShapedPulse):
+                            seen.setdefault(id(event), event)
+                    return tuple(seen.values())
 
-            def lines(t1_s, t2_s, b1_scale, offset_hz, timings, shift, frame):
-                design = sequence.bound(timings)
-                freqs, amps = [], []
-                for (group, ctx0), held in zip(contexts, frame):
-                    ctx = placed(ctx0, shift, t1_s=t1_s[group], t2_s=t2_s[group],
-                                 b1_scale=b1_scale, offset_hz=offset_hz)
-                    f, a = self._system_lines(design, ctx,
-                                              dict(zip(map(id, pulses(design)), held)))
-                    freqs.append(f)
-                    amps.append(a)
-                return (ops.take(ops.concatenate(freqs), index),
-                        ops.take(ops.concatenate(amps), index))
+                def frame(b1_scale, offset_hz, timings, shift):
+                    design = sequence.bound(timings)
+                    return tuple(tuple(pulse.propagator(placed(ctx0, shift, b1_scale=b1_scale,
+                                                               offset_hz=offset_hz))
+                                       for pulse in pulses(design)) for _, ctx0 in contexts)
 
-            self._compiled[key] = (
-                jit(frame), jit(lines),
-                Backend.vmap(jit(lines), in_axes=(0, 0, None, None, None, None, None)), kept)
+                def lines(t1_s, t2_s, b1_scale, offset_hz, timings, shift, frame):
+                    design = sequence.bound(timings)
+                    freqs, amps = [], []
+                    for (group, ctx0), held in zip(contexts, frame):
+                        ctx = placed(ctx0, shift, t1_s=t1_s[group], t2_s=t2_s[group],
+                                     b1_scale=b1_scale, offset_hz=offset_hz)
+                        f, a = self._system_lines(design, ctx,
+                                                  dict(zip(map(id, pulses(design)), held)))
+                        freqs.append(f)
+                        amps.append(a)
+                    return (ops.take(ops.concatenate(freqs), index),
+                            ops.take(ops.concatenate(amps), index))
+
+                built.append((frame, lines))
+                return built[0]
+
+            axes = (0, 0, None, None, None, None, None)
+            lines = jit(lambda *args: build()[1](*args))
+            frame_path, draws_path = (self._export_path(kind, sequence, groups, isochromats, True)
+                                      for kind in ("frame", "framed draws"))
+            if frame_path is None:
+                self._compiled[key] = (jit(lambda *args: build()[0](*args)), lines,
+                                       Backend.vmap(lines, in_axes=axes), kept)
+            else:
+                import jax
+                from jax import export
+
+                specs = self._specs(sequence, groups)
+                stored = self._load_export(frame_path)
+                if stored is None:
+                    stored = (self._store_export(frame_path, build()[0], specs[2:]), None)
+                frame = self._wrap_export(stored[0], lambda: build()[0])
+                mapped = lambda: jax.vmap(build()[1], in_axes=axes)
+                stored = self._load_export(draws_path)
+                if stored is None:
+                    rows = self._specs(sequence, groups, draws=export.symbolic_shape("b")[0])
+                    held = jax.eval_shape(build()[0], *specs[2:])
+                    stored = (self._store_export(draws_path, mapped(),
+                                                 rows[:2] + specs[2:] + (held,)), None)
+                self._compiled[key] = (frame, lines, self._wrap_export(stored[0], mapped), kept)
         frame, lines, draws, kept = self._compiled[key]
         timings = self.tensors(sequence.timings())
         shift = ops.convert_to_tensor(np.asarray(

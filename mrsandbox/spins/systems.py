@@ -6,10 +6,11 @@
 #                                                                                                  #
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Spin systems and their operator algebra on the 2^n product basis. A SpinSystem is       #
+# Purpose: Spin systems and their operator algebra on the product basis. A SpinSystem is          #
 #          immutable and hashable (so operator stacks cache outside jit) and carries its gamma,    #
-#          making it self-contained; its Hamiltonian uses FULL (non-secular) scalar coupling, so   #
-#          strong-coupling behaviour is exact at any field. Constants are numpy complex64; convert #
+#          making it self-contained; its Hamiltonian uses FULL (non-secular) scalar coupling       #
+#          between spins of its nucleus, so strong-coupling behaviour is exact at any field, and   #
+#          the secular term to a spin of another nucleus. Constants are numpy complex64; convert   #
 #          to backend tensors at the point of use.                                                 #
 #                                                                                                  #
 ####################################################################################################
@@ -23,6 +24,7 @@ import functools
 import numpy as np
 
 from mrsandbox.database import Database
+from mrsandbox.database.nuclei import HETERONUCLEI, SPIN
 
 
 #**************************************************************************************************#
@@ -44,7 +46,13 @@ class SpinSystem:
         scale: Signal scale (equivalent uncoupled spins folded into one).
         gamma_mhz_t: Gyromagnetic ratio of the nucleus, MHz/T.
         spin: Nuclear spin quantum number I of the nucleus (1/2 for protons, 1 for
-            deuterium, 3/2 for sodium); every spin of a system is one nucleus.
+            deuterium, 3/2 for sodium).
+        nuclei: The nucleus of every spin (tuple, length n), or None when every spin is
+            `nucleus`. A spin of another nucleus (the 14N and 31P of the choline
+            compounds) is never pulsed nor detected: it sits in its own rotating frame,
+            couples to the resonant spins by the secular J Iz Sz alone (the frames are
+            megahertz apart), and carries its own spin quantum number (14N spin 1, its
+            quadrupolar relaxation left out, stated).
         t1_s, t2_s: Optional relaxation times; when set, Delay events relax the system
             (T2 decays every coherence, T1 recovers the populations toward equilibrium).
             Excluded from equality and hash: relaxation never changes the operator
@@ -58,6 +66,7 @@ class SpinSystem:
     scale: float
     gamma_mhz_t: float
     spin: float = 0.5
+    nuclei: tuple = None
     t1_s: float = dataclasses.field(default=None, compare=False)
     t2_s: float = dataclasses.field(default=None, compare=False)
 
@@ -69,16 +78,19 @@ class SpinSystem:
                       ph=7.0):
         """All coupled groups of `metabolite` as SpinSystems: simulate each, sum the
         lines. `source` names the table (the 1H Govindaraju set, or "dmi" for the
-        deuterium set); the nucleus comes from the record. Away from 37 C and pH 7,
-        where the values are typed, every proton moves by the published change of its
-        group and every coupling the table holds by its own (Database.shift_change and
-        coupling_change)."""
+        deuterium set); the nucleus comes from the record, and the Govindaraju set's
+        nitrogen and phosphorus spins take theirs from nuclei.HETERONUCLEI. Away from
+        37 C and pH 7, where the values are typed, every proton moves by the published
+        change of its group and every coupling the table holds by its own
+        (Database.shift_change and coupling_change)."""
         db = database if database is not None else Database()
         record = db.spin_system(metabolite, source=source)
         nucleus = record.get("nucleus", "1H")
+        tags = HETERONUCLEI.get(metabolite, {}) if source == "govindaraju" else {}
         systems = []
         for group in record["groups"]:
             labels = list(group["spins"])
+            kinds = [tags.get(group["name"], {}).get(label, nucleus) for label in labels]
             index = {label: i for i, label in enumerate(labels)}
             j = np.zeros((len(labels), len(labels)))
             for a, b, value in group.get("j", ()):
@@ -103,6 +115,7 @@ class SpinSystem:
             parts += [([shifts.index(shift)], count) for shift, count in singles.items()]
             for k, (part, count) in enumerate(parts):
                 suffix = "" if len(parts) == 1 else f".{k}"
+                others = any(kinds[i] != nucleus for i in part)
                 systems.append(
                     cls(
                         name=f"{metabolite}.{group['name']}{suffix}",
@@ -112,6 +125,7 @@ class SpinSystem:
                         scale=float(group.get("scale", 1.0)) * count,
                         gamma_mhz_t=db.gamma(nucleus),
                         spin=db.spin(nucleus),
+                        nuclei=tuple(kinds[i] for i in part) if others else None,
                         t1_s=record.get("t1_s"),
                         t2_s=record.get("t2_s"),
                     )
@@ -145,9 +159,22 @@ class SpinSystem:
         return len(self.shifts_ppm)
 
     @property
+    def resonant(self):
+        """Per spin, whether it is of the system's nucleus (pulsed and detected)."""
+        if self.nuclei is None:
+            return (True,) * self.n
+        return tuple(kind == self.nucleus for kind in self.nuclei)
+
+    @property
+    def levels(self):
+        """Per spin, its number of levels 2 I + 1."""
+        return tuple(int(round(2 * (self.spin if own else SPIN[kind]) + 1))
+                     for own, kind in zip(self.resonant, self.nuclei or (self.nucleus,) * self.n))
+
+    @property
     def dim(self):
-        """Hilbert-space dimension (2 I + 1)**n."""
-        return int(round(2 * self.spin + 1)) ** self.n
+        """Hilbert-space dimension, the product of every spin's 2 I + 1."""
+        return int(np.prod(self.levels))
 
     #******************#
     #   relaxation     #
@@ -171,17 +198,22 @@ class SpinSystem:
 
         H = sum_i nu_i Iz_i + sum_{i<j} J_ij (Ix_i Ix_j + Iy_i Iy_j + Iz_i Iz_j),
         with nu_i = shift_i * gamma_mhz_t * b0_t (the frame offset is a Context input).
+        A spin of another nucleus sits in its own frame (nu_i = 0), and two spins of
+        different nuclei couple by J_ij Iz_i Iz_j alone.
         """
         op = self.operators()
-        nu = np.asarray(self.shifts_ppm) * self.gamma_mhz_t * float(b0_t)
+        resonant = np.asarray(self.resonant)
+        kinds = self.nuclei or (self.nucleus,) * self.n
+        nu = np.asarray(self.shifts_ppm) * self.gamma_mhz_t * float(b0_t) * resonant
         h = np.tensordot(nu.astype(np.complex64), op.iz, axes=1)
         j = np.asarray(self.j_hz)
         for a in range(self.n):
             for b in range(a + 1, self.n):
                 if j[a, b] != 0.0:
-                    h = h + np.complex64(j[a, b]) * (
-                        op.ix[a] @ op.ix[b] + op.iy[a] @ op.iy[b] + op.iz[a] @ op.iz[b]
-                    )
+                    coupling = op.iz[a] @ op.iz[b]
+                    if kinds[a] == kinds[b]:
+                        coupling = coupling + op.ix[a] @ op.ix[b] + op.iy[a] @ op.iy[b]
+                    h = h + np.complex64(j[a, b]) * coupling
         return h
 
     #*******************#
@@ -213,18 +245,21 @@ class Operators:
 
     Attributes:
         ix, iy, iz: Per-spin operators, (n, d, d) complex64.
-        fx, fy, fz: Total-spin operators, (d, d) complex64.
+        fx, fy, fz: Total-spin operators of the resonant spins (another nucleus is
+            never pulsed nor detected), (d, d) complex64.
         fplus: Detection operator Fx + i Fy, (d, d) complex64; its support lies on
             coherence order +1, so Tr(F+ rho) reads out the -1 coherences of rho.
-        coherence_order: Integer matrix q[a, b] = m_a - m_b, (d, d); a coherence filter
-            is a boolean mask on it.
+        coherence_order: Integer matrix q[a, b] = m_a - m_b of the resonant spins,
+            (d, d); a coherence filter is a boolean mask on it.
         mz: Per-spin magnetic quantum numbers on the product basis, (n, d) float32: the
-            diagonals of iz, which are also the eigenvalues of ix in the hadamard basis.
+            diagonals of iz, which are also the eigenvalues of ix in the hadamard basis;
+            a spin of another nucleus has a zero row, so no pulse sum turns it.
         hadamard: The transverse eigenbasis H, (d, d) complex64, the Kronecker product
             of the per-spin eigenvector matrices of Ix ordered like Iz (for spins 1/2
-            the n-fold Hadamard matrix): H Iz_i H^H = Ix_i for every spin, so any sum
-            of Ix_i is diagonalized by H with the matching sum of mz rows as
-            eigenvalues, and transverse rotations need no eigendecomposition.
+            the n-fold Hadamard matrix; the identity on another nucleus): H Iz_i H^H =
+            Ix_i for every resonant spin, so any sum of their Ix_i is diagonalized by H
+            with the matching sum of mz rows as eigenvalues, and transverse rotations
+            need no eigendecomposition.
     """
 
     ix: np.ndarray
@@ -246,28 +281,34 @@ class Operators:
     def build(cls, system):
         """Build (and cache) the operator stack of a hashable SpinSystem; relaxed
         variants of one structural system hit the same entry."""
-        # the x, y, z operators of one spin I on its 2 I + 1 levels, m descending: Iz = diag(m) and
+        # the x, y, z operators of one spin on its levels, m descending from I: Iz = diag(m) and
         # the ladder I+ with <m + 1|I+|m> = sqrt(I (I + 1) - m (m + 1))
-        m = system.spin - np.arange(int(round(2 * system.spin + 1)))
-        plus = np.diag(np.sqrt(system.spin * (system.spin + 1.0) - m[1:] * (m[1:] + 1.0)), k=1)
-        single = {"x": ((plus + plus.T) / 2.0).astype(np.complex64),
-                  "y": ((plus - plus.T) / 2.0j).astype(np.complex64),
-                  "z": np.diag(m).astype(np.complex64)}
+        singles = []
+        for count in system.levels:
+            spin = (count - 1) / 2.0
+            m = spin - np.arange(count)
+            plus = np.diag(np.sqrt(spin * (spin + 1.0) - m[1:] * (m[1:] + 1.0)), k=1)
+            singles.append({"x": ((plus + plus.T) / 2.0).astype(np.complex64),
+                            "y": ((plus - plus.T) / 2.0j).astype(np.complex64),
+                            "z": np.diag(m).astype(np.complex64)})
         ix, iy, iz = (
-            np.stack([cls._embed(single[axis], i, system.n) for i in range(system.n)])
+            np.stack([cls._embed(singles[i][axis], i, system.levels) for i in range(system.n)])
             for axis in "xyz"
         )
-        fx, fy, fz = ix.sum(axis=0), iy.sum(axis=0), iz.sum(axis=0)
+        resonant = np.asarray(system.resonant, dtype=np.float32)
+        fx, fy, fz = (np.tensordot(resonant.astype(np.complex64), op, axes=1)
+                      for op in (ix, iy, iz))
         m = np.real(np.diag(fz))
         order = np.rint(m[:, None] - m[None, :]).astype(np.int32)
-        mz = np.real(np.diagonal(iz, axis1=1, axis2=2)).astype(np.float32)
+        mz = (np.real(np.diagonal(iz, axis1=1, axis2=2)) * resonant[:, None]).astype(np.float32)
         # the eigenvectors of Ix, one column per m in the order of Iz (eigh returns
         # them ascending; the column phases are free, a diagonal one cancels in
-        # V diag(m) V^H): the n-fold Hadamard for spins 1/2
-        _, basis = np.linalg.eigh(single["x"])
-        basis = basis[:, ::-1].astype(np.complex64)
+        # V diag(m) V^H): the n-fold Hadamard for spins 1/2; another nucleus keeps its basis
         hadamard = np.array([[1.0]], dtype=np.complex64)
-        for _ in range(system.n):
+        for single, own in zip(singles, system.resonant):
+            basis = np.eye(single["x"].shape[0], dtype=np.complex64)
+            if own:
+                basis = np.linalg.eigh(single["x"])[1][:, ::-1].astype(np.complex64)
             hadamard = np.kron(hadamard, basis)
         return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy,
                    coherence_order=order, mz=mz, hadamard=hadamard)
@@ -277,9 +318,10 @@ class Operators:
     #   embedding   #
     #***************#
     @staticmethod
-    def _embed(op, i, n):
-        """Kronecker-embed a single-spin operator at position `i` of an n-spin product space."""
+    def _embed(op, i, levels):
+        """Kronecker-embed a single-spin operator at position `i` of the product space of
+        spins with `levels` levels each."""
         out = np.array([[1.0]], dtype=np.complex64)
-        for k in range(n):
-            out = np.kron(out, op if k == i else np.eye(op.shape[0], dtype=np.complex64))
+        for k, count in enumerate(levels):
+            out = np.kron(out, op if k == i else np.eye(count, dtype=np.complex64))
         return out

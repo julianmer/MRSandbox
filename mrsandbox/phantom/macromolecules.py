@@ -249,9 +249,19 @@ class MeasuredMM(MMSource):
                                          truth, f0_mhz)
         # before the echo top a component rises into the echo: its width is its lines' spread,
         # which the echo refocuses, so its decay is mirrored about t = 0
-        t = np.asarray(t_s, dtype=np.float64)[None, :]
-        signal = (amps[:, None] * np.exp(1j * rates.imag[:, None] * t
-                                         + rates.real[:, None] * np.abs(t))).sum(axis=0)
+        t = np.asarray(t_s, dtype=np.float64)
+        rise = t < 0.0
+        signal = np.empty(t.size, dtype=np.complex128)
+        signal[rise] = amps @ np.exp((1j * rates.imag - rates.real)[:, None] * t[rise])
+        # from the echo top on the grid is uniform, so a component's exponential factorizes
+        # into its powers inside a block of 32 samples and a stride per block
+        after = t[~rise]
+        dt = (t[-1] - t[0]) / max(t.size - 1, 1)
+        q = np.arange(32) * dt
+        p = after[:1] + np.arange(-(-after.size // 32)) * 32 * dt
+        table = (np.exp(rates[:, None] * p)[:, :, None]
+                 * np.exp(rates[:, None] * q)[:, None, :]).reshape(rates.size, -1)
+        signal[~rise] = amps @ table[:, :after.size]
         scale = (truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS * self.PEAK_ANCHOR
                  / np.conj(measured[0]))
         return (signal * scale).astype(np.complex64)

@@ -209,6 +209,101 @@ class TestHigherSpin:
 
 
 #**************************************************************************************************#
+#                                       Class TestHeteronuclei                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# A spin of another nucleus in a proton system: its own levels, never pulsed nor detected.         #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestHeteronuclei:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def pair(other, j_hz=7.0):
+        # a proton at 3.2 ppm coupled to one spin: of another nucleus, or a proton at 100 ppm
+        # (the way the table wrote the heteronuclei before they were named)
+        from mrsandbox.database import Database
+
+        return SpinSystem(name="pair", nucleus="1H", shifts_ppm=(3.2, 100.0),
+                          j_hz=((0.0, j_hz), (j_hz, 0.0)), scale=1.0,
+                          gamma_mhz_t=Database().gamma("1H"),
+                          nuclei=None if other == "1H" else ("1H", other))
+
+    @staticmethod
+    def detected(sequence, *systems):
+        from keras import ops
+
+        from mrsandbox import Engine
+
+        freqs, amps = Engine(3.0).lines(sequence, *systems)
+        return (np.asarray(ops.convert_to_numpy(freqs)),
+                np.asarray(ops.convert_to_numpy(amps)).astype(np.complex128))
+
+    #**************#
+    #   database   #
+    #**************#
+    def test_the_choline_compounds_name_their_nitrogen_and_phosphorus(self):
+        # the table's protons at 100 and 40 ppm are the 14N (spin 1) and 31P of the compounds
+        systems = {s.name: s for m in ("Cho", "PCho") for s in SpinSystem.from_database(m)}
+        methyl = systems["Cho.Ch_3CH3"]
+        assert methyl.nuclei == ("1H", "1H", "1H", "14N")
+        assert methyl.levels == (2, 2, 2, 3) and methyl.dim == 24
+        ring = systems["PCho.PCh_ch2ch2"]
+        assert ring.nuclei[-2:] == ("14N", "31P") and ring.dim == 2 ** 5 * 3
+        assert all(s.nuclei is None for s in SpinSystem.from_database("NAA"))
+
+    #*************#
+    #   triplet   #
+    #*************#
+    def test_the_choline_methyl_is_a_triplet_on_its_nitrogen(self):
+        # three lines J apart in 1:1:1, every one a proton line, the protons' total the
+        # uncoupled methyl's: the nitrogen adds its levels and nothing of its own
+        from mrsandbox import PulseAcquire
+
+        (methyl,) = [s for s in SpinSystem.from_database("Cho") if s.name == "Cho.Ch_3CH3"]
+        freqs, amps = self.detected(PulseAcquire(), methyl)
+        keep = np.abs(amps) > 1e-6 * np.abs(amps).max()
+        lines = {}
+        for f, a in zip(np.round(freqs[keep], 3), amps[keep]):
+            lines[f] = lines.get(f, 0.0) + a
+        positions = np.sort(np.asarray(list(lines)))
+        np.testing.assert_allclose(np.diff(positions), 0.57, atol=1e-3)
+        heights = np.abs(np.asarray([lines[f] for f in positions]))
+        np.testing.assert_allclose(heights / heights.mean(), 1.0, atol=1e-5)
+        bare = SpinSystem(name="bare", nucleus="1H", shifts_ppm=(3.185,), j_hz=((0.0,),),
+                          scale=3.0 * methyl.scale, gamma_mhz_t=methyl.gamma_mhz_t)
+        _, single = self.detected(PulseAcquire(), bare)
+        assert abs(heights.sum() - np.abs(single.sum())) < 1e-5 * np.abs(single.sum())
+
+    #************#
+    #   echoes   #
+    #************#
+    @pytest.mark.parametrize("te_s", [0.03, 0.05, 0.1])
+    def test_a_proton_echo_refocuses_a_heteronuclear_coupling(self, te_s):
+        # the 180s turn the proton alone, so J Iz Sz refocuses at the echo top like a shift:
+        # the coupled proton's signal there is the uncoupled one's at any echo time, against
+        # cos(pi J TE) and worse when the partner is a proton the pulses turn too
+        from mrsandbox import Press
+
+        press = Press(te1_s=te_s / 2.0, te2_s=te_s / 2.0)
+        bare = SpinSystem(name="bare", nucleus="1H", shifts_ppm=(3.2,), j_hz=((0.0,),),
+                          scale=1.0, gamma_mhz_t=self.pair("31P").gamma_mhz_t)
+        f0_mhz = 3.0 * bare.gamma_mhz_t
+
+        def near(system):
+            # the proton's lines at 3.2 ppm (a proton partner has its own at 100)
+            freqs, amps = self.detected(press, system)
+            return amps[np.abs(freqs - 3.2 * f0_mhz) < 50.0].sum()
+
+        reference = near(bare)
+        for other in ("31P", "14N"):
+            assert abs(near(self.pair(other)) - reference) < 1e-5 * abs(reference)
+        assert abs(abs(near(self.pair("1H"))) - abs(reference)) > 0.05 * abs(reference)
+
+
+#**************************************************************************************************#
 #                                      Class TestConnectedParts                                    #
 #**************************************************************************************************#
 #                                                                                                  #

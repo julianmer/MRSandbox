@@ -550,6 +550,51 @@ class TestGraph:
         finally:
             jax.config.update("jax_compilation_cache_dir", before)
 
+    def test_a_framed_graph_reloads_across_engines_untraced(self, backend, tmp_path, monkeypatch):
+        # a second engine takes the frame's and the draws' exports: no context is built, the
+        # pulses and the draws are the first engine's to the bit at any batch, and a transmit
+        # profile (a vector b1) falls back to the live graph
+        if backend != "jax":
+            pytest.skip("graphs persist as jax exports")
+        import jax
+
+        from mrsandbox.sequences.library import LocalizedPress
+
+        before = jax.config.jax_compilation_cache_dir
+        jax.config.update("jax_compilation_cache_dir", str(tmp_path))
+        try:
+            groups = (tuple(SpinSystem.from_database("Lac")),)
+            design = LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ, tr_s=1.5)
+            b1, offset = (ops.convert_to_tensor(np.float32(0.9)),
+                          ops.convert_to_tensor(np.float32(5.0)))
+            t1 = ops.convert_to_tensor(np.asarray([[0.9], [1.2], [1.5], [1.1], [0.8]], np.float32))
+            t2 = ops.convert_to_tensor(np.asarray([[0.1], [0.25], [0.15], [0.2], [0.3]],
+                                                  np.float32))
+            frame, _, draws, kept = Engine(3.0, isochromats=8).framed(design, groups)
+            held = frame(b1, offset)
+            first = [np.asarray(ops.convert_to_numpy(v)) for v in draws(t1, t2, b1, offset, held)]
+            two = Engine(3.0, isochromats=8)
+            monkeypatch.setattr(two, "_ensemble_context",
+                                lambda *a, **k: pytest.fail("the export was not taken"))
+            frame2, _, draws2, kept2 = two.framed(design, groups)
+            held2 = frame2(b1, offset)
+            assert np.array_equal(kept, kept2)
+            assert all(np.array_equal(np.asarray(ops.convert_to_numpy(a)),
+                                      np.asarray(ops.convert_to_numpy(b)))
+                       for a, b in zip(jax.tree_util.tree_leaves(held),
+                                       jax.tree_util.tree_leaves(held2)))
+            for count in (3, 5):
+                again = [np.asarray(ops.convert_to_numpy(v))
+                         for v in draws2(t1[:count], t2[:count], b1, offset, held2)]
+                assert all(np.array_equal(a[:count], b) for a, b in zip(first, again))
+            monkeypatch.undo()
+            profile = ops.convert_to_tensor(np.full(8, 0.9, np.float32))
+            amps = np.asarray(ops.convert_to_numpy(
+                draws2(t1, t2, profile, offset, frame2(profile, offset))[1]))
+            assert np.abs(amps - first[1]).max() <= 1e-5 * np.abs(first[1]).max()
+        finally:
+            jax.config.update("jax_compilation_cache_dir", before)
+
     def test_rows_render_with_their_own_widths(self):
         # a batch of draws renders in one call, every row with its own Lorentzian widths, and equals
         # the rows rendered one by one
