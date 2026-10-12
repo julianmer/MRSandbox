@@ -221,12 +221,13 @@ GOVINDARAJU = {
 #         book's own numbering kept in the labels (equal protons as a, b, c; P and N the
 #         heteronuclei).
 # Notes:  of a CH2 pair the first listed shift is read as H, the second as H' (the table ties its
-#         couplings to labels, not to rows). The 14N couplings are the text's (footnote c): GPC's
-#         1CH2 to its nitrogen, 2.7 Hz (p. 61); the text there gives the 31P coupling to 2CH2, the
-#         table to 1CH2 (1, 1'-P), which is followed. Serine's row is misprinted (2-3 / 2-3' with
-#         one value, then 3-3' 3.56 and an unlabelled -12.3); read as 2-3 5.98, 2-3' 3.56, 3-3'
-#         -12.3. The glucose anomers are weighed 36 and 64 percent as the text gives them (p. 63).
-#         Gln's amide protons are not in the table.
+#         couplings to labels, not to rows), except where the values are Govindaraju 2000's and its
+#         assignment differs (GSH's glutamate 3CH2: H3 2.159, as the original). The 14N couplings
+#         are the text's (footnote c): GPC's 1CH2 to its nitrogen, 2.7 Hz (p. 61); the text there
+#         gives the 31P coupling to 2CH2, the table to 1CH2 (1, 1'-P), which is followed. Serine's
+#         row is misprinted (2-3 / 2-3' with one value, then 3-3' 3.56 and an unlabelled -12.3);
+#         read as 2-3 5.98, 2-3' 3.56, 3-3' -12.3. The glucose anomers are weighed 36 and 64
+#         percent as the text gives them (p. 63). Gln's amide protons are not in the table.
 DEGRAAF_2019 = {
     "Ala": {"groups": [
         {"name": "Ala", "spins": {"2": 3.775, "3a": 1.467, "3b": 1.467, "3c": 1.467},
@@ -275,7 +276,7 @@ DEGRAAF_2019 = {
         {"name": "glycine", "spins": {"2": 3.769, "2'": 3.769, "NH": 7.154}},
         {"name": "cysteine", "spins": {"2": 4.561, "3": 2.926, "3'": 2.975, "NH": 8.177},
          "j": [("2", "3", 7.09), ("2", "3'", 4.71), ("3", "3'", -14.06)]},
-        {"name": "glutamate", "spins": {"2": 3.769, "3": 2.146, "3'": 2.159, "4": 2.510,
+        {"name": "glutamate", "spins": {"2": 3.769, "3": 2.159, "3'": 2.146, "4": 2.510,
                                         "4'": 2.560},
          "j": [("2", "3", 6.34), ("2", "3'", 6.36), ("3", "3'", -15.48), ("3", "4", 6.70),
                ("3", "4'", 7.60), ("3'", "4", 7.60), ("3'", "4'", 6.70), ("4", "4'", -15.92)]},
@@ -358,5 +359,160 @@ DEGRAAF_2019 = {
     ]},
     "sIns": {"groups": [
         {"name": "Scyllo", "spins": {"CH": 3.340}, "scale": 6.0},
+    ]},
+}
+
+
+#*******************#
+#   govind 2015     #
+#*******************#
+# Source: Govindaraju, V., Young, K., Maudsley, A. A. Proton NMR chemical shifts and coupling
+#         constants for brain metabolites. NMR in Biomedicine 13 (2000) 129-153, Table 1 (shifts in
+#         H2O at 37 C, pH 7, DSS at 0 ppm; D2O where the H2O column is empty), with the authors'
+#         corrections of Govind, V., Young, K., Maudsley, A. A. NMR in Biomedicine 28 (2015)
+#         923-924, Table 1 (the geminal couplings added, GABA renumbered with H2 at 2.2840 ppm,
+#         taurine's 6.792 and PE's 2.980 Hz moved to 1'-2', PCho's 6.249 Hz to 1'-P). Typed by hand
+#         in the papers' numbering.
+# Notes:  the nitrogen couples choline's methyl and its CH2 protons alike and is never turned, so
+#         the two evolve apart exactly and each group carries its own copy of it; the nine methyl
+#         protons, equal and coupled to nothing else, are one spin of scale 9. The paper has no
+#         ascorbate, and no couplings for NAAG's glutamate moiety (its Fig. 2 simulates NAAG's
+#         singlet alone): NAAG holds its acetyl and aspartyl moieties only. Glucose comes from
+#         Perkins et al. at 25 C (its footnote c); its anomers are weighed 36 and 64 percent as de
+#         Graaf 2019 gives them (p. 63), the paper giving none. GSH's and Gln's NH rows carry no
+#         coupling in the paper and stand alone.
+GOVIND_2015 = {
+    "Ala": {"groups": [
+        {"name": "Ala", "spins": {"2": 3.7746, "3": 1.4667, "3'": 1.4667, "3''": 1.4667},
+         "j": [("2", "3", 7.234), ("2", "3'", 7.234), ("2", "3''", 7.234), ("3", "3'", -14.366),
+               ("3", "3''", -14.366), ("3'", "3''", -14.366)]},
+    ]},
+    "Asp": {"groups": [
+        {"name": "Asp", "spins": {"2": 3.8914, "3": 2.8011, "3'": 2.6533},
+         "j": [("2", "3", 3.647), ("2", "3'", 9.107), ("3", "3'", -17.426)]},
+    ]},
+    "Cho": {"groups": [
+        {"name": "trimethyl", "spins": {"CH3": 3.1850, "N": 0.0}, "j": [("CH3", "N", 0.57)],
+         "scale": 9.0, "nuclei": {"N": "14N"}},
+        {"name": "ch2ch2", "spins": {"1": 4.0540, "1'": 4.0540, "2": 3.5010, "2'": 3.5010,
+                                     "N": 0.0},
+         "j": [("1", "2", 3.140), ("1", "2'", 6.979), ("1'", "2'", 3.168), ("1'", "2", 7.011),
+               ("1", "N", 2.572), ("1'", "N", 2.681), ("1", "1'", -14.100), ("2", "2'", -14.070)],
+         "nuclei": {"N": "14N"}},
+    ]},
+    "Cr": {"groups": [
+        {"name": "Cr", "spins": {"CH3a": 3.0270, "CH3b": 3.0270, "CH3c": 3.0270, "2a": 3.9130,
+                                 "2b": 3.9130, "NH": 6.6490}},
+    ]},
+    "GABA": {"groups": [
+        {"name": "GABA", "spins": {"2": 2.2840, "2'": 2.2840, "3": 1.8890, "3'": 1.8890,
+                                   "4": 3.0128, "4'": 3.0128},
+         "j": [("2", "3", 7.755), ("2", "3'", 6.173), ("2'", "3", 7.432), ("2'", "3'", 7.933),
+               ("3", "4", 5.372), ("3", "4'", 10.578), ("3'", "4", 7.127), ("3'", "4'", 6.982),
+               ("2", "2'", -10.744), ("3", "3'", -13.121), ("4", "4'", -12.021)]},
+    ]},
+    "GPC": {"groups": [
+        {"name": "glycerol", "spins": {"1": 3.605, "1'": 3.672, "2": 3.903, "3": 3.871,
+                                       "3'": 3.946, "P": 0.0},
+         "j": [("1", "2", 5.77), ("2", "3", 5.77), ("1'", "2", 4.53), ("2", "3'", 4.53),
+               ("1", "1'", -14.78), ("3", "3'", -14.78), ("3", "P", 6.03), ("3'", "P", 6.03)],
+         "nuclei": {"P": "31P"}},
+        {"name": "ch2ch2", "spins": {"7": 4.312, "7'": 4.312, "8": 3.659, "8'": 3.659, "N": 0.0,
+                                     "P": 0.0},
+         "j": [("7", "8", 3.10), ("7'", "8'", 3.10), ("7", "8'", 5.90), ("7'", "8", 5.90),
+               ("7", "N", 2.67), ("7'", "N", 2.67), ("7", "P", 6.03), ("7'", "P", 6.03),
+               ("7", "7'", -9.32), ("8", "8'", -9.32)],
+         "nuclei": {"N": "14N", "P": "31P"}},
+        {"name": "trimethyl", "spins": {"CH3": 3.212}, "scale": 9.0},
+    ]},
+    "GSH": {"groups": [
+        {"name": "glycine", "spins": {"10": 3.769, "10'": 3.769, "9NH": 7.154}},
+        {"name": "cysteine", "spins": {"7": 4.5608, "7'": 2.9264, "7''": 2.9747, "6NH": 8.1770},
+         "j": [("7", "7'", 7.09), ("7", "7''", 4.71), ("7'", "7''", -14.06)]},
+        {"name": "glutamate", "spins": {"2": 3.769, "3": 2.159, "3'": 2.146, "4": 2.510,
+                                        "4'": 2.560},
+         "j": [("2", "3", 6.34), ("2", "3'", 6.36), ("3", "3'", -15.48), ("3", "4", 6.7),
+               ("3", "4'", 7.6), ("3'", "4", 7.6), ("3'", "4'", 6.7), ("4", "4'", -15.92)]},
+    ]},
+    "Glc": {"groups": [
+        {"name": "alpha", "scale": 0.36,
+         "spins": {"1": 5.216, "2": 3.519, "3": 3.698, "4": 3.395, "5": 3.822, "6": 3.826,
+                   "6'": 3.749},
+         "j": [("1", "2", 3.8), ("2", "3", 9.6), ("3", "4", 9.4), ("4", "5", 9.9), ("5", "6", 1.5),
+               ("5", "6'", 6.0), ("6", "6'", -12.1)]},
+        {"name": "beta", "scale": 0.64,
+         "spins": {"1": 4.630, "2": 3.230, "3": 3.473, "4": 3.387, "5": 3.450, "6": 3.882,
+                   "6'": 3.707},
+         "j": [("1", "2", 8.0), ("2", "3", 9.1), ("3", "4", 9.4), ("4", "5", 8.9), ("5", "6", 1.6),
+               ("5", "6'", 5.4), ("6", "6'", -12.3)]},
+    ]},
+    "Gln": {"groups": [
+        {"name": "Gln", "spins": {"2": 3.7530, "3": 2.1290, "3'": 2.1090, "4": 2.4320,
+                                  "4'": 2.4540},
+         "j": [("2", "3", 5.847), ("2", "3'", 6.500), ("3", "3'", -14.504), ("3", "4", 9.165),
+               ("3", "4'", 6.347), ("3'", "4", 6.324), ("3'", "4'", 9.209), ("4", "4'", -15.371)]},
+        {"name": "amide", "spins": {"NH2": 6.8160, "NH2'": 7.5290}},
+    ]},
+    "Glu": {"groups": [
+        {"name": "Glu", "spins": {"2": 3.7433, "3": 2.0375, "3'": 2.1200, "4": 2.3378,
+                                  "4'": 2.3520},
+         "j": [("2", "3", 7.331), ("2", "3'", 4.651), ("3", "3'", -14.849), ("3", "4'", 8.406),
+               ("3'", "4'", 6.875), ("3", "4", 6.413), ("3'", "4", 8.478), ("4", "4'", -15.915)]},
+    ]},
+    "Gly": {"groups": [
+        {"name": "Gly", "spins": {"2": 3.5480}, "scale": 2.0},
+    ]},
+    "Ins": {"groups": [
+        {"name": "Ins", "spins": {"1": 3.5217, "2": 4.0538, "3": 3.5217, "4": 3.6144, "5": 3.2690,
+                                  "6": 3.6144},
+         "j": [("1", "2", 2.889), ("1", "6", 9.998), ("2", "3", 3.006), ("3", "4", 9.997),
+               ("4", "5", 9.485), ("5", "6", 9.482)]},
+    ]},
+    "Lac": {"groups": [
+        {"name": "Lac", "spins": {"2": 4.0974, "3": 1.3142, "3'": 1.3142, "3''": 1.3142},
+         "j": [("2", "3", 6.933), ("2", "3'", 6.933), ("2", "3''", 6.933)]},
+    ]},
+    "NAA": {"groups": [
+        {"name": "acetyl", "spins": {"CH3": 2.0080}, "scale": 3.0},
+        {"name": "aspartate", "spins": {"2": 4.3817, "3": 2.6727, "3'": 2.4863, "NH": 7.8205},
+         "j": [("2", "3", 3.861), ("2", "3'", 9.821), ("3", "3'", -15.592), ("NH", "2", 6.400)]},
+    ]},
+    "NAAG": {"groups": [
+        {"name": "acetyl", "spins": {"CH3": 2.042}, "scale": 3.0},
+        {"name": "aspartyl", "spins": {"2": 4.607, "3": 2.721, "3'": 2.519},
+         "j": [("2", "3", 4.412), ("2", "3'", 9.515), ("3", "3'", -15.910)]},
+    ]},
+    "PCho": {"groups": [
+        {"name": "ch2ch2", "spins": {"1": 4.2805, "1'": 4.2805, "2": 3.6410, "2'": 3.6410,
+                                     "N": 0.0, "P": 0.0},
+         "j": [("1", "2", 2.284), ("1", "2'", 7.231), ("1'", "2'", 2.235), ("1'", "2", 7.326),
+               ("1", "N", 2.680), ("1'", "N", 2.772), ("1", "P", 6.298), ("1'", "P", 6.249),
+               ("1", "1'", -14.890), ("2", "2'", -14.190)],
+         "nuclei": {"N": "14N", "P": "31P"}},
+        {"name": "trimethyl", "spins": {"CH3": 3.2080}, "scale": 9.0},
+    ]},
+    "PCr": {"groups": [
+        {"name": "PCr", "spins": {"CH3a": 3.0290, "CH3b": 3.0290, "CH3c": 3.0290, "2a": 3.9300,
+                                  "2b": 3.9300, "NH": 6.5810, "NH'": 7.2960}},
+    ]},
+    "PE": {"groups": [
+        {"name": "PE", "spins": {"1": 3.9765, "1'": 3.9765, "2": 3.2160, "2'": 3.2160, "N": 0.0,
+                                 "P": 0.0},
+         "j": [("1", "2", 3.182), ("1'", "2", 7.204), ("1", "2'", 6.716), ("1'", "2'", 2.980),
+               ("1", "P", 7.288), ("1'", "P", 7.088), ("1", "N", 0.464), ("1'", "N", 0.588),
+               ("1", "1'", -14.560), ("2", "2'", -14.710)],
+         "nuclei": {"N": "14N", "P": "31P"}},
+    ]},
+    "Ser": {"groups": [
+        {"name": "Ser", "spins": {"2": 3.8347, "3": 3.9379, "3'": 3.9764},
+         "j": [("2", "3", 5.979), ("2", "3'", 3.561), ("3", "3'", -12.254)]},
+    ]},
+    "Tau": {"groups": [
+        {"name": "Tau", "spins": {"1": 3.4206, "1'": 3.4206, "2": 3.2459, "2'": 3.2459},
+         "j": [("1", "2", 6.742), ("1'", "2", 6.403), ("1", "2'", 6.464), ("1'", "2'", 6.792),
+               ("1", "1'", -12.438), ("2", "2'", -12.930)]},
+    ]},
+    "sIns": {"groups": [
+        {"name": "Scyllo", "spins": {"1": 3.3400}, "scale": 6.0},
     ]},
 }

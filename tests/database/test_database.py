@@ -61,6 +61,26 @@ class TestDatabase:
                       if s.nuclei and "14N" in s.nuclei]
         assert set(choline.nuclei) == {"1H", "14N", "31P"} and choline.dim == 2 ** 4 * 3 * 2
 
+    def test_govindarajus_table_carries_the_authors_corrections(self):
+        # every metabolite but ascorbate (not in the paper) builds; the 2015 corrections are in
+        # (taurine's 6.792 Hz at 1'-2', GABA's H2 at 2.2840 ppm, the geminal couplings), choline's
+        # CH2 couples to its nitrogen, and PCho's 1-N is the paper's 2.680 Hz
+        from mrsandbox import SpinSystem
+
+        db = Database()
+        table = db.SPIN_SYSTEMS["govind_2015"]
+        assert set(db.metabolites()) - set(table) == {"Asc"}
+        for name in table:
+            assert SpinSystem.from_database(name, source="govind_2015")
+        record = lambda name, k=0: db.spin_system(name, source="govind_2015")["groups"][k]
+        assert ("1'", "2'", 6.792) in record("Tau")["j"]
+        assert ("1", "1'", -12.438) in record("Tau")["j"]
+        assert record("GABA")["spins"]["2"] == 2.2840
+        assert ("1", "N", 2.572) in record("Cho", 1)["j"]
+        assert ("1", "N", 2.680) in record("PCho")["j"]
+        methyl = [s for s in SpinSystem.from_database("Cho", source="govind_2015") if s.n == 2]
+        assert methyl[0].nuclei == ("1H", "14N") and methyl[0].scale == 9.0
+
     #********************#
     #   concentrations   #
     #********************#
