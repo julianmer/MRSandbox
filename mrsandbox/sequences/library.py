@@ -951,16 +951,24 @@ class MegaPress(Sequence):
         taus_s: The five inter-pulse delays in seconds; their sum is the echo time.
         bandwidth_hz: Full selective bandwidth of the editing pulses.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+        crushers: True (the scanner's case) plays the pathway the crusher gradients around
+            the pulses select, which dephases the own signal of every spin inside the
+            editing band (an in-band singlet leaves the ON spectrum, so NAA at 2.01 ppm
+            shows negative in the difference); False keeps every pathway, the convention of
+            FID-A's sim_megapress, where an in-band singlet is refocused and stays. Without
+            crushers a coupled partner's ON multiplet depends on the editing pulses' phase
+            convention (stated).
     """
 
     #**********#
     #   init   #
     #**********#
     def __init__(self, edit_ppm=1.88, taus_s=(0.005, 0.017, 0.017, 0.017, 0.012), bandwidth_hz=60.0,
-                 tr_s=None):
+                 tr_s=None, crushers=True):
         self.edit_ppm = edit_ppm
         self.taus_s = tuple(taus_s)
         self.bandwidth_hz = bandwidth_hz
+        self.crushers = crushers
         t1, t2, t3, t4, t5 = self.taus_s
         super().__init__(
             Pulse(90.0),
@@ -972,7 +980,7 @@ class MegaPress(Sequence):
             SelectivePulse(180.0, offset_ppm=edit_ppm, bandwidth_hz=bandwidth_hz),
             Delay(t3),
             Pulse(180.0, phase_deg=90.0),
-            CoherenceFilter(-1),
+            *((CoherenceFilter(-1),) if crushers else ()),
             Delay(t4),
             SelectivePulse(180.0, offset_ppm=edit_ppm, bandwidth_hz=bandwidth_hz),
             Delay(t5),
@@ -1020,6 +1028,7 @@ class HadamardEditing(MegaPress):
         edit_ppm: Editing band centre(s) in ppm of one sub-experiment.
         taus_s: The five inter-pulse delays in seconds; their sum is the echo time.
         bandwidth_hz: Full selective bandwidth of each editing band.
+        crushers: As MegaPress.
     """
 
     bands = {}
@@ -1029,8 +1038,9 @@ class HadamardEditing(MegaPress):
     #   init   #
     #**********#
     def __init__(self, edit_ppm, taus_s=(0.005, 0.015, 0.025, 0.015, 0.020), bandwidth_hz=60.0,
-                 tr_s=None):
-        super().__init__(edit_ppm=edit_ppm, taus_s=taus_s, bandwidth_hz=bandwidth_hz, tr_s=tr_s)
+                 tr_s=None, crushers=True):
+        super().__init__(edit_ppm=edit_ppm, taus_s=taus_s, bandwidth_hz=bandwidth_hz, tr_s=tr_s,
+                         crushers=crushers)
 
     #************#
     #   scheme   #

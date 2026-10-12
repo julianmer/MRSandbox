@@ -98,6 +98,24 @@ class TestEditing:
         window = np.abs(ppm - 3.03) < 0.1
         assert np.abs(diff[window]).max() < 1e-5 * np.abs(off[window]).max()
 
+    #**************#
+    #   crushers   #
+    #**************#
+    def test_crushers_dephase_an_in_band_singlet_and_without_them_it_stays(self, engine):
+        # NAA's singlet at 2.008 ppm lies inside the 1.88 ppm band: the crushers' pathway
+        # leaves it out of ON (the negative NAA of a difference spectrum); without crushers the
+        # two editing pulses refocus it and ON equals OFF
+        from mrsandbox import SpinSystem
+
+        naa = SpinSystem(name="naa", nucleus="1H", shifts_ppm=(2.008,), j_hz=((0.0,),), scale=3.0,
+                         gamma_mhz_t=42.5774785)
+        detected = lambda sequence: abs(complex(np.asarray(
+            ops.convert_to_numpy(engine.lines(sequence, naa)[1])).sum()))
+        crushed, open_ = MegaPress.pair(), MegaPress.pair(crushers=False)
+        assert detected(crushed["on"]) < 1e-6 * detected(crushed["off"])
+        assert abs(detected(open_["on"]) - detected(open_["off"])) < 1e-5 * detected(open_["off"])
+        assert Hermes.scheme(crushers=False)["a"].crushers is False
+
     #*******************#
     #   the sequence    #
     #*******************#
