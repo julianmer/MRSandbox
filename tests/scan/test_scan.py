@@ -98,6 +98,19 @@ class TestVirtualScan:
         assert whole.systems("Glu") == SpinSystem.from_database("Glu", source="degraaf_2019")
         assert scan.systems("GABA") == SpinSystem.from_database("GABA")
 
+    #*****************#
+    #   temperature   #
+    #*****************#
+    def test_the_temperature_spread_draws_the_measured_spread_between_people(self, scan):
+        # off by default (the scan's temperature, fixed); on, the draws spread about it with the
+        # healthy adults' 0.4 C of MRS thermometry
+        temperatures = lambda s: np.array([float(s.params.sample(k).water.temperature_c)
+                                           for k in range(400)])
+        assert np.all(temperatures(scan) == 37.0)
+        spread = VirtualScan(scan.brain, scan.scanner, scan.sequence, temperature_spread=True)
+        drawn = temperatures(spread)
+        assert abs(drawn.mean() - 37.0) < 0.08 and 0.33 < drawn.std() < 0.47
+
     #***********************#
     #   serializable seed   #
     #***********************#

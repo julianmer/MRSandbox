@@ -38,6 +38,20 @@ MRSI_CHALLENGE = {
 #         30:579, Table 1), fourteen times less.
 CADY_1995 = {"intercept_c": 286.9, "c_per_ppm": 94.0}
 
+#***********************#
+#   brain temperature   #
+#***********************#
+# Source: Rzechorzek, N. M., et al. A daily temperature rhythm in the human brain predicts survival
+#         after brain injury. Brain 145 (2022) 2031-2048, doi:10.1093/brain/awab466: MRS
+#         thermometry of 40 healthy adults (20 to 40 years), morning, afternoon and late evening,
+#         T = 100 x (NAA minus water shift in ppm + 2.665) + 37.
+# Units:  degrees Celsius.
+# Notes:  the mean (38.5) is in their calibration; this package's water at 37 C sits 2.642 ppm
+#         above NAA, which their equation reads as 38.7 C, so a draw keeps the package's anchor
+#         and takes their spread between people alone (VirtualScan temperature_spread).
+RZECHORZEK_2022 = {"healthy_mean_c": 38.5, "healthy_sd_c": 0.4, "healthy_range_c": (36.1, 40.9),
+                   "luteal_offset_c": 0.36}
+
 #***************************#
 #   metabolite diffusion    #
 #***************************#

@@ -15,9 +15,9 @@
 #*************#
 #   imports   #
 #*************#
-from mrsandbox.database import Database
+from mrsandbox.database import Database, tissue
 from mrsandbox.engine import Engine
-from mrsandbox.params import Params
+from mrsandbox.params import Normal, Params
 from mrsandbox.phantom.downfield import NoDownfield, ParameterizedDownfield
 from mrsandbox.phantom.lipids import NoLipids, Skull
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM, NoMM
@@ -96,6 +96,9 @@ class VirtualScan:
             leaf is the tissue's temperature of every draw: a range there (fever,
             hypothermia, a phantom's room) moves the water line and the metabolites of
             each draw together.
+        temperature_spread: True draws a brain's temperature about `temperature_c` with
+            the spread between healthy adults that MRS thermometry measures (0.4 C sd,
+            tissue.RZECHORZEK_2022); False (the default) keeps it fixed.
         receiver: A hardware.Receiver, the digital receiver every FID passes through
             (oversampled, filtered, decimated: the first points carry the filter's
             onset, the noise its band edges). None samples the ideal FID.
@@ -118,7 +121,8 @@ class VirtualScan:
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
                  ph=None, field_groups=1, water_groups=1, noise_map=None,
-                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, spins=None):
+                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, spins=None,
+                 temperature_spread=False):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -152,7 +156,9 @@ class VirtualScan:
                                   subject=subject)
         self.params = (defaults
                        | (brain.params(defaults) if in_vitro else Params())
-                       | Params(water=dict(temperature_c=self.temperature_c))
+                       | Params(water=dict(temperature_c=Normal(
+                           self.temperature_c, tissue.RZECHORZEK_2022["healthy_sd_c"])
+                           if temperature_spread and not in_vitro else self.temperature_c))
                        | (params if params is not None else Params()))
         # a metabolite added through params needs its relaxation, contrast and ADC leaves too
         for path, node in (("t1", self.params.t1), ("t2", self.params.t2),
