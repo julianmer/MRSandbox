@@ -79,12 +79,11 @@ class Database:
                     "degraaf_2019": spinsystems.DEGRAAF_2019,
                     "kaiser_2008": spinsystems.KAISER_2008,
                     "near_2013": spinsystems.NEAR_2013,
-                    "vespa": spinsystems.VESPA,
                     "wermter_2026": None,
                     "dmi": deuterium.DMI}
     # the publications the default ("newest") reads, newest first: a metabolite takes the newest one
     # that has it, and what that one lacks (a spin, a coupling, a group) from the next; the software
-    # tables, copies of these (govindaraju, FID-A's; vespa), are chosen by name only
+    # table, a copy of these (govindaraju, FID-A's), is chosen by name only
     NEWEST_FIRST = ("wermter_2026", "degraaf_2019", "govind_2015", "near_2013", "kaiser_2008")
 
     def metabolites(self, source="newest"):

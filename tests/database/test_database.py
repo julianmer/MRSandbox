@@ -98,32 +98,6 @@ class TestDatabase:
         assert ("CH3", "N", 0.57) in methyl["j"] and methyl["nuclei"] == {"N": "14N"}
         assert ("1", "N", 2.572) in ch2["j"] and ("1", "2", 3.14) in ch2["j"]
 
-    def test_vespas_transcription_agrees_with_ours_but_where_stated(self):
-        # two transcriptions of one paper read value by value: every shift and coupling the same
-        # but serine's H3' (Vespa's 3.9864 against the printed 3.9764), GSH's cysteine NH (not in
-        # Vespa) and NAAG (Vespa's singlet alone); every Vespa metabolite builds
-        from mrsandbox import SpinSystem
-
-        db = Database()
-
-        def values(source, name):
-            shifts, couplings = set(), set()
-            for group in db.spin_system(name, source=source)["groups"]:
-                nuclei = group.get("nuclei", {})
-                shifts |= {round(v, 4) for k, v in group["spins"].items() if k not in nuclei}
-                couplings |= {round(abs(j), 3) for *_, j in group.get("j", ())}
-            return shifts, couplings
-
-        for name in db.SPIN_SYSTEMS["vespa"]:
-            assert SpinSystem.from_database(name, source="vespa")
-        apart = {}
-        for name in db.SPIN_SYSTEMS["govind_2015"]:
-            (ours, j_ours), (theirs, j_theirs) = values("govind_2015", name), values("vespa", name)
-            if ours != theirs or j_ours != j_theirs:
-                apart[name] = (ours - theirs, theirs - ours)
-        assert apart.keys() == {"Ser", "GSH", "NAAG"}
-        assert apart["Ser"] == ({3.9764}, {3.9864}) and apart["GSH"] == ({8.177}, set())
-
     #********************#
     #   concentrations   #
     #********************#
