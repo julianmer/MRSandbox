@@ -47,7 +47,8 @@ class VirtualScan:
         params: Params overriding the defaults, composed as defaults | params.
         database: Database instance; defaults to the packaged one.
         spins: The spin table the metabolites play (Database.SPIN_SYSTEMS): one source
-            name for all, or {metabolite: source} with the rest on "govindaraju".
+            name for all, or {metabolite: source} with the rest on "newest" (the newest
+            publication per metabolite, the default).
         coils: A hardware.CoilArray for multi-channel reception; None gives one ideal
             channel.
         noise_map: Where the scan is quiet and where it is not, for an acquisition
@@ -177,18 +178,18 @@ class VirtualScan:
     #   spin systems     #
     #********************#
     def systems(self, metabolite, temperature_c=None):
-        """The spin systems of a metabolite from this scan's database, from the table
-        `spins` names for it, built once and cached: every draw and every voxel reuses the same structural systems. A draw's
-        own tissue temperature (the water.temperature_c leaf) gives the systems of that
-        temperature, in steps of a quarter of a degree (the shifts move by 0.0001 to
-        0.001 ppm a degree; database.shifts), each step built once; a compiled scan
-        compiles each step it meets."""
+        """The spin systems of a metabolite from this scan's database, from the table `spins` names
+        for it, built once and cached: every draw and every voxel reuses the same structural
+        systems. A draw's own tissue temperature (the water.temperature_c leaf) gives the systems of
+        that temperature, in steps of a quarter of a degree (the shifts move by 0.0001 to 0.001 ppm
+        a degree; database.shifts), each step built once; a compiled scan compiles each step it
+        meets."""
         temperature_c = round(4.0 * float(self.temperature_c if temperature_c is None
                                           else temperature_c)) / 4.0
         key = (metabolite, temperature_c)
         if key not in self._systems:
             source = (self.spins if isinstance(self.spins, str)
-                      else (self.spins or {}).get(metabolite, "govindaraju"))
+                      else (self.spins or {}).get(metabolite, "newest"))
             self._systems[key] = SpinSystem.from_database(
                 metabolite, database=self.database, source=source, temperature_c=temperature_c,
                 ph=self.ph)

@@ -67,7 +67,7 @@ class TestPulseAcquire:
     #   lactate multiplets   #
     #************************#
     def test_lactate_doublet_and_quartet_at_3t(self, sim):
-        freqs, amps = visible_lines(sim, *SpinSystem.from_database("Lac"))
+        freqs, amps = visible_lines(sim, *SpinSystem.from_database("Lac", source="govindaraju"))
 
         ch3, ch3_amp = clusters(freqs, amps, center_ppm=1.3142, half_width_ppm=0.05)
         assert len(ch3) == 2, f"expected a CH3 doublet, got {len(ch3)} clusters"

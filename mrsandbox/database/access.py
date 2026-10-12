@@ -74,20 +74,74 @@ class Database:
     #********************#
     #   spin systems     #
     #********************#
-    SPIN_SYSTEMS = {"govindaraju": spinsystems.GOVINDARAJU, "govind_2015": spinsystems.GOVIND_2015,
-                    "degraaf_2019": spinsystems.DEGRAAF_2019, "vespa": spinsystems.VESPA,
+    SPIN_SYSTEMS = {"govindaraju": spinsystems.GOVINDARAJU,
+                    "govind_2015": spinsystems.GOVIND_2015,
+                    "degraaf_2019": spinsystems.DEGRAAF_2019,
+                    "kaiser_2008": spinsystems.KAISER_2008,
+                    "near_2013": spinsystems.NEAR_2013,
+                    "vespa": spinsystems.VESPA,
+                    "wermter_2026": None,
                     "dmi": deuterium.DMI}
+    # the publications the default ("newest") reads, newest first: a metabolite takes the newest one
+    # that has it, and what that one lacks (a spin, a coupling, a group) from the next; the software
+    # tables, copies of these (govindaraju, FID-A's; vespa), are chosen by name only
+    NEWEST_FIRST = ("wermter_2026", "degraaf_2019", "govind_2015", "near_2013", "kaiser_2008")
 
-    def metabolites(self, source="govindaraju"):
-        """Names of all metabolites with a spin system in one source table (the 1H
-        Govindaraju set by default; "dmi" is the deuterium set)."""
-        return tuple(sorted(self._lookup(self.SPIN_SYSTEMS, source, "spin system source")))
+    def metabolites(self, source="newest"):
+        """Names of all metabolites with a spin system in one source table ("newest", the
+        publications merged, by default; "dmi" is the deuterium set)."""
+        return tuple(sorted(self._table(source)))
 
-    def spin_system(self, metabolite, source="govindaraju"):
+    def spin_system(self, metabolite, source="newest"):
         """Spin system record of one metabolite: its groups (spins, j triplets, scale)
-        and, for a table of another nucleus, the nucleus and its relaxation."""
+        and, for a table of another nucleus, the nucleus and its relaxation; by default
+        the newest publication's (NEWEST_FIRST)."""
+        return copy.deepcopy(self._lookup(self._table(source), metabolite,
+                                          f"metabolite in {source}"))
+
+    def _table(self, source):
+        """A source's table: a typed one; Wermter's, its fitted functions read at 37 C and
+        pH 7 onto the other tables' labels (spinsystems.WERMTER_2026_SPINS); or "newest",
+        every metabolite merged from NEWEST_FIRST."""
+        if source == "newest":
+            merged = {}
+            for name in self.NEWEST_FIRST:
+                for metabolite, record in self._table(name).items():
+                    if metabolite not in merged:
+                        merged[metabolite] = copy.deepcopy(record)
+                        continue
+                    held = {group["name"]: group for group in merged[metabolite]["groups"]}
+                    for group in record["groups"]:
+                        if group["name"] not in held:
+                            merged[metabolite]["groups"].append(copy.deepcopy(group))
+                            continue
+                        newer = held[group["name"]]
+                        for label, shift in group["spins"].items():
+                            newer["spins"].setdefault(label, shift)
+                        pairs = {frozenset(j[:2]) for j in newer.get("j", ())}
+                        newer["j"] = list(newer.get("j", ())) + [
+                            j for j in group.get("j", ()) if frozenset(j[:2]) not in pairs]
+                        nuclei = {**group.get("nuclei", {}), **newer.get("nuclei", {})}
+                        if nuclei:
+                            newer["nuclei"] = nuclei
+                        if "scale" in group:
+                            newer.setdefault("scale", group["scale"])
+            return merged
         table = self._lookup(self.SPIN_SYSTEMS, source, "spin system source")
-        return copy.deepcopy(self._lookup(table, metabolite, f"metabolite in {source}"))
+        if source == "wermter_2026":
+            table = {}
+            for metabolite, groups in spinsystems.WERMTER_2026_SPINS.items():
+                record = {}
+                for name, (group, labels) in groups.items():
+                    shift = self._titration(shifts.WERMTER_2026[metabolite][name], 37.0, 7.0)
+                    record.setdefault(group, {"name": group, "spins": {}, "j": []})[
+                        "spins"].update({label: shift for label in labels})
+                for name, (group, pairs) in spinsystems.WERMTER_2026_COUPLINGS.get(
+                        metabolite, {}).items():
+                    j = self._titration(shifts.WERMTER_2026_J[metabolite][name], 37.0, 7.0)
+                    record[group]["j"] += [(a, b, j) for a, b in pairs]
+                table[metabolite] = {"groups": list(record.values())}
+        return table
 
     #**********************#
     #   concentrations     #

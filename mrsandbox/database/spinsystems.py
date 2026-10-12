@@ -371,8 +371,9 @@ DEGRAAF_2019 = {
 #         H2O at 37 C, pH 7, DSS at 0 ppm; D2O where the H2O column is empty), with the authors'
 #         corrections of Govind, V., Young, K., Maudsley, A. A. NMR in Biomedicine 28 (2015)
 #         923-924, Table 1 (the geminal couplings added, GABA renumbered with H2 at 2.2840 ppm,
-#         taurine's 6.792 and PE's 2.980 Hz moved to 1'-2', PCho's 6.249 Hz to 1'-P). Typed by hand
-#         in the papers' numbering.
+#         taurine's 6.792 and PE's 2.980 Hz moved to 1'-2', PCho's 6.249 Hz to 1'-P). Typed by hand,
+#         in DEGRAAF_2019's labels where the papers number otherwise (GPC's choline 7, 8 as 1, 2;
+#         GSH's glycine 10 as 2 and cysteine 7, 7', 7'' as 2, 3, 3'), so the tables fill each other.
 # Notes:  the nitrogen couples choline's methyl and its CH2 protons alike and is never turned, so
 #         the two evolve apart exactly and each group carries its own copy of it; the nine methyl
 #         protons, equal and coupled to nothing else, are one spin of scale 9. The paper has no
@@ -383,9 +384,9 @@ DEGRAAF_2019 = {
 #         coupling in the paper and stand alone.
 GOVIND_2015 = {
     "Ala": {"groups": [
-        {"name": "Ala", "spins": {"2": 3.7746, "3": 1.4667, "3'": 1.4667, "3''": 1.4667},
-         "j": [("2", "3", 7.234), ("2", "3'", 7.234), ("2", "3''", 7.234), ("3", "3'", -14.366),
-               ("3", "3''", -14.366), ("3'", "3''", -14.366)]},
+        {"name": "Ala", "spins": {"2": 3.7746, "3a": 1.4667, "3b": 1.4667, "3c": 1.4667},
+         "j": [("2", "3a", 7.234), ("2", "3b", 7.234), ("2", "3c", 7.234), ("3a", "3b", -14.366),
+               ("3a", "3c", -14.366), ("3b", "3c", -14.366)]},
     ]},
     "Asp": {"groups": [
         {"name": "Asp", "spins": {"2": 3.8914, "3": 2.8011, "3'": 2.6533},
@@ -401,8 +402,8 @@ GOVIND_2015 = {
          "nuclei": {"N": "14N"}},
     ]},
     "Cr": {"groups": [
-        {"name": "Cr", "spins": {"CH3a": 3.0270, "CH3b": 3.0270, "CH3c": 3.0270, "2a": 3.9130,
-                                 "2b": 3.9130, "NH": 6.6490}},
+        {"name": "Cr", "spins": {"CH3a": 3.0270, "CH3b": 3.0270, "CH3c": 3.0270, "CH2a": 3.9130,
+                                 "CH2b": 3.9130, "NH": 6.6490}},
     ]},
     "GABA": {"groups": [
         {"name": "GABA", "spins": {"2": 2.2840, "2'": 2.2840, "3": 1.8890, "3'": 1.8890,
@@ -417,18 +418,18 @@ GOVIND_2015 = {
          "j": [("1", "2", 5.77), ("2", "3", 5.77), ("1'", "2", 4.53), ("2", "3'", 4.53),
                ("1", "1'", -14.78), ("3", "3'", -14.78), ("3", "P", 6.03), ("3'", "P", 6.03)],
          "nuclei": {"P": "31P"}},
-        {"name": "ch2ch2", "spins": {"7": 4.312, "7'": 4.312, "8": 3.659, "8'": 3.659, "N": 0.0,
+        {"name": "ch2ch2", "spins": {"1": 4.312, "1'": 4.312, "2": 3.659, "2'": 3.659, "N": 0.0,
                                      "P": 0.0},
-         "j": [("7", "8", 3.10), ("7'", "8'", 3.10), ("7", "8'", 5.90), ("7'", "8", 5.90),
-               ("7", "N", 2.67), ("7'", "N", 2.67), ("7", "P", 6.03), ("7'", "P", 6.03),
-               ("7", "7'", -9.32), ("8", "8'", -9.32)],
+         "j": [("1", "2", 3.10), ("1'", "2'", 3.10), ("1", "2'", 5.90), ("1'", "2", 5.90),
+               ("1", "N", 2.67), ("1'", "N", 2.67), ("1", "P", 6.03), ("1'", "P", 6.03),
+               ("1", "1'", -9.32), ("2", "2'", -9.32)],
          "nuclei": {"N": "14N", "P": "31P"}},
         {"name": "trimethyl", "spins": {"CH3": 3.212}, "scale": 9.0},
     ]},
     "GSH": {"groups": [
-        {"name": "glycine", "spins": {"10": 3.769, "10'": 3.769, "9NH": 7.154}},
-        {"name": "cysteine", "spins": {"7": 4.5608, "7'": 2.9264, "7''": 2.9747, "6NH": 8.1770},
-         "j": [("7", "7'", 7.09), ("7", "7''", 4.71), ("7'", "7''", -14.06)]},
+        {"name": "glycine", "spins": {"2": 3.769, "2'": 3.769, "NH": 7.154}},
+        {"name": "cysteine", "spins": {"2": 4.5608, "3": 2.9264, "3'": 2.9747, "NH": 8.1770},
+         "j": [("2", "3", 7.09), ("2", "3'", 4.71), ("3", "3'", -14.06)]},
         {"name": "glutamate", "spins": {"2": 3.769, "3": 2.159, "3'": 2.146, "4": 2.510,
                                         "4'": 2.560},
          "j": [("2", "3", 6.34), ("2", "3'", 6.36), ("3", "3'", -15.48), ("3", "4", 6.7),
@@ -460,7 +461,7 @@ GOVIND_2015 = {
                ("3'", "4'", 6.875), ("3", "4", 6.413), ("3'", "4", 8.478), ("4", "4'", -15.915)]},
     ]},
     "Gly": {"groups": [
-        {"name": "Gly", "spins": {"2": 3.5480}, "scale": 2.0},
+        {"name": "Gly", "spins": {"CH2": 3.5480}, "scale": 2.0},
     ]},
     "Ins": {"groups": [
         {"name": "Ins", "spins": {"1": 3.5217, "2": 4.0538, "3": 3.5217, "4": 3.6144, "5": 3.2690,
@@ -469,8 +470,8 @@ GOVIND_2015 = {
                ("4", "5", 9.485), ("5", "6", 9.482)]},
     ]},
     "Lac": {"groups": [
-        {"name": "Lac", "spins": {"2": 4.0974, "3": 1.3142, "3'": 1.3142, "3''": 1.3142},
-         "j": [("2", "3", 6.933), ("2", "3'", 6.933), ("2", "3''", 6.933)]},
+        {"name": "Lac", "spins": {"2": 4.0974, "3a": 1.3142, "3b": 1.3142, "3c": 1.3142},
+         "j": [("2", "3a", 6.933), ("2", "3b", 6.933), ("2", "3c", 6.933)]},
     ]},
     "NAA": {"groups": [
         {"name": "acetyl", "spins": {"CH3": 2.0080}, "scale": 3.0},
@@ -492,8 +493,8 @@ GOVIND_2015 = {
         {"name": "trimethyl", "spins": {"CH3": 3.2080}, "scale": 9.0},
     ]},
     "PCr": {"groups": [
-        {"name": "PCr", "spins": {"CH3a": 3.0290, "CH3b": 3.0290, "CH3c": 3.0290, "2a": 3.9300,
-                                  "2b": 3.9300, "NH": 6.5810, "NH'": 7.2960}},
+        {"name": "PCr", "spins": {"CH3a": 3.0290, "CH3b": 3.0290, "CH3c": 3.0290, "CH2a": 3.9300,
+                                  "CH2b": 3.9300, "NH": 6.5810, "NH'": 7.2960}},
     ]},
     "PE": {"groups": [
         {"name": "PE", "spins": {"1": 3.9765, "1'": 3.9765, "2": 3.2160, "2'": 3.2160, "N": 0.0,
@@ -513,7 +514,7 @@ GOVIND_2015 = {
                ("1", "1'", -12.438), ("2", "2'", -12.930)]},
     ]},
     "sIns": {"groups": [
-        {"name": "Scyllo", "spins": {"1": 3.3400}, "scale": 6.0},
+        {"name": "Scyllo", "spins": {"CH": 3.3400}, "scale": 6.0},
     ]},
 }
 
@@ -792,4 +793,83 @@ VESPA = {
     "sIns": {"groups": [
         {"name": "scyllo-inositol", "spins": {"S1": 3.34}, "scale": 6.0},
     ]},
+}
+
+
+#*****************#
+#   kaiser 2008   #
+#*****************#
+# Source: Kaiser, L. G., Young, K., Meyerhoff, D. J., Mueller, S. G., Matson, G. B. A detailed
+#         analysis of localized J-difference GABA editing: theoretical and experimental study at
+#         4 T. NMR in Biomedicine 21 (2008) 22-32, Methods: Govindaraju 2000's 600 MHz GABA
+#         spectrum refitted. No geminal couplings are given.
+KAISER_2008 = {
+    "GABA": {"groups": [
+        {"name": "GABA", "spins": {"2": 2.284, "2'": 2.284, "3": 1.888, "3'": 1.888, "4": 3.012,
+                                   "4'": 3.012},
+         "j": [("2", "3", 7.352), ("2", "3'", 7.352), ("2'", "3", 7.352), ("2'", "3'", 7.352),
+               ("3", "4", 6.377), ("3", "4'", 7.960), ("3'", "4", 8.139), ("3'", "4'", 7.495)]},
+    ]},
+}
+
+
+#***************#
+#   near 2013   #
+#***************#
+# Source: Near, J., Evans, C. J., Puts, N. A. J., Barker, P. B., Edden, R. A. E. J-difference
+#         editing of gamma-aminobutyric acid (GABA): simulated and experimental multiplet patterns.
+#         Magnetic Resonance in Medicine 70 (2013) 1183-1191, Table 1 (from the PMC author
+#         manuscript): their own high-field GABA spectrum fitted with PERCH (Near et al., ISMRM
+#         2012), the set FID-A plays.
+NEAR_2013 = {
+    "GABA": {"groups": [
+        {"name": "GABA", "spins": {"2": 2.2840, "2'": 2.2840, "3": 1.8880, "3'": 1.8880,
+                                   "4": 3.0130, "4'": 3.0130},
+         "j": [("2", "2'", -15.938), ("2", "3", 7.678), ("2", "3'", 6.980), ("2'", "3", 6.980),
+               ("2'", "3'", 7.678), ("3", "3'", -15.000), ("3", "4", 8.510), ("3", "4'", 6.503),
+               ("3'", "4", 6.503), ("3'", "4'", 8.510), ("4", "4'", -14.062)]},
+    ]},
+}
+
+
+#******************#
+#   wermter 2026   #
+#******************#
+# Source: Wermter et al. 2026, the fitted functions of shifts.WERMTER_2026 and WERMTER_2026_J read
+#         at 37 C and pH 7 (Database builds the table). Here: which spins of the other tables'
+#         labels each fitted group and coupling is, {metabolite: {group or coupling: (spin group,
+#         labels or label pairs)}}. A metabolite takes from it what Wermter measured; the rest
+#         comes from the next newest table. Left out: the three rows shifts.WERMTER_2026 notes as
+#         misprinted (Gln 3'CH2, 1.94 ppm at 37 C; Gln's second NH2; GABA 4CH2) and their partners
+#         (Gln 3CH2, the first NH2), so a CH2 pair never mixes two papers' assignments.
+WERMTER_2026_SPINS = {
+    "NAA": {"2CH3": ("acetyl", ("CH3",)), "2CH": ("aspartate", ("2",)),
+            "3CH2": ("aspartate", ("3",)), "3'CH2": ("aspartate", ("3'",)),
+            "NH": ("aspartate", ("NH",))},
+    "Ala": {"2CH": ("Ala", ("2",)), "3CH3": ("Ala", ("3a", "3b", "3c"))},
+    "GABA": {"2CH2": ("GABA", ("2", "2'")), "3CH2": ("GABA", ("3", "3'"))},
+    "Asp": {"2CH": ("Asp", ("2",)), "3CH2": ("Asp", ("3",)), "3'CH2": ("Asp", ("3'",))},
+    "Cho": {"N(CH3)3": ("trimethyl", ("CH3",)), "1CH2": ("ch2ch2", ("1", "1'")),
+            "2CH2": ("ch2ch2", ("2", "2'"))},
+    "Cr": {"N(CH3)": ("Cr", ("CH3a", "CH3b", "CH3c")), "2CH2": ("Cr", ("CH2a", "CH2b")),
+           "NH": ("Cr", ("NH",))},
+    "Glu": {"2CH": ("Glu", ("2",)), "3CH2": ("Glu", ("3",)), "3'CH2": ("Glu", ("3'",)),
+            "4CH2": ("Glu", ("4",)), "4'CH2": ("Glu", ("4'",))},
+    "Gln": {"2CH": ("Gln", ("2",)), "4CH2": ("Gln", ("4",)), "4'CH2": ("Gln", ("4'",))},
+    "Gly": {"2CH2": ("Gly", ("CH2",))},
+    "Ins": {"1-3CH": ("Ins", ("1", "3")), "2CH": ("Ins", ("2",)), "4-6CH": ("Ins", ("4", "6")),
+            "5CH": ("Ins", ("5",))},
+    "Lac": {"2CH": ("Lac", ("2",)), "3CH3": ("Lac", ("3a", "3b", "3c"))},
+    "PCr": {"N(CH3)": ("PCr", ("CH3a", "CH3b", "CH3c")), "2CH2": ("PCr", ("CH2a", "CH2b")),
+            "NH": ("PCr", ("NH",)), "NH'": ("PCr", ("NH'",))},
+    "Tau": {"1CH2": ("Tau", ("1", "1'")), "2CH2": ("Tau", ("2", "2'"))},
+}
+WERMTER_2026_COUPLINGS = {
+    "NAA": {"2-3": ("aspartate", (("2", "3"),)), "2-3'": ("aspartate", (("2", "3'"),)),
+            "3-3'": ("aspartate", (("3", "3'"),))},
+    "GABA": {"2-3, 2-3', 2'-3, 2'-3'": ("GABA", (("2", "3"), ("2", "3'"), ("2'", "3"),
+                                                  ("2'", "3'")))},
+    "Asp": {"2-3": ("Asp", (("2", "3"),)), "2-3'": ("Asp", (("2", "3'"),)),
+            "3-3'": ("Asp", (("3", "3'"),))},
+    "Lac": {"2-3": ("Lac", (("2", "3a"), ("2", "3b"), ("2", "3c")))},
 }

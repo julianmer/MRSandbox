@@ -74,15 +74,16 @@ class SpinSystem:
     #   from database   #
     #*******************#
     @classmethod
-    def from_database(cls, metabolite, database=None, source="govindaraju", temperature_c=37.0,
+    def from_database(cls, metabolite, database=None, source="newest", temperature_c=37.0,
                       ph=7.0):
-        """All coupled groups of `metabolite` as SpinSystems: simulate each, sum the
-        lines. `source` names the table (the 1H Govindaraju set, "dmi" for the deuterium
-        set, or another typed table such as "degraaf_2019"); the nucleus comes from the
-        record, a group's heteronuclei from its "nuclei", and the Govindaraju set's nitrogen
-        and phosphorus spins from nuclei.HETERONUCLEI. Away from 37 C and pH 7, where the
-        values are typed, every proton moves by the published change of its group and every
-        coupling the table holds by its own (Database.shift_change and coupling_change)."""
+        """All coupled groups of `metabolite` as SpinSystems: simulate each, sum the lines. `source`
+        names the table ("newest", every metabolite from the newest publication that has it, its
+        gaps from the next, Database.NEWEST_FIRST; a typed table such as "degraaf_2019" or
+        "govindaraju", FID-A's; "dmi" for deuterium); the nucleus comes from the record, a group's
+        heteronuclei from its "nuclei", and the Govindaraju set's nitrogen and phosphorus spins from
+        nuclei.HETERONUCLEI. Away from 37 C and pH 7, where the values are typed, every proton moves
+        by the published change of its group and every coupling the table holds by its own
+        (Database.shift_change and coupling_change)."""
         db = database if database is not None else Database()
         record = db.spin_system(metabolite, source=source)
         nucleus = record.get("nucleus", "1H")

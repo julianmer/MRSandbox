@@ -78,7 +78,8 @@ class TestSuppression:
     def test_band_excludes_the_naa_aspartyl_neighbour(self, engine):
         # the NAA aspartyl proton at 4.3817 ppm sits 34 Hz from water at 3 T; a 60 Hz
         # band (half width 30 Hz) must leave it alone, a 100 Hz band must not
-        (naa_aspartyl,) = [s for s in SpinSystem.from_database("NAA") if "nAspartyl" in s.name]
+        (naa_aspartyl,) = [s for s in SpinSystem.from_database("NAA", source="govindaraju")
+                           if "nAspartyl" in s.name]
         plain = total_amplitude(engine, PulseAcquire(), naa_aspartyl)
         narrow = total_amplitude(engine, Chess(3, bandwidth_hz=60.0) + PulseAcquire(), naa_aspartyl)
         wide = total_amplitude(engine, Chess(3, bandwidth_hz=100.0) + PulseAcquire(), naa_aspartyl)

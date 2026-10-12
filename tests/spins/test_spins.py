@@ -246,7 +246,8 @@ class TestHeteronuclei:
     #**************#
     def test_the_choline_compounds_name_their_nitrogen_and_phosphorus(self):
         # the table's protons at 100 and 40 ppm are the 14N (spin 1) and 31P of the compounds
-        systems = {s.name: s for m in ("Cho", "PCho") for s in SpinSystem.from_database(m)}
+        systems = {s.name: s for m in ("Cho", "PCho")
+                   for s in SpinSystem.from_database(m, source="govindaraju")}
         methyl = systems["Cho.Ch_3CH3"]
         assert methyl.nuclei == ("1H", "1H", "1H", "14N")
         assert methyl.levels == (2, 2, 2, 3) and methyl.dim == 24
@@ -262,7 +263,8 @@ class TestHeteronuclei:
         # uncoupled methyl's: the nitrogen adds its levels and nothing of its own
         from mrsandbox import PulseAcquire
 
-        (methyl,) = [s for s in SpinSystem.from_database("Cho") if s.name == "Cho.Ch_3CH3"]
+        (methyl,) = [s for s in SpinSystem.from_database("Cho", source="govindaraju")
+                     if s.name == "Cho.Ch_3CH3"]
         freqs, amps = self.detected(PulseAcquire(), methyl)
         keep = np.abs(amps) > 1e-6 * np.abs(amps).max()
         lines = {}
@@ -315,11 +317,11 @@ class TestConnectedParts:
     def test_uncoupled_spins_split_and_merge_by_shift(self):
         # creatine's record is six uncoupled spins: three one-spin systems counted
         # 1, 2, and 3 times instead of one 64-dimensional system
-        parts = SpinSystem.from_database("Cr")
+        parts = SpinSystem.from_database("Cr", source="govindaraju")
         assert sorted((s.shifts_ppm, s.scale) for s in parts) == [
             ((3.027,), 3.0), ((3.913,), 2.0), ((6.649,), 1.0)]
         # a coupled group stays whole, its uncoupled amide leaves it
-        gsh = {s.name: s for s in SpinSystem.from_database("GSH")}
+        gsh = {s.name: s for s in SpinSystem.from_database("GSH", source="govindaraju")}
         assert len(gsh["GSH.cyst.0"].shifts_ppm) == 3 and gsh["GSH.cyst.1"].shifts_ppm == (8.177,)
         assert all(s.dim <= 2 ** 6 or s.name.startswith("Glc")
                    for name in ("NAA", "Cr", "PCr", "GSH")
@@ -344,5 +346,6 @@ class TestConnectedParts:
                            shifts_ppm=(6.649, 3.913, 3.913, 3.027, 3.027, 3.027),
                            j_hz=tuple((0.0,) * 6 for _ in range(6)), scale=1.0,
                            gamma_mhz_t=42.5774785)
-        split, one = spectrum(SpinSystem.from_database("Cr")), spectrum((whole,))
+        split = spectrum(SpinSystem.from_database("Cr", source="govindaraju"))
+        one = spectrum((whole,))
         np.testing.assert_allclose(split, one, atol=1e-4 * np.abs(one).max())

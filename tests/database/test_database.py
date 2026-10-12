@@ -40,7 +40,7 @@ class TestDatabase:
         db = Database()
         for name in ("NAA", "Cr", "Cho", "Lac"):
             assert name in db.metabolites()
-        group = db.spin_system("Lac")["groups"][0]
+        group = db.spin_system("Lac", "govindaraju")["groups"][0]
         assert len(group["spins"]) == 4
         assert sorted(j for *_, j in group["j"]) == [6.933, 6.933, 6.933]
 
@@ -80,6 +80,23 @@ class TestDatabase:
         assert ("1", "N", 2.680) in record("PCho")["j"]
         methyl = [s for s in SpinSystem.from_database("Cho", source="govind_2015") if s.n == 2]
         assert methyl[0].nuclei == ("1H", "14N") and methyl[0].scale == 9.0
+
+    def test_the_newest_publication_plays_and_the_next_fills_its_gaps(self):
+        # per metabolite the newest paper that has it: Wermter's values at 37 C and pH 7 where it
+        # measured (never its misprinted rows), de Graaf's elsewhere; what the newest lacks comes
+        # from the next (choline's 14N couplings and Gln's amides from the 2015 table)
+        db = Database()
+        assert set(db.metabolites("newest")) == set(db.metabolites("degraaf_2019"))
+        assert db.spin_system("Ser", "newest") == db.spin_system("Ser", "degraaf_2019")
+        lactate = db.spin_system("Lac", "newest")["groups"][0]
+        assert abs(lactate["spins"]["2"] - 4.098) < 1e-3 and lactate["spins"]["2"] != 4.097
+        groups = lambda name: {g["name"]: g for g in db.spin_system(name, "newest")["groups"]}
+        gln = groups("Gln")
+        assert gln["Gln"]["spins"]["3'"] == 2.137 and gln["amide"]["spins"]["NH2'"] == 7.529
+        assert groups("GABA")["GABA"]["spins"]["4"] == 3.003
+        methyl, ch2 = groups("Cho")["trimethyl"], groups("Cho")["ch2ch2"]
+        assert ("CH3", "N", 0.57) in methyl["j"] and methyl["nuclei"] == {"N": "14N"}
+        assert ("1", "N", 2.572) in ch2["j"] and ("1", "2", 3.14) in ch2["j"]
 
     def test_vespas_transcription_agrees_with_ours_but_where_stated(self):
         # two transcriptions of one paper read value by value: every shift and coupling the same
@@ -427,8 +444,8 @@ class TestShifts:
         assert database.coupling_change("NAA", 7.8205, 4.3817, 32.0, 7.0) == 0.0  # the NH's is not
         moved = database.coupling_change("NAA", 4.3817, 2.6727, 32.0, 6.8)
         assert 0.01 < abs(moved) < 0.2
-        typed = SpinSystem.from_database("NAA")[1]
-        cold = SpinSystem.from_database("NAA", temperature_c=32.0, ph=6.8)[1]
+        typed = SpinSystem.from_database("NAA", source="govindaraju")[1]
+        cold = SpinSystem.from_database("NAA", source="govindaraju", temperature_c=32.0, ph=6.8)[1]
         assert cold.j_hz[1][2] == pytest.approx(typed.j_hz[1][2] + moved)
         # GABA's one function serves all four 2-3 couplings
         gaba = SpinSystem.from_database("GABA", temperature_c=32.0)[0]
