@@ -46,6 +46,8 @@ class VirtualScan:
         sequence: A sequences.Sequence.
         params: Params overriding the defaults, composed as defaults | params.
         database: Database instance; defaults to the packaged one.
+        spins: The spin table the metabolites play (Database.SPIN_SYSTEMS): one source
+            name for all, or {metabolite: source} with the rest on "govindaraju".
         coils: A hardware.CoilArray for multi-channel reception; None gives one ideal
             channel.
         noise_map: Where the scan is quiet and where it is not, for an acquisition
@@ -115,11 +117,12 @@ class VirtualScan:
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
                  ph=None, field_groups=1, water_groups=1, noise_map=None,
-                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None):
+                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, spins=None):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
         self.database = database if database is not None else Database()
+        self.spins = spins
         self.engine = engine if engine is not None else Engine(scanner, isochromats=isochromats)
         self.water = water if water is not None else Suppressed()
         in_vitro = isinstance(brain, Phantom)
@@ -174,8 +177,8 @@ class VirtualScan:
     #   spin systems     #
     #********************#
     def systems(self, metabolite, temperature_c=None):
-        """The spin systems of a metabolite from this scan's database, built once and
-        cached: every draw and every voxel reuses the same structural systems. A draw's
+        """The spin systems of a metabolite from this scan's database, from the table
+        `spins` names for it, built once and cached: every draw and every voxel reuses the same structural systems. A draw's
         own tissue temperature (the water.temperature_c leaf) gives the systems of that
         temperature, in steps of a quarter of a degree (the shifts move by 0.0001 to
         0.001 ppm a degree; database.shifts), each step built once; a compiled scan
@@ -184,8 +187,11 @@ class VirtualScan:
                                           else temperature_c)) / 4.0
         key = (metabolite, temperature_c)
         if key not in self._systems:
+            source = (self.spins if isinstance(self.spins, str)
+                      else (self.spins or {}).get(metabolite, "govindaraju"))
             self._systems[key] = SpinSystem.from_database(
-                metabolite, database=self.database, temperature_c=temperature_c, ph=self.ph)
+                metabolite, database=self.database, source=source, temperature_c=temperature_c,
+                ph=self.ph)
         return self._systems[key]
 
     #*************************#

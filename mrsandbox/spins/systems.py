@@ -77,12 +77,12 @@ class SpinSystem:
     def from_database(cls, metabolite, database=None, source="govindaraju", temperature_c=37.0,
                       ph=7.0):
         """All coupled groups of `metabolite` as SpinSystems: simulate each, sum the
-        lines. `source` names the table (the 1H Govindaraju set, or "dmi" for the
-        deuterium set); the nucleus comes from the record, and the Govindaraju set's
-        nitrogen and phosphorus spins take theirs from nuclei.HETERONUCLEI. Away from
-        37 C and pH 7, where the values are typed, every proton moves by the published
-        change of its group and every coupling the table holds by its own
-        (Database.shift_change and coupling_change)."""
+        lines. `source` names the table (the 1H Govindaraju set, "dmi" for the deuterium
+        set, or another typed table such as "degraaf_2019"); the nucleus comes from the
+        record, a group's heteronuclei from its "nuclei", and the Govindaraju set's nitrogen
+        and phosphorus spins from nuclei.HETERONUCLEI. Away from 37 C and pH 7, where the
+        values are typed, every proton moves by the published change of its group and every
+        coupling the table holds by its own (Database.shift_change and coupling_change)."""
         db = database if database is not None else Database()
         record = db.spin_system(metabolite, source=source)
         nucleus = record.get("nucleus", "1H")
@@ -90,7 +90,8 @@ class SpinSystem:
         systems = []
         for group in record["groups"]:
             labels = list(group["spins"])
-            kinds = [tags.get(group["name"], {}).get(label, nucleus) for label in labels]
+            kinds = [group.get("nuclei", tags.get(group["name"], {})).get(label, nucleus)
+                     for label in labels]
             index = {label: i for i, label in enumerate(labels)}
             j = np.zeros((len(labels), len(labels)))
             for a, b, value in group.get("j", ()):

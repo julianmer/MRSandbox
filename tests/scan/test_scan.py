@@ -83,6 +83,21 @@ class TestVirtualScan:
         eight = VirtualScan(scan.brain, scan.scanner, scan.sequence, isochromats=8)
         assert eight.engine.isochromats == 8
 
+    #***********#
+    #   spins   #
+    #***********#
+    def test_each_metabolite_plays_the_spin_table_chosen_for_it(self, scan):
+        # one table for all, or one per metabolite with the rest on the default
+        from mrsandbox import SpinSystem
+
+        mixed = VirtualScan(scan.brain, scan.scanner, scan.sequence,
+                            spins={"GABA": "degraaf_2019"})
+        assert mixed.systems("GABA") == SpinSystem.from_database("GABA", source="degraaf_2019")
+        assert mixed.systems("Glu") == SpinSystem.from_database("Glu")
+        whole = VirtualScan(scan.brain, scan.scanner, scan.sequence, spins="degraaf_2019")
+        assert whole.systems("Glu") == SpinSystem.from_database("Glu", source="degraaf_2019")
+        assert scan.systems("GABA") == SpinSystem.from_database("GABA")
+
     #***********************#
     #   serializable seed   #
     #***********************#

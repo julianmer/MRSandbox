@@ -44,6 +44,23 @@ class TestDatabase:
         assert len(group["spins"]) == 4
         assert sorted(j for *_, j in group["j"]) == [6.933, 6.933, 6.933]
 
+    def test_de_graafs_table_covers_every_metabolite_as_printed(self):
+        # every metabolite builds from it, a sample reads as the book prints it (Table 2.1), and
+        # GPC's heteronuclei carry their nuclei, 14N at spin 1
+        from mrsandbox import SpinSystem
+
+        db = Database()
+        assert set(db.metabolites()) <= set(db.SPIN_SYSTEMS["degraaf_2019"])
+        for name in db.metabolites():
+            assert SpinSystem.from_database(name, source="degraaf_2019")
+        glu = db.spin_system("Glu", source="degraaf_2019")["groups"][0]
+        assert glu["spins"]["2"] == 3.748 and ("3'", "4", 8.77) in glu["j"]
+        ser = db.spin_system("Ser", source="degraaf_2019")["groups"][0]
+        assert ("2", "3'", 3.56) in ser["j"] and ("3", "3'", -12.3) in ser["j"]
+        (choline,) = [s for s in SpinSystem.from_database("GPC", source="degraaf_2019")
+                      if s.nuclei and "14N" in s.nuclei]
+        assert set(choline.nuclei) == {"1H", "14N", "31P"} and choline.dim == 2 ** 4 * 3 * 2
+
     #********************#
     #   concentrations   #
     #********************#

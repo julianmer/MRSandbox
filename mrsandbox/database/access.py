@@ -74,7 +74,8 @@ class Database:
     #********************#
     #   spin systems     #
     #********************#
-    SPIN_SYSTEMS = {"govindaraju": spinsystems.GOVINDARAJU, "dmi": deuterium.DMI}
+    SPIN_SYSTEMS = {"govindaraju": spinsystems.GOVINDARAJU,
+                    "degraaf_2019": spinsystems.DEGRAAF_2019, "dmi": deuterium.DMI}
 
     def metabolites(self, source="govindaraju"):
         """Names of all metabolites with a spin system in one source table (the 1H
