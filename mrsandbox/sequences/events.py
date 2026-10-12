@@ -26,7 +26,7 @@ import numpy as np
 from keras import ops
 from nifti_mrs_plus import ops as nops
 
-from mrsandbox.backend import Backend
+from mrsandbox.backend import Backend, precision
 
 
 #*****************#
@@ -128,7 +128,7 @@ class Event(abc.ABC):
         so U = (D H) exp(-i 2 pi turns Az) (D H)^H: two matmuls and no eigendecomposition
         in the graph. `turns` may be a traced tensor (the transmit scale times the flip).
         """
-        phase = ops.convert_to_tensor(phase_deg, dtype="float32") * (math.pi / 180.0)
+        phase = ops.convert_to_tensor(phase_deg, dtype=precision.REAL) * (math.pi / 180.0)
         angle = -phase * ops.sum(ctx.mz, axis=0)
         d = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         v = ops.expand_dims(d, 1) * ctx.hadamard
@@ -210,13 +210,13 @@ class SelectivePulse(Event):
     def apply(self, rho, ctx):
         half_width = ops.convert_to_tensor(self.bandwidth_hz) / 2.0
         # every spin appears at its resonance minus the frame offset
-        seen_hz = ctx.nu_hz - ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
+        seen_hz = ctx.nu_hz - ops.convert_to_tensor(ctx.offset_hz, dtype=precision.REAL)
         inside = None
         for offset in self.offset_ppm:
             offset_hz = ops.convert_to_tensor(offset) * ctx.f0_mhz
             band = ops.abs(seen_hz - offset_hz) <= half_width
             inside = band if inside is None else ops.logical_or(inside, band)
-        inside = ops.cast(inside, "float32")
+        inside = ops.cast(inside, precision.REAL)
         # the axis is the in-band sum of per-spin Ix, whose eigenvalues in the Hadamard
         # basis are the same sum of the per-spin magnetic quantum numbers
         u = self._transverse_rotation(ctx, ops.einsum("i,ij->j", inside, ctx.mz),
@@ -503,7 +503,7 @@ class ShapedPulse(Event):
         """Play the pulse; `propagator` is a `propagator(ctx)` result to reuse."""
         segments, total = propagator if propagator is not None else self.propagator(ctx)
         bounds = self._bounds(int(ops.convert_to_tensor(self.envelope).shape[0]))
-        dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / float(bounds[-1])
+        dt = ops.convert_to_tensor(self.duration_s, dtype=precision.REAL) / float(bounds[-1])
         # the relaxation straddles each segment, half before and half after, as one affine
         # map per segment length (the segments differ by a step at most)
         maps = {}
@@ -516,7 +516,7 @@ class ShapedPulse(Event):
         frame = -2.0 * math.pi * total
         if ops.ndim(total) > 0:
             frame = ops.reshape(frame, (-1, 1, 1))
-        frame = frame * ops.cast(ctx.q, "float32")
+        frame = frame * ops.cast(ctx.q, precision.REAL)
         return rho * ops.exp(nops.complex_from(ops.zeros_like(frame), frame))
 
     #**************#
@@ -548,10 +548,10 @@ class ShapedPulse(Event):
         along its normal for a tilted slab."""
         if self.gradient_normal is None:
             return ops.convert_to_tensor(getattr(ctx, "gradient_" + self.gradient_axis),
-                                         dtype="float32")
-        normal = ops.cast(ops.convert_to_tensor(self.gradient_normal), "float32")
+                                         dtype=precision.REAL)
+        normal = ops.cast(ops.convert_to_tensor(self.gradient_normal), precision.REAL)
         return sum(normal[k] * ops.convert_to_tensor(getattr(ctx, "gradient_" + axis),
-                                                     dtype="float32")
+                                                     dtype=precision.REAL)
                    for k, axis in enumerate("xyz"))
 
     #****************#
@@ -563,35 +563,36 @@ class ShapedPulse(Event):
         the frame term's cycles over the pulse: everything the pulse costs, and nothing
         of the state, so a sequence that plays one pulse object several times computes
         it once per run (`Sequence.run`)."""
-        env = ops.cast(ops.convert_to_tensor(self.envelope), "float32")
+        env = ops.cast(ops.convert_to_tensor(self.envelope), precision.REAL)
         steps = int(env.shape[0])
-        dt = ops.convert_to_tensor(self.duration_s, dtype="float32") / steps
+        dt = ops.convert_to_tensor(self.duration_s, dtype=precision.REAL) / steps
         # the transmit scale: one value, or one per isochromat (a transmit field
         # varying across the voxel), which batches the step Hamiltonians like the
         # positions batch the frame
-        b1 = ops.convert_to_tensor(ctx.b1_scale, dtype="float32")
+        b1 = ops.convert_to_tensor(ctx.b1_scale, dtype=precision.REAL)
         if ops.ndim(b1) > 0:
             env = ops.expand_dims(env, 1)
         if self.peak_hz is not None:
             # adiabatic style: the envelope is scaled to the peak B1 directly
-            f1 = env * (b1 * ops.convert_to_tensor(self.peak_hz, dtype="float32"))
+            f1 = env * (b1 * ops.convert_to_tensor(self.peak_hz, dtype=precision.REAL))
         else:
             # calibration: 360 * integral of f1 dt equals flip_deg for an on-resonance
             # spin, scaled by the transmit field like any real RF amplitude
-            flip = b1 * ops.convert_to_tensor(self.flip_deg, dtype="float32")
+            flip = b1 * ops.convert_to_tensor(self.flip_deg, dtype=precision.REAL)
             f1 = env * (flip / 360.0) / (ops.sum(env, axis=0) * dt)
-        h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, "complex64"), ops.conj(ctx.v))
+        h_free = ops.einsum("ij,j,kj->ik", ctx.v, nops.cast(ctx.lam, precision.COMPLEX),
+                            ops.conj(ctx.v))
         # the frame: the offset and the slice gradient are one z term delta Fz, with
         # delta a scalar or one value per isochromat
-        delta = -ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
+        delta = -ops.convert_to_tensor(ctx.offset_hz, dtype=precision.REAL)
         if self.gradient_hz_per_mm and self.gradient_shape is None:
             delta = delta + self.gradient_hz_per_mm * self._along(ctx)
-        offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype="float32") * ctx.f0_mhz
-        t_mid = (ops.arange(0, steps, dtype="float32") + 0.5) * dt
-        phase = (ops.convert_to_tensor(self.phase_deg, dtype="float32") * (math.pi / 180.0)
+        offset_hz = ops.convert_to_tensor(self.offset_ppm, dtype=precision.REAL) * ctx.f0_mhz
+        t_mid = (ops.arange(0, steps, dtype=precision.REAL) + 0.5) * dt
+        phase = (ops.convert_to_tensor(self.phase_deg, dtype=precision.REAL) * (math.pi / 180.0)
                  + 2.0 * math.pi * offset_hz * t_mid)
         if self.frequency_hz is not None:
-            sweep = ops.cast(ops.convert_to_tensor(self.frequency_hz), "float32")
+            sweep = ops.cast(ops.convert_to_tensor(self.frequency_hz), precision.REAL)
             # the sweep phase at the same step midpoints as the carrier (the running
             # integral to the end of each step would lead the envelope by half a step
             # and skew the inversion profile)
@@ -607,7 +608,7 @@ class ShapedPulse(Event):
         # (log2(steps) batched matmuls), one sandwich applies it, and the frame
         # rotation over the whole pulse follows as a phase per coherence order,
         # exactly as a Delay applies the offset
-        h = ops.expand_dims(ops.expand_dims(nops.cast(f1, "complex64"), -1), -1) * ctx.fx
+        h = ops.expand_dims(ops.expand_dims(nops.cast(f1, precision.COMPLEX), -1), -1) * ctx.fx
         h = h + h_free  # (steps, d, d), or (steps, isochromats, d, d) with a vector b1
         w = Backend.expm_herm(h, dt)
         if ops.ndim(b1) == 0:
@@ -618,21 +619,21 @@ class ShapedPulse(Event):
             turns = ops.expand_dims(delta, 0) * ops.expand_dims(t_mid, 1)
         else:
             turns = ops.expand_dims(delta * t_mid, 1)
-        total = ops.convert_to_tensor(self.duration_s, dtype="float32") * delta
+        total = ops.convert_to_tensor(self.duration_s, dtype=precision.REAL) * delta
         if self.gradient_hz_per_mm and self.gradient_shape is not None:
             # a modulated slice gradient: its running integral at the step midpoints
-            shape = ops.cast(ops.convert_to_tensor(self.gradient_shape), "float32")
+            shape = ops.cast(ops.convert_to_tensor(self.gradient_shape), precision.REAL)
             x = self.gradient_hz_per_mm * self._along(ctx)
             run = (ops.cumsum(shape) - shape / 2.0) * dt
             turns = turns + ops.expand_dims(run, 1) * ops.expand_dims(x, 0)
             total = total + ops.sum(shape) * dt * x
         if self.induced is not None:
             # an induced field is one more frame term, its cycles given per step
-            induced = ops.cast(ops.convert_to_tensor(self.induced), "float32")
+            induced = ops.cast(ops.convert_to_tensor(self.induced), precision.REAL)
             turns = turns + ops.expand_dims(induced[0, :-1], 1)
             total = total + induced[0, -1]
             for k, axis in enumerate("xyz"):
-                x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype="float32")
+                x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype=precision.REAL)
                 if ops.ndim(x) > 0:
                     turns = turns + ops.expand_dims(induced[k + 1, :-1], 1) * ops.expand_dims(x, 0)
                     total = total + induced[k + 1, -1] * x
@@ -652,8 +653,8 @@ class ShapedPulse(Event):
             # whole segments fit: as many as fit at once, each padded to the longest with a
             # step that does nothing (no phase, the identity), collapsed side by side
             d = ops.concatenate([d, ops.ones_like(d[:1])], axis=0)
-            w = ops.concatenate([w, ops.broadcast_to(nops.cast(ops.eye(int(w.shape[-1])),
-                                                               "complex64"), w[:1].shape)], axis=0)
+            eye = nops.cast(ops.eye(int(w.shape[-1])), precision.COMPLEX)
+            w = ops.concatenate([w, ops.broadcast_to(eye, w[:1].shape)], axis=0)
             index = np.array([[first + j if j < n else steps for j in range(width)]
                               for first, n in zip(bounds[:-1], lengths)])
             segments, held = [], block // width
@@ -710,9 +711,9 @@ def relaxation(ctx, t_s):
     if ctx.t1_s is None and ctx.t2_s is None:
         return 1.0, 0.0
     t = ops.convert_to_tensor(t_s)
-    one = nops.cast(ops.ones_like(t), "complex64")
-    e2 = nops.cast(ops.exp(-t / ctx.t2_s), "complex64") if ctx.t2_s is not None else one
-    e1 = nops.cast(ops.exp(-t / ctx.t1_s), "complex64") if ctx.t1_s is not None else one
+    one = nops.cast(ops.ones_like(t), precision.COMPLEX)
+    e2 = nops.cast(ops.exp(-t / ctx.t2_s), precision.COMPLEX) if ctx.t2_s is not None else one
+    e1 = nops.cast(ops.exp(-t / ctx.t1_s), precision.COMPLEX) if ctx.t1_s is not None else one
     return (ctx.eye * e1 + (1.0 - ctx.eye) * e2,
             ctx.rho_eq * ctx.eye * (one - e1))
 
@@ -758,8 +759,9 @@ class Delay(Event):
     def apply(self, rho, ctx):
         u = Backend.propagator_from_eigh(ctx.lam, ctx.v, self.t_s)
         rho = self._sandwich(u, rho)
-        angle = (2.0 * math.pi * ops.convert_to_tensor(ctx.offset_hz, dtype="float32")
-                 * ops.convert_to_tensor(self.t_s, dtype="float32") * ops.cast(ctx.q, "float32"))
+        angle = (2.0 * math.pi * ops.convert_to_tensor(ctx.offset_hz, dtype=precision.REAL)
+                 * ops.convert_to_tensor(self.t_s, dtype=precision.REAL)
+                 * ops.cast(ctx.q, precision.REAL))
         rho = rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         return relaxed(rho, ctx, self.t_s)
 
@@ -816,10 +818,10 @@ class Gradient(Event):
         # the sign matches the in-pulse gradient evolution, so a slice pulse rephases
         # with the scanner-style lobe of minus half its gradient moment; a vector of
         # positions broadcasts the whole isochromat ensemble through one application
-        x = ops.convert_to_tensor(getattr(ctx, "gradient_" + self.axis), dtype="float32")
+        x = ops.convert_to_tensor(getattr(ctx, "gradient_" + self.axis), dtype=precision.REAL)
         if ops.ndim(x) > 0:
             x = ops.reshape(x, (-1, 1, 1))
-        angle = -2.0 * math.pi * self.moment_per_mm * x * ops.cast(ctx.q, "float32")
+        angle = -2.0 * math.pi * self.moment_per_mm * x * ops.cast(ctx.q, precision.REAL)
         factor = ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
         return rho * factor
 
@@ -866,14 +868,14 @@ class InducedKick(Event):
     #   apply   #
     #***********#
     def apply(self, rho, ctx):
-        angle = -2.0 * math.pi * ops.convert_to_tensor(self.cycles, dtype="float32")
+        angle = -2.0 * math.pi * ops.convert_to_tensor(self.cycles, dtype=precision.REAL)
         for axis in "xyz":
-            x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype="float32")
+            x = ops.convert_to_tensor(getattr(ctx, "gradient_" + axis), dtype=precision.REAL)
             if ops.ndim(x) > 0:
                 x = ops.reshape(x, (-1, 1, 1))
-            moment = ops.convert_to_tensor(getattr(self, "moment_" + axis), dtype="float32")
+            moment = ops.convert_to_tensor(getattr(self, "moment_" + axis), dtype=precision.REAL)
             angle = angle - 2.0 * math.pi * moment * x
-        angle = angle * ops.cast(ctx.q, "float32")
+        angle = angle * ops.cast(ctx.q, precision.REAL)
         return rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
 
 
@@ -931,10 +933,11 @@ class Projection(Event):
                         left = event.apply(left, ctx, propagators[id(event)])
                     else:
                         left = event.apply(left, ctx)
-                fz = nops.cast(ctx.fz, "complex64")
+                fz = nops.cast(ctx.fz, precision.COMPLEX)
                 weights = (ops.real(ops.einsum("iab,ba->i", left, fz))
-                           / ops.real(ops.einsum("ab,ba->", nops.cast(ctx.rho_eq, "complex64"), fz)))
-                rho = ops.mean(ops.reshape(nops.cast(weights, "complex64"), (-1, 1, 1)) * rho,
+                           / ops.real(ops.einsum("ab,ba->",
+                                                 nops.cast(ctx.rho_eq, precision.COMPLEX), fz)))
+                rho = ops.mean(ops.reshape(nops.cast(weights, precision.COMPLEX), (-1, 1, 1)) * rho,
                                axis=0)
             else:
                 rho = ops.mean(rho, axis=0)
@@ -942,7 +945,8 @@ class Projection(Event):
 
     def scale(self, rho):
         """The gain alone, nothing averaged: a projection in a design played as a whole."""
-        return rho * nops.cast(ops.convert_to_tensor(self.gain, dtype="float32"), "complex64")
+        return rho * nops.cast(ops.convert_to_tensor(self.gain, dtype=precision.REAL),
+                               precision.COMPLEX)
 
 
 #**************************************************************************************************#

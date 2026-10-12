@@ -21,6 +21,7 @@ import numpy as np
 from keras import ops
 from nifti_mrs_plus import ops as nops
 
+from mrsandbox.backend import precision
 from mrsandbox.sequences.events import Pulse, SelectivePulse, Sequence, ShapedPulse, _hashable
 
 
@@ -78,7 +79,7 @@ class Cycled(Sequence):
         (Sequence.run) are not used: every step's pulses carry their own phases."""
         total = None
         jitter = (None if self.jitter_deg is None
-                  else ops.convert_to_tensor(self.jitter_deg, dtype="float32"))
+                  else ops.convert_to_tensor(self.jitter_deg, dtype=precision.REAL))
         for step in range(self.table.shape[0]):
             events = list(self.events)
             for column, k in enumerate(self.pulses):
@@ -90,7 +91,8 @@ class Cycled(Sequence):
                                               for name in event.free
                                               if getattr(event, name) is not None))
             stepped = Sequence(*events, tr_s=self.tr_s, cycles=self.cycles).run(rho, ctx)
-            angle = (-math.radians(float(self.receiver_deg[step]))) * ops.cast(ctx.q, "float32")
+            angle = (-math.radians(float(self.receiver_deg[step]))
+                     * ops.cast(ctx.q, precision.REAL))
             stepped = stepped * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
             total = stepped if total is None else total + stepped
         return total / float(self.table.shape[0])

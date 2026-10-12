@@ -21,6 +21,8 @@ import math
 from keras import ops
 from nifti_mrs_plus import ops as nops
 
+from mrsandbox.backend import precision
+
 
 #**************************************************************************************************#
 #                                          Class Backend                                           #
@@ -73,7 +75,7 @@ class Backend:
         are cast to complex64 so downstream products never mix dtypes.
         """
         lam, v = ops.eigh(h)
-        return nops.real(lam), nops.cast(v, "complex64")
+        return nops.real(lam), nops.cast(v, precision.COMPLEX)
 
     #**************************#
     #   propagator from eigh   #
@@ -114,7 +116,7 @@ class Backend:
         above 2^(SQUARINGS + 1) (a step of hundreds of radians) exceed the budget; no
         pulse step comes near it. Every squaring doubles the float32 rounding, so the
         window is as wide as the polynomial allows."""
-        dt_t = ops.cast(ops.convert_to_tensor(dt), "float32")
+        dt_t = ops.cast(ops.convert_to_tensor(dt), precision.REAL)
         if ops.ndim(dt_t) > 0:
             dt_t = ops.reshape(dt_t, tuple(dt_t.shape) + (1, 1))
         a = (nops.complex_from(ops.zeros_like(nops.real(h)),
@@ -123,9 +125,9 @@ class Backend:
                                  ops.zeros_like(nops.real(h))))
         norm = ops.sqrt(ops.sum(ops.abs(a) ** 2, axis=(-2, -1)))
         s = ops.maximum(ops.ceil(ops.log2(ops.maximum(norm / 2.0, 1e-30))), 0.0)
-        scale = nops.cast(ops.exp2(-s), "complex64")
+        scale = nops.cast(ops.exp2(-s), precision.COMPLEX)
         a = a * ops.expand_dims(ops.expand_dims(scale, -1), -1)
-        eye = ops.eye(int(a.shape[-1]), dtype="complex64")
+        eye = ops.eye(int(a.shape[-1]), dtype=precision.COMPLEX)
         a2 = ops.matmul(a, a)
         a3 = ops.matmul(a2, a)
         a4 = ops.matmul(a2, a2)

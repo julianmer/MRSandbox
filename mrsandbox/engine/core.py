@@ -9,7 +9,7 @@
 # Purpose: The GAMMA-class engine core: run any sequence on any spin systems and read the result   #
 #          out as transition lines - which then render to a spectrum or FID at ANY grid for free,  #
 #          so readout resolution is a rendering parameter, not a simulation cost. All tensor math  #
-#          is keras.ops; complex64 throughout.                                                     #
+#          is keras.ops, in the set precision (backend.precision).                                 #
 #                                                                                                  #
 ####################################################################################################
 
@@ -28,7 +28,7 @@ import numpy as np
 from keras import ops
 from nifti_mrs_plus import ops as nops
 
-from mrsandbox.backend import Backend
+from mrsandbox.backend import Backend, precision
 
 
 #**************************************************************************************************#
@@ -129,7 +129,7 @@ class Engine:
         op = system.operators()
         lam, v = Backend.eigh_herm(ops.convert_to_tensor(system.hamiltonian(self.b0_t)))
         f0_mhz = system.gamma_mhz_t * self.b0_t
-        nu = np.asarray(system.shifts_ppm, dtype=np.float32) * f0_mhz
+        nu = np.asarray(system.shifts_ppm, dtype=precision.REAL) * f0_mhz
         return Context(
             lam=lam,
             v=v,
@@ -141,7 +141,7 @@ class Engine:
             f0_mhz=f0_mhz,
             q=ops.convert_to_tensor(op.coherence_order),
             rho_eq=ops.convert_to_tensor(system.thermal_rho()),
-            eye=ops.convert_to_tensor(np.eye(system.dim, dtype=np.complex64)),
+            eye=ops.convert_to_tensor(np.eye(system.dim, dtype=precision.COMPLEX)),
             fplus=ops.convert_to_tensor(op.fplus),
             fz=ops.convert_to_tensor(op.fz),
             mz=ops.convert_to_tensor(op.mz),
@@ -225,7 +225,7 @@ class Engine:
         if getattr(sequence, "unfolded", False):
             axes = sorted(extents)
             full = np.meshgrid(*(grid * extents[axis] for axis in axes), indexing="ij")
-            return {axis: values.ravel().astype(np.float32) for axis, values in zip(axes, full)}
+            return {axis: values.ravel().astype(precision.REAL) for axis, values in zip(axes, full)}
         positions = {}
         for order, axis in enumerate(sorted(extents)):
             target = max(1, int(round(isochromats * 0.6180339887 ** order)))
@@ -233,7 +233,7 @@ class Engine:
             stride = 1 if order == 0 else next(
                 (c for c in nearby if 1 <= c < isochromats and math.gcd(c, isochromats) == 1), 1)
             positions[axis] = (grid[(np.arange(isochromats) * stride) % isochromats]
-                               * extents[axis]).astype(np.float32)
+                               * extents[axis]).astype(precision.REAL)
         return positions
 
     @staticmethod
@@ -270,7 +270,7 @@ class Engine:
         ctx = dataclasses.replace(
             self.context(system, b1_scale=b1_scale, offset_hz=offset_hz),
             **{"gradient_" + axis:
-               ops.convert_to_tensor(np.asarray(positions_mm, dtype=np.float32))})
+               ops.convert_to_tensor(np.asarray(positions_mm, dtype=precision.REAL))})
         rho = played.run(ctx.rho_eq, ctx)
         rho_e = ops.einsum("ai,...ab,bj->...ij", ops.conj(ctx.v), rho, ctx.v)
         det_e = ops.einsum("ai,ab,bj->ij", ops.conj(ctx.v), ctx.fplus, ctx.v)
@@ -290,7 +290,8 @@ class Engine:
             return ctx
         shift = dict(shift_mm or {})
         return dataclasses.replace(ctx, **{
-            "gradient_" + axis: ops.convert_to_tensor(values + np.float32(shift.get(axis, 0.0)))
+            "gradient_" + axis: ops.convert_to_tensor(
+                values + np.asarray(shift.get(axis, 0.0), precision.REAL))
             for axis, values in positions.items()})
 
     def _system_lines(self, sequence, ctx, propagators=None):
@@ -304,8 +305,8 @@ class Engine:
         freqs = ops.expand_dims(ctx.lam, 1) - ops.expand_dims(ctx.lam, 0)
         phase = math.radians(self.receiver_phase_deg)
         receiver = nops.complex_from(
-            ops.convert_to_tensor(math.cos(phase), dtype="float32"),
-            ops.convert_to_tensor(math.sin(phase), dtype="float32"),
+            ops.convert_to_tensor(math.cos(phase), dtype=precision.REAL),
+            ops.convert_to_tensor(math.sin(phase), dtype=precision.REAL),
         )
         amps = det_e * ops.einsum("...ij->...ji", rho_e)
         if ops.ndim(amps) == 3:
@@ -359,7 +360,7 @@ class Engine:
         # a waveform) can change its tree or length under one structure, and a stored export,
         # unlike a jit, cannot retrace for it
         key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups,
-               isochromats, pruned)
+               isochromats, pruned, precision.REAL)
         if key in self._compiled:
             return self._compiled[key]
         if pruned:
@@ -456,14 +457,14 @@ class Engine:
         the probe recipe is code), and a later session reads it back instead of
         replaying the full graph."""
         relax, frames, floor = (1.5, 0.2), ((0.8, 0.0), (1.25, 7.0)), 1e-9
-        timings, shift = self.tensors(sequence.timings()), ops.zeros((3,), dtype="float32")
+        timings, shift = self.tensors(sequence.timings()), ops.zeros((3,), dtype=precision.REAL)
         n = len(bounds) - 1
 
         def probe(b1, offset):
-            return (ops.convert_to_tensor(np.full(n, relax[0], np.float32)),
-                    ops.convert_to_tensor(np.full(n, relax[1], np.float32)),
-                    ops.convert_to_tensor(np.float32(b1)),
-                    ops.convert_to_tensor(np.float32(offset)), timings, shift)
+            return (ops.convert_to_tensor(np.full(n, relax[0], precision.REAL)),
+                    ops.convert_to_tensor(np.full(n, relax[1], precision.REAL)),
+                    ops.convert_to_tensor(np.asarray(b1, precision.REAL)),
+                    ops.convert_to_tensor(np.asarray(offset, precision.REAL)), timings, shift)
 
         path = self._export_path("index", sequence, groups, isochromats, False)
         path = None if path is None else path.parent.with_name("signal_index") / path.name
@@ -535,7 +536,8 @@ class Engine:
         systems = tuple(tuple((s.name, s.nucleus, s.shifts_ppm, s.j_hz, s.scale, s.gamma_mhz_t,
                                s.spin, s.nuclei) for s in group) for group in groups)
         text = repr((self._export_salt(), self.b0_t, self.receiver_phase_deg, kind,
-                     sequence.structure(), shapes, systems, isochromats, pruned))
+                     sequence.structure(), shapes, systems, isochromats, pruned,
+                     precision.REAL))
         digest = hashlib.sha256(text.encode()).hexdigest()
         return pathlib.Path(directory) / "exports" / (digest + ".npz")
 
@@ -546,7 +548,7 @@ class Engine:
         import jax
 
         lead = () if draws is None else (draws,)
-        spec = lambda shape: jax.ShapeDtypeStruct(shape, np.float32)
+        spec = lambda shape: jax.ShapeDtypeStruct(shape, precision.REAL)
         timings = jax.tree_util.tree_map(lambda value: spec(np.shape(value)),
                                          sequence.timings())
         return (spec(lead + (len(groups),)), spec(lead + (len(groups),)), spec(lead),
@@ -624,7 +626,7 @@ class Engine:
         """Sequence timings as float32 backend tensors, nesting kept."""
         if isinstance(timings, tuple):
             return tuple(Engine.tensors(value) for value in timings)
-        return ops.convert_to_tensor(timings, dtype="float32")
+        return ops.convert_to_tensor(timings, dtype=precision.REAL)
 
     #****************#
     #   compiled     #
@@ -641,7 +643,7 @@ class Engine:
         `render_fids` call turns into B FIDs at once. `shift_mm` moves the
         ensemble (see `graph`)."""
         fn, _ = self.compiled_batch(sequence, ((system,),), isochromats, shift_mm)
-        row = lambda value: ops.expand_dims(ops.convert_to_tensor(value, dtype="float32"), -1)
+        row = lambda value: ops.expand_dims(ops.convert_to_tensor(value, dtype=precision.REAL), -1)
 
         def replay(t1_s, t2_s, b1_scale, offset_hz):
             return fn(row(t1_s), row(t2_s), b1_scale, offset_hz)
@@ -651,8 +653,9 @@ class Engine:
         mapped = Backend.vmap(replay, in_axes=(0, 0, None, None))
 
         def replay_batch(t1_s, t2_s, b1_scale, offset_hz):
-            freqs, amps = mapped(ops.convert_to_tensor(t1_s, dtype="float32"),
-                                 ops.convert_to_tensor(t2_s, dtype="float32"), b1_scale, offset_hz)
+            freqs, amps = mapped(ops.convert_to_tensor(t1_s, dtype=precision.REAL),
+                                 ops.convert_to_tensor(t2_s, dtype=precision.REAL), b1_scale,
+                                 offset_hz)
             return freqs[0], amps
 
         return replay_batch
@@ -669,7 +672,7 @@ class Engine:
         # read anew each call: an event set by hand replays its new physics
         timings = self.tensors(sequence.timings())
         shift = ops.convert_to_tensor(np.asarray(
-            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
+            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings,
                                                            shift),
                 bounds)
@@ -689,7 +692,7 @@ class Engine:
         untraced too."""
         chromats = isochromats if isochromats is not None else self.isochromats
         key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups, chromats,
-               "draws")
+               "draws", precision.REAL)
         if key not in self._draws:
             path = self._export_path("draws", sequence, groups, chromats, True)
             stored = self._load_export(path)
@@ -716,7 +719,7 @@ class Engine:
         call, kept = self._draws[key]
         timings = self.tensors(sequence.timings())
         shift = ops.convert_to_tensor(np.asarray(
-            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
+            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: call(t1_s, t2_s, b1_scale, offset_hz,
                                                              timings, shift),
                 kept)
@@ -744,7 +747,7 @@ class Engine:
 
         isochromats = isochromats if isochromats is not None else self.isochromats
         key = (sequence.structure(), self._timing_shapes(sequence.timings()), groups,
-               isochromats, "framed")
+               isochromats, "framed", precision.REAL)
         if key not in self._compiled:
             index, kept = self._signal_index(
                 lambda *args: self.graph(sequence, groups, isochromats)[0](*args),
@@ -824,7 +827,7 @@ class Engine:
         frame, lines, draws, kept = self._compiled[key]
         timings = self.tensors(sequence.timings())
         shift = ops.convert_to_tensor(np.asarray(
-            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=np.float32))
+            [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
         return (lambda b1_scale, offset_hz: frame(b1_scale, offset_hz, timings, shift),
                 lambda t1_s, t2_s, b1_scale, offset_hz, held: lines(
                     t1_s, t2_s, b1_scale, offset_hz, timings, shift, held),
@@ -851,6 +854,53 @@ class Engine:
         freqs, amps = self.lines(sequence, *systems)
         return self.render_spectrum(freqs, amps, self.f0_mhz(*systems), npoints=npoints,
                                     sw_hz=sw_hz, lw_hz=lw_hz)
+
+    #*****************#
+    #   convergence   #
+    #*****************#
+    def convergence(self, sequence, *systems, lw_hz=4.0):
+        """How far a design's spectrum on `systems` is from converged in each numerical
+        choice of this engine: the largest difference of the complex spectrum (4096 points
+        over 4 kHz, `lw_hz` lines) over its peak, against the spectrum as set, with twice
+        the isochromats, with every shaped pulse at twice its steps (each sample held for
+        two, the same waveform: what changes is the step discretization), and in float64.
+        Returns {"isochromats": ..., "steps": ..., "float64": ...}. The design is refined as
+        built: a pulse induced with a gradient response (its track per step) is not."""
+        import copy
+
+        from mrsandbox.sequences.events import Sequence, ShapedPulse
+
+        def spectrum(design, isochromats):
+            engine = Engine(self.b0_t, self.receiver_phase_deg, isochromats)
+            _, spec = engine.spectrum(design, *systems, npoints=4096, sw_hz=4000.0, lw_hz=lw_hz)
+            return np.asarray(ops.convert_to_numpy(spec)).astype(np.complex128)
+
+        def refined(design):
+            events = []
+            for event in design.events:
+                if isinstance(event, Sequence):
+                    event = refined(event)
+                elif isinstance(event, ShapedPulse):
+                    event = copy.copy(event)
+                    for name in ("envelope", "frequency_hz", "gradient_shape"):
+                        if getattr(event, name) is not None:
+                            setattr(event, name, np.repeat(np.asarray(getattr(event, name)), 2))
+                events.append(event)
+            design = copy.copy(design)
+            design.events = tuple(events)
+            return design
+
+        reference = spectrum(sequence, self.isochromats)
+        before = precision.REAL
+        precision.set_precision("float64")
+        try:
+            double = spectrum(sequence, self.isochromats)
+        finally:
+            precision.set_precision(before)
+        return {name: float(np.abs(other - reference).max() / np.abs(reference).max())
+                for name, other in (("isochromats", spectrum(sequence, 2 * self.isochromats)),
+                                    ("steps", spectrum(refined(sequence), self.isochromats)),
+                                    ("float64", double))}
 
     #*********#
     #   fid   #
@@ -901,16 +951,16 @@ class Engine:
         rare, so training draws render at replay speed.
         """
         voigt = not (isinstance(gauss_hz, numbers.Real) and gauss_hz == 0.0)
-        key = (npoints, float(dwell_s), voigt)
+        key = (npoints, float(dwell_s), voigt, precision.REAL)
         if key not in self._renderers:
             self._renderers[key] = self._fid_renderer(npoints, dwell_s, voigt)
         dtype = ops.dtype(freqs)
         lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * ops.ones_like(freqs)
         if not voigt:
             cycles = np.asarray(ops.convert_to_numpy(freqs), dtype=np.float64) * dwell_s
-            within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(np.float32))
+            within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(precision.REAL))
             across = ops.convert_to_tensor(
-                np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
+                np.mod(cycles * self._block(npoints), 1.0).astype(precision.REAL))
             return self._renderers[key](amps, lw, within, across)
         gauss = ops.convert_to_tensor(gauss_hz, dtype=dtype) * ops.ones_like(freqs)
         return self._renderers[key](freqs, amps, lw, gauss)
@@ -925,7 +975,7 @@ class Engine:
         widths. With `gauss_hz` (K, L) the lines are Voigt and take the dense graph, eight
         rows at a time (its phase table is rows x lines x points)."""
         if gauss_hz is not None:
-            key = (npoints, float(dwell_s), "voigt rows")
+            key = (npoints, float(dwell_s), "voigt rows", precision.REAL)
             if key not in self._renderers:
                 self._renderers[key] = self._fid_renderer(npoints, dwell_s, True, rows=True)
             lw = (ops.convert_to_tensor(lw_hz, dtype=ops.dtype(freqs))
@@ -936,16 +986,16 @@ class Engine:
                     for first in range(0, int(amps.shape[0]), 8)]
             return None, ops.concatenate(fids, axis=0)
         rows = np.ndim(lw_hz) == 2
-        key = (npoints, float(dwell_s), "rows" if rows else "many")
+        key = (npoints, float(dwell_s), "rows" if rows else "many", precision.REAL)
         if key not in self._renderers:
             self._renderers[key] = self._fid_renderer(npoints, dwell_s, False, many=True, rows=rows)
         dtype = ops.dtype(freqs)
         lw = ops.convert_to_tensor(lw_hz, dtype=dtype) * (
             ops.ones_like(amps, dtype=dtype) if rows else ops.ones_like(freqs))
         cycles = np.asarray(ops.convert_to_numpy(freqs), dtype=np.float64) * dwell_s
-        within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(np.float32))
+        within = ops.convert_to_tensor(np.mod(cycles, 1.0).astype(precision.REAL))
         across = ops.convert_to_tensor(
-            np.mod(cycles * self._block(npoints), 1.0).astype(np.float32))
+            np.mod(cycles * self._block(npoints), 1.0).astype(precision.REAL))
         return self._renderers[key](amps, lw, within, across)
 
     @staticmethod

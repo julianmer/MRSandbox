@@ -10,8 +10,8 @@
 #          immutable and hashable (so operator stacks cache outside jit) and carries its gamma,    #
 #          making it self-contained; its Hamiltonian uses FULL (non-secular) scalar coupling       #
 #          between spins of its nucleus, so strong-coupling behaviour is exact at any field, and   #
-#          the secular term to a spin of another nucleus. Constants are numpy complex64; convert   #
-#          to backend tensors at the point of use.                                                 #
+#          the secular term to a spin of another nucleus. Constants are numpy arrays of the set    #
+#          precision (backend.precision); convert to backend tensors at the point of use.          #
 #                                                                                                  #
 ####################################################################################################
 
@@ -23,6 +23,7 @@ import functools
 
 import numpy as np
 
+from mrsandbox.backend import precision
 from mrsandbox.database import Database
 from mrsandbox.database.nuclei import HETERONUCLEI, SPIN
 
@@ -189,14 +190,15 @@ class SpinSystem:
     #   operators   #
     #***************#
     def operators(self):
-        """The cached operator stack of this system."""
-        return Operators.build(self)
+        """The cached operator stack of this system at the set precision."""
+        return Operators.build(self, precision.COMPLEX)
 
     #*****************#
     #   hamiltonian   #
     #*****************#
     def hamiltonian(self, b0_t):
-        """Static Hamiltonian at field `b0_t` (tesla), in Hz, numpy complex64 (d, d).
+        """Static Hamiltonian at field `b0_t` (tesla), in Hz, numpy (d, d) of the set
+        precision.
 
         H = sum_i nu_i Iz_i + sum_{i<j} J_ij (Ix_i Ix_j + Iy_i Iy_j + Iz_i Iz_j),
         with nu_i = shift_i * gamma_mhz_t * b0_t (the frame offset is a Context input).
@@ -207,7 +209,7 @@ class SpinSystem:
         resonant = np.asarray(self.resonant)
         kinds = self.nuclei or (self.nucleus,) * self.n
         nu = np.asarray(self.shifts_ppm) * self.gamma_mhz_t * float(b0_t) * resonant
-        h = np.tensordot(nu.astype(np.complex64), op.iz, axes=1)
+        h = np.tensordot(nu.astype(precision.COMPLEX), op.iz, axes=1)
         j = np.asarray(self.j_hz)
         for a in range(self.n):
             for b in range(a + 1, self.n):
@@ -215,7 +217,7 @@ class SpinSystem:
                     coupling = op.iz[a] @ op.iz[b]
                     if kinds[a] == kinds[b]:
                         coupling = coupling + op.ix[a] @ op.ix[b] + op.iy[a] @ op.iy[b]
-                    h = h + np.complex64(j[a, b]) * coupling
+                    h = h + np.asarray(j[a, b], precision.COMPLEX) * coupling
         return h
 
     #*******************#
@@ -231,7 +233,7 @@ class SpinSystem:
         scales as I (I + 1), the trace of Fx^2 per spin; the polarization and the
         detection gain of a nucleus are global factors outside the engine (stated).
         """
-        return np.complex64(2.0 * self.scale / self.dim) * self.operators().fz
+        return np.asarray(2.0 * self.scale / self.dim, precision.COMPLEX) * self.operators().fz
 
 
 #**************************************************************************************************#
@@ -246,17 +248,17 @@ class Operators:
     """The cached operator constants of one spin system on the product basis.
 
     Attributes:
-        ix, iy, iz: Per-spin operators, (n, d, d) complex64.
+        ix, iy, iz: Per-spin operators, (n, d, d) complex.
         fx, fy, fz: Total-spin operators of the resonant spins (another nucleus is
-            never pulsed nor detected), (d, d) complex64.
-        fplus: Detection operator Fx + i Fy, (d, d) complex64; its support lies on
+            never pulsed nor detected), (d, d) complex.
+        fplus: Detection operator Fx + i Fy, (d, d) complex; its support lies on
             coherence order +1, so Tr(F+ rho) reads out the -1 coherences of rho.
         coherence_order: Integer matrix q[a, b] = m_a - m_b of the resonant spins,
             (d, d); a coherence filter is a boolean mask on it.
-        mz: Per-spin magnetic quantum numbers on the product basis, (n, d) float32: the
+        mz: Per-spin magnetic quantum numbers on the product basis, (n, d) real: the
             diagonals of iz, which are also the eigenvalues of ix in the hadamard basis;
             a spin of another nucleus has a zero row, so no pulse sum turns it.
-        hadamard: The transverse eigenbasis H, (d, d) complex64, the Kronecker product
+        hadamard: The transverse eigenbasis H, (d, d) complex, the Kronecker product
             of the per-spin eigenvector matrices of Ix ordered like Iz (for spins 1/2
             the n-fold Hadamard matrix; the identity on another nucleus): H Iz_i H^H =
             Ix_i for every resonant spin, so any sum of their Ix_i is diagonalized by H
@@ -280,9 +282,10 @@ class Operators:
     #***********#
     @classmethod
     @functools.lru_cache(maxsize=256)
-    def build(cls, system):
-        """Build (and cache) the operator stack of a hashable SpinSystem; relaxed
-        variants of one structural system hit the same entry."""
+    def build(cls, system, dtype="complex64"):
+        """Build (and cache) the operator stack of a hashable SpinSystem in the complex
+        `dtype`; relaxed variants of one structural system hit the same entry."""
+        real = np.real(np.zeros(1, dtype)).dtype
         # the x, y, z operators of one spin on its levels, m descending from I: Iz = diag(m) and
         # the ladder I+ with <m + 1|I+|m> = sqrt(I (I + 1) - m (m + 1))
         singles = []
@@ -290,27 +293,27 @@ class Operators:
             spin = (count - 1) / 2.0
             m = spin - np.arange(count)
             plus = np.diag(np.sqrt(spin * (spin + 1.0) - m[1:] * (m[1:] + 1.0)), k=1)
-            singles.append({"x": ((plus + plus.T) / 2.0).astype(np.complex64),
-                            "y": ((plus - plus.T) / 2.0j).astype(np.complex64),
-                            "z": np.diag(m).astype(np.complex64)})
+            singles.append({"x": ((plus + plus.T) / 2.0).astype(dtype),
+                            "y": ((plus - plus.T) / 2.0j).astype(dtype),
+                            "z": np.diag(m).astype(dtype)})
         ix, iy, iz = (
             np.stack([cls._embed(singles[i][axis], i, system.levels) for i in range(system.n)])
             for axis in "xyz"
         )
-        resonant = np.asarray(system.resonant, dtype=np.float32)
-        fx, fy, fz = (np.tensordot(resonant.astype(np.complex64), op, axes=1)
+        resonant = np.asarray(system.resonant, dtype=real)
+        fx, fy, fz = (np.tensordot(resonant.astype(dtype), op, axes=1)
                       for op in (ix, iy, iz))
         m = np.real(np.diag(fz))
         order = np.rint(m[:, None] - m[None, :]).astype(np.int32)
-        mz = (np.real(np.diagonal(iz, axis1=1, axis2=2)) * resonant[:, None]).astype(np.float32)
+        mz = (np.real(np.diagonal(iz, axis1=1, axis2=2)) * resonant[:, None]).astype(real)
         # the eigenvectors of Ix, one column per m in the order of Iz (eigh returns
         # them ascending; the column phases are free, a diagonal one cancels in
         # V diag(m) V^H): the n-fold Hadamard for spins 1/2; another nucleus keeps its basis
-        hadamard = np.array([[1.0]], dtype=np.complex64)
+        hadamard = np.array([[1.0]], dtype=dtype)
         for single, own in zip(singles, system.resonant):
-            basis = np.eye(single["x"].shape[0], dtype=np.complex64)
+            basis = np.eye(single["x"].shape[0], dtype=dtype)
             if own:
-                basis = np.linalg.eigh(single["x"])[1][:, ::-1].astype(np.complex64)
+                basis = np.linalg.eigh(single["x"])[1][:, ::-1].astype(dtype)
             hadamard = np.kron(hadamard, basis)
         return cls(ix=ix, iy=iy, iz=iz, fx=fx, fy=fy, fz=fz, fplus=fx + 1j * fy,
                    coherence_order=order, mz=mz, hadamard=hadamard)
@@ -323,7 +326,7 @@ class Operators:
     def _embed(op, i, levels):
         """Kronecker-embed a single-spin operator at position `i` of the product space of
         spins with `levels` levels each."""
-        out = np.array([[1.0]], dtype=np.complex64)
+        out = np.array([[1.0]], dtype=op.dtype)
         for k, count in enumerate(levels):
-            out = np.kron(out, op if k == i else np.eye(count, dtype=np.complex64))
+            out = np.kron(out, op if k == i else np.eye(count, dtype=op.dtype))
         return out

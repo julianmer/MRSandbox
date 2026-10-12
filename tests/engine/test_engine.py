@@ -612,3 +612,70 @@ class TestGraph:
             alone = np.asarray(ops.convert_to_numpy(alone))
             assert np.abs(together[k] - alone).max() < 1e-5 * np.abs(alone).max()
 
+
+
+#**************************************************************************************************#
+#                                        Class TestPrecision                                       #
+#**************************************************************************************************#
+class TestPrecision:
+
+    #*************#
+    #   helpers   #
+    #*************#
+    @staticmethod
+    def lactate():
+        from mrsandbox import SpinSystem
+
+        return tuple(SpinSystem.from_database("Lac"))
+
+    #*************#
+    #   float64   #
+    #*************#
+    def test_float64_simulates_in_double_and_float32_comes_back(self):
+        # the lines come out in double and their spectrum agrees with float32's to its rounding
+        # (lines of one frequency may share their amplitude otherwise, the spectrum is the
+        # same); set back, a float32 run is the first one to the bit
+        from mrsandbox.backend import precision
+
+        design = Press(te1_s=0.011, te2_s=0.019)
+        lines = lambda: [np.asarray(ops.convert_to_numpy(v))
+                         for v in Engine(3.0).lines(design, *self.lactate())]
+        spectrum = lambda: np.asarray(ops.convert_to_numpy(Engine(3.0).spectrum(
+            design, *self.lactate(), npoints=4096, lw_hz=2.0)[1])).astype(np.complex128)
+        single, single_spectrum = lines(), spectrum()
+        precision.set_precision("float64")
+        try:
+            double, double_spectrum = lines(), spectrum()
+        finally:
+            precision.set_precision("float32")
+        assert double[0].dtype == np.float64 and double[1].dtype == np.complex128
+        assert single[1].dtype == np.complex64
+        np.testing.assert_allclose(double[0], single[0], atol=1e-3)
+        scale = np.abs(double_spectrum).max()
+        assert np.abs(double_spectrum - single_spectrum).max() < 1e-4 * scale
+        again = lines()
+        assert all(np.array_equal(a, b) for a, b in zip(again, single))
+
+    def test_sixteen_bits_are_refused(self):
+        from mrsandbox.backend import precision
+
+        with pytest.raises(ValueError, match="16-bit"):
+            precision.set_precision("float16")
+        assert precision.REAL == "float32"
+
+    #*****************#
+    #   convergence   #
+    #*****************#
+    def test_the_convergence_card_reads_each_choice(self):
+        # an ideal design has no ensemble and no steps, so only the float64 entry moves, at
+        # float32's rounding over the render; a played one at eight isochromats is not converged
+        # in them
+        from mrsandbox.sequences.library import LocalizedPress
+
+        ideal = Engine(3.0).convergence(Press(te1_s=0.011, te2_s=0.019), *self.lactate())
+        assert ideal["isochromats"] == 0.0 and ideal["steps"] == 0.0
+        assert 0.0 < ideal["float64"] < 1e-4
+        played = Engine(3.0, isochromats=8).convergence(
+            LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ), *self.lactate())
+        assert played["isochromats"] > 1e-3 and played["float64"] < 1e-4
+        assert 0.0 < played["steps"] < 1.0
