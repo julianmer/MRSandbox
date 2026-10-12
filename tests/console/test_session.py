@@ -409,6 +409,20 @@ class TestSession:
         session.position_mm = [0.0, 0.0, 300.0]
         assert bands() == (0.0, 0.0)
 
+    def test_the_designers_perfect_spectrum_has_no_broadening(self):
+        session = Session(ICBM)
+        # the water suppressed, so NAA stands clear of the water's wing
+        session.protocol.npoints, session.protocol.water_suppression = 2048, "VAPOR"
+        session.protocol.ovs = False
+
+        def naa(perfect):
+            ppm, real = session.showcase(perfect)
+            line = real[(ppm > 1.9) & (ppm < 2.1)] - np.median(real[(ppm > 1.7) & (ppm < 2.3)])
+            return line.max(), int(np.sum(line > line.max() / 2))
+        (top, width), (sharp, narrow) = naa(False), naa(True)
+        # the same signal in fewer points: taller and narrower; the session's own display untouched
+        assert sharp > 2.0 * top and narrow < width and session.apodization_hz == 2.0
+
     def test_the_designer_shows_the_cards_preludes_before_the_design(self):
         session = Session(ICBM)
         session.adopt()

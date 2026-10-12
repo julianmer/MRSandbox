@@ -695,6 +695,8 @@ class Session:
         # the last voxel's width from the field (Session.linewidth)
         self._linewidth_memo = (None, None)
         self.processing = ALIGN
+        # the averages' apodization in the display; the designer's perfect spectrum has none
+        self.apodization_hz = 2.0
         self.prescan, self.clock_s, self._drift = True, 0.0, None
         self.unfitted = ""
         self.protocol = Protocol()
@@ -2566,14 +2568,15 @@ class Session:
                 np.random.default_rng(self.seed))["run"]["drift_hz_per_min"])
         return self._drift
 
-    def showcase(self):
+    def showcase(self, perfect=False):
         """What the own design does to a spectrum as the card plays it: two transients of the
         subject on the table (seed 0, the registered person) at the planned voxel, a uniform
         field, the card's water suppression and OVS before the design (the water and the scalp's
         lipids in, so what they leave shows, or what the design alone leaves where they are
         off), and the rest of IDEALS off (no noise, macromolecules, leaked water, frequency and
-        phase errors, eddy currents, spurious echoes), the run still. Returns (ppm, real
-        spectrum) on 0.2 to 4.2 ppm."""
+        phase errors, eddy currents, spurious echoes), the run still; `perfect` also takes away the
+        broadening, the microscopic lineshape and the display's apodization, so the lines keep
+        their T2 alone. Returns (ppm, real spectrum) on 0.2 to 4.2 ppm."""
         clean = Session("Brain, ICBM152 average, 2 mm")
         clean.subjects, clean.pictures, clean.images, clean._bodies = (
             self.subjects, self.pictures, self.images, self._bodies)
@@ -2586,6 +2589,8 @@ class Session:
         clean.overrides = {path: value for name, leaves in IDEALS.items() if name != "lipids"
                            for path, value in leaves.items() if path != "water.residual_fraction"}
         clean.overrides.update({f"run.{argument}": off for argument, off in RUN.values()})
+        if perfect:
+            clean.overrides["lineshape.gauss_hz"], clean.apodization_hz = 0.0, 0.0
         exam = clean.run(clean.plan(queued=False), seed=0)
         shown = (exam.ppm > 0.2) & (exam.ppm < 4.2)
         return exam.ppm[shown], exam.frames[-1][1][shown]
@@ -2882,8 +2887,9 @@ class Session:
         PROCESS is the processed product of a toolbox, all Augmentrum's: aligned, the transients
         unlike the rest left out, the residual water taken out (HLSVD), and of a plain scan the
         spectrum shifted onto its reference peak and phased on creatine.
-        Every level shows zero filled over the whole acquired band, its averages with 2 Hz of
-        apodization and its single transients as acquired, as a scanner shows one.
+        Every level shows zero filled over the whole acquired band, its averages with
+        `apodization_hz` of apodization and its single transients as acquired, as a scanner shows
+        one.
         Fills `builds`, `frames`, `transients`, `spectra`, `snr`, `ppm` and `window`."""
         card, names = exam.card, list(exam.conditions)
         fids = np.array(exam.data[:])[0, 0, 0]
@@ -2909,7 +2915,7 @@ class Session:
                     fids[:, mine] = np.asarray(moved).reshape(mine.size, -1).T
                     if self.processing == PROCESS:
                         kept[mine] = np.asarray(processor.last_keep_mask_).ravel()
-        window = np.exp(-np.pi * 2.0 * np.arange(card.npoints) / card.bandwidth_hz)
+        window = np.exp(-np.pi * self.apodization_hz * np.arange(card.npoints) / card.bandwidth_hz)
         # the file's frame: the centre at 4.65
         ppm = 4.65 + np.fft.fftshift(
             np.fft.fftfreq(2 * card.npoints, 1.0 / card.bandwidth_hz)) / f0_mhz

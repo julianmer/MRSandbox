@@ -1539,10 +1539,10 @@ async def console(client: Client):
         async def look():
             """What the design does to a spectrum (Session.showcase): the subject on the table at
             the planned voxel, a uniform field, no noise, the card's water suppression and OVS as
-            the strip shows them."""
+            the strip shows them; perfect, without broadening as well."""
             busy.set_visibility(True)
             try:
-                ppm, real = await run.io_bound(session.showcase)
+                ppm, real = await run.io_bound(session.showcase, perfect.value)
             except Exception as error:
                 problem.text = str(error)[:160]
                 problem.style(f"color: {BAD}")
@@ -1637,6 +1637,11 @@ async def console(client: Client):
                     ui.button("Spectrum of this design", icon="insights", on_click=look).props(
                         "outline dense no-caps").style(
                         "position: absolute; bottom: 72px; right: 12px")
+                    perfect = ui.switch("perfect", on_change=lambda: look() if outcome.options[
+                        "series"][0]["data"] else None).props("dense color=accent").style(
+                        "position: absolute; bottom: 108px; right: 12px").tooltip(
+                        "no broadening: the lines keep their T2 alone; off, the drawn lineshape "
+                        "and the display's 2 Hz")
             several = ui.column().classes("w-full").style("gap: 4px")
             ui.label("The design, in the order it plays, after the card's water suppression and "
                      "OVS · press a block to choose it · drag one onto another to move it "
