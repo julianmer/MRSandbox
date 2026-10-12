@@ -52,10 +52,9 @@ SPIN = {
 #         spinSystems.mat), which the table writes as protons at 100 and 40 ppm, named after the
 #         nucleiList of MARSS's metabList (Landheer, Swanberg, Juchem, NMR Biomed 34 (2021)
 #         e4129, the 2023-07-30 release), matched by their couplings: 0.46 to 2.9 Hz to 14N,
-#         6.0 to 7.3 Hz to 31P. In GPC's choline group MARSS's nucleiList names the two 1H and
-#         14N, against its own shift convention (88 ppm 14N, 99 ppm 31P), which is followed here;
-#         GPC's trimethyl group, a singlet in MARSS, is named by its 0.57 Hz coupling, choline's
-#         methyl to its nitrogen.
+#         6.0 to 7.3 Hz to 31P. In GPC's choline group, where MARSS's nucleiList names the 2.67 Hz
+#         partner a proton and the 6.03 Hz one 14N, the couplings decide; GPC's trimethyl group, a
+#         singlet in MARSS, is named by its 0.57 Hz coupling, choline's methyl to its nitrogen.
 # Units:  {metabolite: {group: {spin label: nucleus}}}.
 HETERONUCLEI = {
     "Cho": {"Ch_3CH3": {"S4": "14N"}},
