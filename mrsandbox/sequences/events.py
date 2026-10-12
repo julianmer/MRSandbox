@@ -1018,15 +1018,29 @@ class Sequence:
             an O(TE / T1) term of the steady state; physical Gradient crushers keep
             it and reproduce the inversion law exactly.
         cycles: Steady-state repetitions before the readout run.
+        spoiler: None (the default) spoils ideally between repetitions, the filter on
+            order zero; Gradient events in its place play the scanner's spoiler on the
+            isochromat ensemble, so what it leaves (the transverse remainder of a weak
+            one, the gratings stored along z that the next repetitions' pulses turn into
+            stimulated echoes) comes out of the density matrix. The ensemble must live
+            across the repetition: a design with Projection events (each axis averaged
+            inside the pass) refuses one, and the positions must resolve the spoiler's
+            cycles over the extent (a discrete grid aliases a moment of as many cycles as
+            it has positions).
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, *events, tr_s=None, cycles=1):
+    def __init__(self, *events, tr_s=None, cycles=1, spoiler=None):
         self.events = tuple(events)
         self.tr_s = tr_s
         self.cycles = cycles
+        self.spoiler = None if spoiler is None else tuple(spoiler)
+        if self.spoiler is not None and any(isinstance(event, Projection) for event in events):
+            raise ValueError("a played spoiler needs the isochromat ensemble across the "
+                             "repetition; a design with Projection events averages it inside "
+                             "the pass")
         if isinstance(tr_s, numbers.Real) and isinstance(self.duration_s, numbers.Real) \
                 and tr_s < self.duration_s:
             raise ValueError(f"tr_s {tr_s} s is shorter than the sequence's {self.duration_s} s")
@@ -1041,9 +1055,13 @@ class Sequence:
         are built as they are met."""
         propagators = {} if propagators is None else propagators
         if self.tr_s is not None:
-            crush, recover = CoherenceFilter(0), Delay(self.tr_s - self.duration_s)
+            crush = self.spoiler or (CoherenceFilter(0),)
+            recover = Delay(self.tr_s - self.duration_s)
             for _ in range(self.cycles):
-                rho = recover.apply(crush.apply(self._pass(rho, ctx, propagators), ctx), ctx)
+                rho = self._pass(rho, ctx, propagators)
+                for event in crush:
+                    rho = event.apply(rho, ctx)
+                rho = recover.apply(rho, ctx)
         return self._pass(rho, ctx, propagators)
 
     def _pass(self, rho, ctx, propagators):
@@ -1176,14 +1194,19 @@ class Sequence:
     #***********************#
     def structure(self):
         """The hashable key of the design: every event's structure in order, the
-        cycle count, and whether a TR is set. Two sequences of one structure share
-        one compiled graph and differ only in their timings."""
-        return (tuple(event.structure() for event in self.events), self.cycles, self.tr_s is None)
+        cycle count, whether a TR is set, and a played spoiler's events. Two sequences
+        of one structure share one compiled graph and differ only in their timings."""
+        key = (tuple(event.structure() for event in self.events), self.cycles, self.tr_s is None)
+        if self.spoiler is not None:
+            key = key + (tuple(event.structure() for event in self.spoiler),)
+        return key
 
     def timings(self):
-        """The free values of every event, one tuple per event, then the TR as a last
-        tuple (empty without one)."""
-        return (tuple(event.timings() for event in self.events)
+        """The free values of every event, one tuple per event, a played spoiler's as
+        one tuple of tuples, then the TR as a last tuple (empty without one)."""
+        spoiler = (() if self.spoiler is None
+                   else (tuple(event.timings() for event in self.spoiler),))
+        return (tuple(event.timings() for event in self.events) + spoiler
                 + ((self.tr_s,) if self.tr_s is not None else (),))
 
     def bound(self, timings):
@@ -1192,9 +1215,11 @@ class Sequence:
         # one event object at several places stays one object (its first timings)
         bound = {}
         events = [bound.setdefault(id(event), event.bound(values))
-                  for event, values in zip(self.events, timings[:-1])]
+                  for event, values in zip(self.events, timings[:len(self.events)])]
+        spoiler = (None if self.spoiler is None else
+                   [event.bound(values) for event, values in zip(self.spoiler, timings[-2])])
         tr_s = timings[-1][0] if self.tr_s is not None else None
-        return Sequence(*events, tr_s=tr_s, cycles=self.cycles)
+        return Sequence(*events, tr_s=tr_s, cycles=self.cycles, spoiler=spoiler)
 
     #**************#
     #   confined   #
@@ -1234,10 +1259,11 @@ class Sequence:
     def __add__(self, other):
         """Concatenate two sequences, e.g. Chess(3) + Press(te1, te2); the right
         operand's TR and echo timings (the localization's) carry, else the left one's,
-        so a train before a design leaves the design's echo time readable."""
-        tr_s = other.tr_s if other.tr_s is not None else self.tr_s
-        cycles = other.cycles if other.tr_s is not None else self.cycles
-        joined = Sequence(*self.events, *other.events, tr_s=tr_s, cycles=cycles)
+        so a train before a design leaves the design's echo time readable; a played spoiler
+        goes with its TR."""
+        carrier = other if other.tr_s is not None else self
+        joined = Sequence(*self.events, *other.events, tr_s=carrier.tr_s, cycles=carrier.cycles,
+                          spoiler=carrier.spoiler)
         timed = other if any(hasattr(other, name) for name in self.TIMINGS) else self
         for name in self.TIMINGS:
             if hasattr(timed, name):

@@ -229,3 +229,36 @@ class TestRepetition:
         assert Press(0.011, 0.019, tr_s=2.0).timings()[-1] == (2.0,)
         assert Press(0.011, 0.019).timings()[-1] == ()
         assert abs(Press(0.011, 0.019).duration_s - 0.030) < 1e-12
+
+    #*************#
+    #   spoiler   #
+    #*************#
+    def test_a_played_spoiler_leaves_what_the_ideal_one_cannot(self, engine):
+        # a 30 degree FLASH-like repetition (pulse, 2 ms to the readout, TR 50 ms) on a singlet:
+        # a spoiler of zero moment is no spoiling (the pass, the recovery, the pass by hand);
+        # with T2 far below TR any spoiler leaves what the ideal filter leaves; with a long T2
+        # the played spoiler shapes the steady state; a projected design refuses one
+        from mrsandbox import Gradient, Projection
+
+        def design(spoiler=None, tr_s=0.05):
+            return Sequence(Pulse(30.0), Delay(0.002), tr_s=tr_s, spoiler=spoiler)
+
+        def lines(sequence, t2_s):
+            system = SpinSystem.from_database("sIns")[0].with_relaxation(t1_s=1.0, t2_s=t2_s)
+            return np.asarray(ops.convert_to_numpy(engine.lines(sequence, system)[1])).sum()
+
+        still = (Gradient(0.0, 20.0, axis="x"),)
+        by_hand = Sequence(Pulse(30.0), Delay(0.002), Delay(0.048), Pulse(30.0), Delay(0.002))
+        reference = lines(by_hand, 0.5)
+        assert abs(lines(design(still), 0.5) - reference) < 1e-6 * abs(reference)
+        strong = (Gradient(8.0 / 20.0, 20.0, axis="x"),)
+        ideal_short, played_short = lines(design(), 0.002), lines(design(strong), 0.002)
+        assert abs(played_short - ideal_short) < 1e-4 * abs(ideal_short)
+        ideal, played, open_ = (lines(design(s), 0.5) for s in (None, strong, still))
+        assert abs(played - open_) > 1e-2 * abs(ideal)
+        with pytest.raises(ValueError, match="Projection"):
+            Sequence(Pulse(90.0), Projection(1.0), Delay(0.002), tr_s=0.05, spoiler=strong)
+        # the spoiler is part of the design's key and its timings rebuild it
+        assert design(strong).structure() != design().structure()
+        rebuilt = design(strong).bound(design(strong).timings())
+        assert rebuilt.spoiler[0].moment_per_mm == 8.0 / 20.0 and rebuilt.tr_s == 0.05

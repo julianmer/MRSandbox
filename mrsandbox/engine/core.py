@@ -239,12 +239,12 @@ class Engine:
     @staticmethod
     def extents(sequence):
         """The span of the isochromat ensemble per axis in mm, {axis: extent} over the
-        axes a design's gradients use: the largest extent its events name (a tilted slab
-        names all three)."""
+        axes a design's gradients use, its played spoiler's among them: the largest extent
+        its events name (a tilted slab names all three)."""
         from mrsandbox.sequences.events import Gradient, ShapedPulse
 
         extents = {}
-        for event in sequence.events:
+        for event in sequence.events + (getattr(sequence, "spoiler", None) or ()):
             if isinstance(event, Gradient):
                 extents[event.axis] = max(extents.get(event.axis, 0.0), event.extent_mm)
             elif isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
