@@ -181,3 +181,28 @@ class TestStack:
         np.testing.assert_allclose(transmit.affine,
                                    HMRI.registration() @ HMRI.volume("TB1map").affine)
         assert 0.7 < transmit.mean((0.0, 0.0, 0.0), 20.0) < 1.3
+
+    def test_maps_register_into_the_average_brain(self):
+        from mrsandbox import Brain
+
+        # the same fit against the ICBM152 brain's tissue probabilities: the 3 T T1 map reads
+        # white below grey where the average brain says so, and the transmit map covers the
+        # brain near nominal
+        body = Brain.load("icbm152")
+        t1 = HMRI.volume("T1map", space="icbm152")
+        transmit = HMRI.volume("TB1map", space="icbm152")
+
+        def sampled(volume, mask):
+            grid = np.argwhere(mask)[::5].T
+            world = body.affine[:3, :3] @ grid + body.affine[:3, 3:4]
+            index = np.rint(np.linalg.solve(volume.affine[:3, :3],
+                                            world - volume.affine[:3, 3:4])).astype(int)
+            inside = np.all((index >= 0) & (index < np.array(volume.data.shape)[:, None]), axis=0)
+            return volume.data[tuple(index[:, inside])]
+
+        white = np.median(np.clip(sampled(t1, body.wm > 0.8), 0.0, 5.0))
+        grey = np.median(np.clip(sampled(t1, body.gm > 0.8), 0.0, 5.0))
+        assert 0.9 < white < 1.3 and 1.2 < grey < 1.8 and grey - white > 0.2, (white, grey)
+        field = sampled(transmit, (body.gm + body.wm) > 0.5)
+        assert np.mean(np.isfinite(field) & (field > 0.0)) > 0.9
+        assert 0.9 < np.median(field[field > 0.0]) < 1.1

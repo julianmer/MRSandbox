@@ -290,8 +290,8 @@ class HMRI:
     @classmethod
     def volume(cls, name, space=None):
         """One derived map as a Volume, deriving and caching the whole stack on first
-        use; with `space` "bigbrain_mr" its affine carries the map into the
-        BigBrain-MR world (`registration`), so it reads at the virtual brain's
+        use; with `space` "bigbrain_mr" or "icbm152" its affine carries the map into
+        that brain's world (`registration`), so it reads at the virtual brain's
         positions."""
         if name not in cls.MAPS:
             raise KeyError(f"unknown hMRI map {name!r}; known: {', '.join(cls.MAPS)}")
@@ -313,7 +313,9 @@ class HMRI:
     @classmethod
     def registration(cls, space="bigbrain_mr"):
         """The world-to-world affine carrying the session's scanner frame into the
-        BigBrain-MR world (phantom.registration.register), fitted once and cached:
+        BigBrain-MR world, or the ICBM152 average brain's (its grey and white matter
+        probabilities above one half as its labels) (phantom.registration.register),
+        fitted once per space and cached:
         a shape fit of the brain tissue, the largest connected component of the
         voxels reading brain tissue in R1 (0.4 to 1.8 1/s) and MT saturation (0.3 to
         6 percent units) after a 2.4 mm erosion that cuts the brainstem's link to
@@ -332,9 +334,9 @@ class HMRI:
         from mrsandbox.phantom.registration import register
         from mrsandbox.resources import Resources
 
-        if space != "bigbrain_mr":
-            raise KeyError(f"unknown space {space!r}; known: bigbrain_mr")
-        cache = Resources.cache_dir() / "hmri/to_bigbrain_mr_classes.npy"
+        if space not in ("bigbrain_mr", "icbm152"):
+            raise KeyError(f"unknown space {space!r}; known: bigbrain_mr, icbm152")
+        cache = Resources.cache_dir() / f"hmri/to_{space}_classes.npy"
         if not cache.exists():
             r1, mt = cls.volume("R1map"), cls.volume("MTsat")
             tissue = (np.isfinite(r1.data) & (r1.data > 0.4) & (r1.data < 1.8)
@@ -343,15 +345,20 @@ class HMRI:
             labels, count = scipy.ndimage.label(eroded)
             largest = labels == (np.bincount(labels.ravel())[1:].argmax() + 1)
             mask = scipy.ndimage.binary_dilation(largest, iterations=3) & tissue
-            atlas = Volume.load("bigbrain_mr/labels_800um")
-            brain = np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["wm"] + Brain.BIGBRAIN_TISSUES["gm"])
+            if space == "bigbrain_mr":
+                atlas = Volume.load("bigbrain_mr/labels_800um")
+                gm = np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["gm"])
+                wm = np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["wm"])
+                affine = atlas.affine
+            else:
+                body = Brain.load("icbm152")
+                gm, wm, affine = body.gm > 0.5, body.wm > 0.5, body.affine
             shape = register(Volume(mask.astype(np.float32), r1.affine),
-                             Volume(brain.astype(np.float32), atlas.affine))
+                             Volume((gm | wm).astype(np.float32), affine))
             classes = np.where(tissue, np.where(r1.data > 0.85, 2.0, 1.0), 0.0).astype(np.float32)
             classes = scipy.ndimage.median_filter(classes, size=3)
-            levels = (1.0 * np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["gm"])
-                      + 2.0 * np.isin(atlas.data, Brain.BIGBRAIN_TISSUES["wm"])).astype(np.float32)
-            refined = register(Volume(classes, shape @ r1.affine), Volume(levels, atlas.affine))
+            levels = (1.0 * gm + 2.0 * wm).astype(np.float32)
+            refined = register(Volume(classes, shape @ r1.affine), Volume(levels, affine))
             np.save(cache, refined @ shape)
         return np.load(cache)
 
