@@ -1023,10 +1023,10 @@ class Sequence:
             isochromat ensemble, so what it leaves (the transverse remainder of a weak
             one, the gratings stored along z that the next repetitions' pulses turn into
             stimulated echoes) comes out of the density matrix. The ensemble must live
-            across the repetition: a design with Projection events (each axis averaged
-            inside the pass) refuses one, and the positions must resolve the spoiler's
-            cycles over the extent (a discrete grid aliases a moment of as many cycles as
-            it has positions).
+            across the repetition: a projected design (each axis averaged inside the pass)
+            takes one played whole (`as_whole`) and refuses one otherwise, and the
+            positions must resolve the spoiler's cycles over the extent (a discrete grid
+            aliases a moment of as many cycles as it has positions).
     """
 
     #**********#
@@ -1037,10 +1037,11 @@ class Sequence:
         self.tr_s = tr_s
         self.cycles = cycles
         self.spoiler = None if spoiler is None else tuple(spoiler)
-        if self.spoiler is not None and any(isinstance(event, Projection) for event in events):
+        self.whole = False
+        if self.spoiler is not None and not self._whole_ensemble():
             raise ValueError("a played spoiler needs the isochromat ensemble across the "
                              "repetition; a design with Projection events averages it inside "
-                             "the pass")
+                             "the pass (play it whole, as_whole)")
         if isinstance(tr_s, numbers.Real) and isinstance(self.duration_s, numbers.Real) \
                 and tr_s < self.duration_s:
             raise ValueError(f"tr_s {tr_s} s is shorter than the sequence's {self.duration_s} s")
@@ -1095,6 +1096,8 @@ class Sequence:
         events = self.events
         if not any(isinstance(event, Projection) for event in events):
             return set(), {}
+        if self.whole:
+            return set(), None
         first = next(k for k, event in enumerate(events) if isinstance(event, Projection))
         slabs = [k for k in range(first - 1)
                  if isinstance(events[k], ShapedPulse) and events[k].gradient_hz_per_mm
@@ -1114,9 +1117,24 @@ class Sequence:
 
     @property
     def unfolded(self):
-        """Whether a tilted slab plays before the localization, so that the projections only
-        scale and the voxel is one three-dimensional ensemble (`_slabs`)."""
+        """Whether a tilted slab plays before the localization, or the design plays whole
+        (`as_whole`), so that the projections only scale and the voxel is one
+        three-dimensional ensemble (`_slabs`)."""
         return self._slabs()[1] is None
+
+    def _whole_ensemble(self):
+        # the ensemble lives through the pass: no projection averages it
+        return not any(isinstance(event, Projection) for event in self.events) or self.unfolded
+
+    def as_whole(self, spoiler=None):
+        """The same design played as one three-dimensional ensemble (`isochromats` along
+        every axis and all their combinations, the projections only scaling): the exact
+        slow path, equal to the projections for a separable design, that an ensemble
+        living across the repetitions needs; with `spoiler` it plays the spoiler between
+        repetitions (see Sequence). The timings stay."""
+        design = copy.copy(self)
+        design.whole, design.spoiler = True, None if spoiler is None else tuple(spoiler)
+        return design
 
     #**************#
     #   duration   #
@@ -1197,6 +1215,8 @@ class Sequence:
         cycle count, whether a TR is set, and a played spoiler's events. Two sequences
         of one structure share one compiled graph and differ only in their timings."""
         key = (tuple(event.structure() for event in self.events), self.cycles, self.tr_s is None)
+        if self.whole:
+            key = key + ("whole",)
         if self.spoiler is not None:
             key = key + (tuple(event.structure() for event in self.spoiler),)
         return key
@@ -1219,7 +1239,9 @@ class Sequence:
         spoiler = (None if self.spoiler is None else
                    [event.bound(values) for event, values in zip(self.spoiler, timings[-2])])
         tr_s = timings[-1][0] if self.tr_s is not None else None
-        return Sequence(*events, tr_s=tr_s, cycles=self.cycles, spoiler=spoiler)
+        design = Sequence(*events, tr_s=tr_s, cycles=self.cycles)
+        design.whole, design.spoiler = self.whole, spoiler
+        return design
 
     #**************#
     #   confined   #
@@ -1262,8 +1284,8 @@ class Sequence:
         so a train before a design leaves the design's echo time readable; a played spoiler
         goes with its TR."""
         carrier = other if other.tr_s is not None else self
-        joined = Sequence(*self.events, *other.events, tr_s=carrier.tr_s, cycles=carrier.cycles,
-                          spoiler=carrier.spoiler)
+        joined = Sequence(*self.events, *other.events, tr_s=carrier.tr_s, cycles=carrier.cycles)
+        joined.whole, joined.spoiler = self.whole or other.whole, carrier.spoiler
         timed = other if any(hasattr(other, name) for name in self.TIMINGS) else self
         for name in self.TIMINGS:
             if hasattr(timed, name):

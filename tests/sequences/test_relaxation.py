@@ -262,3 +262,23 @@ class TestRepetition:
         assert design(strong).structure() != design().structure()
         rebuilt = design(strong).bound(design(strong).timings())
         assert rebuilt.spoiler[0].moment_per_mm == 8.0 / 20.0 and rebuilt.tr_s == 0.05
+
+    def test_a_localized_design_played_whole_equals_its_projections_and_takes_a_spoiler(self):
+        # a separable localization played as one three-dimensional ensemble gives what its
+        # projections factorize; played whole it takes a spoiler between repetitions, which
+        # its projected form refuses
+        from mrsandbox import Gradient
+        from mrsandbox.sequences.library import LocalizedPress
+
+        small = Engine(3.0, isochromats=8)
+        system = SpinSystem.from_database("sIns")[0].with_relaxation(t1_s=1.0, t2_s=0.5)
+        press = LocalizedPress(te1_s=0.015, te2_s=0.015, f0_mhz=3.0 * 42.5774785, tr_s=0.5)
+        detected = lambda design: np.asarray(ops.convert_to_numpy(
+            small.lines(design, system)[1])).astype(np.complex128).sum()
+        projected, whole = detected(press), detected(press.as_whole())
+        assert abs(whole - projected) < 2e-3 * abs(projected)
+        assert press.as_whole().structure() != press.structure()
+        spoiler = (Gradient(2.0 / 60.0, 60.0, axis="z"),)
+        with pytest.raises(ValueError, match="as_whole"):
+            Sequence(*press.events, tr_s=0.5, spoiler=spoiler)
+        assert np.isfinite(detected(press.as_whole(spoiler=spoiler)))
