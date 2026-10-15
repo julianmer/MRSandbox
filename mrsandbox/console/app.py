@@ -1150,6 +1150,15 @@ async def console(client: Client):
             ui.label(SHOWN[kind].format(*numbers) if kind != "other" else str(numbers)[:40]
                      ).classes("value").style("width: 260px")
             chip(chosen, provenance)
+            others = [f"{SOURCE_WORDS[name]} {SHOWN[k].format(*n)}"
+                      for name, (k, n) in (info["sources"].items() if info else ())
+                      if name != chosen and k in SHOWN]
+            if others:
+                # the other sources' numbers in sight, so a choice is made knowing what it gives
+                ui.label(" · ".join(others)).classes("label").style(
+                    "text-transform: none; letter-spacing: 0; font-size: 11px; flex: 1; "
+                    "min-width: 0; max-width: 420px; overflow: hidden; text-overflow: ellipsis"
+                ).tooltip(" · ".join(others))
             ui.select(options, value=way if way in options else chosen, on_change=switch).props(
                 "dense outlined dark options-dense").style("width: 150px").tooltip(
                 "\n".join(f"{SOURCE_WORDS[name]}: "
@@ -1232,7 +1241,16 @@ async def console(client: Client):
                             chip(common or "custom",
                                  "" if common else "the lines differ: open the group")
                             if not common:
-                                ui.label("mixed").classes("label")
+                                # how many lines each source holds, so "mixed" says what it mixes
+                                counts = {}
+                                for path in paths:
+                                    word = ("custom" if session.overrides.get(path) is not None
+                                            else sources[path]["chosen"] if path in sources
+                                            else plain_word(path))
+                                    counts[word] = counts.get(word, 0) + 1
+                                ui.label(" · ".join(f"{SOURCE_WORDS[w]} {n}"
+                                                    for w, n in counts.items())).classes(
+                                    "label").style("text-transform: none; letter-spacing: 0")
                             ui.select(offered, value=common if common in offered else None,
                                       label="for all lines", on_change=for_all).props(
                                 "dense outlined dark options-dense").style("width: 150px")
