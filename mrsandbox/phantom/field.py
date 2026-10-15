@@ -178,7 +178,8 @@ class FieldMap:
         kept in the scanner while the object moved: the box now at `position_mm` in
         the object's frame sits under the shim fields of the planned place."""
         values, weights = self.volume.box(position_mm, size_mm, turn)
-        keep = weights > 0.0
+        # a cell the map holds nothing for (exactly zero, the void beyond its head) is no signal
+        keep = (weights > 0.0) & (values != 0.0)
         xyz = (self.volume.centres(position_mm, size_mm, turn)[keep] if keep.any()
                else np.empty((0, 3)))
         v, w = values[keep].astype(np.float64), weights[keep]
@@ -205,7 +206,7 @@ class FieldMap:
         at, size, around = ((*self.shim_box, None) if self.shim_box is not None
                             else (position_mm, size_mm, turn))
         values, weights = self.volume.box(at, size, around)
-        keep = weights > 0.0
+        keep = (weights > 0.0) & (values != 0.0)     # the void beyond the map's head fits nothing
         if shim == "none" or not keep.any() or len(xyz_mm) == 0:
             return np.zeros(len(xyz_mm))
         planned = self.volume.centres(at, size, around)[keep]
@@ -240,6 +241,20 @@ class FieldMap:
         if offsets.size == 0:
             return np.ones_like(t, dtype=np.complex64)
         return self._dephasing(offsets, overlap, t, bins)
+
+    #***************#
+    #   linewidth   #
+    #***************#
+    def linewidth(self, position_mm, size_mm, shim=None, shim_at_mm=None, turn=None):
+        """The width in Hz the field gives a line of the voxel box after the shim: the full
+        width at half maximum of the box's dephased line under a 1 Hz Lorentzian (which
+        keeps a perfect shim finite), between the outermost crossings (a coarse map's cells
+        give a comb of lines, one width); `shim`, `shim_at_mm` and `turn` as for `kernel`."""
+        t = np.arange(8192) / 1000.0
+        line = np.fft.fft(self.kernel(position_mm, size_mm, t, shim, shim_at_mm=shim_at_mm,
+                                      turn=turn) * np.exp(-np.pi * t), 8 * t.size).real
+        above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())
+        return float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size))
 
     def groups(self, position_mm, size_mm, t_s, count, shim=None, bins=256, shim_at_mm=None,
                spread_hz=0.0, turn=None):

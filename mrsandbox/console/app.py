@@ -2038,7 +2038,7 @@ async def console(client: Client):
                             "apply the lines")
             ui.switch("the B0 map was measured after my own shim: apply none",
                       value=session.shim == "none", on_change=lambda e: (
-                          setattr(session, "shim", "none" if e.value else "linear"))).props(
+                          setattr(session, "shim", "none" if e.value else "quadratic"))).props(
                 "dense color=accent")
             ui.label("A new anatomy with your own three tissue maps is used as it is. Without them "
                      "it is segmented on Apply (FSL: the neck cropped, the brain extracted, grey "

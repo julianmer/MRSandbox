@@ -51,33 +51,57 @@ APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodiza
 #**************#
 #   combine    #
 #**************#
-def _combined(data, noise=None, like=None):
+def _combined(data, noise=None, like=None, dwell_s=None, f0_mhz=None):
     """(npoints, coils, transients) raw FIDs to (npoints, transients): the channels
     whitened by the noise of the FIDs' last eighth, or of `noise`, (samples, coils)
     measured with the RF off, where the FIDs still ring at their end (a phantom's
-    unsuppressed water), and combined with the first singular vector of the mean
-    transient's start. The combined noise has unit variance per complex point. A receiver
-    phase cycle left in the stored transients (GE P-files alternate by a half turn) is
-    undone first, in quarter turns against the first transient, or the mean would cancel;
-    phase jitter stays as it is. `like`, another file of the same voxel and coils, lends
-    its whitening and weights: a water reference of a few transients cannot carry its own."""
+    unsuppressed water), and combined with the first singular vector of the mean transient,
+    the transients turned onto one another for that estimate. The combined noise has unit
+    variance per complex point. A phase cycle left in the stored transients (GE P-files
+    alternate by a half turn, a cycled sequence steps by quarter turns) is undone, in
+    quarter turns; phase jitter stays as it is. Each transient's phase is read against the
+    sum of those before it, then twice against the sum of all the others, on the
+    metabolites, 1.8 to 4.2 ppm of the first 200 ms (the carrier on water, either way
+    round; a residual water sits at a phase of its own in every transient, and against the
+    first transient alone a weak line misleads), where `dwell_s` and `f0_mhz` are given,
+    else on the start as a whole. `like`, another file of the same voxel and coils, lends
+    its whitening and weights: a water reference of a few transients cannot carry its
+    own."""
     x = np.asarray(data)
     n, coils, _ = x.shape
     source = x if like is None else np.asarray(like)
-    quiet = source[-n // 8:].reshape(-1, coils) if noise is None else np.asarray(noise)
+    quiet = (np.moveaxis(source[-n // 8:], 1, -1).reshape(-1, coils) if noise is None
+             else np.asarray(noise))
     covariance = np.atleast_2d(np.cov(quiet.T))
     whitening = np.linalg.inv(np.linalg.cholesky(covariance))
 
-    def whitened(raw):
-        w = np.einsum("ck,nks->ncs", whitening, raw)
-        turns = np.round(np.angle(np.einsum("nc,ncs->s", np.conj(w[:64, :, 0]), w[:64]))
-                         / (np.pi / 2))
-        return w * np.exp(-0.5j * np.pi * turns)
+    def turned(w):
+        """(the phase of each transient, the mean of the transients' starts so turned)."""
+        if dwell_s is None or f0_mhz is None:
+            s = w[:64]
+        else:
+            m = min(n, int(round(0.2 / dwell_s)))
+            ppm = np.fft.fftshift(np.fft.fftfreq(m, dwell_s)) / f0_mhz
+            band = ((np.abs(ppm - (3.0 - WATER_PPM)) < 1.2)
+                    | (np.abs(ppm + (3.0 - WATER_PPM)) < 1.2))
+            s = np.fft.fftshift(np.fft.fft(w[:m], axis=0), axes=0)[band]
+        phases, total = np.zeros(s.shape[2]), s[:, :, 0].copy()
+        for k in range(1, s.shape[2]):
+            phases[k] = np.angle(np.einsum("nc,nc", np.conj(total), s[:, :, k]))
+            total = total + s[:, :, k] * np.exp(-1j * phases[k])
+        for _ in range(2):
+            a = s * np.exp(-1j * phases)
+            phases = phases + np.angle(np.einsum("ncs,ncs->s",
+                                                 np.conj(a.sum(axis=2)[:, :, None] - a), a))
+        return phases, (s * np.exp(-1j * phases)).mean(axis=2)
 
-    white = whitened(x)
-    lender = white if like is None else whitened(source)
-    weights = np.conj(np.linalg.svd(lender.mean(axis=2)[:64], full_matrices=False)[2][0])
-    return np.einsum("c,ncs->ns", weights, white)
+    white = np.einsum("ck,nks->ncs", whitening, x)
+    phases, aligned = turned(white)
+    if like is not None:
+        _, aligned = turned(np.einsum("ck,nks->ncs", whitening, source))
+    weights = np.conj(np.linalg.svd(aligned, full_matrices=False)[2][0])
+    turns = np.round(phases / (np.pi / 2))
+    return np.einsum("c,ncs->ns", weights, white * np.exp(-0.5j * np.pi * turns))
 
 
 def _axis(fid, dwell_s, f0_mhz, carrier_ppm):
@@ -332,7 +356,7 @@ class NoiseReading:
         # the apodization it is that floor times the root of the window's mean square, as for
         # white noise and as the simulation has it: measured there, the broadened lines' feet
         # and the edge of a cropped band would count as noise.
-        fids = _combined(x, noise)
+        fids = _combined(x, noise, dwell_s=dwell_s, f0_mhz=f0_mhz)
         # registered on the metabolites in vivo; a phantom's water line has none to register on
         fids = _registered(fids, dwell_s, f0_mhz) if line == "NAA" else fids
         center = LINES[line][0]
@@ -341,11 +365,11 @@ class NoiseReading:
         # a phantom's water line is as narrow as the grid and has no sure phase at its top: it is
         # found and phased under the apodization, here and on the twin
         mean = np.fft.fftshift(np.fft.fft(fids.mean(axis=1) * (window if line == "water" else 1.0)))
-        # the sign of the frequency axis differs between conventions: the one with the line wins,
-        # a line being what stands above its surroundings (a water residual's foot is tall and flat)
+        # the sign of the frequency axis differs between conventions: the side with the line
+        # wins, as for `_axis` (a line's prominence over its surroundings misleads where a
+        # water foot or a weak line sits under it); a phantom's water line sits on either
         ppm = max((WATER_PPM + sign * hz / f0_mhz for sign in (1.0, -1.0)),
-                  key=lambda axis: (np.abs(mean[np.abs(axis - center) < 0.15]).max()
-                                    - np.median(np.abs(mean[np.abs(axis - center) < 0.5]))))
+                  key=lambda axis: np.abs(mean[np.abs(axis - center) < 0.15]).max())
         peak = np.argmax(np.abs(mean) * (np.abs(ppm - center) < 0.15))
         phase = np.exp(-1j * np.angle(mean[peak]))
         quiet, near = (ppm > -4.0) & (ppm < -1.0), np.abs(ppm - ppm[peak]) < 0.05
@@ -499,7 +523,8 @@ class SpectrumReading:
     def from_arrays(cls, data, dwell_s, f0_mhz, header=None):
         """Read raw FIDs, (npoints, coils, transients) complex, the carrier on water."""
         x = np.asarray(data)
-        ppm, real = _spectrum(_registered(_combined(x), dwell_s, f0_mhz).mean(axis=1), dwell_s,
+        ppm, real = _spectrum(_registered(_combined(x, dwell_s=dwell_s, f0_mhz=f0_mhz), dwell_s,
+                                          f0_mhz).mean(axis=1), dwell_s,
                               lambda hz: WATER_PPM + hz / f0_mhz)
         width, creatine = _shape(ppm, real, f0_mhz)
         return cls(naa_fwhm_hz=width, creatine_over_naa=creatine, transients=x.shape[2],
@@ -715,7 +740,8 @@ class WaterSeriesReading:
         first = np.asarray(series[te_s[0]])
         # one whitening and one set of weights for the series, the first reference's: each
         # reference's own tail would put a few percent of its own on its top
-        tops = np.array([float(np.abs(_combined(series[te], like=first).mean(axis=1)[2:8]).mean())
+        tops = np.array([float(np.abs(_combined(series[te], like=first, dwell_s=dwell_s,
+                                                f0_mhz=f0_mhz).mean(axis=1)[2:8]).mean())
                          for te in te_s])
         slope, offset = np.polyfit(te_s, np.log(tops), 1)
         line = np.polyval((slope, offset), te_s)
@@ -891,7 +917,8 @@ class MetaboliteSeriesReading:
             raise ValueError("the runs and the references are not at the same echo times")
         # one whitening and one set of weights for the runs, the first run's, as the references
         first = np.asarray(series[water.te_s[0]])
-        areas = {te: cls._areas(_registered(_combined(series[te], like=first), dwell_s,
+        areas = {te: cls._areas(_registered(_combined(series[te], like=first, dwell_s=dwell_s,
+                                                      f0_mhz=f0_mhz), dwell_s,
                                             f0_mhz).mean(axis=1), dwell_s, f0_mhz)
                  for te in water.te_s}
         ratios = {}
@@ -1110,7 +1137,7 @@ class MacromoleculeReading:
     def from_arrays(cls, data, dwell_s, f0_mhz, header=None):
         """`data` (npoints, coils, transients) of the suppressed run, in the standard's
         frame (the carrier at 4.65 ppm)."""
-        fid = _combined(data).mean(axis=1)
+        fid = _combined(data, dwell_s=dwell_s, f0_mhz=f0_mhz).mean(axis=1)
         return cls(peak_over_naa=cls._peak_over_naa(fid, dwell_s, f0_mhz),
                    transients=int(np.asarray(data).shape[2]), npoints=int(fid.size),
                    coils=int(np.asarray(data).shape[1]), dwell_s=float(dwell_s),
@@ -1696,8 +1723,9 @@ class WaterReading:
         """`data` and `reference` (npoints, coils, transients) of the same voxel, the
         suppressed run and its unsuppressed reference, in the standard's frame (the
         carrier at 4.65 ppm)."""
-        suppressed = _combined(data).mean(axis=1)
-        reference_fid = _combined(reference, like=data).mean(axis=1)
+        suppressed = _combined(data, dwell_s=dwell_s, f0_mhz=f0_mhz).mean(axis=1)
+        reference_fid = _combined(reference, like=data, dwell_s=dwell_s,
+                                  f0_mhz=f0_mhz).mean(axis=1)
         full = float(np.abs(reference_fid[0]))
         # the residual water: the decaying exponentials within 0.4 ppm of the carrier, at t = 0
         m = min(1024, suppressed.size)

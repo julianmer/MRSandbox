@@ -579,6 +579,33 @@ class TestLineshape:
         np.testing.assert_allclose(broad, sharp * envelope, atol=1e-5 * np.abs(sharp).max())
         assert np.abs(broad[-1]) < 0.5 * np.abs(sharp[-1])  # the tail is damped
 
+    #*******************#
+    #   under a map     #
+    #*******************#
+    def test_a_field_map_takes_its_own_width_out_of_the_drawn_broadening(self, scan):
+        # the width records are read against twins without a map: under one, the voxel plays
+        # the drawn Gaussian less the map's width here in quadrature, none when the map is wider
+        from mrsandbox import FieldMap, NoDownfield, NoMM
+
+        place = (10.0, -20.0, 5.0)
+        affine = np.eye(4)
+        affine[:3, 3] = np.asarray(place) - 24.5
+        gradient = np.tile(np.linspace(-10.0, 10.0, 50), (50, 50, 1)).astype(np.float32)
+
+        def voxel(field):
+            params = Params(**self.STILL, lineshape=dict(gauss_hz=12.0))
+            return VirtualScan(scan.brain, scan.scanner, scan.sequence, params=params,
+                               field=field, mm=NoMM(), downfield=NoDownfield()).voxel(
+                position_mm=place, size_mm=20)
+
+        field = FieldMap.from_map(gradient, affine, shim="none")
+        truth = voxel(None).sample(7)
+        assert voxel(None).gauss_hz(truth) == 12.0
+        width = field.linewidth(place, 20.0) - 1.0
+        assert 6.0 < width < 10.0
+        assert voxel(field).gauss_hz(truth) == pytest.approx(np.sqrt(144.0 - width ** 2), abs=1e-6)
+        assert voxel(FieldMap.from_map(3.0 * gradient, affine, shim="none")).gauss_hz(truth) == 0.0
+
     #**********************#
     #   eddy transient     #
     #**********************#
@@ -709,8 +736,9 @@ class TestNoiseModel:
     def test_the_default_noise_reproduces_the_in_vivo_naa_snr(self, scan):
         # the calibration of the noise prior (scan.defaults): at Big GABA's PRESS conditions (3 T,
         # TE 35 ms, TR 2 s, a 30 mm cube, 2048 points at 2 kHz, one transient) the Trio's pooled
-        # rows give the single-transient NAA SNR measured on its Siemens subjects (28.8 to 43.6,
-        # by the consensus definition) when the twin is as wide as those subjects' lines, since
+        # rows give the single-transient NAA SNR measured on its Siemens subjects (26 to 55, by
+        # the consensus definition, the channels whitened and combined) when the twin is as wide
+        # as those subjects' lines, since
         # every row's sigma is read against its own run's width; at the literature width,
         # narrower, the SNR lies above. The record's sigma is the apodized reading's, so the
         # simulated SNR lies a little above the plain one and a little below the apodized one
@@ -742,8 +770,8 @@ class TestNoiseModel:
                 fid * np.exp(-np.pi * 10.0 * np.arange(n) / bw))).real
             floor = broad[noise] - np.polyval(np.polyfit(ppm[noise], broad[noise], 1), ppm[noise])
             apodized.append(broad[near].max() / floor.std())
-        assert 28.8 < np.median(snrs) < 48.0, snrs  # the in vivo SNR and the draws' spread
-        assert 100.0 < np.median(apodized) < 180.0, apodized  # about the in vivo apodized SNR
+        assert 30.0 < np.median(snrs) < 58.0, snrs  # the in vivo SNR and the draws' spread
+        assert 125.0 < np.median(apodized) < 225.0, apodized  # about the in vivo apodized SNR
 
     def test_total_creatine_stands_to_naa_as_in_vivo(self, scan):
         # scan.calibrations CREATINE_THREE_DATASETS_3T: at Big GABA's conditions the 3.03 ppm

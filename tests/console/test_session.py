@@ -202,7 +202,7 @@ class TestSession:
         # the package's shortcut: no train played, which these gates assume
         session.protocol.water_suppression = "assumed residual"
         # the measured field, shimmed, by default
-        assert session.field == "bigbrain_mr" and 1.0 < session.linewidth() < 5.0
+        assert session.field == "bigbrain_mr" and 1.0 <= session.linewidth() < 5.0
         session.field = "uniform"
         assert session.linewidth() is None  # a uniform field broadens nothing
         body = session.body()
@@ -787,6 +787,16 @@ class TestSession:
         assert len(subjects) > 1
         session.pick_cohort(None)
         assert session.member() is None and session.profile().records == ()
+        # a new draw of a cohort scanned in several regions moves the voxel to the new subject's
+        session.pick_cohort("cows_prisma")
+        places = set()
+        for seed in range(12):
+            session.seed = seed
+            member = session.member()
+            assert (session.position_mm == list(member.position_mm)
+                    and session.size_mm == list(member.size_mm))
+            places.add(tuple(session.position_mm))
+        assert len(places) > 1
 
     def test_the_arrays_noise_share_comes_from_the_pooled_rows(self):
         # the share of a channel's noise that is its own: the package's rows of the channels'

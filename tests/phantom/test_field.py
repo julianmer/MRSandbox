@@ -67,6 +67,17 @@ class TestKernel:
         assert np.abs(raw[-1]) < 0.2  # a 20 Hz spread dephases hard
         assert np.abs(shimmed - 1.0).max() < 1e-4  # the first-order shim removes it all
 
+    #***************#
+    #   linewidth   #
+    #***************#
+    def test_linewidth_reads_the_width_the_field_gives_a_line(self):
+        # the box spans 20 of the 50 cells of a 20 Hz gradient: an 8 Hz spread, a line about as
+        # wide unshimmed; the first-order shim leaves the 1 Hz Lorentzian alone
+        gradient = np.tile(np.linspace(-10.0, 10.0, 50), (50, 50, 1))
+        field = centred_map(gradient)
+        assert 6.0 < field.linewidth(**BOX, shim="none") < 10.0
+        assert field.linewidth(**BOX, shim="linear") == pytest.approx(1.0, abs=0.15)
+
     #**************#
     #   shim box   #
     #**************#
@@ -358,7 +369,9 @@ class TestFieldGroups:
         ones = np.ones(shape, dtype=np.float32)
         brain = Brain.from_maps(gm=ones, wm=0.0 * ones, csf=0.0 * ones, affine=affine)
         t = np.arange(512) / 4000.0
-        envelope = np.exp(-(np.pi * 6.0) ** 2 / (4.0 * np.log(2.0)) * t * t)
+        # the voxel plays the drawn width less the ramp's own, in quadrature (Voxel.gauss_hz)
+        played = np.sqrt(36.0 - (field.linewidth((0.0, 0.0, 0.0), 20.0) - 1.0) ** 2)
+        envelope = np.exp(-(np.pi * played) ** 2 / (4.0 * np.log(2.0)) * t * t)
 
         def water(sequence, gauss_hz):
             quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), b1_scale=1.0,
@@ -393,6 +406,7 @@ class TestFieldGroups:
         conc = {name: 0.0 for name in VirtualScan.default_params().conc}
         conc["GABA"] = 2.0
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0), conc=conc, b1_scale=1.0,
+                       lineshape=dict(gauss_hz=0.0),      # the same envelope under every ramp
                        acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
                                         delay_s=0.0, eddy_transient_rad=0.0),
                        oov=dict(fraction=0.0))
@@ -408,8 +422,11 @@ class TestFieldGroups:
                                   lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield())
             data = np.asarray(multiplex.acquire((0.0, 0.0, 0.0), 20.0, seed=3,
                                                 npoints=1024)[:])[0, 0, 0]
-            # the FID is referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t)
-            return np.real(np.fft.fftshift(np.fft.fft(data[:, 0] - data[:, 1])))[window].sum()
+            # the FID is referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t); one envelope
+            # on every case, so a truncated FID rings alike under every ramp
+            t = np.arange(1024) / 4000.0
+            fid = (data[:, 0] - data[:, 1]) * np.exp(-(np.pi * 6.0) ** 2 / (4.0 * np.log(2.0)) * t * t)
+            return np.real(np.fft.fftshift(np.fft.fft(fid)))[window].sum()
 
         uniform = edited(0.0, 1)
         assert abs(edited(40.0, 1) / uniform - 1.0) < 0.01

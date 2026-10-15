@@ -67,6 +67,34 @@ class TestNoiseReading:
         assert record.scanner["vendor"] == "virtual" and record.coil["channels"] == (4,)
         assert record.prior[0] < record.value < record.prior[1] and record.departures(scan) == {}
 
+    def test_correlated_channels_read_what_one_ideal_channel_reads(self):
+        # the channels of a loaded helmet share their noise: whitened on the FIDs' tails and
+        # combined, 32 channels of 48 transients read the sigma they were drawn at, the array
+        # calibrated so its optimum combination's noise is that sigma at the voxel
+        from mrsandbox import CoilArray
+
+        calm = Params(spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                       eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+        scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                           Press(te1_s=0.011, te2_s=0.024, tr_s=2.0), params=calm)
+        place, size = (0.0, -45.0, 35.0), 30.0
+        voxel = scan.voxel(position_mm=place, size_mm=size)
+        n, dwell_s, sigma = 2048, 1.0 / 2000.0, 5.0
+        _, fid = voxel._clean_fid(voxel.sample(0), n, dwell_s)
+        fid = np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n)
+                                       * dwell_s)
+        per_point = sigma * noise_scale(voxel.volume_ml, 3.0, dwell_s)
+        array = CoilArray.helmet().loaded(own_noise=0.25).calibrated(place, size)
+        b = array.sensitivities(place, size)
+        rng = np.random.default_rng(3)
+        channels = np.stack([b[:, None] * fid[None, :] + array.noise(rng, per_point, n)
+                             for _ in range(48)], axis=-1)              # (coils, points, transients)
+        reading = NoiseReading.from_arrays(np.moveaxis(channels, 0, 1), dwell_s, voxel._f0_mhz())
+        assert reading.coils == 32 and reading.transients == 48
+        plain, apodized = reading.sigma(voxel, seeds=1)
+        assert abs(plain / sigma - 1.0) < 0.08 and abs(apodized / sigma - 1.0) < 0.08
+
     def test_a_twin_held_at_the_runs_own_readings_reads_the_run_alone(self):
         # two twins whose residual water and delay differ read one run alike once held at the
         # run's own readings, and apart when drawn

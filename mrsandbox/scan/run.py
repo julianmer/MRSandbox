@@ -326,7 +326,9 @@ class RunReading:
         are."""
         from mrsandbox.scan.calibrate import _combined
 
-        x = _combined(np.asarray(data))                                     # (npoints, transients)
+        field_t = dict(header or {}).get("MagneticFieldStrength")
+        x = _combined(np.asarray(data), dwell_s=dwell_s,                  # (npoints, transients)
+                      f0_mhz=None if field_t is None else 42.5774785 * float(field_t))
         if x.shape[1] < 8:
             raise ValueError("a run reading needs at least eight transients apart")
         n = min(x.shape[0], int(round(window_s / dwell_s)))

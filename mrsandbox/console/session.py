@@ -707,7 +707,7 @@ class Session:
         self.subjects, self.pictures, self.images = dict(SUBJECTS), dict(PICTURES), {}
         self.field = FIELDS.get(self.subject, "uniform")
         self.transmit = None
-        self.shim, self.shim_mm = "linear", None
+        self.shim, self.shim_mm = "quadratic", None
         self.overlay = "anatomy"
         self.coil_settings = {name: dict(settings) for name, settings in self.COIL_SETTINGS.items()}
         self.coils, self.own_noise = dict(self.COILS), None
@@ -1037,13 +1037,12 @@ class Session:
             # parts the microscopic broadening drawn for this scanner and the field's spread over
             # the voxel after the shim (Olivero's Voigt width)
             natural = 1.0 / (np.pi * float(voxel.resolve(drawn["t2"]["NAA"])))
-            spread = np.hypot(float(drawn["lineshape"]["gauss_hz"]),
+            spread = np.hypot(voxel.gauss_hz(drawn),
                               max((field.get("line width from B0 (Hz)") or 1.0) - 1.0, 0.0))
             field["line width of NAA (Hz)"] = float(
                 0.5346 * natural + np.sqrt(0.2166 * natural ** 2 + spread ** 2))
             return {**found, "field and lines": field,
-                    "scanner": {"broadening below the map's cells (Hz)":
-                                float(drawn["lineshape"]["gauss_hz"]),
+                    "scanner": {"broadening below the map's cells (Hz)": voxel.gauss_hz(drawn),
                                 "noise level": float(drawn["noise"]["sigma"])}}
         finally:
             self.position_mm = kept
@@ -1136,13 +1135,8 @@ class Session:
                self.shim, self.shim_mm)
         if self._linewidth_memo[0] == key:
             return self._linewidth_memo[1]
-        t = np.arange(8192) / 1000.0
-        line = np.fft.fft(field.kernel(tuple(self.position_mm), tuple(self.size_mm), t,
-                                       turn=self.turn)
-                          * np.exp(-np.pi * t), 8 * t.size).real
-        # between the outermost crossings: a coarse map's cells give a comb of lines, one width
-        above = np.flatnonzero(np.fft.fftshift(line) > 0.5 * line.max())
-        self._linewidth_memo = (key, float((above[-1] - above[0] + 1) * 1000.0 / (8 * t.size)))
+        self._linewidth_memo = (key, field.linewidth(tuple(self.position_mm), tuple(self.size_mm),
+                                                     turn=self.turn))
         return self._linewidth_memo[1]
 
     def array(self):
@@ -1597,6 +1591,21 @@ class Session:
                     found[str(path)] = ("read from your own scans: "
                                         + path.stem.replace("_private", "").replace("_", " "))
         return found
+
+    #**********#
+    #   seed   #
+    #**********#
+    @property
+    def seed(self):
+        """The draw of the population every exam scans; with a cohort on the floor it names the
+        subject, whose scanner, voxel place and size come with a new draw (pick_cohort)."""
+        return self._seed
+
+    @seed.setter
+    def seed(self, value):
+        self._seed = int(value)
+        if getattr(self, "cohort", None) is not None:
+            self.pick_cohort(self.cohort)
 
     def member(self):
         """The subject of the cohort on the floor that the session's seed draws (scan.cohort), None
@@ -2780,7 +2789,7 @@ class Session:
         field = self.fields(card)["field"]
         groups = ([(mean, weight) for mean, weight, _ in field.groups(
                       exam.position_mm, exam.size_mm, np.zeros(1), 8,
-                      spread_hz=float(voxel.resolve(truth.lineshape.gauss_hz)))]
+                      spread_hz=voxel.gauss_hz(truth))]
                   if field is not None else [(0.0, 1.0)])
         shift, b1 = state.get("acquisition.shift_hz", 0.0), voxel.b1_scale(truth)
         content, fractions = self.body().water_content, voxel.fractions

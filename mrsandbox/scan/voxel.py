@@ -291,6 +291,24 @@ class Voxel:
             self._kernels["noise_place"] = factor
         return self._kernels["noise_place"]
 
+    #****************#
+    #   broadening   #
+    #****************#
+    def gauss_hz(self, truth):
+        """The Gaussian broadening this voxel plays: the drawn lineshape.gauss_hz less, in
+        quadrature, the width the scan's field map alone gives a line here after the shim.
+        The width records and ranges are read against twins without a map, as the whole
+        broadening beyond relaxation, so under a map the voxel plays only what the map does
+        not; a map wider than the draw leaves none."""
+        gauss = float(self.resolve(truth.lineshape.gauss_hz))
+        if self.scan.field is None:
+            return gauss
+        if "map width" not in self._kernels:
+            width = self.scan.field.linewidth(self.position_mm, self.size_mm,
+                                              shim_at_mm=self.shim_at_mm, turn=self.turn)
+            self._kernels["map width"] = max(width - 1.0, 0.0)     # less the Lorentzian's
+        return float(np.sqrt(max(gauss ** 2 - self._kernels["map width"] ** 2, 0.0)))
+
     #*****************#
     #   realization   #
     #*****************#
@@ -622,7 +640,7 @@ class Voxel:
         grid = start_s + np.arange(npoints) * dwell_s
         # the microscopic field distribution: a Gaussian envelope on the spin-system
         # components (the measured MM and downfield widths already carry theirs)
-        gauss_hz = self.resolve(truth.lineshape.gauss_hz)
+        gauss_hz = self.gauss_hz(truth)
         envelope = np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
                           * grid * grid).astype(np.float32)
         def sources(basis):
@@ -1271,8 +1289,7 @@ class Voxel:
                     lw_hz=np.pad(rows_lw[:, keep], ((0, 0), (0, pad)), constant_values=1.0))
                 fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
                 for row, (truth, _, _) in enumerate(chunk):
-                    start_s, gauss = (float(truth.acquisition.delay_s),
-                                      self.resolve(truth.lineshape.gauss_hz))
+                    start_s, gauss = float(truth.acquisition.delay_s), self.gauss_hz(truth)
                     envelope = np.exp(-(np.pi * gauss) ** 2 / (4.0 * np.log(2.0))
                                       * (start_s + grid) ** 2).astype(np.float32)
                     self._lines_cache(truth)[("metabolite fid", n, float(dwell), start_s)] = (
@@ -1327,7 +1344,7 @@ class Voxel:
                         fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
                     for row, (truth, _, _, _, start_s) in enumerate(chunk):
                         if not voigt:
-                            gauss_hz = self.resolve(truth.lineshape.gauss_hz)
+                            gauss_hz = self.gauss_hz(truth)
                             fids[row] = fids[row] * np.exp(
                                 -(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
                                 * (start_s + grid) ** 2).astype(np.float32)
