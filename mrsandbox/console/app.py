@@ -2831,12 +2831,12 @@ async def console(client: Client):
         dialog.open()
 
     def patient():
-        """The person on the table, as a scanner's registration takes them: age, sex, health;
+        """The person on the table as the scanner asks them: age, sex, health;
         the rows a person carries (the water's relaxation, breathing, motion) are pooled over
         people like them, a healthy adult where nothing is given."""
         person = session.person
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 420px"):
-            ui.label("Patient registration").classes("label")
+            ui.label("The person on the table").classes("label")
             age = ui.number("age (years)", value=person.get("age_y"), min=0, max=120,
                             step=1).props("dense outlined dark clearable").classes(
                 "w-full").tooltip("people of ten years either side are pooled; empty is any "
@@ -2863,10 +2863,10 @@ async def console(client: Client):
                         pickers["subject"].set_options(session.anatomies(), value=session.subject)
                         room()
                     draw()
-                    ui.notify("Registered: " + (", ".join(
+                    ui.notify("On the table: " + (", ".join(
                         f"{value:g} years" if key == "age_y" else str(value)
                         for key, value in session.person.items()) or "a healthy adult"))
-                ui.button("Register", icon="how_to_reg", on_click=admit).mark(
+                ui.button("Set", icon="person", on_click=admit).mark(
                     "register the patient").props("unelevated dense no-caps")
         dialog.open()
 
@@ -3303,7 +3303,7 @@ async def console(client: Client):
             "sources")
         ui.button(icon="badge", on_click=patient).mark("patient").props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
-            "the patient: age, sex and health, which the measured rows they carry are pooled by")
+            "the person on the table: age, sex and health, by which the measured rows a person carries are pooled")
         ui.space()
         status = ui.label("idle").classes("label")
 

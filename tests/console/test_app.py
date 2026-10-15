@@ -220,11 +220,11 @@ class TestApp:
                 await user.should_not_see("Accept changes")
                 # the patient registered as a scanner takes them, and what they carry pooled so
                 user.find(marker="patient").click()
-                await user.should_see("Patient registration")
+                await user.should_see("The person on the table")
                 next(e for e in user.find(kind=ui.number).elements
                      if e.props.get("label") == "age (years)").value = 45
                 user.find(marker="register the patient").click()
-                await user.should_see("Registered: 45 years")
+                await user.should_see("On the table: 45 years")
                 # the database to browse: every reading, narrowed by a facet and by a query
                 user.find(marker="database").click()
                 await user.should_see("Measured datasets")
