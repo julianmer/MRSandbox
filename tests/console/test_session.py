@@ -813,6 +813,32 @@ class TestSession:
         session.seed += 1
         assert session.member_name is None
 
+    def test_a_population_narrows_every_pooled_value(self):
+        # the measured rows every pooled value comes from: every row by default, then the datasets
+        # named and the subjects a query keeps; a leaf the population holds no row of keeps the
+        # literature, and the room says what it draws from
+        import re
+
+        session = Session(ICBM)
+
+        def subjects(path):
+            said = session.sources()[path]["provenance"]["pooled"]
+            return int(re.search(r"pooled over (\d+) subjects", said).group(1))
+
+        everyone = subjects("noise.sigma")
+        session.population = {"datasets": ("cows_prisma",), "query": ""}
+        cows = subjects("noise.sigma")
+        assert 0 < cows < everyone and "cows_prisma" in session.sources()["noise.sigma"]["provenance"]["pooled"]
+        session.population = {"datasets": ("cows_prisma",), "query": "age_low >= 40"}
+        assert 0 < subjects("noise.sigma") < cows
+        assert all(name == "cows_prisma" for name, _ in session.population_within())
+        assert session.population_says().startswith("pooled values come from cows_prisma where age_low >= 40")
+        # a cohort of maps alone has no noise rows: the leaf keeps the literature
+        session.population = {"datasets": ("ds004611_prisma_3t",), "query": ""}
+        assert "noise.sigma" not in session.sources()
+        session.population = {"datasets": (), "query": ""}
+        assert subjects("noise.sigma") == everyone
+
     def test_the_arrays_noise_share_comes_from_the_pooled_rows(self):
         # the share of a channel's noise that is its own: the package's rows of the channels'
         # correlation for the scanner at the array's channel count, turned into the share against

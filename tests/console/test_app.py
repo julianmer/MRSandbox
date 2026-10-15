@@ -218,16 +218,12 @@ class TestApp:
                 user.find("Accept changes").click()
                 await user.should_see("4 sLASER TE 40")
                 await user.should_not_see("Accept changes")
-                # the patient registered as a scanner takes them, and what they carry pooled so
-                user.find(marker="patient").click()
-                await user.should_see("The person on the table")
-                next(e for e in user.find(kind=ui.number).elements
-                     if e.props.get("label") == "age (years)").value = 45
-                user.find(marker="register the patient").click()
-                await user.should_see("On the table: 45 years")
                 # the database to browse: every reading, narrowed by a facet and by a query
                 user.find(marker="database").click()
                 await user.should_see("Measured datasets")
+                # these rows as the room's population: every pooled value comes from them
+                user.find(marker="population adopt").click()
+                await user.should_see("pooled values come from every dataset; a healthy adult")
                 user.find(marker="facet dataset").elements.pop().value = ["big_gaba_trio"]
                 await user.should_see("of 36 subjects in 1 datasets", retries=20)
                 user.find(marker="database query").elements.pop().value = "leaf == 'noise.sigma'"

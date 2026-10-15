@@ -449,12 +449,13 @@ def _pool(leaf, scanner, channels=None, within=(), subject=None, methods=None):
     gone (the departure names it); the person's health never gives way, nor the field of a
     tissue's relaxation, so a condition no rows hold stays with the literature. `within`
     names the cohorts whose rows alone are pooled (one dataset as the scanner's
-    calibration); empty pools them all. None when no row of the leaf is there."""
+    calibration) and the (cohort, subject) pairs a population keeps; empty pools them all.
+    None when no row of the leaf is there."""
     subject = subject or {}
     found = [(cohort.name, member, record)
-             for cohort in package() if not within or cohort.name in within
-             for member in cohort.members for record in member.profile.records
-             if record.leaf == leaf and not record.failed]
+             for cohort in package() for member in cohort.members
+             if not within or cohort.name in within or (cohort.name, member.subject) in within
+             for record in member.profile.records if record.leaf == leaf and not record.failed]
     tissue = _under(leaf, RELAXATION) is not None
     asked = dict(field_t=float(scanner.b0_t), vendor=None if tissue else scanner.vendor,
                  model=None if tissue else scanner.model,

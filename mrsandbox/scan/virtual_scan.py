@@ -110,6 +110,8 @@ class VirtualScan:
             "F" or "M", "health": "healthy" or the condition by name}; the measured rows they
             carry (the water's relaxation, breathing, motion) are pooled over people like
             them (scan.cohort.pooled). None is a healthy adult.
+        within: The population the pooled readings come from: cohort names and (cohort,
+            subject) pairs (scan.cohort pooled); empty is every row the conditions keep.
         engine: An Engine to share (its compiled graphs and renderers) between scans
             of one scanner, as a Multiplex does; None builds one for this scan.
     """
@@ -121,8 +123,8 @@ class VirtualScan:
                  lipids=None, coils=None, field=None, transmit=None, mm=None, downfield=None,
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
                  ph=None, field_groups=1, water_groups=1, noise_map=None,
-                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, spins=None,
-                 temperature_spread=False):
+                 noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, within=(),
+                 spins=None, temperature_spread=False):
         self.brain = brain
         self.scanner = scanner
         self.sequence = sequence
@@ -147,13 +149,14 @@ class VirtualScan:
         self.receiver = receiver
         self.records = tuple(records)
         self.subject = subject
+        self.within = tuple(within)
         self.temperature_c = float(temperature_c if temperature_c is not None
                                    else brain.temperature_c if in_vitro else 37.0)
         self.ph = float(ph if ph is not None else brain.ph if in_vitro else 7.0)
         defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner,
                                   records=self.records,
                                   channels=None if coils is None else len(coils),
-                                  subject=subject)
+                                  subject=subject, within=self.within)
         self.params = (defaults
                        | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=Normal(

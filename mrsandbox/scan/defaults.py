@@ -93,7 +93,7 @@ _TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
 #   default catalogue  #
 #**********************#
 def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=None,
-                   subject=None):
+                   subject=None, within=()):
     """Concentration priors and pooled literature relaxation for every metabolite that
     has both a spin system and a de Graaf range. Total choline is covered by GPC and
     PCho, its two constituents, so there is no separate Cho entry.
@@ -116,6 +116,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         channels: The receive array's count, one of the conditions the readings are pooled by.
         subject: The person's traits the readings they carry are pooled by (scan.cohort
             pooled): "age_y", "sex", "health"; None is a healthy adult.
+        within: The population the readings are pooled over: cohort names and (cohort,
+            subject) pairs (scan.cohort pooled); empty is every row.
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
@@ -127,7 +129,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     # phosphocreatine taken out, 3.0 to 5.5 in the ranges' own numbers (a total of 6 to 11 mM);
     # the measured source is scan.calibrations CREATINE_THREE_DATASETS_3T
     served = calibrations(scanner if scanner is not None else Scanner("unnamed", float(b0_t)),
-                          records, channels, subject)  # every leaf a record serves
+                          records, channels, subject, within)  # every leaf a record serves
     if "Cr" in conc:
         conc = conc | Params(Cr=_sourced("conc.Cr", served, Uniform, literature=Uniform(3.0, 5.5),
                                          cited=CREATINE))

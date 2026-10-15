@@ -43,7 +43,7 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 from mrsandbox.database import Database
-from mrsandbox.scan.cohort import package, stated, table
+from mrsandbox.scan.cohort import package, table
 
 #*************#
 #   palette   #
@@ -1150,6 +1150,10 @@ async def console(client: Client):
             ui.label(SHOWN[kind].format(*numbers) if kind != "other" else str(numbers)[:40]
                      ).classes("value").style("width: 260px")
             chip(chosen, provenance)
+            if (session.choices.get(path) == "pooled"
+                    and (not info or "pooled" not in info["sources"])):
+                ui.label("no rows in the population: the literature stands").classes(
+                    "label").style(f"color: {BAD}; text-transform: none; letter-spacing: 0")
             others = [f"{SOURCE_WORDS[name]} {SHOWN[k].format(*n)}"
                       for name, (k, n) in (info["sources"].items() if info else ())
                       if name != chosen and k in SHOWN]
@@ -2830,46 +2834,6 @@ async def console(client: Client):
                 ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
         dialog.open()
 
-    def patient():
-        """The person on the table as the scanner asks them: age, sex, health;
-        the rows a person carries (the water's relaxation, breathing, motion) are pooled over
-        people like them, a healthy adult where nothing is given."""
-        person = session.person
-        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 420px"):
-            ui.label("The person on the table").classes("label")
-            age = ui.number("age (years)", value=person.get("age_y"), min=0, max=120,
-                            step=1).props("dense outlined dark clearable").classes(
-                "w-full").tooltip("people of ten years either side are pooled; empty is any "
-                                  "adult")
-            sex = ui.select({None: "not given", "F": "female", "M": "male"},
-                            value=person.get("sex"), label="sex").props(
-                "dense outlined dark").classes("w-full")
-            health = ui.select(sorted({"healthy", *stated("health")}),
-                               value=person.get("health", "healthy"), label="health",
-                               with_input=True, new_value_mode="add-unique").props(
-                "dense outlined dark").classes("w-full").tooltip(
-                "the conditions the measured database holds; a condition it holds no rows of "
-                "keeps the literature")
-            with ui.row().classes("w-full"):
-                ui.space()
-                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
-
-                def admit():
-                    before = session.subject
-                    session.admit(age_y=age.value, sex=sex.value,
-                                  health=None if health.value == "healthy" else health.value)
-                    dialog.close()
-                    if session.subject != before:    # the template of the person's age
-                        pickers["subject"].set_options(session.anatomies(), value=session.subject)
-                        room()
-                    draw()
-                    ui.notify("On the table: " + (", ".join(
-                        f"{value:g} years" if key == "age_y" else str(value)
-                        for key, value in session.person.items()) or "a healthy adult"))
-                ui.button("Set", icon="person", on_click=admit).mark(
-                    "register the patient").props("unelevated dense no-caps")
-        dialog.open()
-
     def cohort_explorer():
         """The dataset on the floor as the operator explores it: every subject's readings as strips
         with the one on the table marked, a subject picked by name or drawn anew, and what the
@@ -3027,6 +2991,39 @@ async def console(client: Client):
                                     on_change=lambda: narrow()).props(
                                     "dense outlined dark clearable debounce=600").classes(
                                     "col").mark("database query")
+                                def adopt():
+                                    """These rows as the room's population: every pooled
+                                    value comes from them, the person's traits among them."""
+                                    low, high = ages.value["min"], ages.value["max"]
+                                    session.population = {
+                                        "datasets": tuple(facets["dataset"].value or ()),
+                                        "query": query.value or ""}
+                                    person = {}
+                                    if (low, high) != (0, 90):
+                                        person["age_y"] = (float(low), float(high))
+                                    for key in ("sex", "health"):
+                                        values = facets[key].value or []
+                                        if values:
+                                            person[key] = (values[0] if len(values) == 1
+                                                           else tuple(values))
+                                    session.person = person
+                                    draw()
+                                    ui.notify(session.population_says())
+
+                                def whole():
+                                    session.population = {"datasets": (), "query": ""}
+                                    session.person = {}
+                                    draw()
+                                    ui.notify(session.population_says())
+                                ui.button("use these rows in the room", icon="groups",
+                                          on_click=adopt).mark("population adopt").props(
+                                    "outline dense no-caps").tooltip(
+                                    "every pooled value then comes from these rows, the age, sex "
+                                    "and health among them; a line they hold no row of says so "
+                                    "and keeps the literature")
+                                ui.button(icon="restart_alt", on_click=whole).mark(
+                                    "population whole").props("flat dense round size=sm").tooltip(
+                                    "the whole database again, a healthy adult")
                                 ui.button(icon="download", on_click=lambda: ui.download.content(
                                     chosen_now["rows"].drop(columns="field").to_csv(index=False),
                                     "mrsandbox_database.csv")).props(
@@ -3301,9 +3298,6 @@ async def console(client: Client):
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
             "the database: the measured datasets and their subjects, the literature and its "
             "sources")
-        ui.button(icon="badge", on_click=patient).mark("patient").props(
-            "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
-            "the person on the table: age, sex and health, by which the measured rows a person carries are pooled")
         ui.space()
         status = ui.label("idle").classes("label")
 

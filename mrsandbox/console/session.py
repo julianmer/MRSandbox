@@ -687,6 +687,9 @@ class Session:
         # a package cohort on the floor: every exam scans one of its real subjects
         self.cohort = None
         self.member_name = None     # one subject of the cohort picked by name (pick_member)
+        # the measured rows every pooled value comes from: {"datasets": names, "query": pandas
+        # text over scan.cohort.table}, empty for every row the room's conditions keep
+        self.population = {"datasets": (), "query": ""}
         self.seed = int(np.random.default_rng().integers(2 ** 31))
         # the metabolites replay each design's compiled graph (Engine.graph), which the persistent
         # cache keeps from one launch to the next; off, they run op by op
@@ -1619,6 +1622,39 @@ class Session:
             return next(member for member in cohort.members if member.subject == self.member_name)
         return cohort.draw(self.seed)
 
+    def population_within(self):
+        """The population as the pool takes it: the datasets named, and the (dataset, subject)
+        pairs the query keeps among them (scan.cohort.table in pandas syntax, every reading a
+        row); empty for every row."""
+        datasets = tuple(self.population.get("datasets") or ())
+        query = (self.population.get("query") or "").strip()
+        if not query:
+            return datasets
+        import pandas as pd
+
+        from mrsandbox.scan.cohort import table
+        rows = pd.DataFrame(table())
+        if datasets:
+            rows = rows[rows["dataset"].isin(datasets)]
+        rows = rows.query(query)
+        return tuple(sorted(set(zip(rows["dataset"], rows["subject"])))) or (("", ""),)
+
+    def population_says(self):
+        """One sentence on the rows every pooled value comes from."""
+        datasets, query = self.population.get("datasets") or (), self.population.get("query") or ""
+        said = "pooled values come from " + (", ".join(datasets) if datasets else "every dataset")
+        if query:
+            said += f" where {query}"
+        traits = []
+        for key, value in self.person.items():
+            if key != "age_y":
+                traits.append(str(value))
+            elif isinstance(value, tuple):
+                traits.append(f"{value[0]:g} to {value[1]:g} years")
+            else:
+                traits.append(f"{value:g} years")
+        return said + "; " + (", ".join(traits) if traits else "a healthy adult")
+
     def pick_member(self, subject):
         """Put one subject of the cohort on the floor by name, its scanner, place and size with
         it, until a new draw of the population (the seed) takes another."""
@@ -2253,7 +2289,7 @@ class Session:
         scan = profile.scan(self.body(), sequence if sequence is not None else self.sequence(card),
                             params=params if params is not None else self.params(),
                             subject=(member.traits if member is not None else self.person) or None,
-                            **self.fields(card))
+                            within=self.population_within(), **self.fields(card))
         if self.choices:
             sourced = scan.params.sources()
             # a leaf without that source keeps its own
