@@ -797,6 +797,21 @@ class TestSession:
                     and session.size_mm == list(member.size_mm))
             places.add(tuple(session.position_mm))
         assert len(places) > 1
+        # one subject picked by name stays on the floor, place and all, until a new draw
+        from mrsandbox.scan.cohort import package
+
+        cohort = next(c for c in package() if c.name == "cows_prisma")
+        wanted = next(m for m in cohort.members if "Occipital" in m.subject)
+        session.pick_member(wanted.subject)
+        assert (session.member().subject == wanted.subject
+                and session.position_mm == list(wanted.position_mm))
+        # what the exam draws at that voxel: the subject's own readings say so, the rest its source
+        drawn = {path: (value, origin) for path, value, origin in session.drawn()}
+        assert drawn["noise.sigma"][1] == "dataset" and drawn["noise.sigma"][0] == next(
+            r.value for r in wanted.profile.records if r.leaf == "noise.sigma")
+        assert drawn["conc.NAA"][1] in ("literature", "pooled", "mixed", "stated") and drawn["conc.NAA"][0] > 0
+        session.seed += 1
+        assert session.member_name is None
 
     def test_the_arrays_noise_share_comes_from_the_pooled_rows(self):
         # the share of a channel's noise that is its own: the package's rows of the channels'

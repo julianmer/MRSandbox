@@ -658,8 +658,8 @@ class Session:
     COIL_SETTINGS = {**COIL_SETTINGS, **{label: {} for label in ARRAYS}}
 
     # what of the session is the room an exam is planned in and runs in
-    ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "field",
-            "transmit", "shim", "shim_mm")
+    ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "member_name",
+            "field", "transmit", "shim", "shim_mm")
 
     #**********#
     #   init   #
@@ -686,6 +686,7 @@ class Session:
         self.run_records = ()
         # a package cohort on the floor: every exam scans one of its real subjects
         self.cohort = None
+        self.member_name = None     # one subject of the cohort picked by name (pick_member)
         self.seed = int(np.random.default_rng().integers(2 ** 31))
         # the metabolites replay each design's compiled graph (Engine.graph), which the persistent
         # cache keeps from one launch to the next; off, they run op by op
@@ -1604,15 +1605,59 @@ class Session:
     @seed.setter
     def seed(self, value):
         self._seed = int(value)
+        self.member_name = None
         if getattr(self, "cohort", None) is not None:
             self.pick_cohort(self.cohort)
 
     def member(self):
-        """The subject of the cohort on the floor that the session's seed draws (scan.cohort), None
-        without a cohort."""
+        """The subject of the cohort on the floor: the one picked by name (pick_member), else the
+        one the session's seed draws (scan.cohort); None without a cohort."""
         if self.cohort is None:
             return None
-        return next(cohort for cohort in package() if cohort.name == self.cohort).draw(self.seed)
+        cohort = next(cohort for cohort in package() if cohort.name == self.cohort)
+        if self.member_name is not None:
+            return next(member for member in cohort.members if member.subject == self.member_name)
+        return cohort.draw(self.seed)
+
+    def pick_member(self, subject):
+        """Put one subject of the cohort on the floor by name, its scanner, place and size with
+        it, until a new draw of the population (the seed) takes another."""
+        self.member_name = subject
+        self.pick_cohort(self.cohort)
+
+    def drawn(self):
+        """What the next exam scans at the planned voxel, [(path, value, from)]: every numeric leaf
+        of the room's tree realized for the session's seed, a map read at the voxel, and where
+        the value comes from: "dataset" for the subject's own reading, "custom" for the operator's
+        setting, else the leaf's chosen source or "stated" for a typed value."""
+        scan = self.twin()
+        voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm), turn=self.turn)
+        truth = voxel.sample(self.seed)
+        local, sources = voxel.local(truth), self.sources()
+        member = self.member()
+        own = {record.leaf for record in member.fixed().records} if member is not None else set()
+
+        def origin(path):
+            if path in self.overrides:
+                return "custom"
+            if path in own:
+                return "dataset"
+            return sources[path]["chosen"] if path in sources else "stated"
+
+        found = []
+
+        def walk(node, path):
+            for key, value in node.items():
+                here = ".".join(path + (key,))
+                if isinstance(value, dict):
+                    walk(value, path + (key,))
+                elif here in local:
+                    found.append((here, float(local[here]), origin(here)))
+                elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                    found.append((here, float(value), origin(here)))
+
+        walk(truth.to_dict(), ())
+        return found
 
     def admit(self, age_y=None, sex=None, health=None):
         """Admit the person on the table (`person`) as a scanner's patient registration does: their

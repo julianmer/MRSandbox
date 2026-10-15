@@ -43,7 +43,7 @@ from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
 from mrsandbox.database import Database
-from mrsandbox.scan.cohort import stated, table
+from mrsandbox.scan.cohort import package, stated, table
 
 #*************#
 #   palette   #
@@ -2852,6 +2852,113 @@ async def console(client: Client):
                     "register the patient").props("unelevated dense no-caps")
         dialog.open()
 
+    def cohort_explorer():
+        """The dataset on the floor as the operator explores it: every subject's readings as strips
+        with the one on the table marked, a subject picked by name or drawn anew, and what the
+        next exam draws at the planned voxel with where each value comes from."""
+        if session.cohort is None:
+            ui.notify("No dataset on the floor: pick one on the scanner card")
+            return
+        cohort = next(c for c in package() if c.name == session.cohort)
+        strips = ("noise.sigma", "lineshape.gauss_hz", "water.adjusted_residual",
+                  "acquisition.delay_s", "acquisition.eddy_transient_rad", "run.drift_hz_per_min",
+                  "run.phase_jitter_deg", "run.resp_amp_hz")
+        rng = np.random.default_rng(0)
+        with ui.dialog() as dialog, ui.card().classes("pane no-wrap").style(
+                "min-width: 1100px; max-width: 96vw; height: 90vh; max-height: 90vh"):
+            ui.label(f"Cohort · {session.datasets()[session.cohort]}").classes("label")
+            body = ui.column().classes("w-full").style(
+                "flex: 1 1 auto; min-height: 0; overflow-y: auto; gap: 10px")
+
+            def took():
+                """The room after another subject: its scanner, place and size came with it."""
+                pickers["scanner"].set_options(session.scanners(), value=session.scanner)
+                pickers["field_t"].set_value(session.profile().scanner.b0_t)
+                session.home()
+                room()
+                draw()
+                fill()
+
+            def fill():
+                member = session.member()
+                body.clear()
+                with body:
+                    with ui.row().classes("w-full items-center no-wrap").style("gap: 12px"):
+                        ui.select({m.subject: m.subject for m in cohort.members},
+                                  value=member.subject, label="subject on the table",
+                                  on_change=lambda e: (session.pick_member(e.value), took())
+                                  ).props("dense outlined dark options-dense").style(
+                            "width: 300px").mark("cohort subject")
+                        ui.button("draw another", icon="person_add_alt", on_click=lambda: (
+                            setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
+                            took())).props("outline dense no-caps").mark("cohort draw")
+                        traits = ", ".join(f"{v:g} years" if k == "age_y" else str(v)
+                                           for k, v in member.traits.items())
+                        ui.label(f"{traits or 'no traits'} · voxel at "
+                                 f"{tuple(round(v) for v in member.position_mm)} mm, "
+                                 f"{member.size_mm[0]:g} mm · {len(member.fixed().records)} "
+                                 "readings of its own, the rest pooled over people like it"
+                                 ).classes("value").style("white-space: normal; flex: 1")
+                    ui.label("Every subject's readings, the one on the table marked"
+                             ).classes("label")
+                    with ui.row().classes("w-full no-wrap").style("gap: 6px"):
+                        for leaf in strips:
+                            values = [(m.subject, r.value) for m in cohort.members
+                                      for r in m.profile.records
+                                      if r.leaf == leaf and not r.failed]
+                            if not values:
+                                continue
+                            mine = [v for s, v in values if s == member.subject]
+                            ui.echart({
+                                "backgroundColor": "transparent", "animation": False,
+                                "title": {"text": NAMES.get(leaf, leaf), "left": 4, "top": 0,
+                                          "textStyle": {"fontSize": 11, "color": DIM,
+                                                        "fontWeight": "normal"}},
+                                "grid": {"left": 54, "right": 8, "top": 26, "bottom": 8},
+                                "xAxis": {"type": "value", "min": -1, "max": 1, "show": False},
+                                "yAxis": {"type": "value", "scale": True,
+                                          "axisLabel": {"color": DIM, "fontSize": 10},
+                                          "splitLine": {"lineStyle": {"color": LINE}}},
+                                "tooltip": {"trigger": "item",
+                                            "formatter": "{b}: {c}"},
+                                "series": [
+                                    {"type": "scatter", "symbolSize": 6,
+                                     "itemStyle": {"color": SOURCE_COLORS["pooled"],
+                                                   "opacity": 0.7},
+                                     "data": [{"name": s, "value": [
+                                         float(rng.uniform(-0.6, 0.6)), float(v)]}
+                                              for s, v in values]},
+                                    {"type": "scatter", "symbolSize": 14, "z": 3,
+                                     "itemStyle": {"color": SOURCE_COLORS["dataset"]},
+                                     "data": [{"name": member.subject,
+                                               "value": [0.0, float(v)]} for v in mine]}]}
+                            ).style("height: 190px; flex: 1; min-width: 0")
+                    ui.label("What the next exam draws at the planned voxel, and where each "
+                             "value comes from").classes("label")
+                    rows = sorted(({"path": NAMES.get(path, path), "value": f"{value:.4g}",
+                                    "source": SOURCE_WORDS[origin]}
+                                   for path, value, origin in session.drawn()),
+                                  key=lambda r: ({"dataset": 0, "custom": 1}.get(
+                                      next(k for k, w in SOURCE_WORDS.items()
+                                           if w == r["source"]), 2), r["path"]))
+                    search = ui.input("find a parameter").props(
+                        "dense outlined dark clearable").style("width: 300px")
+                    grid = ui.table(columns=[
+                        {"name": "path", "label": "parameter", "field": "path", "align": "left",
+                         "sortable": True},
+                        {"name": "value", "label": "drawn value", "field": "value",
+                         "align": "right"},
+                        {"name": "source", "label": "from", "field": "source", "align": "left",
+                         "sortable": True}], rows=rows, row_key="path", pagination=12).props(
+                        "dense flat dark").classes("w-full").mark("cohort drawn")
+                    search.bind_value_to(grid, "filter")
+                    ui.label(SAID).classes("value").style("white-space: normal")
+            fill()
+            with ui.row().classes("w-full"):
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+        dialog.open()
+
     def database():
         """What the simulation draws from, to browse: the measured datasets, each cohort's
         subjects with their traits and readings, and the typed literature with its sources."""
@@ -3164,9 +3271,14 @@ async def console(client: Client):
             "setting, choice, dataset or file of yours")
         ui.button(icon="person_add_alt", on_click=lambda: (
             setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
-            ui.notify("A new draw of the population is scanned from here on"))).props(
+            room() if session.cohort else None, draw() if session.cohort else None,
+            ui.notify("A new draw of the population is scanned from here on"
+                      + (f": {session.member().subject}" if session.cohort else "")))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
             "every exam scans the same draw of the population; this takes a new one")
+        ui.button(icon="groups", on_click=cohort_explorer).mark("cohort").props(
+            "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
+            "the dataset on the floor: its subjects, the one on the table, what the exam draws")
         ui.button(icon="storage", on_click=database).mark("database").props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
             "the database: the measured datasets and their subjects, the literature and its "
