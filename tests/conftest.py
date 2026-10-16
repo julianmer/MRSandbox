@@ -35,6 +35,23 @@ if os.environ["KERAS_BACKEND"] == "jax":
     jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
 
 
+#******************#
+#   module reset   #
+#******************#
+@pytest.fixture(scope="module", autouse=True)
+def released():
+    """After each test module, jax's compiled graphs and the buffers they hold go: a run of every
+    module keeps no more than the module at hand does (the disk cache keeps recompiling cheap)."""
+    yield
+    if os.environ["KERAS_BACKEND"] == "jax":
+        import gc
+
+        import jax
+
+        jax.clear_caches()
+        gc.collect()
+
+
 #*********************#
 #   backend fixture   #
 #*********************#
