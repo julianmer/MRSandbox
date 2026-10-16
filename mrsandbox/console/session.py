@@ -1661,14 +1661,16 @@ class Session:
         the sexes and health, and the age range (years; a subject of no stated age is left out),
         as a query over the database's rows; the age, sex and health also make the person on
         the table. What is not chosen is everyone."""
-        terms = [f"{column} in {sorted(values)!r}"
+        # the values as python's own (a chart hands numpy's, whose repr pandas cannot read)
+        terms = [f"{column} in {sorted(np.asarray(values).tolist())!r}"
                  for column, values in (("vendor", vendors), ("field_t", fields),
-                                        ("sex", sexes), ("health", health)) if values]
+                                        ("sex", sexes), ("health", health)) if len(values)]
         if ages is not None:
             terms.append(f"age_low >= {float(ages[0])!r} and age_high <= {float(ages[1])!r}")
         self.population = {"datasets": tuple(datasets), "query": " and ".join(terms)}
         person = {key: values[0] if len(values) == 1 else tuple(values)
-                  for key, values in (("sex", tuple(sexes)), ("health", tuple(health))) if values}
+                  for key, values in (("sex", tuple(np.asarray(sexes).tolist())),
+                                      ("health", tuple(np.asarray(health).tolist()))) if values}
         if ages is not None:
             person["age_y"] = (float(ages[0]), float(ages[1]))
         self.person = person

@@ -856,6 +856,10 @@ class TestSession:
         cows = subjects("noise.sigma")
         session.narrow(datasets=("cows_prisma",), ages=(40, 90))
         assert 0 < subjects("noise.sigma") < cows < everyone
+        # the charts hand numpy's values
+        session.narrow(vendors=(np.str_("ge"),), fields=(np.float64(3.0),))
+        assert 0 < subjects("noise.sigma") < everyone and "np." not in session.population["query"]
+        session.narrow(datasets=("cows_prisma",), ages=(40, 90))
         assert session.person == {"age_y": (40.0, 90.0)}
         narrow = session.draws()
         assert narrow["noise.sigma"].shape == (300,) and narrow["water.t1_s"].shape == (300, 3)
