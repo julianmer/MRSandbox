@@ -183,10 +183,10 @@ SOURCE_WORDS = {"literature": "literature", "stated": "stated", "pooled": "poole
                 "mixed": "mixed", "dataset": "dataset", "own": "yours", "custom": "custom"}
 SOURCE_SAYS = {"literature": "a published number, or the manufacturer's",
                "stated": "a range the package assumed, nothing published behind it",
-               "pooled": "the package's measured rows, pooled for this room",
+               "pooled": "the population's measured values, pooled for this room",
                "mixed": "the literature's studies and the measured datasets, each an equal "
                         "voice",
-               "dataset": "one real subject's own reading, from the dataset on the floor",
+               "dataset": "the twin's own: what its measured subject's scan gave",
                "own": "measured from a scan you uploaded", "custom": "a number or range you set"}
 SOURCE_COLORS = {"literature": "#7FA6D9", "stated": "#8C8C8C", "pooled": "#7FA66B",
                  "mixed": "#6FB5AE", "dataset": "#C9A0DC", "own": "#E2A55F", "custom": "#E8E2D6"}
@@ -289,6 +289,8 @@ NAMES = {"noise.sigma": "noise level (one transient, 8 mL, 3 T)",
 SHOWN = {"fixed": "{0:g}", "range": "{0:g} to {1:g}", "normal": "{0:.4g} ± {1:.2g}",
          "empirical": "{0:.4g}, one of {3:.0f} measured subjects ({1:.3g} to {2:.3g})"}
 OWN = "your own file ..."      # on top of every drop-down of stored maps
+# what the population's charts choose by, as the database's rows name them
+POPULATION = ("dataset", "vendor", "field_t", "sex", "health")
 # the package's stored maps by one name each, the same on every line
 STORED = {"qsm_rc2": "QSM head", "bigbrain_mr": "BigBrain-MR", LENT: "QSM head"}
 # the displaced voxels' colours on the planes (session.SHIFTED)
@@ -1036,7 +1038,8 @@ async def console(client: Client):
                 ["xdg-open", str(path.parent)], check=False))
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 640px"):
-            ui.label(f"Export · {exam.name}").classes("label")
+            heading(f"Export · {exam.name}",
+                    "This exam's raw transients as a file, the simulation's truth in its header.")
             folder = ui.input("folder", value=str(pathlib.Path.home() / "MRSandbox" / "exports")
                               ).props("dense outlined dark").classes("w-full")
             ui.select(["NIfTI-MRS, the transients apart, with the simulation's truth in the "
@@ -1067,7 +1070,8 @@ async def console(client: Client):
             else plain_word(path) for path, *_ in session.leaves(own=False))
         took = session.compute_s()
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 680px"):
-            ui.label("Make a dataset").classes("label")
+            heading("Make a dataset", "The card on many simulated subjects, each a new draw of the "
+                    "population: every exam a file, every value drawn a row of truth.csv.")
             for name, said in (
                     ("card", f"{card.sequence}"
                              + (f", TE {card.te_ms:g} ms" if card.sequence in SEQUENCES else "")
@@ -1121,6 +1125,64 @@ async def console(client: Client):
                     "unelevated dense no-caps").mark("dataset make")
         dialog.open()
 
+    def guide():
+        """How the console works, part by part, in a few plain sentences each."""
+        parts = (
+            ("The top bar", (
+                "scanner, field, receive array, anatomy or phantom: what stands in the room; each "
+                "gear opens its card",
+                "sliders (All settings): who or what the simulated subjects are drawn from, on the "
+                "population charts, and what every value draws and from which source",
+                "circular arrow: the room back to the package's",
+                "person with a plus: a new draw of the population, the same sources, another "
+                "subject",
+                "group: a twin of a measured subject, once a dataset is chosen on the scanner "
+                "card: the exam carries that subject's own readings, every other value drawn as "
+                "usual",
+                "database: the measured data and the literature, to browse")),
+            ("Planning", (
+                "the three planes cut the anatomy through the view point; a press or a drag moves "
+                "the voxel, its corners size it, the dot above it turns it",
+                "the view bar: to the voxel, the chemical-shift displaced voxels (shifts), left on "
+                "the right, the OVS slabs, what the planes show (anatomy)",
+                "keys: " + KEYS)),
+            ("Exam cards", (
+                "New scan picks a protocol; its tabs set the geometry, the timing, the acquisition "
+                "and the adjustments; Accept puts it in the queue, Start runs the queue",
+                "a card's sequence opens in the designer, block by block")),
+            ("The spectrum", (
+                "Sequence shows the diagram, Live the spectrum as the transients come in: as "
+                "acquired, aligned, or processed, every transient behind the average",)),
+            ("Scan control", (
+                "Review: an exam in full, with the truth no scanner has; Export raw transients: "
+                "NIfTI-MRS with the truth in its header; Export Pulseq; Make a dataset: the card "
+                "on many simulated subjects, every value drawn written beside the files",)),
+            ("Where a value comes from", tuple(f"{SOURCE_WORDS[name]}: {SOURCE_SAYS[name]}"
+                                              for name in SOURCE_WORDS)),
+        )
+        with ui.dialog() as dialog, ui.card().classes("pane").style(
+                "min-width: 760px; max-width: 900px"):
+            with ui.row().classes("w-full items-center"):
+                heading("How the console works", "A virtual MR scanner: plan on a subject, set "
+                        "what the simulation draws, scan, and look at what came out.")
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+            with ui.scroll_area().style("height: 620px; width: 100%"):
+                for title, lines in parts:
+                    ui.label(title).classes("label").style(
+                        f"margin-top: 10px; padding-top: 6px; border-top: 1px solid {LINE}; "
+                        f"color: {SAND}")
+                    for said in lines:
+                        ui.label(said).classes("value").style("white-space: normal")
+        dialog.open()
+
+    def heading(title, said):
+        """A dialog's title and, under it, one sentence on what the dialog is for."""
+        with ui.column().style("gap: 2px; max-width: 820px"):
+            ui.label(title).classes("label")
+            ui.label(said).classes("value").style(
+                f"white-space: normal; color: {DIM}; font-size: 12px")
+
     def chip(source, provenance=""):
         """The source of a value as one coloured word."""
         return ui.label(SOURCE_WORDS[source]).style(
@@ -1172,8 +1234,8 @@ async def console(client: Client):
                     f" (a {' or a '.join(kinds)} would)" if kinds
                     else " and no reader exists for it")
             if name == "dataset":
-                return ("no dataset on the floor (the scanner card's dataset line), or it holds no "
-                        "reading of this line")
+                return ("no twin of a measured subject (the scanner card's dataset line), or its "
+                        "subject holds no reading of this line")
             if name == "literature":
                 return "nothing published gives it: the package's range is stated"
             return "the package assumed no range here: it is typed from the literature"
@@ -1379,6 +1441,16 @@ async def console(client: Client):
 
         return build
 
+    def narrowed():
+        """The population as the charts of All settings hold it (chosen["picks"], chosen["ages"]),
+        into the room: every choice a condition its rows meet (Session.narrow)."""
+        picked = chosen.setdefault("picks", {key: set() for key in POPULATION})
+        ages = chosen.setdefault("ages", [0, 90])
+        session.narrow(datasets=sorted(picked["dataset"]), vendors=sorted(picked["vendor"]),
+                       fields=sorted(picked["field_t"]), sexes=sorted(picked["sex"]),
+                       health=sorted(picked["health"]),
+                       ages=None if ages == [0, 90] else tuple(ages))
+
     def population(holder, changed):
         """The population as linked charts over the measured subjects, in `holder`: a bar per
         dataset, vendor, field, sex and health holding the subjects it leaves under the other
@@ -1390,7 +1462,7 @@ async def console(client: Client):
         labels = {r["name"]: r["dataset"] for r in Session.catalogue()}
         named = {"dataset": lambda v: labels.get(v, v), "vendor": lambda v: MAKERS.get(v, v),
                  "field_t": lambda v: f"{v:g} T", "sex": str, "health": str}
-        picked = chosen.setdefault("picks", {key: set() for key in named})
+        picked = chosen.setdefault("picks", {key: set() for key in POPULATION})
         ages = chosen.setdefault("ages", [0, 90])
         charts = {}
 
@@ -1441,10 +1513,7 @@ async def console(client: Client):
                           f"of {len(people)} in {people['dataset'].nunique()}")
 
         async def apply():
-            session.narrow(datasets=sorted(picked["dataset"]), vendors=sorted(picked["vendor"]),
-                           fields=sorted(picked["field_t"]), sexes=sorted(picked["sex"]),
-                           health=sorted(picked["health"]),
-                           ages=None if ages == [0, 90] else tuple(ages))
+            narrowed()
             paint()
             await changed()
 
@@ -1518,7 +1587,10 @@ async def console(client: Client):
                 "min-width: 1000px; max-width: 1140px" if panel is not None
                 else "min-width: 1440px; max-width: 96vw"):
             with ui.row().classes("w-full items-center"):
-                ui.label("All settings").classes("label")
+                heading("All settings", "Who or what the simulated subjects are drawn from "
+                        "(left), and what each value draws and from which source (right)."
+                        if panel is None else
+                        "What each value of this card draws, and from which source.")
                 ui.space()
                 search = ui.input(placeholder="search, e.g. NAA or t2",
                                   on_change=lambda e: build(e.value or "")).props(
@@ -1850,8 +1922,12 @@ async def console(client: Client):
         with ui.dialog() as dialog, ui.card().classes("pane").style(
                 "min-width: 1300px; max-width: 1600px"):
             with ui.row().classes("w-full items-center no-wrap"):
-                ui.label("Sequence designer").style(
-                    f"color: {SAND}; font-size: 15px; white-space: nowrap")
+                with ui.column().style("gap: 2px"):
+                    ui.label("Sequence designer").style(
+                        f"color: {SAND}; font-size: 15px; white-space: nowrap")
+                    ui.label("Build or change the sequence block by block, and see the spectrum "
+                             "it gives, perfect or as a scanner would.").classes("value").style(
+                        f"white-space: nowrap; color: {DIM}; font-size: 12px")
                 # its pulses as the card has them, real or ideal
                 ui.select(list(TEMPLATES), label="start from", on_change=lambda e: e.value and (
                     setattr(session, "design", [(kind, {**BLOCKS[kind][0], **settings})
@@ -1955,7 +2031,9 @@ async def console(client: Client):
         with ui.dialog() as dialog, ui.card().classes("pane").style(
                 "min-width: 1100px; max-width: 1400px"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"Review · {exam.name}").classes("label")
+                heading(f"Review · {exam.name}", "This exam in full: every condition and "
+                        "combination, what the scanner and the subject did over the transients, "
+                        "and the truth no scanner has.")
                 ui.space()
                 ui.button("Close", on_click=dialog.close).props("flat dense")
             if exam.maps:
@@ -2278,7 +2356,9 @@ async def console(client: Client):
         with ui.dialog() as dialog, ui.card().classes("pane").style(
                 "min-width: 900px; max-width: 1060px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Anatomy" if values else "Anatomy and maps").classes("label")
+                heading("Anatomy" if values else "Anatomy and maps", "Who or what lies in the "
+                        "scanner: a head or a phantom, its tissue, and the field and transmit "
+                        "maps it brings.")
                 ui.space()
                 working = ui.spinner(size="26px", color=SAND)
                 working.set_visibility(False)
@@ -2367,7 +2447,9 @@ async def console(client: Client):
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 700px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Switches · on is real, off is ideal or still").classes("label")
+                heading("Switches · on is real, off is ideal or still", "Each piece of realism "
+                        "alone: on plays it as a real scanner and subject do, off leaves it ideal "
+                        "or still.")
                 ui.space()
                 ui.button("Done", on_click=dialog.close).props("unelevated dense no-caps")
             ui.label("the scan").classes("label").style(
@@ -2530,7 +2612,9 @@ async def console(client: Client):
         with ui.dialog() as dialog, ui.card().classes("pane").style(
                 "min-width: 1000px; max-width: 1140px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Scanner").classes("label")
+                heading("Scanner", "The scanner in the room: its system and limits, a dataset "
+                        "whose measured subject the exam can twin, and your own scans read into "
+                        "it.")
                 ui.space()
                 ui.select({name: SOURCE_WORDS[name]
                            for name in ("literature", "pooled", "mixed", "dataset", "own")
@@ -2555,9 +2639,9 @@ async def console(client: Client):
                         ui.label(limits.cited).classes("label").style(
                             "text-transform: none; letter-spacing: 0; white-space: normal; "
                             "flex: 1")
-                    with row("dataset", "one real subject of a package dataset on the floor: its "
-                                        "readings become a source on every line, its scanner and "
-                                        "voxel come with it"):
+                    with row("dataset", "a twin of a measured subject of this dataset: the "
+                                        "subject's readings fixed, every other value drawn as "
+                                        "usual; its scanner and voxel come with it"):
                         ui.select({"": "none", **session.datasets()}, value=session.cohort or "",
                                   on_change=dataset_picked).mark("dataset").props(
                             "dense outlined dark options-dense").style("width: 480px")
@@ -2736,7 +2820,8 @@ async def console(client: Client):
         with ui.dialog() as dialog, ui.card().classes("pane").style(
                 "min-width: 1000px; max-width: 1140px"):
             with ui.row().classes("w-full items-center"):
-                ui.label("Receive array").classes("label")
+                heading("Receive array", "The coil the signal is received with: its loops or "
+                        "maps, and how much noise its channels share.")
                 ui.space()
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props(
                     "unelevated dense no-caps")
@@ -2830,7 +2915,7 @@ async def console(client: Client):
                 designer()
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 860px"):
-            ui.label("Protocols").classes("label")
+            heading("Protocols", "Exam cards stored to be planned again.")
             with ui.row().classes("w-full no-wrap").style("gap: 14px; align-items: flex-start"):
                 for family, names in (("Single voxel",
                                        [n for n in SEQUENCES if n not in REAL.values()]),
@@ -3092,7 +3177,7 @@ async def console(client: Client):
         with the one on the table marked, a subject picked by name or drawn anew, and what the
         next exam draws at the planned voxel with where each value comes from."""
         if session.cohort is None:
-            ui.notify("No dataset on the floor: pick one on the scanner card")
+            ui.notify("No twin of a measured subject: pick a dataset on the scanner card")
             return
         cohort = next(c for c in package() if c.name == session.cohort)
         strips = ("noise.sigma", "lineshape.gauss_hz", "water.adjusted_residual",
@@ -3101,7 +3186,9 @@ async def console(client: Client):
         rng = np.random.default_rng(0)
         with ui.dialog() as dialog, ui.card().classes("pane no-wrap").style(
                 "min-width: 1100px; max-width: 96vw; height: 90vh; max-height: 90vh"):
-            ui.label(f"Cohort · {session.datasets()[session.cohort]}").classes("label")
+            heading(f"Twin · {session.datasets()[session.cohort]}", "A twin of one measured "
+                    "subject: the exam carries this subject's own readings, every other value is "
+                    "drawn as usual. Pick another subject, or draw one.")
             body = ui.column().classes("w-full").style(
                 "flex: 1 1 auto; min-height: 0; overflow-y: auto; gap: 10px")
 
@@ -3120,7 +3207,7 @@ async def console(client: Client):
                 with body:
                     with ui.row().classes("w-full items-center no-wrap").style("gap: 12px"):
                         ui.select({m.subject: m.subject for m in cohort.members},
-                                  value=member.subject, label="subject on the table",
+                                  value=member.subject, label="the measured subject",
                                   on_change=lambda e: (session.pick_member(e.value), took())
                                   ).props("dense outlined dark options-dense").style(
                             "width: 300px").mark("cohort subject")
@@ -3132,9 +3219,9 @@ async def console(client: Client):
                         ui.label(f"{traits or 'no traits'} · voxel at "
                                  f"{tuple(round(v) for v in member.position_mm)} mm, "
                                  f"{member.size_mm[0]:g} mm · {len(member.fixed().records)} "
-                                 "readings of its own, the rest pooled over people like it"
+                                 "readings of its own, every other value drawn as usual"
                                  ).classes("value").style("white-space: normal; flex: 1")
-                    ui.label("Every subject's readings, the one on the table marked"
+                    ui.label("Every subject's readings, the twin's marked"
                              ).classes("label")
                     with ui.row().classes("w-full no-wrap").style("gap: 6px"):
                         for leaf in strips:
@@ -3201,7 +3288,9 @@ async def console(client: Client):
         # under them, a long table and its foot included
         with ui.dialog() as dialog, ui.card().classes("pane no-wrap").style(
                 "min-width: 1100px; max-width: 96vw; height: 90vh; max-height: 90vh"):
-            ui.label("Database").classes("label")
+            heading("Database", "The measured data and the literature the simulation draws on, to "
+                    "browse. Who or what the simulated subjects are drawn from is chosen in All "
+                    "settings.")
             with ui.tabs().props("dense no-caps align=left") as tabs:
                 measured, literature = ui.tab("Measured datasets"), ui.tab("Literature")
                 parameters = ui.tab("Parameters")
@@ -3245,38 +3334,32 @@ async def console(client: Client):
                                     "dense outlined dark clearable debounce=600").classes(
                                     "col").mark("database query")
                                 def adopt():
-                                    """These rows as the room's population: every pooled
-                                    value comes from them, the person's traits among them."""
-                                    low, high = ages.value["min"], ages.value["max"]
-                                    session.population = {
-                                        "datasets": tuple(facets["dataset"].value or ()),
-                                        "query": query.value or ""}
-                                    person = {}
-                                    if (low, high) != (0, 90):
-                                        person["age_y"] = (float(low), float(high))
-                                    for key in ("sex", "health"):
-                                        values = facets[key].value or []
-                                        if values:
-                                            person[key] = (values[0] if len(values) == 1
-                                                           else tuple(values))
-                                    session.person = person
+                                    """These subjects as the population: the tab's datasets,
+                                    vendors, fields, sex, health and ages carried to the charts
+                                    of All settings, which open on them; the query, the method
+                                    and the leaf filter this table alone."""
+                                    picks = chosen["picks"] = {key: set() for key in POPULATION}
+                                    for key in ("dataset", "vendor", "sex", "health"):
+                                        picks[key] |= set(facets[key].value or ())
+                                    if facets["field"].value:
+                                        picks["field_t"] |= set(frame.loc[
+                                            frame["field"].isin(facets["field"].value),
+                                            "field_t"].dropna().tolist())
+                                    chosen["ages"] = [ages.value["min"], ages.value["max"]]
+                                    narrowed()
+                                    if (query.value or facets["method"].value
+                                            or facets["leaf"].value):
+                                        ui.notify("The query, the method and the leaf filter "
+                                                  "this table alone; the population takes the "
+                                                  "rest")
+                                    dialog.close()
                                     draw()
-                                    ui.notify(session.population_says())
-
-                                def whole():
-                                    session.population = {"datasets": (), "query": ""}
-                                    session.person = {}
-                                    draw()
-                                    ui.notify(session.population_says())
-                                ui.button("use these rows in the room", icon="groups",
+                                    gear()
+                                ui.button("draw from these subjects", icon="groups",
                                           on_click=adopt).mark("population adopt").props(
                                     "outline dense no-caps").tooltip(
-                                    "every pooled value then comes from these rows, the age, sex "
-                                    "and health among them; a line they hold no row of says so "
-                                    "and keeps the literature")
-                                ui.button(icon="restart_alt", on_click=whole).mark(
-                                    "population whole").props("flat dense round size=sm").tooltip(
-                                    "the whole database again, a healthy adult")
+                                    "the simulated subjects then come from these, chosen on the "
+                                    "population charts of All settings, which open on them")
                                 ui.button(icon="download", on_click=lambda: ui.download.content(
                                     chosen_now["rows"].drop(columns="field").to_csv(index=False),
                                     "mrsandbox_database.csv")).props(
@@ -3546,11 +3629,15 @@ async def console(client: Client):
             "every exam scans the same draw of the population; this takes a new one")
         ui.button(icon="groups", on_click=cohort_explorer).mark("cohort").props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
-            "the dataset on the floor: its subjects, the one on the table, what the exam draws")
+            "twin of a measured subject: whose readings the exam carries, the others of its "
+            "dataset, what the exam draws")
         ui.button(icon="storage", on_click=database).mark("database").props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
             "the database: the measured datasets and their subjects, the literature and its "
             "sources")
+        ui.button(icon="help_outline", on_click=guide).mark("help").props(
+            "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
+            "how the console works")
         ui.space()
         status = ui.label("idle").classes("label")
 

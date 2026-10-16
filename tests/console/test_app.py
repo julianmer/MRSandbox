@@ -164,7 +164,8 @@ class TestApp:
                 user.find(marker="scanner settings").click()
                 # a dataset's subject on the floor
                 next(iter(user.find(marker="dataset").elements)).value = "big_gaba_trio"
-                await user.should_see("Big GABA · Siemens Trio 3 T · PRESS · 36 subjects")
+                await user.should_see("Big GABA · Siemens Trio 3 T · PRESS · 36 subjects",
+                                      retries=40)
                 await user.should_see("subject S")
                 next(iter(user.find(marker="dataset").elements)).value = ""
                 await user.should_see("generic, at the field set")  # "none" put the room back
@@ -223,9 +224,6 @@ class TestApp:
                 # the database to browse: every reading, narrowed by a facet and by a query
                 user.find(marker="database").click()
                 await user.should_see("Measured datasets")
-                # these rows as the room's population: every pooled value comes from them
-                user.find(marker="population adopt").click()
-                await user.should_see("pooled values come from every dataset; a healthy adult")
                 user.find(marker="facet dataset").elements.pop().value = ["big_gaba_trio"]
                 await user.should_see("of 36 subjects in 1 datasets", retries=20)
                 user.find(marker="database query").elements.pop().value = "leaf == 'noise.sigma'"
@@ -242,5 +240,8 @@ class TestApp:
                 names = [s["name"] for s in
                          user.find(marker="parameter chart").elements.pop().options["series"]]
                 assert "literature" in names and "this room's pool" in names
+                # the subjects chosen here drawn from: the population charts open on them
+                user.find(marker="population adopt").click()
+                await user.should_see("36 subjects in 1 datasets of", retries=40)
 
         asyncio.run(visit())
