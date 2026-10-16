@@ -52,10 +52,13 @@ class TestVirtualScan:
     #   defaults   #
     #**************#
     def test_default_params_derive_from_the_database(self, scan):
-        assert len(scan.params.conc) == 21
+        # every metabolite with a spin system has a leaf, those outside a healthy brain's spectrum
+        # (free choline, valine, ATP held) at 0 mM
+        assert len(scan.params.conc) == 44
+        assert sum(1 for name in scan.params.conc if scan.params.conc[name] != Fixed(0.0)) == 21
         assert scan.params.conc.NAA == Uniform(7.5, 12.0)
         assert scan.params.conc.Glu == Uniform(6.0, 12.5)
-        assert "Cho" not in scan.params.conc  # covered by GPC and PCho
+        assert scan.params.conc.Cho == scan.params.conc.Val == scan.params.conc.ATP == Fixed(0.0)
         assert isinstance(scan.params.t2.NAA, Normal)  # pooled from Gudmundson
         assert 0.2 < scan.params.t2.NAA.mean < 0.35
         assert scan.params.t2.Ser == Fixed(0.160)  # no rows: the stated fallback
@@ -151,7 +154,7 @@ class TestVirtualScan:
         assert abs(data.dwelltime - 1.0 / 4000.0) < 1e-12
         truth = data.hdr_ext["SimulationGroundTruth"]
         assert truth["seed"] == 7
-        assert len(truth["params"]["conc"]) == 21
+        assert len(truth["params"]["conc"]) == 44
         assert {"NAA", "Glu", "Ins", "GABA", "Lac"} <= set(truth["params"]["conc"])
         assert 0.0 <= truth["tissue_fractions"]["gm"] <= 1.0
         assert data.hdr_ext["SimulationSequence"]["name"] == "Press"
@@ -843,14 +846,21 @@ class TestComponents:
     def test_frame_is_the_key_of_the_rendered_lines(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         truth = voxel.sample(seed=3)
-        t1, t2, b1, offset = voxel.frame(truth)
-        assert len(t1) == len(t2) == len(truth.conc)
-        assert t1[list(truth.conc).index("NAA")] == pytest.approx(
-            float(voxel.resolve(truth.t1.NAA)))
+        names, t1, t2, b1, offset = voxel.frame(truth)
+        # the metabolites present: a compound at 0 mM (valine by default) is not simulated
+        assert len(names) == len(t1) == len(t2) and "Val" in truth.conc and "Val" not in names
+        assert names == tuple(name for name in truth.conc if truth.conc[name] != 0.0)
+        assert t1[names.index("NAA")] == pytest.approx(float(voxel.resolve(truth.t1.NAA)))
         assert b1 == voxel.b1_scale(truth) and offset == voxel.offset_hz(truth)
-        voxel._metabolite_lines(truth)
+        assert set(voxel._metabolite_lines(truth)) == set(names)
         # and the draw's temperature
         assert (False, truth.water.temperature_c) + voxel.frame(truth) in scan._frame_lines
+        # set, it plays
+        valine = VirtualScan(scan.brain, scan.scanner, scan.sequence,
+                             params=Params(conc=dict(Val=1.0)))
+        voxel = valine.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        truth = voxel.sample(seed=3)
+        assert "Val" in voxel.frame(truth)[0] and voxel._metabolite_lines(truth)["Val"][0].size
 
 
 #**************************************************************************************************#

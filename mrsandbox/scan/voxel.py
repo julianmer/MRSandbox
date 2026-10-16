@@ -243,18 +243,21 @@ class Voxel:
 
     def frame(self, truth):
         """The resolved frame the metabolite lines and basis are rendered in at this
-        voxel: (T1 per metabolite, T2 per metabolite, transmit, offset_hz) in
-        truth.conc order, every value resolved here, the transmit being `b1_scale`
-        or, with a per-isochromat profile, (b1_scale, the profile's bytes). Together
+        voxel: (the metabolites present, T1 per metabolite, T2 per metabolite, transmit,
+        offset_hz), the metabolites of truth.conc whose concentration is not zero here (one
+        at 0 mM costs no simulation and has no lines), every value resolved here, the
+        transmit being `b1_scale` or, with a per-isochromat profile, (b1_scale, the
+        profile's bytes). Together
         with the scan's `sequence.structure()` and timings (and, under a gradient
         response, this voxel's position, `_design_key`) it is the complete key of a
         rendered basis, so a caller caching bases across voxels or draws keys them
         by this tuple."""
-        names = tuple(truth.conc)
+        names = tuple(name for name, concentration in truth.conc.items()
+                      if float(np.max(np.abs(self.resolve(concentration)))) > 0.0)
         profile = self.b1_profile(truth)
         transmit = (self.b1_scale(truth) if profile is None
                     else (self.b1_scale(truth), profile.tobytes()))
-        return (tuple(float(self.resolve(truth.t1[name])) for name in names),
+        return (names, tuple(float(self.resolve(truth.t1[name])) for name in names),
                 tuple(float(self.resolve(truth.t2[name])) for name in names),
                 transmit, self.offset_hz(truth))
 
@@ -365,7 +368,8 @@ class Voxel:
             weights = self.metabolite_weights(truth)
             parts = []
             for name, weight in zip(truth.conc, weights):
-                freqs, amps = lines[name]
+                # a metabolite absent here keeps its place, with no lines
+                freqs, amps = lines.get(name, (np.zeros(0, np.float32), np.zeros(0, np.complex64)))
                 if cutoff is not None:
                     amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
                 parts.append((freqs, amps * weight, 1.0 / (np.pi * self.resolve(truth.t2[name])),
@@ -484,15 +488,18 @@ class Voxel:
             return cached[1][frame]
         cutoff = self.scan.downfield.replaces_above_ppm
         f0_mhz = self._f0_mhz()
+        t2 = dict(zip(frame[0], frame[2]))
         freqs, amps, lw, rows = [], [], [], []
         for k, name in enumerate(names):
+            if name not in lines:              # absent: its row stays zero
+                continue
             f, a = lines[name]
             if cutoff is not None:
                 a = np.where(f > cutoff * f0_mhz, np.complex64(0.0), a)
             keep = np.abs(a) > 1e-7 * np.abs(a).max() if a.size else np.zeros(0, bool)
             freqs.append(f[keep])
             amps.append(a[keep])
-            lw.append(np.full(int(keep.sum()), frame[1][k], dtype=np.float32))
+            lw.append(np.full(int(keep.sum()), t2[name], dtype=np.float32))
             rows.append(np.full(int(keep.sum()), k, dtype=np.int64))
         freqs, amps, rows = np.concatenate(freqs), np.concatenate(amps), np.concatenate(rows)
         lw = 1.0 / (np.pi * np.concatenate(lw))
@@ -1046,6 +1053,8 @@ class Voxel:
             np.asarray(ops.convert_to_numpy(g), dtype=np.float32) * np.ones(f.shape[0], np.float32)
             for f, _, _, g in parts
         ])
+        if not amps.size:                      # the parts hold no line (metabolites absent)
+            return None, None
         keep = np.abs(amps) > 1e-7 * np.abs(amps).max()
         voigt = keep & (gauss > 0.0)
         lorentz = keep & ~voigt
@@ -1067,15 +1076,17 @@ class Voxel:
         (Engine.compiled_batch), so a draw costs one dispatch and one transfer; plain,
         each metabolite runs through Engine.lines.
         """
-        names = tuple(truth.conc)
         frame = self.frame(truth)
-        t1, t2, _, offset_hz = frame
+        names, t1, t2, _, offset_hz = frame
         b1_scale = self.b1_input(truth)
         # the draw's tissue temperature: the metabolites' shifts and couplings follow it
         temperature_c = float(self.resolve(truth.water.temperature_c))
         key = (self.compiled, temperature_c) + frame + self._design_key(truth)
         if key in self.scan._frame_lines:
             return self.scan._frame_lines[key]
+        if not names:                          # no metabolite here: nothing to simulate
+            self._share(key, {})
+            return {}
         groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         sequence = self.design(truth)
         # a design played as a whole (a tilted slab) runs plain, its ensemble in chunks: a
@@ -1157,7 +1168,7 @@ class Voxel:
         groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         by_transmit = {}
         for key, truth in fresh.items():
-            _, _, t1, t2, transmit, offset_hz, *tail = key
+            _, _, _, t1, t2, transmit, offset_hz, *tail = key
             by_transmit.setdefault((transmit, offset_hz, tuple(tail)),
                                    (self.b1_input(truth), []))[1].append((key, t1, t2))
         held = self.scan._propagators
@@ -1211,15 +1222,18 @@ class Voxel:
             design = self.design(truth)
             temperature_c = float(self.resolve(truth.water.temperature_c))
             key = (self.compiled, temperature_c) + self.frame(truth) + self._design_key(truth)
-            batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design)), []).append(
-                (truth, key, design))
-        for (temperature_c, _), members in batches.items():
-            names, design = tuple(members[0][0].conc), members[0][2]
+            batches.setdefault((round(4.0 * temperature_c) / 4.0, id(design), key[2]),
+                               []).append((truth, key, design))
+        for (temperature_c, _, names), members in batches.items():
+            design = members[0][2]
             fresh = {}
             for truth, key, _ in members:
                 if key not in shared:
                     fresh.setdefault(key, truth)
-            if engine.positions(design) and any(
+            if not names:                      # no metabolite here: nothing to simulate
+                for key in fresh:
+                    self._share(key, {})
+            elif engine.positions(design) and any(
                     isinstance(event, ShapedPulse) for event in design.events):
                 self._framed_lines(design, names, temperature_c, fresh)
             else:
@@ -1256,7 +1270,7 @@ class Voxel:
             # delay, the Gaussian envelope after; the draws whose lines were made (a profile
             # draw on an ideal design renders alone)
             members = [member for member in members if member[1] in shared]
-            if not members:
+            if not members or not names:
                 continue
             n, dwell = ((npoints, dwell_s) if self.scan.receiver is None
                         else self.scan.receiver.grid(npoints, dwell_s))
@@ -1274,13 +1288,13 @@ class Voxel:
                 rows_amps = np.zeros((len(chunk), f.size), np.complex64)
                 rows_lw = np.ones((len(chunk), f.size), np.float32)
                 for row, (truth, key, _) in enumerate(chunk):
-                    weights, start_s, lines = (self.metabolite_weights(truth),
-                                               float(truth.acquisition.delay_s), shared[key])
+                    weights = dict(zip(truth.conc, self.metabolite_weights(truth)))
+                    start_s, lines = float(truth.acquisition.delay_s), shared[key]
                     for i, name in enumerate(names):
                         part, lw = (slice(bounds[i], bounds[i + 1]),
                                     1.0 / (np.pi * self.resolve(truth.t2[name])))
                         rows_lw[row, part] = lw
-                        rows_amps[row, part] = (lines[name][1] * weights[i]
+                        rows_amps[row, part] = (lines[name][1] * weights[name]
                                                 * self._advance(f[part], lw, start_s))
                 _, fids = self.scan.engine.render_fids(
                     ops.convert_to_tensor(np.pad(f[keep], (0, pad))),

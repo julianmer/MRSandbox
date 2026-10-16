@@ -84,7 +84,7 @@ class WaterSource(abc.ABC):
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
         t2_s = voxel.resolve(truth.water.t2_s) if t2_s is None else t2_s
         held = getattr(self, "_lines", {}).get(id(truth))
-        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[2],
+        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[3],
                voxel.offset_hz(truth))
         if held is not None and held[0] is truth and key in held[1]:
             return held[1][key]
@@ -105,7 +105,7 @@ class WaterSource(abc.ABC):
             if voxel.b1_profile(truth) is not None:
                 continue
             key = (engine, sequence, float(voxel.resolve(truth.water.t1_s)),
-                   float(voxel.resolve(truth.water.t2_s)), voxel.frame(truth)[2],
+                   float(voxel.resolve(truth.water.t2_s)), voxel.frame(truth)[3],
                    voxel.offset_hz(truth))
             entry = held.get(id(truth))
             if entry is None or entry[0] is not truth:

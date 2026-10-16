@@ -309,7 +309,7 @@ class MeasuredMM(MMSource):
         cached = self._repetition
         if cached is None or cached[0] is not truth:
             cached = self._repetition = (truth, {})
-        key = (engine, sequence, voxel.frame(truth)[2], offset_hz)
+        key = (engine, sequence, voxel.frame(truth)[3], offset_hz)
         if key not in cached[1]:
             relaxed = Sequence(*sequence.events, tr_s=1000.0, cycles=sequence.cycles)
             probe = SpinSystem(name="MM", nucleus="1H", shifts_ppm=(0.0,), j_hz=((0.0,),),
@@ -604,7 +604,7 @@ class CoupledMM(MMSource):
     @staticmethod
     def _key(engine, sequence, voxel, truth):
         shift = None if voxel.shift_mm is None else tuple(voxel.shift_mm.values())
-        return (engine, sequence, voxel.frame(truth)[2], voxel.offset_hz(truth), shift)
+        return (engine, sequence, voxel.frame(truth)[3], voxel.offset_hz(truth), shift)
 
     #*************#
     #   prepare   #

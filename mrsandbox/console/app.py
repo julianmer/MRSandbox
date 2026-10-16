@@ -43,8 +43,9 @@ from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING,
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
-from mrsandbox.database import Database
+from mrsandbox.database import Database, concentrations
 from mrsandbox.scan.cohort import package, table
+from mrsandbox.scan.defaults import HELD
 
 #*************#
 #   palette   #
@@ -213,13 +214,26 @@ STATED = {"gradients": "the eddy terms of a design's gradients: ranges set so th
           "b1_scale": "a stated calibration scatter of the transmitter"}
 
 
+def absent(path):
+    """Whether a leaf is a concentration the default spectrum leaves at 0 mM: a compound with a
+    spin system outside a healthy brain's ranges, or one of those held (scan.defaults HELD)."""
+    group, _, name = path.partition(".")
+    return group == "conc" and (name not in concentrations.DE_GRAAF or name in HELD)
+
+
 def plain_word(path):
     """The source word of a leaf that carries no sources of its own: stated where the package
     assumed its range, literature where a table gives it."""
-    return "stated" if path in STATED or path.split(".")[0] in STATED else "literature"
+    return ("stated" if path in STATED or path.split(".")[0] in STATED or absent(path)
+            else "literature")
 
 
 def plain_why(path):
+    if absent(path):
+        name = path.partition(".")[2]
+        ranged = concentrations.DE_GRAAF.get(name)
+        return ("0 mM until set: not in a healthy brain's default spectrum"
+                + (f" (de Graaf gives {ranged[0]:g} to {ranged[1]:g} mM)" if ranged else ""))
     return (STATED.get(path) or STATED.get(path.split(".")[0])
             or "typed from a table of the literature (scan.defaults names it)")
 

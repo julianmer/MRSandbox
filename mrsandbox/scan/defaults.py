@@ -37,6 +37,9 @@ from mrsandbox.params import (Clipped, Empirical, Fixed, Mixture, Normal, Params
 #****************#
 # the typed fields; a scan at any other field takes the nearest one (stated)
 FIELDS_T = (1.5, 3.0, 7.0)
+# the compounds de Graaf gives a brain range for that the default spectrum still leaves at 0 mM
+# (acetate 0 to 0.5, ATP 2 to 4, ethanolamine 0 to 1.6, threonine 0 to 0.5 mM)
+HELD = ("Ace", "ATP", "EA", "Thr")
 TISSUES = ("gm", "wm", "csf")
 WATER_CITED = ("Boudreau et al. 2024 (the ISMRM T1 challenge, 3 T cortex and genu), "
                "Rooney et al. 2007 (CSF); T2 the median of five stimulated-echo-corrected "
@@ -121,8 +124,12 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
-    names = [name for name in db.metabolites() if name in concentrations.DE_GRAAF]
-    conc = Priors.de_graaf(metabolites=names, database=db)
+    # every metabolite with a spin system has its leaves; those of a healthy brain's default
+    # spectrum draw de Graaf's range, every other one stands at 0 mM until it is set
+    names = list(db.metabolites())
+    present = [name for name in names if name in concentrations.DE_GRAAF and name not in HELD]
+    conc = Priors.de_graaf(metabolites=present, database=db) | Params(
+        {name: Fixed(0.0) for name in names if name not in present})
     # creatine: de Graaf's 4.5 to 10.5 mM is the total creatine and his 3.0 to 5.5 the
     # phosphocreatine inside it; stacked on the PCr leaf the total range would count the
     # phosphocreatine twice, so the creatine leaf's literature is the total with the

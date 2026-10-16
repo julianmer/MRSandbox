@@ -122,7 +122,7 @@ class TestTransmitMap:
         # a design without gradients has no ensemble, so the box mean is all there is
         assert self.scan(Volume(ramp, affine), PulseAcquire()).voxel(
             position_mm=(0.0, 0.0, 4.0), size_mm=20.0).b1_profile(truth) is None
-        assert voxel.frame(truth)[2] == (voxel.b1_scale(truth), profile.tobytes())
+        assert voxel.frame(truth)[3] == (voxel.b1_scale(truth), profile.tobytes())
 
     @pytest.mark.slow
 
