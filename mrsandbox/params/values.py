@@ -475,3 +475,38 @@ class PerTissue(Value):
     #************#
     def sample(self, rng):
         return Tissues(gm=self.gm.sample(rng), wm=self.wm.sample(rng), csf=self.csf.sample(rng))
+
+
+#*************#
+#   reading   #
+#*************#
+def reading(value):
+    """A value in a few words, as a table or a line shows it: a number ("1.55"), a range ("3 to
+    5.5"), a mean and sd ("1.55 ± 0.16"), a population as its median and 5th to 95th ("5.41 (3.5
+    to 13)"), a per-tissue value by tissue ("gm 1.55 ± 0.16, wm 1.08 ± 0.1"; a CSF of zero left
+    out), a map as "from a map"; a bounded value reads as the value it bounds, a sourced leaf as
+    its chosen source."""
+    if isinstance(value, Sourced):
+        return reading(value.current)
+    if isinstance(value, Clipped):
+        return reading(value.value)
+    if isinstance(value, (PerTissue, Tissues)):
+        parts = [("gm", value.gm), ("wm", value.wm)]
+        if value.csf not in (0.0, Fixed(0.0)):
+            parts.append(("csf", value.csf))
+        return ", ".join(f"{name} {reading(part)}" for name, part in parts)
+    if isinstance(value, Fixed):
+        return reading(value.value)
+    if isinstance(value, numbers.Real) and not isinstance(value, bool):
+        return f"{value:.3g}"
+    if isinstance(value, Uniform):
+        return f"{value.low:.3g} to {value.high:.3g}"
+    if isinstance(value, Normal):
+        return f"{value.mean:.3g} ± {value.sd:.2g}"
+    if isinstance(value, (Empirical, Mixture)):
+        if f"{value.low:.3g}" == f"{value.high:.3g}":
+            return f"{value.value:.3g}"
+        return f"{value.value:.3g} ({value.low:.3g} to {value.high:.3g})"
+    if isinstance(value, Mapped):
+        return "from a map"
+    return str(value)

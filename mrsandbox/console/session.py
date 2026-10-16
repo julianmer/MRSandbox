@@ -33,7 +33,7 @@ from mrsandbox.hardware.arrays import PRESETS as ARRAY_PRESETS
 from mrsandbox.hardware.coils import MappedCoilArray
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.params import Empirical, Fixed, Mapped, Normal, Params, Sourced, Uniform
-from mrsandbox.params.values import Tissues
+from mrsandbox.params.values import Tissues, reading
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.phantom.volume import turning
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
@@ -411,7 +411,7 @@ def _datasets():
 def _describe(value):
     """A Value as the console lists it, (kind, numbers): "fixed" with (value,), "range" with (low,
     high), "normal" with (mean, sd), "empirical" with (median, 5th, 95th, subjects), or "other"
-    with the value's own text (a tissue record, a map); a Sourced leaf as its chosen source."""
+    with the value's short reading (a tissue record, a map); a Sourced leaf as its chosen source."""
     if isinstance(value, Sourced):
         value = value.current
     if isinstance(value, Empirical):    # a pooled leaf: one measured subject per draw
@@ -423,7 +423,7 @@ def _describe(value):
         return "range", (float(value.low), float(value.high))
     if isinstance(value, Normal):
         return "normal", (float(value.mean), float(value.sd))
-    return "other", repr(value)[:60]
+    return "other", reading(value)
 
 
 # the makers of the receive arrays on the shelf (hardware.arrays), as the console names them

@@ -1147,7 +1147,7 @@ async def console(client: Client):
         with holder:
             ui.label(NAMES.get(path, path.split(".", 1)[-1])).style(
                 f"width: 250px; font-size: 13px; color: {SAND if own is not None else INK}")
-            ui.label(SHOWN[kind].format(*numbers) if kind != "other" else str(numbers)[:40]
+            ui.label(SHOWN[kind].format(*numbers) if kind != "other" else numbers
                      ).classes("value").style("width: 260px")
             chip(chosen, provenance)
             if (session.choices.get(path) == "pooled"
@@ -2360,7 +2360,7 @@ async def console(client: Client):
                                         f"{r.leaf.split('.')[-1]} {r.value:.3g}"
                                         for r in session.run_records
                                         if r.leaf.startswith(path + "."))
-                                        or str(numbers)[:40]).classes("value").style("width: 260px")
+                                        or numbers).classes("value").style("width: 260px")
                                     chip("own", said)
                         kept = collections.Counter(SOURCE_WORDS[source or plain_word(path)]
                                                    for path, _, _, source, _ in table

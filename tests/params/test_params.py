@@ -94,6 +94,16 @@ class TestValues:
         assert isinstance(concrete, Tissues)
         assert 6.0 <= concrete.gm < 12.0 and 4.0 <= concrete.wm < 9.0 and concrete.csf == 0.0
 
+    def test_every_value_reads_in_a_few_words(self):
+        from mrsandbox.params import Empirical, Sourced, reading
+
+        t1 = PerTissue(gm=Clipped(Normal(1.548, 0.156), low=0.1), wm=Normal(1.08, 0.10))
+        assert reading(t1) == "gm 1.55 ± 0.16, wm 1.08 ± 0.1"
+        assert reading(Tissues(1.5, 1.03, 4.3)) == "gm 1.5, wm 1.03, csf 4.3"
+        assert reading(Uniform(3.0, 5.5)) == "3 to 5.5"
+        assert reading(Empirical((3.0, 4.0, 5.0))) == "4 (3.1 to 4.9)"
+        assert reading(Sourced(literature=Fixed(0.011))) == "0.011"
+
     #************#
     #   mapped   #
     #************#

@@ -17,6 +17,6 @@
 #   imports   #
 #*************#
 from mrsandbox.params.values import (SOURCES, Clipped, Empirical, Fixed, Mapped, Mixture, Normal,
-                                     PerTissue, Sourced, Tissues, Uniform, Value)
+                                     PerTissue, Sourced, Tissues, Uniform, Value, reading)
 from mrsandbox.params.trees import Params
 from mrsandbox.params.priors import Priors
