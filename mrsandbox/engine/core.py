@@ -805,6 +805,9 @@ class Engine:
             frame_path, draws_path = (self._export_path(kind, sequence, groups, isochromats, True)
                                       for kind in ("frame", "framed draws"))
             if frame_path is None:
+                # the contexts made here, not inside the first trace: a tensorflow graph's
+                # constants belong to that graph, and the other graphs read them too
+                build()
                 self._compiled[key] = (jit(lambda *args: build()[0](*args)), lines,
                                        Backend.vmap(lines, in_axes=axes), kept)
             else:
@@ -1042,7 +1045,7 @@ class Engine:
                 if many:
                     table = ops.einsum("lm,kl,lp->kmp", stride, amps, inside)
                     return t, ops.reshape(table, (amps.shape[0], -1))[:, :npoints]
-                table = ops.matmul(ops.transpose(stride), ops.expand_dims(amps, 1) * inside)
+                table = ops.transpose(stride) @ (ops.expand_dims(amps, 1) * inside)
                 return t, ops.reshape(table, (-1,))[:npoints]
 
             return jit(lorentzian)

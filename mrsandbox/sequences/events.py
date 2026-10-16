@@ -666,7 +666,7 @@ class ShapedPulse(Event):
                     u = u[:, :, 0]
                 while int(u.shape[1]) > 1:
                     n = int(u.shape[1])
-                    pairs = ops.matmul(u[:, 1:n:2], u[:, 0:n - n % 2:2])
+                    pairs = u[:, 1:n:2] @ u[:, 0:n - n % 2:2]
                     u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[:, n - 1:]], axis=1)
                 segments.append(u[:, 0])
             return ops.concatenate(segments, axis=0), total
@@ -681,9 +681,9 @@ class ShapedPulse(Event):
                     u = u[:, 0]
                 while int(u.shape[0]) > 1:
                     n = int(u.shape[0])
-                    pairs = ops.matmul(u[1:n:2], u[0:n - n % 2:2])
+                    pairs = u[1:n:2] @ u[0:n - n % 2:2]
                     u = pairs if n % 2 == 0 else ops.concatenate([pairs, u[n - 1:]], axis=0)
-                propagator = u[0] if propagator is None else ops.matmul(u[0], propagator)
+                propagator = u[0] if propagator is None else u[0] @ propagator
             segments.append(propagator)
         return ops.stack(segments), total
 

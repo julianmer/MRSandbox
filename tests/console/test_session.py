@@ -411,8 +411,8 @@ class TestSession:
 
     def test_the_designers_perfect_spectrum_has_no_broadening(self):
         session = Session(ICBM)
-        # the water suppressed, so NAA stands clear of the water's wing
-        session.protocol.npoints, session.protocol.water_suppression = 2048, "VAPOR"
+        # the water suppressed as assumed (no train played), so NAA stands clear of its wing
+        session.protocol.npoints, session.protocol.water_suppression = 2048, "assumed residual"
         session.protocol.ovs = False
 
         def naa(perfect):

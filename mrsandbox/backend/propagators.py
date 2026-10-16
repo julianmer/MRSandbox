@@ -128,11 +128,11 @@ class Backend:
         scale = nops.cast(ops.exp2(-s), precision.COMPLEX)
         a = a * ops.expand_dims(ops.expand_dims(scale, -1), -1)
         eye = ops.eye(int(a.shape[-1]), dtype=precision.COMPLEX)
-        a2 = ops.matmul(a, a)
-        a3 = ops.matmul(a2, a)
-        a4 = ops.matmul(a2, a2)
-        a5 = ops.matmul(a4, a)
-        a6 = ops.matmul(a4, a2)
+        a2 = a @ a
+        a3 = a2 @ a
+        a4 = a2 @ a2
+        a5 = a4 @ a
+        a6 = a4 @ a2
         powers = (eye, a, a2, a3, a4, a5)
         inverse_factorial = [1.0 / math.factorial(k) for k in range(19)]
 
@@ -140,9 +140,9 @@ class Backend:
             return sum(inverse_factorial[6 * j + k] * powers[k] for k in range(6))
 
         u = block(2) + inverse_factorial[18] * a6
-        u = block(1) + ops.matmul(a6, u)
-        u = block(0) + ops.matmul(a6, u)
+        u = block(1) + a6 @ u
+        u = block(0) + a6 @ u
         for k in range(Backend.SQUARINGS):
             keep = ops.expand_dims(ops.expand_dims(s > float(k), -1), -1)
-            u = ops.where(keep, ops.matmul(u, u), u)
+            u = ops.where(keep, u @ u, u)
         return u
