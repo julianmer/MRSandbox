@@ -3286,7 +3286,7 @@ async def console(client: Client):
             "setting, choice, dataset or file of yours")
         ui.button(icon="person_add_alt", on_click=lambda: (
             setattr(session, "seed", int(np.random.default_rng().integers(2 ** 31))),
-            room() if session.cohort else None, draw() if session.cohort else None,
+            room() if session.cohort else None, draw(),
             ui.notify("A new draw of the population is scanned from here on"
                       + (f": {session.member().subject}" if session.cohort else "")))).props(
             "flat dense round size=sm").style(f"color: {GLOW}; margin-left: -10px").tooltip(
