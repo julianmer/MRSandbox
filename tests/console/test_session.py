@@ -839,6 +839,45 @@ class TestSession:
         session.population = {"datasets": (), "query": ""}
         assert subjects("noise.sigma") == everyone
 
+    def test_the_overview_narrows_by_its_charts_and_shows_what_is_drawn(self):
+        # every chart's choice is a condition the rows meet (an age range too, which as the person
+        # alone would give way), nothing chosen is everyone again, and the draws of a pooled leaf
+        # follow the population
+        import re
+
+        session = Session(ICBM)
+
+        def subjects(path):
+            said = session.sources()[path]["provenance"]["pooled"]
+            return int(re.search(r"pooled over (\d+) subjects", said).group(1))
+
+        everyone, wide = subjects("noise.sigma"), session.draws()["noise.sigma"]
+        session.narrow(datasets=("cows_prisma",))
+        cows = subjects("noise.sigma")
+        session.narrow(datasets=("cows_prisma",), ages=(40, 90))
+        assert 0 < subjects("noise.sigma") < cows < everyone
+        assert session.person == {"age_y": (40.0, 90.0)}
+        narrow = session.draws()
+        assert narrow["noise.sigma"].shape == (300,) and narrow["water.t1_s"].shape == (300, 3)
+        assert np.ptp(narrow["noise.sigma"]) < np.ptp(wide)
+        session.narrow()
+        assert subjects("noise.sigma") == everyone and session.person == {}
+
+    def test_a_dataset_is_the_card_on_new_draws_with_their_truth(self, tmp_path):
+        # each subject a new draw, its exam a NIfTI-MRS file, its drawn values a row of the table;
+        # the session's own draw comes back
+        import pandas as pd
+
+        session = Session(ICBM)
+        session.seed = 7
+        session.protocol.averages, session.protocol.npoints = 2, 512
+        session.protocol.water_reference, session.protocol.real = 0, False
+        table = session.make_dataset(tmp_path, 2, seed=100)
+        rows = pd.read_csv(table)
+        assert list(rows["seed"]) == [100, 101] and session.seed == 7
+        assert all((tmp_path / name).exists() for name in rows["file"])
+        assert rows["conc.NAA"].nunique() == 2 and "noise.sigma" in rows
+
     def test_the_arrays_noise_share_comes_from_the_pooled_rows(self):
         # the share of a channel's noise that is its own: the package's rows of the channels'
         # correlation for the scanner at the array's channel count, turned into the share against

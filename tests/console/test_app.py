@@ -49,6 +49,8 @@ class TestApp:
                            for handler in keyboard._key_handlers)
                 user.find(marker="all settings").click()
                 await user.should_see("sources:")
+                # the population beside the lines, every subject at first
+                await user.should_see("subjects in")
                 for fold in user.find(kind=ui.expansion).elements:  # a group fills when it opens
                     fold.value = True
                 await user.should_see("literature")                       # a chip on an opened line
@@ -182,7 +184,7 @@ class TestApp:
                 user.find(marker="level as acquired").click()
                 await asyncio.sleep(1.0)
                 live = next(e for e in user.find(kind=ui.echart).elements
-                            if "transient 4 of 4" in e.options["title"]["text"])
+                            if "transient 4 of 4" in e.options.get("title", {}).get("text", ""))
                 assert (len(live.options["series"]) == 1 + 4
                         and live.options["yAxis"]["max"] > live.options["yAxis"]["min"])
                 # the shim and the prescan have a tab of their own

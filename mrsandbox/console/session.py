@@ -1655,6 +1655,24 @@ class Session:
                 traits.append(f"{value:g} years")
         return said + "; " + (", ".join(traits) if traits else "a healthy adult")
 
+    def narrow(self, datasets=(), vendors=(), fields=(), ages=None, sexes=(), health=()):
+        """The population as the overview's charts choose it, every choice a condition the rows
+        must meet: the datasets named, the vendors, the fields (tesla, as the readings state them),
+        the sexes and health, and the age range (years; a subject of no stated age is left out),
+        as a query over the database's rows; the age, sex and health also make the person on
+        the table. What is not chosen is everyone."""
+        terms = [f"{column} in {sorted(values)!r}"
+                 for column, values in (("vendor", vendors), ("field_t", fields),
+                                        ("sex", sexes), ("health", health)) if values]
+        if ages is not None:
+            terms.append(f"age_low >= {float(ages[0])!r} and age_high <= {float(ages[1])!r}")
+        self.population = {"datasets": tuple(datasets), "query": " and ".join(terms)}
+        person = {key: values[0] if len(values) == 1 else tuple(values)
+                  for key, values in (("sex", tuple(sexes)), ("health", tuple(health))) if values}
+        if ages is not None:
+            person["age_y"] = (float(ages[0]), float(ages[1]))
+        self.person = person
+
     def pick_member(self, subject):
         """Put one subject of the cohort on the floor by name, its scanner, place and size with
         it, until a new draw of the population (the seed) takes another."""
@@ -2340,6 +2358,31 @@ class Session:
                                   ".".join(here) in self.overrides))
 
         walk(self.twin(sequence, params=self.params() if own else Params({})).params, ())
+        return found
+
+    def draws(self, count=300, seed=0):
+        """What the next exams draw, `count` times over for every numeric leaf of the room's tree
+        (the operator's settings and source choices applied, the population as it stands): {path:
+        array of (count,)}, a per-tissue leaf (count, 3) in grey matter, white matter, CSF; a
+        leaf read from a map has none."""
+        rng = np.random.default_rng(seed)
+        found = {}
+
+        def walk(node, path):
+            for key, value in node.items():
+                here = path + (key,)
+                if isinstance(value, Params):
+                    walk(value, here)
+                    continue
+                if isinstance(value, Mapped):
+                    continue
+                first = value.sample(rng)
+                if isinstance(first, Tissues) or (isinstance(first, (int, float))
+                                                  and not isinstance(first, bool)):
+                    found[".".join(here)] = np.array(
+                        [first] + [value.sample(rng) for _ in range(count - 1)], dtype=float)
+
+        walk(self.twin().params, ())
         return found
 
     #************#
@@ -3178,3 +3221,34 @@ class Session:
         path = folder / (exam.name.replace(" ", "_").replace(".", "p") + ".nii.gz")
         exam.data.save(path)
         return path
+
+    def make_dataset(self, folder, subjects, seed=0, done=None):
+        """A dataset of the card on `subjects` draws of the population, written into `folder`: each
+        subject a new draw (seed, seed + 1, ...; a new member where a dataset is on the floor),
+        its exam as the card plays it exported as NIfTI-MRS (the truth in its header), and
+        truth.csv with a row per subject: its file, seed, and every numeric value the exam drew at
+        the voxel. `done(k)` hears of each subject finished. The session's own draw comes back
+        after, a subject picked by name with it. Returns truth.csv's path."""
+        import pandas as pd
+
+        folder = pathlib.Path(folder).expanduser()
+        folder.mkdir(parents=True, exist_ok=True)
+        kept, named, rows = self.seed, self.member_name, []
+        try:
+            for k in range(int(subjects)):
+                self.seed = seed + k
+                exam = self.plan(queued=False)
+                exam.name = f"subject_{k + 1:04d} {exam.name.split(' ', 1)[1]}"
+                self.run(exam, seed=self.seed)
+                path = self.export(exam, folder)
+                rows.append({"subject": k + 1, "file": path.name, "seed": self.seed,
+                             **{name: value for name, value, _ in self.drawn()}})
+                if done is not None:
+                    done(k + 1)
+        finally:
+            self.seed = kept
+            if named is not None:
+                self.pick_member(named)
+        table = folder / "truth.csv"
+        pd.DataFrame(rows).to_csv(table, index=False)
+        return table

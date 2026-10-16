@@ -36,7 +36,8 @@ from PIL import Image
 from mrsandbox.io.folder import reads
 from mrsandbox.hardware.arrays import PRESETS as ARRAY_PRESETS
 from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED,
-                                       GEARS, IDEALS, LENT, MRSI, OVERLAYS, PLACE, PLACES, PROCESS,
+                                       GEARS, IDEALS, LENT, MAKERS, MRSI, OVERLAYS, PLACE, PLACES,
+                                       PROCESS,
                                        REAL, RUN, RUN_OF, SCANNERS, TARGETS, adjusted, named,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.hardware.scanners import PRESETS
@@ -221,6 +222,32 @@ def plain_word(path):
 def plain_why(path):
     return (STATED.get(path) or STATED.get(path.split(".")[0])
             or "typed from a table of the literature (scan.defaults names it)")
+
+
+def spark(draws, width=130, height=24, bins=24):
+    """What a leaf draws as a small histogram in inline SVG, its 1st to 99th percentile across
+    the box: a per-tissue leaf's grey matter in sand and white matter in copper over it, a value
+    that does not vary as one bar in the middle."""
+    if draws is None:
+        return ""
+    columns = np.asarray(draws, dtype=float).reshape(len(draws), -1)[:, :2]
+    low, high = np.percentile(columns, (1.0, 99.0))
+    shapes = []
+    for column, colour in zip(columns.T, (SAND, COPPER)):
+        if high - low <= 1e-9 * max(abs(high), 1.0):
+            shapes.append(f'<rect x="{width / 2 - 1}" y="2" width="2" height="{height - 2}" '
+                          f'fill="{colour}"/>')
+            continue
+        counts, _ = np.histogram(np.clip(column, low, high), bins=bins, range=(low, high))
+        step = width / bins
+        points = " ".join(f"{k * step:.1f},{height - (height - 2) * c / counts.max():.1f} "
+                          f"{(k + 1) * step:.1f},{height - (height - 2) * c / counts.max():.1f}"
+                          for k, c in enumerate(counts))
+        shapes.append(f'<polygon points="0,{height} {points} {width},{height}" fill="{colour}" '
+                      f'fill-opacity="{0.85 if not shapes else 0.55}"/>')
+    return (f'<svg width="{width}" height="{height}" style="display: block">'
+            f'<line x1="0" y1="{height - 0.5}" x2="{width}" y2="{height - 0.5}" stroke="{LINE}"/>'
+            + "".join(shapes) + "</svg>")
 # the scanner's leaves in words
 NAMES = {"noise.sigma": "noise level (one transient, 8 mL, 3 T)",
          "lineshape.gauss_hz": "line broadening, the shim (Hz)",
@@ -505,6 +532,7 @@ async def console(client: Client):
                  "bands": {}, "slab": None, "handles": {}, "handle": None,
                  "looking": False, "every": True, "cell": None, "grid": None,
                  "zoom": {"tra": 1.0, "sag": 1.0, "cor": 1.0}, "over": "tra", "slabs": True})
+    drawing = {}        # what every leaf draws (Session.draws), refreshed as the settings open
 
     def room(loops_only=False):
         """Rebuild the 3D view: the three planes hung where they cut the subject (paint fills them,
@@ -1013,6 +1041,72 @@ async def console(client: Client):
                     "unelevated dense no-caps")
         dialog.open()
 
+    def dataset():
+        """The card on many draws of the population: how many subjects, from which first draw,
+        into which folder; what each value draws is the settings' (opened from here), the
+        population theirs too. Each subject's exam is written as NIfTI-MRS and truth.csv holds
+        every value drawn."""
+        card = session.protocol
+        sources = session.sources()
+        counted = collections.Counter(
+            "custom" if path in session.overrides else sources[path]["chosen"] if path in sources
+            else plain_word(path) for path, *_ in session.leaves(own=False))
+        took = session.compute_s()
+        with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 680px"):
+            ui.label("Make a dataset").classes("label")
+            for name, said in (
+                    ("card", f"{card.sequence}"
+                             + (f", TE {card.te_ms:g} ms" if card.sequence in SEQUENCES else "")
+                             + f", {card.averages} averages, the voxel as planned"),
+                    ("population", session.population_says()),
+                    ("values", " · ".join(f"{SOURCE_WORDS.get(word, word)} {n}"
+                                          for word, n in counted.most_common()))):
+                with ui.row().classes("w-full no-wrap"):
+                    ui.label(name).classes("label").style("width: 90px")
+                    ui.label(said).classes("value").style("white-space: normal; flex: 1")
+            ui.button("see and change what each value draws, and the population",
+                      icon="tune", on_click=lambda: gear()).props("flat dense no-caps")
+            with ui.row().classes("w-full items-center no-wrap"):
+                subjects = ui.number("subjects", value=20, min=1, step=1, format="%d").props(
+                    "dense outlined dark").style("width: 120px").mark("dataset subjects")
+                first = ui.number("first draw", value=0, min=0, step=1, format="%d").props(
+                    "dense outlined dark").style("width: 120px")
+                folder = ui.input("folder", value=str(
+                    pathlib.Path.home() / "MRSandbox" / "datasets" / time.strftime("%Y%m%d_%H%M%S"))
+                    ).props("dense outlined dark").classes("col").mark("dataset folder")
+            ui.label("about " + (f"{took:.0f} s a subject on this computer" if took
+                                 else "as long as one exam of this card a subject")).classes(
+                "label").style("text-transform: none; letter-spacing: 0")
+            bar = ui.linear_progress(value=0.0, show_value=False).props("color=amber")
+            said = ui.label("").classes("value").style("white-space: normal; word-break: break-all")
+            finished = {"count": 0}
+
+            async def make():
+                go.disable()
+                total = int(subjects.value or 1)
+                ticking = ui.timer(0.5, lambda: (
+                    bar.set_value(finished["count"] / total),
+                    said.set_text(f"{finished['count']} of {total} subjects written")))
+                try:
+                    table_path = await run.io_bound(
+                        session.make_dataset, folder.value, total, int(first.value or 0),
+                        lambda k: finished.update(count=k))
+                    said.set_text(f"{total} subjects written; their truth in {table_path}")
+                    bar.set_value(1.0)
+                except Exception as error:                                     # noqa: BLE001
+                    said.set_text(f"Stopped: {error}"[:300])
+                finally:
+                    ticking.cancel()
+                    go.enable()
+                draw()
+
+            with ui.row().classes("w-full"):
+                ui.space()
+                ui.button("Close", on_click=dialog.close).props("flat dense no-caps")
+                go = ui.button("Make", icon="play_arrow", on_click=make).props(
+                    "unelevated dense no-caps").mark("dataset make")
+        dialog.open()
+
     def chip(source, provenance=""):
         """The source of a value as one coloured word."""
         return ui.label(SOURCE_WORDS[source]).style(
@@ -1146,9 +1240,13 @@ async def console(client: Client):
         holder.clear()
         with holder:
             ui.label(NAMES.get(path, path.split(".", 1)[-1])).style(
-                f"width: 250px; font-size: 13px; color: {SAND if own is not None else INK}")
+                f"width: 250px; flex-shrink: 0; font-size: 13px; "
+                f"color: {SAND if own is not None else INK}")
             ui.label(SHOWN[kind].format(*numbers) if kind != "other" else numbers
-                     ).classes("value").style("width: 260px")
+                     ).classes("value").style("width: 260px; flex-shrink: 0")
+            ui.html(spark(drawing.get(path)), sanitize=False).style(
+                "width: 130px; flex-shrink: 0").tooltip(
+                "what the next exams draw: 300 draws, the 1st to 99th percentile across")
             chip(chosen, provenance)
             if (session.choices.get(path) == "pooled"
                     and (not info or "pooled" not in info["sources"])):
@@ -1186,7 +1284,10 @@ async def console(client: Client):
     def lines(body, priors, sources, after=None, groups=True):
         """The lines of `priors` in `body`: with `groups`, one line per group carrying the group's
         source (a select for all its lines) and its members under it, opened on click; without, the
-        lines alone. Returns build(wanted), which refills them (a search opens what it finds)."""
+        lines alone. Returns build(wanted), which refills them (a search opens what it finds, a
+        group opened stays open)."""
+        opened = set()
+
         def build(wanted=""):
             body.clear()
             found = {}
@@ -1226,7 +1327,8 @@ async def console(client: Client):
                         if after is not None:
                             after()
 
-                    def fill(event, paths=paths, done=[]):
+                    def fill(event, paths=paths, group=group, done=[]):
+                        (opened.add if event.value else opened.discard)(group)
                         if event.value and not done:
                             done.append(True)
                             with event.sender:
@@ -1258,35 +1360,172 @@ async def console(client: Client):
                             ui.select(offered, value=common if common in offered else None,
                                       label="for all lines", on_change=for_all).props(
                                 "dense outlined dark options-dense").style("width: 150px")
-                        if wanted:
+                        if wanted or group in opened:
                             fold.value = True
 
         return build
 
+    def population(holder, changed):
+        """The population as linked charts over the measured subjects, in `holder`: a bar per
+        dataset, vendor, field, sex and health holding the subjects it leaves under the other
+        charts' choices, the ages as a histogram with a range. A bar's click takes it in or out,
+        the range narrows the ages; every choice is a condition the rows each pooled value comes
+        from must meet (Session.narrow), and `changed` runs after it."""
+        rows = table()
+        people = rows[rows["failed"] == ""].drop_duplicates(["dataset", "subject"])
+        labels = {r["name"]: r["dataset"] for r in Session.catalogue()}
+        named = {"dataset": lambda v: labels.get(v, v), "vendor": lambda v: MAKERS.get(v, v),
+                 "field_t": lambda v: f"{v:g} T", "sex": str, "health": str}
+        picked = chosen.setdefault("picks", {key: set() for key in named})
+        ages = chosen.setdefault("ages", [0, 90])
+        charts = {}
+
+        def kept(skip=None):
+            """The subjects every choice but `skip`'s leaves."""
+            out = people
+            for key, values in picked.items():
+                if key != skip and values:
+                    out = out[out[key].isin(values)]
+            if skip != "age" and ages != [0, 90]:
+                out = out[(out["age_low"] >= ages[0]) & (out["age_high"] <= ages[1])]
+            return out
+
+        def bars(key):
+            counts = kept(key)[key].dropna().value_counts()
+            values = sorted(set(people[key].dropna()), key=lambda v: (-counts.get(v, 0), str(v)))
+            return values, {
+                "animation": False, "backgroundColor": "transparent",
+                "grid": {"left": 170 if key == "dataset" else 110, "right": 36, "top": 0,
+                         "bottom": 0},
+                "xAxis": {"type": "value", "show": False},
+                "yAxis": {"type": "category", "inverse": True,
+                          "data": [named[key](v) for v in values],
+                          "axisLabel": {"color": INK, "fontSize": 11, "width": 160,
+                                        "overflow": "truncate"},
+                          "axisLine": {"show": False}, "axisTick": {"show": False}},
+                "series": [{"type": "bar", "barWidth": 9, "label": {
+                    "show": True, "position": "right", "color": DIM, "fontSize": 10},
+                    "data": [{"value": int(counts.get(v, 0)), "itemStyle": {
+                        "color": SAND if v in picked[key] or not picked[key] else LINE}}
+                        for v in values]}]}
+
+        def paint():
+            for key, chart in charts.items():
+                chart.options.update(bars(key)[1])
+                chart.update()
+            shown = kept("age")
+            middle = 0.5 * (shown["age_low"] + shown["age_high"].fillna(shown["age_low"]))
+            middle = middle.dropna()
+            counts, _ = np.histogram(middle, bins=18, range=(0, 90))
+            age_chart.options["series"][0]["data"] = [
+                {"value": int(c), "itemStyle": {"color": SAND if ages[0] <= 5 * k and
+                                                5 * (k + 1) <= ages[1] else LINE}}
+                for k, c in enumerate(counts)]
+            age_chart.update()
+            now = kept()
+            count.text = (f"{len(now)} subjects in {now['dataset'].nunique()} datasets "
+                          f"of {len(people)} in {people['dataset'].nunique()}")
+
+        async def apply():
+            session.narrow(datasets=sorted(picked["dataset"]), vendors=sorted(picked["vendor"]),
+                           fields=sorted(picked["field_t"]), sexes=sorted(picked["sex"]),
+                           health=sorted(picked["health"]),
+                           ages=None if ages == [0, 90] else tuple(ages))
+            paint()
+            await changed()
+
+        async def toggle(key, label):
+            value = next(v for v in people[key].dropna().unique() if named[key](v) == label)
+            picked[key] ^= {value}
+            await apply()
+
+        async def aged(event):
+            ages[:] = [event.args["min"], event.args["max"]]
+            await apply()
+
+        async def everyone():
+            for values in picked.values():
+                values.clear()
+            ages[:] = [0, 90]
+            slider.value = {"min": 0, "max": 90}
+            await apply()
+
+        with holder:
+            with ui.row().classes("w-full items-center no-wrap"):
+                ui.label("Population").classes("label")
+                ui.space()
+                ui.button("everyone", icon="restart_alt", on_click=everyone).props(
+                    "flat dense no-caps").mark("population everyone")
+            count = ui.label().classes("value").mark("population count")
+            for key, title in (("vendor", "vendor"), ("field_t", "field"), ("sex", "sex"),
+                               ("health", "health"), ("dataset", "dataset")):
+                ui.label(title).classes("label").style("margin-top: 6px")
+                values, options = bars(key)
+                charts[key] = ui.echart(options, on_point_click=lambda event, key=key: toggle(
+                    key, event.name)).style(f"height: {16 * len(values) + 4}px; width: 100%").mark(
+                    f"population {key}")
+            ui.label("age (years)").classes("label").style("margin-top: 6px")
+            age_chart = ui.echart({
+                "animation": False, "backgroundColor": "transparent",
+                "grid": {"left": 4, "right": 4, "top": 4, "bottom": 18},
+                "xAxis": {"type": "category", "data": [f"{5 * k}" for k in range(18)],
+                          "axisLabel": {"color": DIM, "fontSize": 10, "interval": 3},
+                          "axisTick": {"show": False}, "axisLine": {"lineStyle": {"color": LINE}}},
+                "yAxis": {"type": "value", "show": False},
+                "series": [{"type": "bar", "barCategoryGap": "10%", "data": []}]}).style(
+                "height: 80px; width: 100%")
+            slider = ui.range(min=0, max=90, step=1, value={"min": ages[0], "max": ages[1]}).props(
+                "label dark").on("change", aged).mark("population ages")
+        paint()
+
     def gear(panel=None):
-        """Every setting of the simulation as lines, grouped (the top bar's "all settings"); the
-        search narrows them. Each piece's own card holds its own lines the same way."""
-        priors = {path: (kind, numbers) for path, kind, numbers, _ in session.leaves(own=False)
-                  if panel is None or path.split(".")[0] in GEARS[panel]}
+        """Every setting of the simulation as lines, grouped (the top bar's "all settings"), each
+        with what it draws; the search narrows them. The whole tree's dialog holds the population
+        beside the lines, whose choices the pooled lines follow at once. Each piece's own card
+        holds its own lines the same way."""
+        def read():
+            drawing.clear()
+            drawing.update(session.draws())
+            priors.clear()
+            priors.update({path: (kind, numbers) for path, kind, numbers, _ in
+                           session.leaves(own=False)
+                           if panel is None or path.split(".")[0] in GEARS[panel]})
+            sources.clear()
+            sources.update(session.sources())
+
+        async def changed():
+            await run.io_bound(read)
+            build(search.value or "")
+            draw()
+
+        priors, sources = {}, {}
+        read()
         with ui.dialog() as dialog, ui.card().classes("pane").style(
-                "min-width: 1000px; max-width: 1140px"):
+                "min-width: 1000px; max-width: 1140px" if panel is not None
+                else "min-width: 1440px; max-width: 96vw"):
             with ui.row().classes("w-full items-center"):
                 ui.label("All settings").classes("label")
                 ui.space()
-                ui.input(placeholder="search, e.g. NAA or t2",
-                         on_change=lambda e: build(e.value or "")).props(
+                search = ui.input(placeholder="search, e.g. NAA or t2",
+                                  on_change=lambda e: build(e.value or "")).props(
                     "dense outlined dark clearable debounce=300").style("width: 260px")
                 ui.button("Reset all", icon="restart_alt", on_click=lambda: (
-                    session.overrides.clear(), session.choices.clear(), build(), draw())).props(
-                    "flat dense no-caps")
+                    session.overrides.clear(), session.choices.clear(), read(), build(), draw())
+                    ).props("flat dense no-caps")
                 ui.button("Done", on_click=lambda: (dialog.close(), draw())).props(
                     "unelevated dense no-caps")
             ui.label(SAID).classes("label").style(
                 "text-transform: none; letter-spacing: 0; white-space: normal")
-            with ui.scroll_area().style("height: 620px; width: 100%"):
-                body = ui.column().classes("w-full").style("gap: 0")
-            build = lines(body, priors, session.sources())
+            with ui.row().classes("w-full no-wrap items-start").style("gap: 14px"):
+                if panel is None:
+                    with ui.scroll_area().style("height: 620px; width: 400px; min-width: 400px"):
+                        left = ui.column().classes("w-full").style("gap: 0")
+                with ui.scroll_area().style("height: 620px").classes("col"):
+                    body = ui.column().classes("w-full").style("gap: 0")
+            build = lines(body, priors, sources)
             build()
+            if panel is None:
+                population(left, changed)
         dialog.open()
 
     def designer():
@@ -3814,6 +4053,9 @@ async def console(client: Client):
                             "outline dense no-caps align=left").classes("w-full")
                         ui.button("Export Pulseq .seq", icon="code", on_click=export_seq).props(
                             "outline dense no-caps align=left").classes("w-full")
+                        ui.button("Make a dataset", icon="dataset", on_click=dataset).props(
+                            "outline dense no-caps align=left").classes("w-full").mark(
+                            "make a dataset")
                         with ui.element("div").classes("port w-full"):
                             view = ui.scene(width=226, height=226, grid=False,
                                             background_color="#000000")
