@@ -1000,8 +1000,11 @@ async def console(client: Client):
             try:
                 await run.io_bound(session.run, exam)
             except Exception as error:
-                # a card the engine cannot play: the queue goes on, the card says why
                 exam.status, exam.problem = "failed", str(error)
+            if status.is_deleted:       # the window closed while the exam ran
+                return
+            if exam.status == "failed":
+                # a card the engine cannot play: the queue goes on, the card says why
                 progress.props(remove="indeterminate")
                 listing()
                 continue
@@ -1013,6 +1016,8 @@ async def console(client: Client):
             for index in range(len(exam.frames)):
                 frame(exam, index)
                 await asyncio.sleep(0.03)
+                if status.is_deleted:
+                    return
             listing()
             paint()                     # a spectroscopic image lays its map over the planned grid
         status.text = "idle"
@@ -1240,7 +1245,7 @@ async def console(client: Client):
                 return "nothing published gives it: the package's range is stated"
             return "the package assumed no range here: it is typed from the literature"
 
-        async def provide():
+        def provide():
             """A file of yours for this line: one read this session that gives it, or a new one."""
             with ui.dialog() as picker, ui.card().classes("pane").style("min-width: 640px"):
                 ui.label(f"yours, for {NAMES.get(path, path)}").classes("label")
@@ -1277,7 +1282,7 @@ async def console(client: Client):
         def switch(event):
             if event.value in SOURCE_WORDS and event.value not in available:
                 if event.value == "own":
-                    asyncio.ensure_future(provide())
+                    provide()
                 else:
                     ui.notify(f"{SOURCE_WORDS[event.value]}: {why_not(event.value)}",
                               type="warning", multi_line=True)
