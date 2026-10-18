@@ -163,11 +163,13 @@ class TestApp:
                 user.find("Close").click()
                 user.find(marker="scanner settings").click()
                 # a dataset's subject on the floor
-                next(iter(user.find(marker="dataset").elements)).value = "big_gaba_trio"
+                dataset = next(iter(user.find(marker="dataset", kind=ui.select).elements))
+                dataset.value = "big_gaba_trio"
                 await user.should_see("Big GABA · Siemens Trio 3 T · PRESS · 36 subjects",
                                       retries=40)
                 await user.should_see("subject S")
-                next(iter(user.find(marker="dataset").elements)).value = ""
+                # the dialog reopened: its select is a new one
+                next(iter(user.find(marker="dataset", kind=ui.select).elements)).value = ""
                 await user.should_see("generic, at the field set")  # "none" put the room back
                 user.find("Done").click()
                 user.find("New scan").click()
