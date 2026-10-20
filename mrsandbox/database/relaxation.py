@@ -383,3 +383,153 @@ WANG = {
     },
     "macromolecular_law": {"wm_splenium": (12.2, -1.00), "wm": (13.2, -1.03)},
 }
+
+#************#
+#   rooney   #
+#************#
+# Source: Rooney, W. D., Johnson, G., Li, X., Cohen, E. R., Kim, S.-G., Ugurbil, K., Springer,
+#         C. S. Magnetic field and tissue dependencies of human brain longitudinal 1H2O
+#         relaxation in vivo. Magnetic Resonance in Medicine 57 (2007) 308-318. Table 1, the
+#         rows of this study; the fits in the Results and Discussion.
+# Data:   three men of 32 to 59 years, the same axial slice on five instruments within six
+#         months (0.2, 1.0 and 1.5 T at NYU, 4.0 T at Brookhaven and Minnesota, 7.0 T at
+#         Minnesota), 32 inversion-recovery images fitted pixel by pixel, regions of interest
+#         averaged over the subjects: frontal white matter, cortical grey matter, caudate,
+#         thalamus, putamen, globus pallidus, sagittal sinus blood and ventricular CSF. The
+#         ventricular CSF rate does not vary with the field, 0.231 +- 0.009 1/s. Bottomley's
+#         function T1 = C (gamma B0)^beta fitted to the data (gamma the magnetogyric ratio, B0
+#         in tesla, T1 in seconds): white matter C 0.00071, beta 0.382; putamen C 0.00116, beta
+#         0.376; sagittal sinus blood C 0.00335, beta 0.340. The excess rate over CSF of every
+#         tissue follows B0^-0.39 (nonlinear regression over all tissues).
+# Units:  seconds as (mean, sd over the three subjects); the field in tesla.
+ROONEY = {
+    "error": "sd",
+    "n": 3,
+    "t1_s": {
+        0.2: {"wm": (0.361, 0.017), "gm": (0.635, 0.054), "caudate": (0.555, 0.019),
+              "thalamus": (0.522, 0.044), "putamen": (0.524, 0.019), "pallidum": (0.411, 0.020),
+              "blood": (0.776, 0.022), "csf": (4.408, 0.187)},
+        1.0: {"wm": (0.555, 0.020), "gm": (1.036, 0.019), "caudate": (0.898, 0.045),
+              "thalamus": (0.807, 0.047), "putamen": (0.815, 0.016), "pallidum": (0.625, 0.014),
+              "blood": (1.351, 0.024), "csf": (4.276, 0.109)},
+        1.5: {"wm": (0.656, 0.016), "gm": (1.188, 0.069), "caudate": (1.083, 0.052),
+              "thalamus": (0.972, 0.032), "putamen": (0.981, 0.013), "pallidum": (0.746, 0.020),
+              "blood": (1.540, 0.023), "csf": (4.070, 0.065)},
+        4.0: {"wm": (1.010, 0.019), "gm": (1.723, 0.093), "caudate": (1.509, 0.053),
+              "thalamus": (1.452, 0.087), "putamen": (1.446, 0.032), "pallidum": (1.143, 0.027),
+              "blood": (1.914, 0.114), "csf": (4.472, 0.085)},
+        7.0: {"wm": (1.220, 0.036), "gm": (2.132, 0.103), "caudate": (1.745, 0.064),
+              "thalamus": (1.656, 0.084), "putamen": (1.700, 0.066), "pallidum": (1.347, 0.052),
+              "blood": (2.587, 0.283), "csf": (4.425, 0.137)},
+    },
+    "field_law": {"wm": (0.00071, 0.382), "putamen": (0.00116, 0.376), "blood": (0.00335, 0.340)},
+    "excess_rate_exponent": -0.39,
+    "csf_r1_per_s": (0.231, 0.009),
+}
+
+#*************#
+#   stanisz   #
+#*************#
+# Source: Stanisz, G. J., Odrobina, E. E., Pun, J., Escaravage, M., Graham, S. J., Bronskill,
+#         M. J., Henkelman, R. M. T1, T2 relaxation and magnetization transfer in tissue at 3T.
+#         Magnetic Resonance in Medicine 54 (2005) 507-512. Table 1, the rows of this study.
+# Data:   in vitro at 37 C in a test tube, 3 T and 1.5 T on the same console, three samples
+#         per tissue: bovine white and grey matter and optic nerve, rat spinal cord, human blood
+#         at 95 percent oxygenation (the liver, muscle, heart, kidney and cartilage rows are
+#         left out here). T1 by inversion recovery, T2 by CPMG at a 1 ms echo spacing. The T2
+#         do not differ between the fields; the T1 rise by 22 percent in white matter and 62
+#         percent in grey matter from 1.5 to 3 T. The paper's Table 2 holds the quantitative
+#         magnetization transfer parameters at 3 T (not typed here).
+# Units:  seconds as (mean, sd over the three samples); the field in tesla.
+STANISZ = {
+    "error": "sd",
+    "n": 3,
+    "t1_s": {
+        3.0: {"wm": (1.084, 0.045), "gm": (1.820, 0.114), "optic_nerve": (1.083, 0.039),
+              "spinal_cord": (0.993, 0.047), "blood": (1.932, 0.085)},
+        1.5: {"wm": (0.884, 0.050), "gm": (1.124, 0.050), "optic_nerve": (0.815, 0.030),
+              "spinal_cord": (0.745, 0.037), "blood": (1.441, 0.120)},
+    },
+    "t2_s": {
+        3.0: {"wm": (0.069, 0.003), "gm": (0.099, 0.007), "optic_nerve": (0.078, 0.005),
+              "spinal_cord": (0.078, 0.002), "blood": (0.275, 0.050)},
+        1.5: {"wm": (0.072, 0.004), "gm": (0.095, 0.008), "optic_nerve": (0.077, 0.009),
+              "spinal_cord": (0.074, 0.006), "blood": (0.290, 0.030)},
+    },
+}
+
+#**********************#
+#   de graaf, rat      #
+#**********************#
+# Source: de Graaf, R. A., Brown, P. B., McIntyre, S., Nixon, T. W., Behar, K. L., Rothman,
+#         D. L. High magnetic field water and metabolite proton T1 and T2 relaxation in rat
+#         brain in vivo. Magnetic Resonance in Medicine 56 (2006) 386-394. Tables 1 and 2.
+# Data:   rat brain in vivo, five animals, at 4.0, 9.4 and 11.74 T under the same protocol.
+#         Water: inversion-recovery and multi-echo EPI maps, nine structures (corpus callosum,
+#         cerebral cortex, olfactory bulb, hippocampus, cerebellar white and grey matter,
+#         striatum, thalamus, midbrain). Metabolites: localized spectra, the T1 of the resonances
+#         named by their shift at the long TE, the macromolecules M1 (1.7 ppm), M2 (1.4), M3
+#         (1.1) and M4 (0.9) at the short TE, M2 and M3 together; the T2 of the singlets alone
+#         (the coupled spins' echo decay carries their J evolution). Myo-inositol and taurine
+#         could not be read at 4.0 T; the blanks of the paper's table are left out.
+# Units:  seconds as (mean, sd over the five animals); the field in tesla as the paper names it.
+#         Rat, not human: kept apart from Database.T1_SOURCES until a species switch exists.
+DEGRAAF_RAT = {
+    "error": "sd",
+    "n": 5,
+    "water": {
+        4.0: {"t1_s": {"corpus_callosum": (1.0968, 0.0493), "cortex": (1.2858, 0.0770),
+                       "olfactory_bulb": (1.6406, 0.0208), "hippocampus": (1.3341, 0.0974),
+                       "cerebellar_wm": (1.0469, 0.0533), "cerebellar_gm": (1.3526, 0.0826),
+                       "striatum": (1.2882, 0.0873), "thalamus": (1.1694, 0.0695),
+                       "midbrain": (1.0644, 0.0173)},
+              "t2_s": {"corpus_callosum": (0.0579, 0.0016), "cortex": (0.0652, 0.0024),
+                       "olfactory_bulb": (0.0802, 0.0020), "hippocampus": (0.0720, 0.0013),
+                       "cerebellar_wm": (0.0588, 0.0015), "cerebellar_gm": (0.0653, 0.0020),
+                       "striatum": (0.0697, 0.0020), "thalamus": (0.0617, 0.0021),
+                       "midbrain": (0.0606, 0.0019)}},
+        9.4: {"t1_s": {"corpus_callosum": (1.7521, 0.0521), "cortex": (1.9484, 0.0519),
+                       "olfactory_bulb": (2.1291, 0.0637), "hippocampus": (2.0597, 0.0661),
+                       "cerebellar_wm": (1.6603, 0.0793), "cerebellar_gm": (2.0972, 0.0682),
+                       "striatum": (1.9270, 0.0547), "thalamus": (1.7931, 0.0643),
+                       "midbrain": (1.7865, 0.0819)},
+              "t2_s": {"corpus_callosum": (0.0358, 0.0012), "cortex": (0.0421, 0.0012),
+                       "olfactory_bulb": (0.0481, 0.0019), "hippocampus": (0.0454, 0.0018),
+                       "cerebellar_wm": (0.0372, 0.0020), "cerebellar_gm": (0.0417, 0.0016),
+                       "striatum": (0.0435, 0.0024), "thalamus": (0.0406, 0.0012),
+                       "midbrain": (0.0403, 0.0014)}},
+        11.7: {"t1_s": {"corpus_callosum": (1.8613, 0.0735), "cortex": (2.0734, 0.1007),
+                        "olfactory_bulb": (2.3043, 0.0634), "hippocampus": (2.2228, 0.0632),
+                        "cerebellar_wm": (1.7451, 0.0360), "cerebellar_gm": (2.1094, 0.0950),
+                        "striatum": (2.0465, 0.0553), "thalamus": (1.9032, 0.0612),
+                        "midbrain": (1.8932, 0.0443)},
+               "t2_s": {"corpus_callosum": (0.0307, 0.0010), "cortex": (0.0362, 0.0010),
+                        "olfactory_bulb": (0.0389, 0.0011), "hippocampus": (0.0389, 0.0013),
+                        "cerebellar_wm": (0.0271, 0.0013), "cerebellar_gm": (0.0373, 0.0023),
+                        "striatum": (0.0364, 0.0022), "thalamus": (0.0338, 0.0016),
+                        "midbrain": (0.0338, 0.0019)}},
+    },
+    "t1_s": {
+        4.0: {"tCr_CH2": (1.0034, 0.0812), "tCho": (1.4514, 0.0691), "tCr_CH3": (1.6140, 0.0352),
+              "Glx_H4": (1.2626, 0.0288), "NAA": (1.5206, 0.0513), "MM2_3": (0.3609, 0.0381),
+              "MM1": (0.3535, 0.0389)},
+        9.4: {"tCr_CH2": (1.0397, 0.0735), "Ins": (1.3701, 0.1204), "Tau": (2.3289, 0.3586),
+              "tCho": (1.3483, 0.0206), "tCr_CH3": (1.6792, 0.0677), "Glx_H4": (1.4975, 0.1065),
+              "NAA": (1.6740, 0.0311), "MM4": (0.5306, 0.0424), "MM2_3": (0.5809, 0.0221),
+              "MM1": (0.6326, 0.0303)},
+        11.7: {"tCr_CH2": (1.1564, 0.0845), "Ins": (1.6381, 0.1705), "Tau": (2.4475, 0.1678),
+               "tCho": (1.6296, 0.1087), "tCr_CH3": (1.7673, 0.0802), "Glx_H4": (1.4505, 0.1468),
+               "NAA": (1.7135, 0.0441), "MM4": (0.6271, 0.0429), "MM2_3": (0.6341, 0.0251),
+               "MM1": (0.7622, 0.0304)},
+    },
+    "t2_s": {
+        4.0: {"tCr_CH2": (0.1407, 0.0115), "tCho": (0.5698, 0.0288), "tCr_CH3": (0.2329, 0.0059),
+              "NAA": (0.3919, 0.0151), "MM2_3": (0.0317, 0.0025), "MM1": (0.0234, 0.0011)},
+        9.4: {"tCr_CH2": (0.1278, 0.0057), "tCho": (0.4413, 0.0362), "tCr_CH3": (0.1711, 0.0039),
+              "NAA": (0.2943, 0.0051), "MM4": (0.0227, 0.0025), "MM2_3": (0.0335, 0.0019),
+              "MM1": (0.0274, 0.0023)},
+        11.7: {"tCr_CH2": (0.1248, 0.0073), "tCho": (0.3657, 0.0731), "tCr_CH3": (0.1591, 0.0066),
+               "NAA": (0.2852, 0.0265), "MM4": (0.0199, 0.0023), "MM2_3": (0.0314, 0.0021),
+               "MM1": (0.0253, 0.0019)},
+    },
+}
