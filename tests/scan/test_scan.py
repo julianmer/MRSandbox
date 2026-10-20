@@ -272,8 +272,12 @@ class TestAcquisitionImperfections:
         source = VirtualScan(scan.brain, scan.scanner, design, params=quiet, isochromats=16)
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         _, plain = source.voxel(**kw).fid(seed=5, npoints=256)
-        _, fast = source.voxel(**kw, compiled=True).fid(seed=5, npoints=256)
-        assert len(source.engine._compiled) >= len(source.params.conc)
+        voxel = source.voxel(**kw, compiled=True)
+        _, fast = voxel.fid(seed=5, npoints=256)
+        # the metabolites played: those of a concentration above zero here
+        played = voxel.frame(voxel.sample(seed=5))[0]
+        assert len(played) > 10
+        assert len(source.engine._compiled) >= len(played)
         np.testing.assert_allclose(fast, plain, atol=1e-4 * np.abs(plain).max())
 
     #*****************#
