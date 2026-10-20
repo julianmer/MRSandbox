@@ -298,3 +298,88 @@ CORBIN = {
         "pallidum": (0.0622, 0.0636, 0.0596, 0.0632, 0.0676, 0.0599, 0.0586),
     },
 }
+
+#*************#
+#   cudalbu   #
+#*************#
+# Source: Cudalbu, C., Mlynarik, V., Xin, L., Gruetter, R. Comparison of T1 relaxation times of
+#         the neurochemical profile in rat brain at 9.4 tesla and 14.1 tesla. Magnetic Resonance
+#         in Medicine 62 (2009) 862-867. Figures 2 and 4; the paper prints no table.
+# Data:   rat brain in vivo, six animals per field, one voxel. T1 by inversion recovery (IR,
+#         AMARES on ten resonances, Figure 2) and by progressive saturation (PS, LCModel on 16
+#         components, Figure 4). Every mean and error bar (sd over the animals) is read off the
+#         bar chart against its 0.2 s grid, to about 0.02 s; the macromolecules' 0.66 +- 0.07 s
+#         at 14.1 T and 0.51 +- 0.07 s at 9.4 T are the text's own numbers. The text: the IR T1
+#         lie in 1.2 to 1.5 s, the PS T1 in 1.4 to 1.9 s apart from taurine; NAA alone rises
+#         with the field (8 percent by IR, 11 percent by PS); the methods agree within 15
+#         percent, PS reading a little higher. A star in the figure marks the methylene
+#         (tCr_CH2) and the aspartyl (NAA_CH2) resonance; IR rows name the line's ppm.
+# Units:  seconds, (mean, sd, n); the field in tesla. Rat, not human: kept apart from
+#         Database.T1_SOURCES until a species switch exists.
+CUDALBU = {
+    "error": "sd",
+    "species": "rat",
+    "t1_s": {
+        9.4: {
+            "ir": {
+                "tCr_CH3": (1.27, 0.03, 6), "tCr_CH2": (1.05, 0.08, 6), "NAA": (1.37, 0.03, 6),
+                "Tau": (2.17, 0.15, 6), "Cho": (1.41, 0.07, 6), "Glu_2.35": (1.17, 0.05, 6),
+                "Glx_3.75": (1.24, 0.04, 6), "Ins_3.57": (1.40, 0.18, 6),
+                "Ins_3.65": (1.27, 0.22, 6), "Ins_4.05": (1.29, 0.12, 6),
+            },
+            "ps": {
+                "tCr_CH3": (1.71, 0.06, 6), "tCr_CH2": (1.12, 0.08, 6), "NAA": (1.71, 0.03, 6),
+                "NAA_CH2": (1.23, 0.10, 6), "Tau": (2.56, 0.20, 6), "Cho": (1.49, 0.17, 6),
+                "Glu": (1.52, 0.05, 6), "Gln": (1.44, 0.04, 6), "Ins": (1.46, 0.08, 6),
+                "MM": (0.51, 0.07, 6), "Ala": (1.74, 0.23, 6), "Asp": (1.57, 0.17, 6),
+                "GABA": (1.86, 0.08, 6), "GSH": (1.14, 0.17, 6), "NAAG": (1.56, 0.32, 6),
+                "PE": (1.22, 0.12, 6),
+            },
+        },
+        14.1: {
+            "ir": {
+                "tCr_CH3": (1.36, 0.15, 6), "tCr_CH2": (0.94, 0.08, 6), "NAA": (1.48, 0.03, 6),
+                "Tau": (2.17, 0.09, 6), "Cho": (1.34, 0.16, 6), "Glu_2.35": (1.43, 0.14, 6),
+                "Glx_3.75": (1.33, 0.07, 6), "Ins_3.57": (1.43, 0.08, 6),
+                "Ins_3.65": (1.40, 0.10, 6), "Ins_4.05": (1.40, 0.22, 6),
+            },
+            "ps": {
+                "tCr_CH3": (1.78, 0.12, 6), "tCr_CH2": (1.17, 0.08, 6), "NAA": (1.91, 0.10, 6),
+                "NAA_CH2": (1.28, 0.10, 6), "Tau": (2.57, 0.14, 6), "Cho": (1.25, 0.14, 6),
+                "Glu": (1.65, 0.06, 6), "Gln": (1.70, 0.11, 6), "Ins": (1.42, 0.25, 6),
+                "MM": (0.66, 0.07, 6), "Ala": (1.76, 0.24, 6), "Asp": (1.78, 0.15, 6),
+                "GABA": (1.55, 0.27, 6), "GSH": (1.66, 0.43, 6), "NAAG": (1.38, 0.27, 6),
+                "PE": (1.60, 0.14, 6),
+            },
+        },
+    },
+}
+
+#**********#
+#   wang   #
+#**********#
+# Source: Wang, Y., van Gelderen, P., de Zwart, J. A., Duyn, J. H. B0-field dependence of MRI T1
+#         relaxation in human brain. NeuroImage 213 (2020) 116700. Table 2 and Section 3.
+# Data:   eight healthy adults (21 to 32 years, three women) on one Siemens site, the same
+#         inversion-recovery and saturation-transfer sequence at nominal 0.55, 1.5, 3 and 7 T
+#         (2.89 and 6.98 T as measured), fitted jointly to a two-pool (Bloch-McConnell) model of
+#         magnetization transfer. The water pool's slow longitudinal rate lambda_s, the inverse
+#         of the observed T1, in the splenium of the corpus callosum where the two pools resolve
+#         (3 and 7 T); the macromolecular pool's rate R_m at every field (at 0.55 and 1.5 T with
+#         the pool fraction and exchange rate fixed at the 7 T means), and its power law in the
+#         field, R_m = a B0^b: 12.2 B0^-1.00 in the splenium (R^2 0.997), 13.2 B0^-1.03 over the
+#         averaged white matter.
+# Units:  rates in 1/s as (mean, sd over the subjects, n); the field in tesla as measured.
+WANG = {
+    "error": "sd",
+    "r1_water_per_s": {
+        "wm_splenium": {2.89: (1.112, 0.025, 8), 6.98: (0.760, 0.008, 8)},
+    },
+    "r1_macromolecular_per_s": {
+        "wm_splenium": {0.55: (22.8, 2.6, 8), 1.50: (8.2, 0.5, 8), 2.89: (3.89, 0.07, 8),
+                        6.98: (1.85, 0.09, 8)},
+        "wm": {0.55: (25.0, 4.0, 8), 1.50: (9.0, 0.5, 8), 2.89: (3.99, 0.05, 8),
+               6.98: (1.90, 0.05, 8)},
+    },
+    "macromolecular_law": {"wm_splenium": (12.2, -1.00), "wm": (13.2, -1.03)},
+}
