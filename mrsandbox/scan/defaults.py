@@ -36,15 +36,16 @@ from mrsandbox.params import (Clipped, Empirical, Fixed, Mixture, Normal, Params
 #   field lock   #
 #****************#
 # the typed fields; a scan at any other field takes the nearest one (stated)
-FIELDS_T = (1.5, 3.0, 7.0)
+FIELDS_T = (1.5, 3.0, 4.0, 7.0)
 # the compounds de Graaf gives a brain range for that the default spectrum still leaves at 0 mM
 # (acetate 0 to 0.5, ATP 2 to 4, ethanolamine 0 to 1.6, threonine 0 to 0.5 mM)
 HELD = ("Ace", "ATP", "EA", "Thr")
 TISSUES = ("gm", "wm", "csf")
 WATER_CITED = ("Boudreau et al. 2024 (the ISMRM T1 challenge, 3 T cortex and genu), "
                "Rooney et al. 2007 (CSF); T2 the median of five stimulated-echo-corrected "
-               "studies at 3 T, their spread the range (the WATER_T2_3T card); at 1.5 and 7 T "
-               "Ethofer et al. 2003, Xin et al. 2013, Marjanska et al. 2012 (database.relaxation)")
+               "studies at 3 T, their spread the range (the WATER_T2_3T card); at 1.5 and 4 T "
+               "Rooney et al. 2007 and, the 1.5 T T2, Stanisz et al. 2005 (bovine, in vitro); at "
+               "7 T Xin et al. 2013 and Marjanska et al. 2012 (database.relaxation)")
 RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about 0.3 Hz a minute "
                       "at 3 T, either sign; Augmentrum's envelope",
              "breathing": "van de Moortele et al. 2002, Magn Reson Med 47:888: breathing at about "
@@ -102,7 +103,7 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     PCho, its two constituents, so there is no separate Cho entry.
 
     The relaxation priors follow the scanner field: metabolite T2 pooled from the
-    Gudmundson database at the nearest typed field (1.5, 3, or 7 T), metabolite T1
+    Gudmundson database at the nearest typed field (1.5, 3, 4 or 7 T), metabolite T1
     from the typed tables of that field (Database.T1_SOURCES), water and the
     macromolecule T1 from the per-field cards, each falling back to the 3 T value
     where a field has no rows (stated). Every leaf stays a belief the caller or the
@@ -165,8 +166,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     crowdsourced reproducibility challenge (the BOUDREAU table: cortical
         #     GM, and the genu as the challenge's cleanest WM ROI; the
         #     intersubmission sd is a realistic site-to-site spread) and T2 is the
-        #     cited WATER table; at 1.5 and 7 T the WATER_FIELDS cards (Ethofer,
-        #     Xin, Marjanska) replace what they cover. Draws clip at a stated 0.2 s
+        #     cited WATER table; at 1.5, 4 and 7 T the WATER_FIELDS cards (Rooney,
+        #     Stanisz, Xin, Marjanska) replace what they cover. Draws clip at a stated 0.2 s
         #     floor; CSF keeps the field-independent cited value.
         #   temperature_c: the tissue temperature; the water line moves against the
         #     metabolites by the thermometry calibration (tissue.CADY_1995, -1 / 94

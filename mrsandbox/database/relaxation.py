@@ -142,7 +142,8 @@ XIN = {
 # Source: Ethofer et al. 2003 (the ETHOFER card above), Table 2, the 1.5 T rows.
 # Units:  T1 in seconds with standard deviations, N = 8; 1.5 T.
 # Notes:  progressive saturation PRESS, the same six regions and the same subjects as the
-#         3 T rows; the paper's pure-tissue water extrapolation at 1.5 T feeds WATER_FIELDS.
+#         3 T rows; the paper's pure-tissue water extrapolation at 1.5 T (gm 1.04 +- 0.02,
+#         wm 0.68 +- 0.02 s) stands behind Rooney's in vivo rows in WATER_FIELDS.
 ETHOFER_1P5 = {
     "error": "sd",
     "b0_t": 1.5,
@@ -233,14 +234,24 @@ WATER_T2_3T = {
 #***************************#
 # Source: per entry, beside each value.
 # Data:   water relaxation per tissue where a field differs from the 3 T table above;
-#         a missing entry means the 3 T value is reused (stated: no 1.5 T water T2
-#         source is typed yet). CSF stays the field-independent Rooney value.
-# Units:  seconds; t1_s entries as (mean, sd) where the source prints a spread.
+#         a missing entry means the 3 T value is reused (stated: no human in vivo water T2
+#         off 3 T is typed yet). CSF stays the field-independent Rooney value.
+# Units:  seconds; entries as (mean, sd) where the source prints a spread.
 WATER_FIELDS = {
     1.5: {
         "t1_s": {
-            "gm": (1.04, 0.02),  # Ethofer et al. 2003 (the ETHOFER card): pure-tissue
-            "wm": (0.68, 0.02),  # extrapolation of the 1.5 T regional values, N = 8
+            "gm": (1.188, 0.069),  # Rooney et al. 2007 (the ROONEY card): cortical grey matter
+            "wm": (0.656, 0.016),  # and frontal white matter in vivo, three subjects, sd
+        },
+        "t2_s": {
+            "gm": (0.095, 0.008),  # Stanisz et al. 2005 (the STANISZ card): bovine grey and
+            "wm": (0.072, 0.004),  # white matter in vitro at 37 C, three samples (stated: the
+        },                         # only typed 1.5 T water T2; no human in vivo source yet)
+    },
+    4.0: {
+        "t1_s": {
+            "gm": (1.723, 0.093),  # Rooney et al. 2007 (the ROONEY card): cortical grey matter
+            "wm": (1.010, 0.019),  # and frontal white matter in vivo, three subjects, sd
         },
     },
     7.0: {

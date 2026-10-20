@@ -219,9 +219,14 @@ class TestFieldPriors:
 
         p3, p15 = default_params(b0_t=3.0), default_params(b0_t=1.5)
         assert p15.t1.NAA.mean < p3.t1.NAA.mean  # Ethofer 1.5 T rows and Rutgers 2003
-        assert p15.water.t1_s.wm.value.mean == 0.68 and p15.water.t1_s.gm.value.mean == 1.04
-        # no 1.5 T water T2 typed: 3 T reused, stated
-        assert p15.water.t2_s.literature == p3.water.t2_s.literature
+        # Rooney 2007 in vivo at 1.5 T, Stanisz 2005 bovine in vitro for the T2
+        assert p15.water.t1_s.wm.value.mean == 0.656 and p15.water.t1_s.gm.value.mean == 1.188
+        assert p15.water.t2_s.gm.value.mean == 0.095 and p15.water.t2_s.wm.value.mean == 0.072
+        # 4 T is a typed field of its own: Rooney's T1, the 3 T T2 reused (stated)
+        p4 = default_params(b0_t=4.0)
+        assert p4.water.t1_s.gm.value.mean == 1.723 and p4.water.t1_s.wm.value.mean == 1.010
+        assert p4.water.t2_s.gm.value.mean == 0.0805 and p4.water.t2_s.wm.value.mean == 0.061
+        assert p4.t1.NAA == p3.t1.NAA  # no 4 T metabolite T1 table: the 3 T pool
         assert p15.t2.Gln == p3.t2.Gln  # no 1.5 T rows for Gln: the 3 T pool
         assert p15.t2.NAA.mean != p3.t2.NAA.mean  # NAA has 1.5 T rows of its own
         assert p15.mm.t1.mm091.value == 0.220 and p15.mm.t1.mm121.value == 0.200  # Kreis 2005
