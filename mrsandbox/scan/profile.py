@@ -128,9 +128,9 @@ class ScannerProfile:
             # a run of fewer than eight transients has no tracks to read
             run=RunReading.from_nifti(source) if _raw(source)[0].shape[2] >= 8 else None)
 
-    #*********************#
-    #   from readings     #
-    #*********************#
+    #*******************#
+    #   from readings   #
+    #*******************#
     @classmethod
     def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None,
                       load="a head", water=None, seeds=None, receiver=None, run=None):

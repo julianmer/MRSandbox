@@ -8,9 +8,9 @@
 #                                                                                                  #
 # Purpose: A scanner's own data in, a calibration record out: the single-transient NAA signal to   #
 #          noise ratio off raw data and the noise level of the virtual scan that reproduces it,    #
-#          the noise covariance of a receive array's channels, the tissue water's T2 off a series #
-#          of water references over the echo time, and the macromolecules' level off the 0.9 ppm  #
-#          peak of a short-echo run (scan.calibrations).                                          #
+#          the noise covariance of a receive array's channels, the tissue water's T2 off a series  #
+#          of water references over the echo time, and the macromolecules' level off the 0.9 ppm   #
+#          peak of a short-echo run (scan.calibrations).                                           #
 #                                                                                                  #
 ####################################################################################################
 
@@ -48,9 +48,9 @@ APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodiza
             "simulation alike")
 
 
-#**************#
-#   combine    #
-#**************#
+#*************#
+#   combine   #
+#*************#
 def _combined(data, noise=None, like=None, dwell_s=None, f0_mhz=None):
     """(npoints, coils, transients) raw FIDs to (npoints, transients): the channels
     whitened by the noise of the FIDs' last eighth, or of `noise`, (samples, coils)
@@ -238,9 +238,9 @@ def _raw(source, water=False):
     return x, float(image.header["pixdim"][4]), float(extension["SpectrometerFrequency"][0]), header
 
 
-#***********#
-#   read    #
-#***********#
+#**********#
+#   read   #
+#**********#
 def _spectrum(fid, dwell_s, ppm_of, fill=4, apodization_hz=2.0):
     """The real spectrum of a FID phased on the NAA singlet and referenced to it, as
     (ppm ascending, real): zero filled `fill` times, lightly apodized; `ppm_of` maps
@@ -483,7 +483,7 @@ class NoiseReading:
 
 
 #**************************************************************************************************#
-#                                      Class SpectrumReading                                       #
+#                                       Class SpectrumReading                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # What the averaged spectrum of one raw acquisition says without a fit: linewidth and creatine.    #
@@ -625,7 +625,7 @@ class SpectrumReading:
 
 
 #**************************************************************************************************#
-#                                     Class RelaxationReading                                      #
+#                                      Class RelaxationReading                                     #
 #**************************************************************************************************#
 #                                                                                                  #
 # The T2 of a phantom's singlets, read off their heights over a series of echo times.              #
@@ -860,7 +860,7 @@ class WaterSeriesReading:
 
 
 #**************************************************************************************************#
-#                                 Class MetaboliteSeriesReading                                    #
+#                                   Class MetaboliteSeriesReading                                  #
 #**************************************************************************************************#
 #                                                                                                  #
 # A metabolite's T2 read off its area over a series of echo times, through the twin.               #
@@ -1091,7 +1091,7 @@ class MetaboliteSeriesReading:
 
 
 #**************************************************************************************************#
-#                                   Class MacromoleculeReading                                     #
+#                                    Class MacromoleculeReading                                    #
 #**************************************************************************************************#
 #                                                                                                  #
 # The macromolecules' level read off the 0.9 ppm peak of a short-echo run, through the twin.       #
@@ -1130,9 +1130,9 @@ class MacromoleculeReading:
     f0_mhz: float
     header: dict
 
-    #*******************#
-    #   from arrays     #
-    #*******************#
+    #*****************#
+    #   from arrays   #
+    #*****************#
     @classmethod
     def from_arrays(cls, data, dwell_s, f0_mhz, header=None):
         """`data` (npoints, coils, transients) of the suppressed run, in the standard's
@@ -1228,7 +1228,7 @@ class MacromoleculeReading:
 
 
 #**************************************************************************************************#
-#                                     Class CovarianceReading                                      #
+#                                      Class CovarianceReading                                     #
 #**************************************************************************************************#
 #                                                                                                  #
 # The noise covariance of a receive array's channels, read off samples that hold no signal.        #
@@ -1476,7 +1476,7 @@ class CovarianceReading:
 #                                       Class ReceiverReading                                      #
 #**************************************************************************************************#
 #                                                                                                  #
-# The receiver's colour: the noise power across the band, and the filter that leaves it.          #
+# The receiver's colour: the noise power across the band, and the filter that leaves it.           #
 #                                                                                                  #
 #**************************************************************************************************#
 class ReceiverReading:
@@ -1549,7 +1549,7 @@ class ReceiverReading:
 #                                         Class GIRFReading                                        #
 #**************************************************************************************************#
 #                                                                                                  #
-# One axis's gradient impulse response, read off a phantom's phase under test gradients.          #
+# One axis's gradient impulse response, read off a phantom's phase under test gradients.           #
 #                                                                                                  #
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
@@ -1590,9 +1590,9 @@ class GIRFReading:
     positions: int
     dwell_s: float
 
-    #*******************#
-    #   from arrays     #
-    #*******************#
+    #*****************#
+    #   from arrays   #
+    #*****************#
     @classmethod
     def from_arrays(cls, axis, inputs_mt_m, signals, references, positions_mm, dwell_s,
                     gammabar_hz_per_mt=42576.0, regularizer=1e-3):
@@ -1654,6 +1654,7 @@ class GIRFReading:
 #**************************************************************************************************#
 #                                                                                                  #
 # The residual water and the receiver delay of one suppressed acquisition against its reference.   #
+#                                                                                                  #
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class WaterReading:
@@ -1715,9 +1716,9 @@ class WaterReading:
     # to about there across the voxel's shim)
     LEAK_BELOW = 0.7
 
-    #*******************#
-    #   from arrays     #
-    #*******************#
+    #*****************#
+    #   from arrays   #
+    #*****************#
     @classmethod
     def from_arrays(cls, data, reference, dwell_s, f0_mhz, header=None):
         """`data` and `reference` (npoints, coils, transients) of the same voxel, the

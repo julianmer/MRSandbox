@@ -205,7 +205,7 @@ class TestParams:
 
 
 #**************************************************************************************************#
-#                                        Class TestSourced                                         #
+#                                         Class TestSourced                                        #
 #**************************************************************************************************#
 class TestSourced:
 
@@ -229,9 +229,9 @@ class TestSourced:
         with pytest.raises(ValueError):
             Sourced(literature=Uniform(1.0, 2.0), chosen="pooled")
 
-    #****************#
-    #   in a tree    #
-    #****************#
+    #***************#
+    #   in a tree   #
+    #***************#
     def test_a_tree_selects_its_sources_and_a_merge_sets_the_custom_one(self):
         from mrsandbox import Sourced
 

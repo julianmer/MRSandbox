@@ -51,7 +51,7 @@ def correlation(a, b):
 
 
 #**************************************************************************************************#
-#                                       Class TestPulseqImport                                     #
+#                                      Class TestPulseqImport                                      #
 #**************************************************************************************************#
 class TestPulseqImport:
 
@@ -72,9 +72,9 @@ class TestPulseqImport:
         corr = correlation(spectrum(engine, imported, lac), spectrum(engine, native, lac))
         assert corr > 0.999  # a 0.1 ms block pulse is the hard pulse to this tolerance
 
-    #****************#
-    #   spin echo    #
-    #****************#
+    #***************#
+    #   spin echo   #
+    #***************#
     def test_crushed_spin_echo_matches_the_filtered_native(self, engine, system, tmp_path):
         # 90 - tau - crusher - 180 - crusher - tau - adc: the crusher pair selects the
         # inverted pathway physically; the native reference uses coherence filters
@@ -100,9 +100,9 @@ class TestPulseqImport:
         corr = correlation(spectrum(engine, imported, lac), spectrum(engine, native, lac))
         assert corr > 0.99
 
-    #*******************#
-    #   translation     #
-    #*******************#
+    #*****************#
+    #   translation   #
+    #*****************#
     def test_blocks_translate_to_the_expected_events(self, system, tmp_path):
         seq = pypulseq.Sequence(system=system)
         rf, gz, _ = pypulseq.make_sinc_pulse(flip_angle=np.pi / 2, duration=2e-3,
@@ -141,9 +141,9 @@ class TestPulseqImport:
 #**************************************************************************************************#
 class TestPulseqExport:
 
-    #*******************#
-    #   shaped pulse    #
-    #*******************#
+    #******************#
+    #   shaped pulse   #
+    #******************#
     def test_shaped_pulse_round_trips(self, engine, tmp_path):
         from mrsandbox.io import write_seq
 
@@ -156,9 +156,9 @@ class TestPulseqExport:
         corr = correlation(spectrum(engine, back, lac), spectrum(engine, native, lac))
         assert corr > 0.999
 
-    #*****************#
-    #   spin echo     #
-    #*****************#
+    #***************#
+    #   spin echo   #
+    #***************#
     def test_crushed_spin_echo_round_trips(self, engine, tmp_path):
         from mrsandbox.io import write_seq
 
@@ -191,9 +191,9 @@ class TestPulseqExport:
 #**************************************************************************************************#
 class TestMultiAxisImport:
 
-    #*******************#
-    #   per-axis kicks  #
-    #*******************#
+    #********************#
+    #   per-axis kicks   #
+    #********************#
     def test_every_gradient_axis_imports_as_its_own_kick(self, system, tmp_path):
         seq = pypulseq.Sequence(system=system)
         seq.add_block(pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=1e-4,
@@ -208,9 +208,9 @@ class TestMultiAxisImport:
         kicks = [e for e in read_seq(path).events if isinstance(e, Gradient)]
         assert {(k.axis, round(k.moment_per_mm, 3)) for k in kicks} == {("x", 1.0), ("z", -0.5)}
 
-    #**************************#
-    #   arbitrary waveforms    #
-    #**************************#
+    #*************************#
+    #   arbitrary waveforms   #
+    #*************************#
     def test_arbitrary_gradient_waveforms_import_by_area(self, system, tmp_path):
         waveform = np.hanning(200) * 5000.0  # Hz/m on the gradient raster
         seq = pypulseq.Sequence(system=system)
@@ -238,7 +238,7 @@ class TestMultiAxisImport:
 
 
 #**************************************************************************************************#
-#                                     Class TestMultiReadout                                       #
+#                                      Class TestMultiReadout                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # Files with several ADC blocks: each readout imports on its own, earlier ADC blocks elapse.       #
@@ -246,9 +246,9 @@ class TestMultiAxisImport:
 #**************************************************************************************************#
 class TestMultiReadout:
 
-    #*******************#
-    #   two readouts    #
-    #*******************#
+    #******************#
+    #   two readouts   #
+    #******************#
     def two_readout_file(self, system, tmp_path):
         # 90 - tau - ADC(256) - 180 - tau - ADC(128): an FID readout, then a spin echo
         d90, d180, tau = 1e-4, 2e-4, 0.020
@@ -288,9 +288,9 @@ class TestMultiReadout:
         corr = correlation(spectrum(engine, echo, lac), spectrum(engine, native, lac))
         assert corr > 0.999
 
-    #**********************#
-    #   elapsed gradients  #
-    #**********************#
+    #***********************#
+    #   elapsed gradients   #
+    #***********************#
     def test_gradients_in_an_adc_block_kick_only_later_readouts(self, system, tmp_path):
         # a spoiler sharing the first ADC block: idealized ungradiented readout, so it
         # must not touch readout 0, and must kick before readout 1

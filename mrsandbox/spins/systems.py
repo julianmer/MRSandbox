@@ -6,7 +6,7 @@
 #                                                                                                  #
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Spin systems and their operator algebra on the product basis. A SpinSystem is          #
+# Purpose: Spin systems and their operator algebra on the product basis. A SpinSystem is           #
 #          immutable and hashable (so operator stacks cache outside jit) and carries its gamma,    #
 #          making it self-contained; its Hamiltonian uses FULL (non-secular) scalar coupling       #
 #          between spins of its nucleus, so strong-coupling behaviour is exact at any field, and   #
@@ -179,9 +179,9 @@ class SpinSystem:
         """Hilbert-space dimension, the product of every spin's 2 I + 1."""
         return int(np.prod(self.levels))
 
-    #******************#
-    #   relaxation     #
-    #******************#
+    #****************#
+    #   relaxation   #
+    #****************#
     def with_relaxation(self, t1_s=None, t2_s=None):
         """The same system with relaxation times attached; Delay events then relax it."""
         return dataclasses.replace(self, t1_s=t1_s, t2_s=t2_s)
@@ -237,7 +237,7 @@ class SpinSystem:
 
 
 #**************************************************************************************************#
-#                                         Class Operators                                          #
+#                                          Class Operators                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The cached operator constants of one spin system on the product basis.                           #

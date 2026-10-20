@@ -74,9 +74,9 @@ POVAZAN_WIDTHS = {
     "df849": {"ppm": 8.50, "fwhm_hz": 28.0},
 }
 
-#**********************************#
-#   df t1 and exchange with water  #
-#**********************************#
+#***********************************#
+#   df t1 and exchange with water   #
+#***********************************#
 # Source: MacMillan, E. L., Chong, D. G. Q., Dreher, W., Henning, A., Boesch, C., Kreis, R.
 #         (2011). Magnetization exchange with water and T1 relaxation of the downfield
 #         resonances in human brain spectra at 3.0 T. Magnetic Resonance in Medicine,
@@ -91,9 +91,9 @@ MACMILLAN = {
     "kex_hz": {8.50: 8.9, 8.24: 7.5, 7.86: 0.5, 7.32: 1.3, 7.09: 0.9, 6.84: 4.2},
 }
 
-#***********************#
-#   apparent t2, 7 t    #
-#***********************#
+#**********************#
+#   apparent t2, 7 t   #
+#**********************#
 # Source: Fichtner, N. D., Henning, A., Zoelch, N., Boesch, C., Kreis, R. Elucidation of the
 #         downfield spectrum of human brain at 7 T using multiple inversion recovery delays and
 #         echo times. Magn Reson Med 78 (2017) 11-19, Table 1: mean T2 over the volunteers.

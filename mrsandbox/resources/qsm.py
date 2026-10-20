@@ -6,7 +6,7 @@
 #                                                                                                  #
 # Created: 18/09/26                                                                                #
 #                                                                                                  #
-# Purpose: The QSM reconstruction challenge 2.0 head phantom as named resources: whole-head       #
+# Purpose: The QSM reconstruction challenge 2.0 head phantom as named resources: whole-head        #
 #          labels with bone, air, and extracranial tissue, and the quantitative maps behind them.  #
 #                                                                                                  #
 ####################################################################################################
@@ -16,9 +16,9 @@
 #*************#
 import numpy as np
 
-#**********************#
-#   qsm challenge 2    #
-#**********************#
+#*********************#
+#   qsm challenge 2   #
+#*********************#
 # Source: Marques, J. P., et al. QSM reconstruction challenge 2.0: a realistic in silico head
 #         phantom for MRI data simulation and evaluation of susceptibility mapping procedures.
 #         Magn Reson Med 86 (2021) 526-542. One healthy volunteer at 7 T (MP2RAGEME), 0.64 mm.
@@ -58,7 +58,7 @@ QSM_RC2 = {
 
 
 #**************************************************************************************************#
-#                                          Class QSMHead                                           #
+#                                           Class QSMHead                                          #
 #**************************************************************************************************#
 #                                                                                                  #
 # The quantitative maps of the QSM challenge 2.0 head, served on the head's own grid.              #

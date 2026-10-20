@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                          test_coils.py                                           #
+#                                           test_coils.py                                          #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -50,7 +50,7 @@ def synthetic_signal(b, npoints=512):
 
 
 #**************************************************************************************************#
-#                                           Class TestLoop                                         #
+#                                          Class TestLoop                                          #
 #**************************************************************************************************#
 class TestLoop:
 
@@ -63,9 +63,9 @@ class TestLoop:
             expected = 40.0 ** 2 / (2.0 * (40.0 ** 2 + z ** 2) ** 1.5)
             assert abs(loop.field((0.0, 0.0, z))[2] - expected) < 1e-12
 
-    #**************#
-    #   falloff    #
-    #**************#
+    #*************#
+    #   falloff   #
+    #*************#
     def test_sensitivity_falls_off_with_distance(self):
         array = CoilArray.ring(8, ring_radius_mm=110.0)
         near_first = np.abs(array.sensitivities((80.0, 0.0, 0.0)))
@@ -78,18 +78,18 @@ class TestLoop:
 #**************************************************************************************************#
 class TestCombination:
 
-    #*****************#
-    #   unit gain     #
-    #*****************#
+    #***************#
+    #   unit gain   #
+    #***************#
     def test_noise_free_combination_returns_the_signal(self):
         array = CoilArray.ring(8)
         position = (30.0, -20.0, 5.0)
         s, clean = synthetic_signal(array.sensitivities(position))
         assert np.abs(array.combine(clean, position) - s).max() < 1e-6
 
-    #********************#
-    #   snr ordering     #
-    #********************#
+    #******************#
+    #   snr ordering   #
+    #******************#
     def test_roemer_beats_sum_of_squares_and_the_best_coil(self):
         rng = np.random.default_rng(3)
         r = 0.2 * np.ones((8, 8)) + 0.8 * np.eye(8)  # correlated coils
@@ -138,9 +138,9 @@ class TestAcquisition:
         assert data.shape == (1, 1, 1, 512, 8)
         assert data.dim_tags[0] == "DIM_COIL"
 
-    #*******************#
-    #   round trip      #
-    #*******************#
+    #****************#
+    #   round trip   #
+    #****************#
     def test_combined_channels_match_the_single_channel_truth(self, pieces):
         brain, scanner, sequence = pieces
         quiet = Params(noise=dict(sigma=0.0))
@@ -154,7 +154,7 @@ class TestAcquisition:
 
 
 #**************************************************************************************************#
-#                                     Class TestNoiseByPlace                                       #
+#                                      Class TestNoiseByPlace                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # Array geometries, the noise correlation a conductive head gives them, and the combined noise     #
@@ -246,7 +246,7 @@ class TestNoiseByPlace:
 
 
 #**************************************************************************************************#
-#                                      Class TestMappedArray                                       #
+#                                       Class TestMappedArray                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # The measured 32-channel maps serve positions and combine through the same Roemer machinery.      #
@@ -277,9 +277,9 @@ class TestMappedArray:
         s, clean = synthetic_signal(array.sensitivities(position))
         assert np.abs(array.combine(clean, position) - s).max() < 1e-5
 
-    #***************#
-    #   round trip  #
-    #***************#
+    #****************#
+    #   round trip   #
+    #****************#
     def test_scan_round_trip_with_measured_coils(self, pieces, array):
         brain, scanner, sequence = pieces
         quiet = Params(noise=dict(sigma=0.0))
@@ -314,9 +314,9 @@ class TestMappedBox:
         maps[..., 1] = 1.0 + 1.0j  # channel 1 is flat
         return MappedCoilArray(maps, np.eye(4))
 
-    #*****************#
-    #   resistance    #
-    #*****************#
+    #****************#
+    #   resistance   #
+    #****************#
     def test_resistance_must_match_the_channel_count(self):
         from mrsandbox import MappedCoilArray
 
@@ -373,9 +373,9 @@ class TestT2starMove:
         s, clean = synthetic_signal(box)
         assert np.abs(array.combine(clean, (0.0, 0.0, 0.0), 20.0) - s).max() < 1e-5
 
-    #***************#
-    #   round trip  #
-    #***************#
+    #****************#
+    #   round trip   #
+    #****************#
     def test_scan_round_trip_with_the_measured_array(self, pieces):
         brain, scanner, sequence = pieces
         array = MappedCoilArray.load("t2star_move")

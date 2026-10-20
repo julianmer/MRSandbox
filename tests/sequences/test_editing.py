@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                         test_editing.py                                          #
+#                                          test_editing.py                                         #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -90,9 +90,9 @@ class TestEditing:
         window = np.abs(ppm - 3.01) < 0.15
         assert np.abs(diff[window]).max() > 0.5 * np.abs(off[window]).max()
 
-    #************************#
-    #   singlets subtract    #
-    #************************#
+    #***********************#
+    #   singlets subtract   #
+    #***********************#
     def test_uncoupled_singlets_cancel_exactly(self, engine):
         ppm, diff, off = edited_pair(engine, "Cr")
         window = np.abs(ppm - 3.03) < 0.1
@@ -116,9 +116,9 @@ class TestEditing:
         assert abs(detected(open_["on"]) - detected(open_["off"])) < 1e-5 * detected(open_["off"])
         assert Hermes.scheme(crushers=False)["a"].crushers is False
 
-    #*******************#
-    #   the sequence    #
-    #*******************#
+    #******************#
+    #   the sequence   #
+    #******************#
     def test_timing_matches_the_typed_source(self):
         on = MegaPress()
         assert on.taus_s == (0.005, 0.017, 0.017, 0.017, 0.012)
@@ -128,7 +128,7 @@ class TestEditing:
 
 
 #**************************************************************************************************#
-#                                       Class TestHadamard                                         #
+#                                        Class TestHadamard                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # Hadamard-encoded editing: dual-band pulses rotate every band, the typed schemes match their      #
@@ -197,9 +197,9 @@ class TestHadamard:
         assert np.abs(combos["gsh"][window]).max() > 0.5 * np.abs(spectra["d"][window]).max()
         assert np.abs(combos["gaba"][window]).max() < 1e-5 * np.abs(combos["gsh"][window]).max()
 
-    #************************#
-    #   singlets subtract    #
-    #************************#
+    #***********************#
+    #   singlets subtract   #
+    #***********************#
     def test_uncoupled_singlets_cancel_in_every_difference(self, engine):
         for cls in (Hermes, Hercules):
             ppm, combos, _ = hadamard_combos(engine, cls, "Cr")
@@ -210,7 +210,7 @@ class TestHadamard:
 
 
 #**************************************************************************************************#
-#                                       Class TestMultiplex                                        #
+#                                        Class TestMultiplex                                       #
 #**************************************************************************************************#
 class TestMultiplex:
     pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
@@ -248,9 +248,9 @@ class TestMultiplex:
         assert record["names"] == ["a", "b", "c", "d"]
         assert record["combinations"] == Hermes.combinations
 
-    #***********************#
-    #   hadamard combine    #
-    #***********************#
+    #**********************#
+    #   hadamard combine   #
+    #**********************#
     def test_combine_applies_the_hadamard_weights(self, hermes_acquisition):
         multiplex, data = hermes_acquisition
         volume = np.asarray(data[:])[0, 0, 0]
@@ -258,9 +258,9 @@ class TestMultiplex:
         np.testing.assert_allclose(multiplex.combine(data, "gaba"), manual,
                                    atol=1e-5 * np.abs(volume).max())
 
-    #******************#
-    #   components     #
-    #******************#
+    #****************#
+    #   components   #
+    #****************#
     def test_components_sum_to_the_conditions_and_combine_alike(self, hermes_acquisition):
         # the second file of a training pair: DIM_EDIT then DIM_USER_0, the components
         # of every condition summing to it, and combine reading either file
@@ -304,7 +304,7 @@ class TestMultiplex:
 
 
 #**************************************************************************************************#
-#                                      Class TestTransients                                        #
+#                                       Class TestTransients                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # Repeated transients: Augmentrum's instability tracks act per transient and are recorded.         #
@@ -344,9 +344,9 @@ class TestTransients:
         assert np.abs(np.asarray(data[:])).max() > 0.0
         assert len(data.hdr_ext["SimulationSchedule"]["frequency_hz"]) == 1
 
-    #******************#
-    #   still scanner  #
-    #******************#
+    #*******************#
+    #   still scanner   #
+    #*******************#
     def test_still_scanner_repeats_the_transient_exactly(self):
         data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, seed=3, npoints=256,
                                            synthesis=self.still())
@@ -356,9 +356,9 @@ class TestTransients:
         for k in range(1, 4):
             np.testing.assert_array_equal(volume[:, k], volume[:, 0])
 
-    #*************#
-    #   motion    #
-    #*************#
+    #************#
+    #   motion   #
+    #************#
     def test_a_displaced_head_changes_what_the_voxel_holds(self):
         # the head moves 8 mm after the second transient and comes back for the last:
         # the moved transients are the acquisition of the voxel placed 8 mm the other
@@ -456,9 +456,9 @@ class TestTransients:
         envelope = np.abs(echoes[:, 0]) / np.abs(echoes[:, 0]).max()
         np.testing.assert_allclose(envelope, np.exp(-2000.0 * (t - 0.1) ** 2), atol=1e-3)
 
-    #*************#
-    #   drift     #
-    #*************#
+    #***********#
+    #   drift   #
+    #***********#
     def test_drift_accumulates_on_the_acquisition_clock(self):
         data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, tr_s=2.0, seed=3,
                                            npoints=256, synthesis=self.still(drift_hz_per_min=6.0))
@@ -471,9 +471,9 @@ class TestTransients:
         assert np.allclose(schedule["frequency_hz"], [0.0, 0.2, 0.4, 0.6])
         assert schedule["synthesis"]["module"].endswith("TransientSynthesizer")
 
-    #********************#
-    #   live envelope    #
-    #********************#
+    #*******************#
+    #   live envelope   #
+    #*******************#
     def test_default_envelope_breathes_and_reproduces(self):
         # Augmentrum's 3 T envelope: the frequency track is not flat, and the same
         # seed reproduces every track and every sample
@@ -486,9 +486,9 @@ class TestTransients:
         assert len(schedule["broadening_hz"]) == 16
         np.testing.assert_array_equal(np.asarray(first[:]), np.asarray(again[:]))
 
-    #**********************#
-    #   mixed schedules    #
-    #**********************#
+    #*********************#
+    #   mixed schedules   #
+    #*********************#
     def test_interleaved_conditions_follow_the_schedule(self):
         schedule = ["on", "off", "on", "off"]
         data = self.multiplex().transients((10, -20, 5), 20.0, schedule=schedule, seed=3,
@@ -539,6 +539,7 @@ class TestLoopSurface:
 #                                                                                                  #
 # Editing with the localization played: the edited multiplet keeps its shape and loses the part    #
 # of the voxel where the coupled partners are not refocused together.                              #
+#                                                                                                  #
 #**************************************************************************************************#
 class TestLocalizedMegaPress:
 

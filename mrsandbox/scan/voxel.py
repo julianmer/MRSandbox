@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            voxel.py                                              #
+#                                             voxel.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -47,9 +47,9 @@ def acquisition_seed(seed):
     return int(np.random.SeedSequence().entropy) % 2 ** 53 if seed is None else int(seed)
 
 
-#**********************#
-#   subject and noise  #
-#**********************#
+#***********************#
+#   subject and noise   #
+#***********************#
 def draw(params, seed, step=0):
     """One subject and its receiver noise from one seed: (seed, truth, rng). The seed
     (an int, or None for a fresh recorded one) is the root of every leaf's path-keyed
@@ -82,9 +82,9 @@ def nifti_mrs(data, dwell_s, hdr, **kwargs):
         dwell_s, hdr, **kwargs)
 
 
-#**********************#
-#   noise scale        #
-#**********************#
+#*****************#
+#   noise scale   #
+#*****************#
 # the reference acquisition the drawn noise sigma belongs to: one transient of a 20 mm
 # cube (8 mL) at 3 T sampled at 5 kHz (the calibration's receiver bandwidth); SNR
 # scales with the voxel volume, with the field (body-noise dominated, stated), and
@@ -101,9 +101,9 @@ def noise_scale(volume_ml, b0_t, dwell_s, averages=1):
             * np.sqrt(1.0 / (dwell_s * NOISE_REFERENCE["bandwidth_hz"]) / averages))
 
 
-#**********************#
-#   receiver noise     #
-#**********************#
+#********************#
+#   receiver noise   #
+#********************#
 def receiver_noise(rng, sigma, npoints, receiver=None, coils=None):
     """One draw of the receiver's complex Gaussian noise: standard deviation `sigma`
     per real and imaginary FID point, complex64; with `coils` the array's correlated
@@ -120,7 +120,7 @@ def receiver_noise(rng, sigma, npoints, receiver=None, coils=None):
 
 
 #**************************************************************************************************#
-#                                           Class Voxel                                            #
+#                                            Class Voxel                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # One placed voxel: realized parameters, weighted lines, renderings, and NIfTI-MRS out.            #
@@ -199,9 +199,9 @@ class Voxel:
             found["b1_scale"] = self.b1_scale(truth)
         return found
 
-    #*******************#
-    #   transmit frame  #
-    #*******************#
+    #********************#
+    #   transmit frame   #
+    #********************#
     def b1_scale(self, truth):
         """The transmit scale the pulses run at in this voxel: the drawn calibration
         scatter times the local relative B1+ of the scan's transmit map (1.0 without
@@ -319,9 +319,9 @@ class Voxel:
         """Realize the scan's Params tree for this draw; the result is the ground truth."""
         return self.scan.params.sample(seed)
 
-    #******************#
-    #   components     #
-    #******************#
+    #****************#
+    #   components   #
+    #****************#
     def components(self, truth, metabolites=True):
         """Every signal component as (freqs, amps, lw_hz, gauss_hz): metabolites, water,
         lipids, and the macromolecule background.
@@ -517,9 +517,9 @@ class Voxel:
         cached[1][frame] = basis
         return basis
 
-    #**************#
-    #   fading     #
-    #**************#
+    #************#
+    #   fading   #
+    #************#
     def _diffusion_factor(self, truth):
         """The diffusion attenuation of a component for this scan's b-value, given its
         ADC leaf (per-tissue leaves weighted by the local composition, scalars passing

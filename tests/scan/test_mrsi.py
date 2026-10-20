@@ -91,9 +91,9 @@ class TestLattice:
 #**************************************************************************************************#
 class TestContrast:
 
-    #**********************#
-    #   spatial physics    #
-    #**********************#
+    #*********************#
+    #   spatial physics   #
+    #*********************#
     def test_contrast_follows_the_anatomy(self, scan, acquisition):
         mrsi, data = acquisition
         volume = np.asarray(data[:])[:, :, 0]
@@ -190,7 +190,7 @@ class TestSeeds:
 
 
 #**************************************************************************************************#
-#                                       Class TestEncoding                                         #
+#                                        Class TestEncoding                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The k-space encoding imprints the real point spread function and preserves amplitudes.           #
@@ -224,9 +224,9 @@ class TestEncoding:
         data = mrsi.acquire(seed=3, npoints=32)
         return np.abs(np.asarray(data[:])[:, :, 0]).sum(axis=-1)
 
-    #**************#
-    #   the psf    #
-    #**************#
+    #*************#
+    #   the psf   #
+    #*************#
     def test_a_point_source_bleeds_into_neighbours(self):
         power = self.acquire_point(weighting=None)
         centre = np.unravel_index(np.argmax(power), power.shape)
@@ -282,9 +282,9 @@ class TestEncoding:
         np.testing.assert_array_equal(np.asarray(custom[:]), np.asarray(named[:]))
         assert custom.hdr_ext.to_dict()["SimulationGrid"]["sampling"] == mask.tolist()
 
-    #***************************#
-    #   elliptical sampling     #
-    #***************************#
+    #*************************#
+    #   elliptical sampling   #
+    #*************************#
     def test_elliptical_sampling_never_measures_the_corners(self):
         from mrsandbox import NoLipids, NoMM, NoWater
 
@@ -305,9 +305,9 @@ class TestEncoding:
         assert np.abs(k_ell[0, 0]).max() < 1e-6 * scale  # elliptical never does
         assert np.abs(k_ell[0, 4]).max() > 1e-3 * scale  # the axis edge stays measured
 
-    #********************#
-    #   normalization    #
-    #********************#
+    #*******************#
+    #   normalization   #
+    #*******************#
     def test_ideal_and_encoded_agree_deep_inside_the_brain(self, scan):
         ideal = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=16.0)
         encoded = scan.mrsi(center_mm=(0.0, -20.0, 5.0), matrix=(4, 4), voxel_mm=16.0,
@@ -371,9 +371,9 @@ class TestSliceProfile:
                                    atol=1e-6 * np.abs(box).max())
         assert data.hdr_ext.to_dict()["SimulationGrid"]["profile"] == soft.profile.tolist()
 
-    #******************#
-    #   z selection    #
-    #******************#
+    #*****************#
+    #   z selection   #
+    #*****************#
     def test_profile_selects_what_the_slab_sees_along_z(self):
         gm = np.zeros((16, 16, 9), dtype=np.float32)
         gm[:, :, 6:] = 1.0  # tissue only above the slab centre
@@ -388,7 +388,7 @@ class TestSliceProfile:
 
 
 #**************************************************************************************************#
-#                                 Class TestAcquisitionWeighting                                   #
+#                                  Class TestAcquisitionWeighting                                  #
 #**************************************************************************************************#
 #                                                                                                  #
 # Acquisition-weighted averaging: quantized per-encode counts weight the signal, weak encodes      #
@@ -397,9 +397,9 @@ class TestSliceProfile:
 #**************************************************************************************************#
 class TestAcquisitionWeighting:
 
-    #**********************#
-    #   realized counts    #
-    #**********************#
+    #*********************#
+    #   realized counts   #
+    #*********************#
     def test_realized_counts_weight_the_signal_and_the_header(self):
         scan = TestSliceProfile.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
         kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=2.0)
@@ -421,9 +421,9 @@ class TestAcquisitionWeighting:
         assert grid["averages"] == 8
         assert grid["transients"] == int(counts.sum()) == int(np.sum(counts))
 
-    #*******************#
-    #   the snr gain    #
-    #*******************#
+    #******************#
+    #   the snr gain   #
+    #******************#
     def test_averaging_buys_the_square_root_noise_gain(self):
         from mrsandbox import NoLipids, NoMM, NoWater
 
@@ -448,7 +448,7 @@ class TestAcquisitionWeighting:
 
 
 #**************************************************************************************************#
-#                                        Class TestSlab3D                                          #
+#                                         Class TestSlab3D                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The 3D slab: partitions resolve z, the sampling ellipsoid and 3D weighting extend over kz, and   #
@@ -457,9 +457,9 @@ class TestAcquisitionWeighting:
 #**************************************************************************************************#
 class TestSlab3D:
 
-    #*****************#
-    #   z resolved    #
-    #*****************#
+    #****************#
+    #   z resolved   #
+    #****************#
     def test_partitions_resolve_the_z_axis(self):
         gm = np.zeros((16, 16, 9), dtype=np.float32)
         gm[:, :, 6:] = 1.0  # tissue only in the upper third of the maps
@@ -492,9 +492,9 @@ class TestSlab3D:
                           .acquire(seed=3, npoints=8)[:])
         np.testing.assert_allclose(soft, plain, rtol=1e-4, atol=1e-6 * np.abs(plain).max())
 
-    #**********************#
-    #   partition profile  #
-    #**********************#
+    #***********************#
+    #   partition profile   #
+    #***********************#
     def test_profile_weights_the_partitions(self):
         scan = TestSliceProfile.synthetic_scan(np.ones((64, 64, 9), dtype=np.float32))
         kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 3), voxel_mm=4.0,
@@ -548,9 +548,9 @@ class TestTrajectory:
         turn = np.exp(2j * np.pi * 4.65 * 3.0 * 42.5774785 * np.arange(npoints) / 4000.0)
         return data, np.asarray(data.acquire(seed=3, npoints=npoints)[:])[:, :, 0] * turn
 
-    #********************#
-    #   the exact clock  #
-    #********************#
+    #*********************#
+    #   the exact clock   #
+    #*********************#
     def test_flyback_shifts_the_sampling_clock_exactly(self):
         scan = self.singlet_scan()
         _, csi = self.acquired(scan)
@@ -565,9 +565,9 @@ class TestTrajectory:
         assert grid["trajectory"] == "epsi"
         assert grid["visit_order"] == [0, 1, 2, 3] == grid["visit_order_odd"]
 
-    #****************#
-    #   the ghost    #
-    #****************#
+    #***************#
+    #   the ghost   #
+    #***************#
     def test_bidirectional_ghosts_at_half_the_bandwidth(self):
         scan = self.singlet_scan()
         _, flyback = self.acquired(scan, trajectory="epsi")
@@ -579,9 +579,9 @@ class TestTrajectory:
         assert bid[peak] > bid[ghost]  # the main line still dominates
         assert bid[ghost] > 10.0 * fly[ghost]  # the odd-even ghost is bidirectional only
 
-    #*****************#
-    #   odd sweeps    #
-    #*****************#
+    #****************#
+    #   odd sweeps   #
+    #****************#
     def test_odd_sweeps_carry_their_own_gain_phase_and_delay(self):
         # the decode is linear per spectral period: a gain and a phase on the odd
         # sweeps multiply the odd FID points and leave the even ones, a delay turns
@@ -609,9 +609,9 @@ class TestTrajectory:
         with pytest.raises(ValueError):
             scan.mrsi(matrix=(4, 4), voxel_mm=4.0, trajectory="epsi", odd_sweeps=dict(gain=0.9))
 
-    #*******************#
-    #   finite flyback  #
-    #*******************#
+    #********************#
+    #   finite flyback   #
+    #********************#
     def test_finite_flyback_keeps_the_clock_identity(self):
         # the visits compress into dwell - dead: the uniform singlet still lives at
         # kx DC with one constant advance, and the realized dead time is quantized
@@ -656,9 +656,9 @@ class TestTrajectory:
         # CSI slab takes its identity shortcut and lands at exactly zero instead)
         assert power[0] < 1e-6 * power[2]
 
-    #******************#
-    #   composition    #
-    #******************#
+    #*****************#
+    #   composition   #
+    #*****************#
     def test_trajectory_rejects_the_csi_knobs(self):
         scan = self.singlet_scan()
         kw = dict(center_mm=(0.0, 0.0, 0.0), matrix=(4, 4), voxel_mm=4.0)
@@ -684,9 +684,9 @@ class TestTrajectory:
                     reason="Augmentrum not installed (mrsandbox[augment])")
 class TestNonuniform:
 
-    #*****************#
-    #   uniform gate  #
-    #*****************#
+    #******************#
+    #   uniform gate   #
+    #******************#
     def test_rosette_keeps_a_uniform_singlet_object(self):
         # every rosette shot starts at DC, so a uniform single-line object is read at
         # slot zero of every period: the reconstruction is the CSI slice up to the
@@ -707,9 +707,9 @@ class TestNonuniform:
         assert grid["samples_per_shot"] == 64 and "visit_order" not in grid
         assert grid["trajectory_params"] == {"n_shots": 4, "samples_per_shot": 64}
 
-    #*******************#
-    #   point source    #
-    #*******************#
+    #******************#
+    #   point source   #
+    #******************#
     def test_rings_place_a_point_source(self):
         from mrsandbox import NoLipids, NoMM, NoWater
 
@@ -723,9 +723,9 @@ class TestNonuniform:
         assert np.unravel_index(np.argmax(power), power.shape) == (4, 4)
         assert power[4, 4] > 3.0 * np.sort(power.ravel())[-2]  # the peak stands clear
 
-    #*****************#
-    #   the guards    #
-    #*****************#
+    #****************#
+    #   the guards   #
+    #****************#
     def test_unequal_shots_are_refused(self):
         scan = TestTrajectory.singlet_scan()
         with pytest.raises(ValueError, match="same sample count"):
@@ -738,7 +738,7 @@ class TestNonuniform:
 
 
 #**************************************************************************************************#
-#                                         Class TestBasis                                          #
+#                                          Class TestBasis                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The per-truth metabolite basis reproduces the per-voxel render exactly: what MRSI relies on.     #
@@ -746,9 +746,9 @@ class TestNonuniform:
 #**************************************************************************************************#
 class TestBasis:
 
-    #*****************#
-    #   the identity  #
-    #*****************#
+    #******************#
+    #   the identity   #
+    #******************#
     def test_basis_render_equals_the_per_voxel_render(self):
         # every source cell of a lattice: weights @ basis plus the other sources equals
         # the plain per-voxel render, quiet and with the drawn echo and eddy phase

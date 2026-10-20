@@ -7,7 +7,7 @@
 # Created: 03/09/26                                                                                #
 #                                                                                                  #
 # Purpose: Relaxation gate: in-sequence relaxation follows the analytic laws. Echo attenuation is  #
-#          exactly exp(-TE/T2), a shaped pulse relaxes over its duration, suppression-train         #
+#          exactly exp(-TE/T2), a shaped pulse relaxes over its duration, suppression-train        #
 #          recovery is exactly 1 - exp(-delay/T1), systems without relaxation stay purely          #
 #          coherent, and the scan path carries the TE dependence.                                  #
 #                                                                                                  #
@@ -141,7 +141,7 @@ class TestInSequenceRelaxation:
 
 
 #**************************************************************************************************#
-#                                      Class TestRepetition                                        #
+#                                       Class TestRepetition                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # A sequence with a TR reaches the spoiled steady state: the T1 saturation of the excitation and   #
@@ -157,9 +157,9 @@ class TestRepetition:
     def system(t1_s=1.3):
         return SpinSystem.from_database("sIns")[0].with_relaxation(t1_s=t1_s, t2_s=100.0)
 
-    #**********************#
-    #   pulse acquire      #
-    #**********************#
+    #*******************#
+    #   pulse acquire   #
+    #*******************#
     def test_pulse_acquire_saturates_by_one_minus_exp(self, engine):
         from mrsandbox import Sequence
 
@@ -170,9 +170,9 @@ class TestRepetition:
         with pytest.raises(ValueError):
             Sequence(Delay(0.5), tr_s=0.2)
 
-    #*****************#
-    #   spin echo     #
-    #*****************#
+    #***************#
+    #   spin echo   #
+    #***************#
     def test_spin_echo_inverts_the_recovered_magnetization(self, engine):
         # 90 - tau - 180 - tau: what recovers during the first tau is inverted by the
         # 180, so the steady state is 1 - 2 exp(-(TR - tau) / T1) + exp(-TR / T1) with
@@ -218,9 +218,9 @@ class TestRepetition:
         assert abs(one - eight) / eight < 0.2
         assert abs(four - eight) / eight < 1e-3
 
-    #*****************#
-    #   graph inputs  #
-    #*****************#
+    #******************#
+    #   graph inputs   #
+    #******************#
     def test_tr_is_a_timing_of_the_design(self):
         # two repetition times of one design share the graph; None is another design
         assert (Press(0.011, 0.019, tr_s=1.0).structure()

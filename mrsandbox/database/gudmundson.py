@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                          gudmundson.py                                           #
+#                                           gudmundson.py                                          #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -107,9 +107,9 @@ class Gudmundson:
         return rows
 
 
-    #***************#
-    #   pooling     #
-    #***************#
+    #*************#
+    #   pooling   #
+    #*************#
     def pooled_t2(self, metabolite, tesla=3, groups=("Healthy", "Control"), subject="Human"):
         """DerSimonian and Laird random-effects pool of the T2 rows, in seconds.
 
@@ -180,7 +180,7 @@ class Gudmundson:
 
 
 #**************************************************************************************************#
-#                                        Class PooledValue                                         #
+#                                         Class PooledValue                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # A pooled literature value with its between-study spread.                                         #
@@ -193,9 +193,9 @@ class PooledValue(typing.NamedTuple):
     sd_s: float
     n_studies: int
 
-    #***********#
-    #   pool    #
-    #***********#
+    #**********#
+    #   pool   #
+    #**********#
     @classmethod
     def from_studies(cls, y, v):
         """DerSimonian and Laird random-effects pool of study means `y` and variances `v`.

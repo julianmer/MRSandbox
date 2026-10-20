@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                           transfer.py                                            #
+#                                            transfer.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -22,9 +22,9 @@ from mrsandbox.sequences.events import (CoherenceFilter, Delay, Pulse, Selective
                                         ShapedPulse, _hashable)
 
 
-#**********************#
-#   superlorentzian    #
-#**********************#
+#*********************#
+#   superlorentzian   #
+#*********************#
 def superlorentzian(delta_hz, t2_s, floor_hz=1000.0):
     """The bound pool's absorption line G(delta) in s (Morrison and Henkelman, MRM 33 (1995)
     475), per offset in `delta_hz`: the integral over u from 0 to 1 of sqrt(2 / pi) T2 / |3u^2 -
@@ -41,7 +41,7 @@ def superlorentzian(delta_hz, t2_s, floor_hz=1000.0):
 #                                          Class Transfer                                          #
 #**************************************************************************************************#
 #                                                                                                  #
-# The longitudinal water, bound pool and metabolites through a design, in steady state over TR.   #
+# The longitudinal water, bound pool and metabolites through a design, in steady state over TR.    #
 #                                                                                                  #
 #**************************************************************************************************#
 class Transfer:

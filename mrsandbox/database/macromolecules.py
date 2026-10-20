@@ -84,9 +84,9 @@ OSPREY = {
               ("Lip20c", 2.80, 0.20, 0.87)),
 }
 
-#**********************#
-#   mrsi challenge     #
-#**********************#
+#********************#
+#   mrsi challenge   #
+#********************#
 # Source: LaMaster, J. T., Merkofer, J. P., van de Sande, D. M. J., Soher, B. J.,
 #         Strasser, B., Ma, C. The 2024 MRSI Data Processing and Quantification
 #         Challenge Synthetic Dataset. arXiv:2609.02637. Table 3, after Povazan et al.
@@ -111,9 +111,9 @@ MRSI_CHALLENGE = {
     },
 }
 
-#**************************#
-#   consensus couplings    #
-#**************************#
+#*************************#
+#   consensus couplings   #
+#*************************#
 # Source: Cudalbu, C., et al. (the CUDALBU table above), Table 1: cross-peaks in 2D
 #         spectra and the J column (coupling constants from 2D J-resolved spectra).
 # Units:  (partner_a_ppm, partner_b_ppm, j_hz) for the amino-acid chains behind the main

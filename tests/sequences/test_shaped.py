@@ -71,9 +71,9 @@ class TestShapedPulse:
             )
             assert abs(shaped - ideal) < 1e-4 * ideal
 
-    #*******************#
-    #   calibration     #
-    #*******************#
+    #*****************#
+    #   calibration   #
+    #*****************#
     def test_on_resonance_flip_is_calibrated(self, engine):
         water = WaterSource.system(gamma_mhz_t=GAMMA)
         full = total_amplitude(engine, PulseAcquire(), water)
@@ -86,9 +86,9 @@ class TestShapedPulse:
         assert abs(excited - full) < 1e-3 * full
         assert inverted < 0.05 * full
 
-    #*******************#
-    #   selectivity     #
-    #*******************#
+    #*****************#
+    #   selectivity   #
+    #*****************#
     def test_carrier_sign_and_selectivity(self, engine):
         # a 20 ms gaussian at the water position excites water in full, barely touches
         # the NAA acetyl singlet 336 Hz away, and a wrong-sign carrier touches nothing
@@ -102,9 +102,9 @@ class TestShapedPulse:
         assert total_amplitude(engine, acquire(at_water), acetyl) < 0.01 * plain
         assert total_amplitude(engine, acquire(mirrored), water) < 0.01 * full
 
-    #**************************#
-    #   complex128 oracle      #
-    #**************************#
+    #***********************#
+    #   complex128 oracle   #
+    #***********************#
     def test_off_resonance_oracle_parity_on_glutamate(self, engine):
         """Independent simulation: own operators, scipy expm, same waveform samples."""
         fsl = pytest.importorskip("fsl_denmatsim")
@@ -170,9 +170,9 @@ class TestShapedPulse:
         ours = np.asarray(ops.convert_to_numpy(ours), dtype=np.complex128)
         assert np.abs(ours - reference).max() / np.abs(reference).max() < 1e-3
 
-    #************************#
-    #   denmatsim parity     #
-    #************************#
+    #**********************#
+    #   denmatsim parity   #
+    #**********************#
     def test_denmatsim_parity_on_lactate(self, engine):
         fsl = pytest.importorskip("fsl_denmatsim")
         from fsl_denmatsim.simseq import simseq
@@ -213,9 +213,9 @@ class TestShapedPulse:
         assert corr > 0.9999, f"complex correlation {corr:.6f}"
         assert err < 0.02, f"relative max error {err:.4f}"
 
-    #**********************#
-    #   differentiability  #
-    #**********************#
+    #***********************#
+    #   differentiability   #
+    #***********************#
     def test_gradient_flows_through_the_envelope(self, engine, needs_autograd):
         from nifti_mrs_plus.backend import value_and_grad
 
@@ -253,7 +253,7 @@ class TestShapedPulse:
 
 
 #**************************************************************************************************#
-#                                     Class TestPulseProfiles                                      #
+#                                      Class TestPulseProfiles                                     #
 #**************************************************************************************************#
 #                                                                                                  #
 # Excitation and inversion bandwidths reproduce the published bandwidth-length products.           #
@@ -290,9 +290,9 @@ class TestPulseProfiles:
         above = offsets_hz[response >= response.max() / 2.0]
         return (above.max() - above.min()) * duration
 
-    #**********************#
-    #   de graaf table     #
-    #**********************#
+    #********************#
+    #   de graaf table   #
+    #********************#
     def test_bandwidths_match_de_graaf_table_5_1(self, engine):
         cases = (
             (ShapedPulse.gaussian, dict(truncation=0.01), "gaussian_1pct"),
@@ -308,7 +308,7 @@ class TestPulseProfiles:
 
 
 #**************************************************************************************************#
-#                                       Class TestAdiabatic                                        #
+#                                        Class TestAdiabatic                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # Hyperbolic secant inversion is B1 and offset insensitive, and semi-LASER inherits it.            #
@@ -328,9 +328,9 @@ class TestAdiabatic:
         start = np.trace(fz @ np.asarray(water.thermal_rho())).real
         return float(np.trace(fz @ np.asarray(ops.convert_to_numpy(rho))).real / start)
 
-    #****************#
-    #   inversion    #
-    #****************#
+    #***************#
+    #   inversion   #
+    #***************#
     def test_inversion_is_b1_and_offset_insensitive(self, engine):
         for scale in (1.0, 1.4, 1.8):
             pulse = ShapedPulse.hyperbolic_secant(0.008, 1500.0, 700.0 * scale,
@@ -355,9 +355,9 @@ class TestAdiabatic:
                       for sign in (+1.0, -1.0)]
                 assert abs(mz[0] - mz[1]) < bound
 
-    #*******************#
-    #   shinnar le roux #
-    #*******************#
+    #*********************#
+    #   shinnar le roux   #
+    #*********************#
     def test_slr_pulses_hold_their_slab(self):
         # a 90 of time-bandwidth 6 and a spin-echo 180 of 6.24 over a 20 mm slab: flat
         # inside, half amplitude at the nominal edge, a clean stopband, and the slab
@@ -408,9 +408,9 @@ class TestAdiabatic:
         with pytest.raises(ValueError):
             ShapedPulse.slr(90.0, 0.0026, 6.0, "inversion")
 
-    #*******************#
-    #   goia wurst      #
-    #*******************#
+    #****************#
+    #   goia wurst   #
+    #****************#
     def test_goia_wurst_inverts_a_10_khz_slab_at_15_ut(self):
         # the across-vendor 3 T refocusing pulse (Deelchand 2021: GOIA-W(16,4), 4.5 ms,
         # 10 kHz, 15 uT) under its modulated gradient: the slab inverts, three slab
@@ -440,9 +440,9 @@ class TestAdiabatic:
         assert pulse.structure() == ShapedPulse.goia_wurst(0.004, 8000.0, 500.0, extent_mm=16.0,
                                                            **slab).structure()
 
-    #*******************#
-    #   semi-laser      #
-    #*******************#
+    #****************#
+    #   semi-laser   #
+    #****************#
     def test_the_semi_laser_echo_time_counts_its_pulses(self):
         # the events of a 30 ms semi-LASER last 30 ms, its four adiabatic pulses included,
         # and a weakly coupled doublet has evolved for that long: each line by pi J TE

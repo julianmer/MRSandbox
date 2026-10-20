@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                          multiplex.py                                            #
+#                                           multiplex.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -35,7 +35,7 @@ RUN_KEYS = ("drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz", "resp_amp_hz", "p
 
 
 #**************************************************************************************************#
-#                                         Class Multiplex                                          #
+#                                          Class Multiplex                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # Named acquisition conditions sharing one brain, scanner, parameter tree, and truth draw.         #
@@ -88,9 +88,9 @@ class Multiplex:
             self.add(name, sequence)
         self.params = self.scans[self.conditions[0]].params
 
-    #*****************#
-    #   conditions    #
-    #*****************#
+    #****************#
+    #   conditions   #
+    #****************#
     def add(self, name, sequence):
         """Register one more condition (a loop's next candidate) on the shared
         engine, brain, scanner, and parameter tree."""

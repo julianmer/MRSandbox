@@ -23,7 +23,7 @@ import numpy as np
 
 
 #**************************************************************************************************#
-#                                         Class Generator                                          #
+#                                          Class Generator                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # An infinite, seeded (inputs, targets) stream simulated on the fly.                               #
@@ -68,9 +68,9 @@ class Generator(keras.utils.PyDataset):
         self.truths = ()
         self._next = 0
 
-    #**************#
-    #   batches    #
-    #**************#
+    #*************#
+    #   batches   #
+    #*************#
     @property
     def num_batches(self):
         """None: the stream is infinite; set steps_per_epoch when fitting."""

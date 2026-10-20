@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                       test_suppression.py                                        #
+#                                        test_suppression.py                                       #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -44,7 +44,7 @@ def total_amplitude(engine, sequence, system):
 
 
 #**************************************************************************************************#
-#                                      Class TestSuppression                                       #
+#                                       Class TestSuppression                                      #
 #**************************************************************************************************#
 class TestSuppression:
 
@@ -95,7 +95,7 @@ class TestSuppression:
 
 
 #**************************************************************************************************#
-#                                     Class TestNamedSchemes                                       #
+#                                      Class TestNamedSchemes                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # WET and VAPOR carry their published series and deliver the published insensitivity.              #
@@ -103,9 +103,9 @@ class TestSuppression:
 #**************************************************************************************************#
 class TestNamedSchemes:
 
-    #*********************#
-    #   typed from print  #
-    #*********************#
+    #**********************#
+    #   typed from print   #
+    #**********************#
     def test_series_match_the_published_tables(self):
         assert Wet().flips_deg == suppression.WET["flips_deg"] == (81.4, 101.4, 69.3, 161.0)
         assert Vapor().delays_s == suppression.VAPOR["delays_s"]["4t"]
@@ -113,9 +113,9 @@ class TestNamedSchemes:
         # a +5 dB power offset scales the flip of a fixed-shape pulse by 10 ** (5 / 20)
         assert abs(Vapor().flips_deg[2] - 90.0 * 10.0 ** 0.25) < 1e-9
 
-    #**********************#
-    #   wet nulls water    #
-    #**********************#
+    #*********************#
+    #   wet nulls water   #
+    #*********************#
     def test_wet_nulls_water_across_t1(self, engine):
         for t1 in (1.0, 1.5, 2.0):
             water = WaterSource.system(gamma_mhz_t=42.5774785).with_relaxation(t1_s=t1, t2_s=0.05)
@@ -142,9 +142,9 @@ class TestNamedSchemes:
             assert total_amplitude(engine, train + PulseAcquire(), water) < 0.005 * full
             assert total_amplitude(engine, train.scaled(0.9) + PulseAcquire(), water) > 0.01 * full
 
-    #***************************#
-    #   vapor b1 insensitive    #
-    #***************************#
+    #**************************#
+    #   vapor b1 insensitive   #
+    #**************************#
     def test_vapor_is_b1_and_t1_insensitive(self, engine):
         # the published claim: water stays nulled for nominal flips from 65 to 125
         # degrees and water T1 from 1 to 2 seconds
@@ -156,9 +156,9 @@ class TestNamedSchemes:
                                            water)
                 assert residual < 0.025 * full
 
-    #**************************#
-    #   metabolites survive    #
-    #**************************#
+    #*************************#
+    #   metabolites survive   #
+    #*************************#
     def test_vapor_spares_the_metabolites(self, engine):
         for system in SpinSystem.from_database("NAA"):
             system = system.with_relaxation(t1_s=1.4, t2_s=0.25)
@@ -187,9 +187,9 @@ class TestNamedSchemes:
             assert train.flips_deg == pytest.approx(
                 tuple(90.0 * v / 11.7936 for v in volts[scheme]), abs=0.1)
 
-    #**********************************#
-    #   cows nulls across t1 and b1    #
-    #**********************************#
+    #*********************************#
+    #   cows nulls across t1 and b1   #
+    #*********************************#
     def test_cows_nulls_water_across_t1_and_b1_in_the_steady_state(self, engine):
         # the paper's design range, T1 0.5 to 5 s and a B1 factor 0.75 to 1.25, in the spoiled
         # steady state of its TR 2 s (COWS assumes no equilibrium): both COWS schemes leave under
@@ -206,9 +206,9 @@ class TestNamedSchemes:
                         engine, Cows(scheme).scaled(b1) + PulseAcquire(tr_s=2.0), water
                     ) < bound * full
 
-    #*************************#
-    #   played trains        #
-    #*************************#
+    #*******************#
+    #   played trains   #
+    #*******************#
     def test_a_played_train_carries_its_sources_pulse_and_still_nulls(self, engine):
         # played real, COWS's pulses are the paper's 17.92 ms Gaussians (their saturation, 1 - Mz,
         # at half at 34 Hz from the water: the paper's 68 Hz), the train's gaps follow the

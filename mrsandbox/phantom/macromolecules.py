@@ -26,9 +26,9 @@ from mrsandbox.io import VarianFid
 from mrsandbox.spins import SpinSystem
 
 
-#*****************#
-#   nearest peak  #
-#*****************#
+#******************#
+#   nearest peak   #
+#******************#
 def _nearest(positions, ppm):
     """The index of the nearest of the sorted `positions` for every value of `ppm`."""
     return np.searchsorted(0.5 * (positions[1:] + positions[:-1]), ppm)
@@ -370,7 +370,7 @@ class MeasuredMM(MMSource):
 
 
 #**************************************************************************************************#
-#                                        Class ChallengeMM                                         #
+#                                         Class ChallengeMM                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The macromolecule basis of the 2024 MRSI challenge: nine component FIDs on its amplitude model.  #
@@ -464,7 +464,7 @@ class ChallengeMM(MeasuredMM):
 
 
 #**************************************************************************************************#
-#                                         Class CoupledMM                                          #
+#                                          Class CoupledMM                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # Macromolecules as coupled mini spin systems: sequence behaviour and co-editing emerge.           #
@@ -636,9 +636,9 @@ class CoupledMM(MMSource):
                                               amps[row, bounds[i]:bounds[i + 1]])
                                        for i, name in enumerate(names)}
 
-    #***************#
-    #   systems     #
-    #***************#
+    #*************#
+    #   systems   #
+    #*************#
     def _systems(self, gamma_mhz_t):
         """The structural spin systems of SYSTEMS at one gyromagnetic ratio, built once."""
         if getattr(self, "_built", None) is None or self._built[0] != gamma_mhz_t:

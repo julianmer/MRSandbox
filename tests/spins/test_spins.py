@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                          test_spins.py                                           #
+#                                           test_spins.py                                          #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -31,7 +31,7 @@ def lac():
 
 
 #**************************************************************************************************#
-#                                       Class TestOperators                                        #
+#                                        Class TestOperators                                       #
 #**************************************************************************************************#
 class TestOperators:
 
@@ -112,7 +112,7 @@ class TestSpinSystem:
 
 
 #**************************************************************************************************#
-#                                      Class TestHigherSpin                                        #
+#                                       Class TestHigherSpin                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # The operator algebra of any spin I: deuterium (1) and sodium (3/2) beside the proton (1/2).      #
@@ -130,9 +130,9 @@ class TestHigherSpin:
         return SpinSystem(name=nucleus, nucleus=nucleus, shifts_ppm=(shift_ppm,), j_hz=((0.0,),),
                           scale=1.0, gamma_mhz_t=Database().gamma(nucleus), spin=spin)
 
-    #***************#
-    #   algebra     #
-    #***************#
+    #*************#
+    #   algebra   #
+    #*************#
     @pytest.mark.parametrize("nucleus, spin", [("1H", 0.5), ("2H", 1.0), ("23Na", 1.5)])
     def test_operators_obey_the_spin_algebra(self, nucleus, spin):
         # [Ix, Iy] = i Iz, the Casimir I (I + 1), the m ladder of Iz, and the
@@ -151,9 +151,9 @@ class TestHigherSpin:
         np.testing.assert_allclose(h @ np.diag(op.mz[0]) @ h.conj().T, ix, atol=1e-6)
         assert op.coherence_order.max() == int(round(2 * spin))
 
-    #*****************#
-    #   two spins     #
-    #*****************#
+    #***************#
+    #   two spins   #
+    #***************#
     def test_two_deuterons_share_the_product_space(self):
         from mrsandbox.database import Database
 
@@ -168,9 +168,9 @@ class TestHigherSpin:
             np.testing.assert_allclose(op.hadamard @ np.diag(op.mz[i]) @ op.hadamard.conj().T,
                                        op.ix[i], atol=1e-6)
 
-    #*****************#
-    #   amplitudes    #
-    #*****************#
+    #****************#
+    #   amplitudes   #
+    #****************#
     def test_amplitude_per_spin_follows_i_times_i_plus_one(self):
         # 2 Fz / d is the thermal state of every spin, so the detected amplitude of
         # one spin scales as I (I + 1): 8/3 for deuterium and 5 for sodium against
@@ -188,9 +188,9 @@ class TestHigherSpin:
         assert abs(detected("2H", 1.0) / proton - 8.0 / 3.0) < 1e-5
         assert abs(detected("23Na", 1.5) / proton - 5.0) < 1e-5
 
-    #***********#
-    #   dmi     #
-    #***********#
+    #*********#
+    #   dmi   #
+    #*********#
     def test_dmi_spectrum_shows_the_four_deuterated_resonances(self):
         # the typed deuterium set (water, glucose, Glx, lactate) renders at its in
         # vivo positions, as spin 1 with its 11.7 T T1
@@ -209,7 +209,7 @@ class TestHigherSpin:
 
 
 #**************************************************************************************************#
-#                                       Class TestHeteronuclei                                     #
+#                                      Class TestHeteronuclei                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # A spin of another nucleus in a proton system: its own levels, never pulsed nor detected.         #
@@ -306,7 +306,7 @@ class TestHeteronuclei:
 
 
 #**************************************************************************************************#
-#                                      Class TestConnectedParts                                    #
+#                                     Class TestConnectedParts                                     #
 #**************************************************************************************************#
 #                                                                                                  #
 # Spins no coupling connects are their own systems, and the split changes no spectrum.             #

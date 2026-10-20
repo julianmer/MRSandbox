@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            shifts.py                                             #
+#                                             shifts.py                                            #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -11,9 +11,9 @@
 #                                                                                                  #
 ####################################################################################################
 
-#*******************#
-#   wermter 2026    #
-#*******************#
+#******************#
+#   wermter 2026   #
+#******************#
 # Source: Wermter, F. C., et al. 1H NMR chemical shifts and J-coupling constants dependence on
 #         temperature and pH: implications for the quantification of relevant metabolites. NMR in
 #         Biomedicine 39 (2026) e70239, doi:10.1002/nbm.70239. Supporting Information Table S1:
@@ -165,9 +165,9 @@ WERMTER_2026 = {
     },
 }
 
-#***********************#
-#   wermter 2026, j     #
-#***********************#
+#*********************#
+#   wermter 2026, j   #
+#*********************#
 # Source: the same paper and deposit, Supporting Information Table S2: the fitted model
 #         functions J(pH, T) of the couplings the authors could read off the multiplets.
 # Data:   per compound and coupling the polynomials a, b, c of

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                           defaults.py                                            #
+#                                            defaults.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -92,9 +92,9 @@ _TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
                "GPC": "tCho", "PCho": "tCho"}
 
 
-#**********************#
-#   default catalogue  #
-#**********************#
+#***********************#
+#   default catalogue   #
+#***********************#
 def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=None,
                    subject=None, within=()):
     """Concentration priors and pooled literature relaxation for every metabolite that

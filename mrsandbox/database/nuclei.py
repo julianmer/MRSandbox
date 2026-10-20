@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            nuclei.py                                             #
+#                                             nuclei.py                                            #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -10,9 +10,9 @@
 #                                                                                                  #
 ####################################################################################################
 
-#**********************#
-#   gamma per nucleus  #
-#**********************#
+#***********************#
+#   gamma per nucleus   #
+#***********************#
 # Source: Harris, R. K., et al. NMR nomenclature (IUPAC Recommendations 2001). Pure and
 #         Applied Chemistry 73 (2001) 1795-1818. doi:10.1351/pac200173111795.
 # Units:  gamma-bar = gamma / 2 pi, in MHz per tesla.
@@ -45,9 +45,9 @@ SPIN = {
 }
 
 
-#**********************#
-#   heteronuclei       #
-#**********************#
+#******************#
+#   heteronuclei   #
+#******************#
 # Source: the nitrogen and phosphorus of the GOVINDARAJU spin systems (spinsystems.py, FID-A's
 #         spinSystems.mat), which the table writes as protons at 100 and 40 ppm, named after the
 #         nucleiList of MARSS's metabList (Landheer, Swanberg, Juchem, NMR Biomed 34 (2021)

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                     test_macromolecules.py                                       #
+#                                      test_macromolecules.py                                      #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -52,22 +52,22 @@ def spectra():
 
 
 #**************************************************************************************************#
-#                                      Class TestParameters                                        #
+#                                       Class TestParameters                                       #
 #**************************************************************************************************#
 class TestParameters:
 
-    #**********************#
-    #   typed from code    #
-    #**********************#
+    #*********************#
+    #   typed from code   #
+    #*********************#
     def test_table_matches_the_osprey_source(self):
         assert macromolecules.OSPREY["MM09"] == (("MM09", 0.91, 0.14, 3.0),)
         assert macromolecules.OSPREY["MM17"] == (("MM17", 1.67, 0.15, 2.0),)
         assert len(macromolecules.OSPREY["MM20"]) == 4  # the four-part composite
         assert sum(p for _, _, _, p in macromolecules.OSPREY["MM20"]) == pytest.approx(2.39)
 
-    #**********************#
-    #   consensus check    #
-    #**********************#
+    #*********************#
+    #   consensus check   #
+    #*********************#
     def test_osprey_positions_land_on_consensus_peaks(self):
         """Every simulated MM Gaussian must sit on a peak the consensus table describes
         (within its own stated 0.01 to 0.04 ppm inter-paper variation, plus width)."""
@@ -79,7 +79,7 @@ class TestParameters:
 
 
 #**************************************************************************************************#
-#                                      Class TestBackground                                        #
+#                                       Class TestBackground                                       #
 #**************************************************************************************************#
 class TestBackground:
 
@@ -105,9 +105,9 @@ class TestBackground:
         ratio = (high - base)[window].max() / (low - base)[window].max()
         assert abs(ratio - 2.0) < 0.05
 
-    #********************#
-    #   area fraction    #
-    #********************#
+    #*******************#
+    #   area fraction   #
+    #*******************#
     def test_area_fraction_lands_in_the_in_vivo_ballpark(self, spectra):
         ppm, with_mm = spectra(3.0)
         _, without = spectra(3.0, mm=NoMM())
@@ -145,9 +145,9 @@ class TestChallenge:
         window = (ppm > 0.5) & (ppm < 4.2)
         assert background[window].min() > -0.05 * background[window].max()
 
-    #***********************#
-    #   amplitude model     #
-    #***********************#
+    #*********************#
+    #   amplitude model   #
+    #*********************#
     def test_first_point_is_kappa_times_the_ratios_times_creatine(self):
         # b = 0.4 x r x c_tCr per component on the basis' own first points
         from mrsandbox.database import macromolecules
@@ -187,7 +187,7 @@ class TestChallenge:
 
 
 #**************************************************************************************************#
-#                                       Class TestMeasured                                         #
+#                                        Class TestMeasured                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The measured consensus spectrum maps into the simulation frame peak-faithfully.                  #
@@ -215,9 +215,9 @@ class TestMeasured:
         apex = ppm[window][np.argmax(background[window])]
         assert abs(apex - 0.94) < 0.03  # the consensus M0.94, its stated variation
 
-    #*******************#
-    #   proper phase    #
-    #*******************#
+    #******************#
+    #   proper phase   #
+    #******************#
     def test_background_is_absorptive(self, spectra):
         ppm, background = self.background(spectra, 3.0)
         window = (ppm > 0.5) & (ppm < 4.2)
@@ -248,9 +248,9 @@ class TestMeasured:
 
         assert MeasuredMM.PEAK_ANCHOR == MODELS["mm.measured.peak_anchor"].value
 
-    #****************#
-    #   te decay     #
-    #****************#
+    #**************#
+    #   te decay   #
+    #**************#
     @staticmethod
     def measured_background(te_s, seed=7, npoints=4096):
         brain = Brain.load("icbm152")
@@ -330,7 +330,7 @@ class TestMeasured:
 
 
 #**************************************************************************************************#
-#                                        Class TestCoupled                                         #
+#                                         Class TestCoupled                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The coupled MM systems behave with the sequence: TE decay, co-editing, creatine anchoring.       #
@@ -366,9 +366,9 @@ class TestCoupled:
         window = (ppm > 0.5) & (ppm < 4.2)
         assert np.abs(long[window]).max() < 0.05 * np.abs(short[window]).max()
 
-    #********************#
-    #   area fraction    #
-    #********************#
+    #*******************#
+    #   area fraction   #
+    #*******************#
     def test_short_te_fraction_in_the_consensus_ballpark(self):
         brain = Brain.load("icbm152")
         tree = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
@@ -388,9 +388,9 @@ class TestCoupled:
         fraction = np.real(s1 - s0)[window].sum() / np.real(s1)[window].sum()
         assert 0.10 < fraction < 0.30
 
-    #*****************#
-    #   co-editing    #
-    #*****************#
+    #****************#
+    #   co-editing   #
+    #****************#
     def test_mm_co_edit_in_the_mega_difference(self):
         from mrsandbox import MegaPress
 
@@ -402,9 +402,9 @@ class TestCoupled:
         far = np.abs(edited[(ppm > 8.0) & (ppm < 9.5)]).max()
         assert at_3 > 10.0 * max(far, 1e-9)  # the consensus-flagged co-edited background
 
-    #***********************#
-    #   creatine anchoring  #
-    #***********************#
+    #************************#
+    #   creatine anchoring   #
+    #************************#
     def test_a_kappa_of_zero_is_silence(self):
         # the console's "macromolecules off" sets kappa to 0: the source falls silent like the
         # others (None, not empty line lists), and the render is the one without macromolecules
@@ -439,9 +439,9 @@ class TestCoupled:
                                                         PCr=PerTissue(gm=4.0, wm=4.0, csf=4.0)))
         np.testing.assert_allclose(tissue, fixed, atol=1e-6 * np.abs(fixed).max())
 
-    #***********************#
-    #   couplings by table  #
-    #***********************#
+    #************************#
+    #   couplings by table   #
+    #************************#
     def test_couplings_come_from_the_consensus_table(self):
         # the simulated J values are read from the cited CONSENSUS_COUPLINGS rows by
         # nearest peak position, so the table and the physics cannot drift apart

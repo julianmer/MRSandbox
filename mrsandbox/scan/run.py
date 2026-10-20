@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                               run.py                                             #
+#                                              run.py                                              #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -69,7 +69,7 @@ def _conditions(header, dataset, citation, url, what):
 
 
 #**************************************************************************************************#
-#                                       Class PhysioReading                                        #
+#                                        Class PhysioReading                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # The breathing and the heart of a subject off a physiological recording made during a scan.       #
@@ -166,10 +166,11 @@ class PhysioReading:
 
 
 #**************************************************************************************************#
-#                                       Class MotionReading                                        #
+#                                        Class MotionReading                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # The head's motion over a scan off a 4D image series registered volume by volume.                 #
+#                                                                                                  #
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class MotionReading:
@@ -286,11 +287,12 @@ class MotionReading:
 
 
 #**************************************************************************************************#
-#                                        Class RunReading                                          #
+#                                         Class RunReading                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # What a run's transients say of the scanner and the subject over it: drift, wander, breathing,    #
 # jitter, events.                                                                                  #
+#                                                                                                  #
 #**************************************************************************************************#
 @dataclasses.dataclass(frozen=True)
 class RunReading:
@@ -363,9 +365,9 @@ class RunReading:
                                else float(header.get("RepetitionTime") or 2.0),
                                {**header, "MagneticFieldStrength": round(f0_mhz / 42.5774785, 2)})
 
-    #**************#
-    #   the tracks #
-    #**************#
+    #****************#
+    #   the tracks   #
+    #****************#
     @property
     def minutes(self):
         return self.frequency_hz.size * self.tr_s / 60.0

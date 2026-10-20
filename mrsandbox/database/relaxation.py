@@ -136,9 +136,9 @@ XIN = {
     },
 }
 
-#*************************#
-#   ethofer at 1.5 tesla  #
-#*************************#
+#**************************#
+#   ethofer at 1.5 tesla   #
+#**************************#
 # Source: Ethofer et al. 2003 (the ETHOFER card above), Table 2, the 1.5 T rows.
 # Units:  T1 in seconds with standard deviations, N = 8; 1.5 T.
 # Notes:  progressive saturation PRESS, the same six regions and the same subjects as the
@@ -199,9 +199,9 @@ WATER = {
     },
 }
 
-#********************#
-#   water t2 at 3 t  #
-#********************#
+#*********************#
+#   water t2 at 3 t   #
+#*********************#
 # Source: per entry, beside each row.
 # Data:   in vivo water T2 of healthy adults at 3 T measured by multi-echo spin echo fitted with
 #         the stimulated echoes modelled (extended phase graph or Bloch dictionaries, or a
@@ -228,9 +228,9 @@ WATER_T2_3T = {
     ),
 }
 
-#*************************#
-#   water at other fields #
-#*************************#
+#***************************#
+#   water at other fields   #
+#***************************#
 # Source: per entry, beside each value.
 # Data:   water relaxation per tissue where a field differs from the 3 T table above;
 #         a missing entry means the 3 T value is reused (stated: no 1.5 T water T2

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                           transfer.py                                            #
+#                                            transfer.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -28,9 +28,9 @@ STANISZ_2005_3T = {
     "r1_s": 1.0,
 }
 
-#*****************************#
-#   water to metabolite rates  #
-#*****************************#
+#*******************************#
+#   water to metabolite rates   #
+#*******************************#
 # Source: MacMillan, E. L., Boesch, C., Kreis, R. Magnetization exchange observed in human
 #         skeletal muscle by non-water-suppressed proton magnetic resonance spectroscopy. MRM 70
 #         (2013) 916-924: magnetization transfer rates from water to the creatine methyl

@@ -42,9 +42,9 @@ class TestTransfer:
         assert abs(np.trapezoid(line, offsets) * 2.0 * np.pi - 1.0) < 0.01
         assert superlorentzian(1e3, 9.1e-6) > superlorentzian(5e3, 9.1e-6) > 0.0
 
-    #**************#
-    #   factors    #
-    #**************#
+    #*************#
+    #   factors   #
+    #*************#
     def test_a_train_takes_from_a_coupled_metabolite_only(self):
         engine, water = Engine(3.0), WaterSource.system(gamma_mhz_t=GAMMA)
         press = Press(te1_s=0.015, te2_s=0.015, tr_s=2.0)
@@ -59,9 +59,9 @@ class TestTransfer:
         assert trained["Cr"] == 1.0 and 1.0 > trained["PCr"] > trained["NAA"] > 0.6
         assert trained["water"] == 1.0
 
-    #************#
-    #   voxel    #
-    #************#
+    #***********#
+    #   voxel   #
+    #***********#
     def test_a_voxel_without_a_bound_pool_takes_nothing(self):
         brain = Brain.from_maps(gm=np.ones((20, 20, 20)), wm=np.zeros((20, 20, 20)),
                                 csf=np.zeros((20, 20, 20)), affine=np.diag([2.0, 2.0, 2.0, 1.0]))

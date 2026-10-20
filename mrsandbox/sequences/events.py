@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            events.py                                             #
+#                                             events.py                                            #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -29,9 +29,9 @@ from nifti_mrs_plus import ops as nops
 from mrsandbox.backend import Backend, precision
 
 
-#*****************#
-#   hashable      #
-#*****************#
+#**************#
+#   hashable   #
+#**************#
 def _hashable(value):
     """A structural attribute as a dict key: arrays by their bytes, the rest as is."""
     if isinstance(value, np.ndarray):
@@ -39,9 +39,9 @@ def _hashable(value):
     return value
 
 
-#*****************#
-#   trapezoid     #
-#*****************#
+#***************#
+#   trapezoid   #
+#***************#
 def trapezoid(area_t_s_m, max_grad_t_m, max_slew_t_m_s):
     """The shortest trapezoid of a signed gradient area (T s / m) under a gradient and
     slew limit, as (amplitude T/m, ramp s, flat s): a triangle while the area fits
@@ -55,7 +55,7 @@ def trapezoid(area_t_s_m, max_grad_t_m, max_slew_t_m_s):
 
 
 #**************************************************************************************************#
-#                                           Class Event                                            #
+#                                            Class Event                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # One step of a pulse sequence, applied to a density matrix in a system context.                   #
@@ -86,9 +86,9 @@ class Event(abc.ABC):
                 total-spin operators, coherence orders).
         """
 
-    #***********************#
-    #   structure, timings  #
-    #***********************#
+    #************************#
+    #   structure, timings   #
+    #************************#
     def structure(self):
         """The hashable key of everything but the timings."""
         fixed = tuple((name, _hashable(value)) for name, value in sorted(vars(self).items())
@@ -115,9 +115,9 @@ class Event(abc.ABC):
         """U rho U^H."""
         return ops.einsum("...ij,...jk,...lk->...il", u, rho, ops.conj(u))
 
-    #**************************#
-    #   transverse rotation    #
-    #**************************#
+    #*************************#
+    #   transverse rotation   #
+    #*************************#
     @staticmethod
     def _transverse_rotation(ctx, lam, phase_deg, turns):
         """exp(-i 2 pi turns A) for a transverse axis A = cos(phase) Ax + sin(phase) Ay,
@@ -136,7 +136,7 @@ class Event(abc.ABC):
 
 
 #**************************************************************************************************#
-#                                           Class Pulse                                            #
+#                                            Class Pulse                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # Ideal (hard) pulse: a rotation by flip degrees about an axis in the transverse plane.            #
@@ -204,9 +204,9 @@ class SelectivePulse(Event):
         self.bandwidth_hz = bandwidth_hz
         self.phase_deg = phase_deg
 
-    #*************#
-    #   apply     #
-    #*************#
+    #***********#
+    #   apply   #
+    #***********#
     def apply(self, rho, ctx):
         half_width = ops.convert_to_tensor(self.bandwidth_hz) / 2.0
         # every spin appears at its resonance minus the frame offset
@@ -225,7 +225,7 @@ class SelectivePulse(Event):
 
 
 #**************************************************************************************************#
-#                                        Class ShapedPulse                                         #
+#                                         Class ShapedPulse                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # A real RF waveform: piecewise-constant propagation of the full Hamiltonian plus the RF term.     #
@@ -312,9 +312,9 @@ class ShapedPulse(Event):
         self.gradient_normal = (None if gradient_normal is None
                                 else np.asarray(gradient_normal, dtype=np.float32))
 
-    #***************#
-    #   gaussian    #
-    #***************#
+    #**************#
+    #   gaussian   #
+    #**************#
     @classmethod
     def gaussian(cls, flip_deg, duration_s, offset_ppm=0.0, phase_deg=0.0, steps=64,
                  truncation=0.01, **kwargs):
@@ -329,9 +329,9 @@ class ShapedPulse(Event):
         return cls(flip_deg, duration_s, envelope, offset_ppm=offset_ppm, phase_deg=phase_deg,
                    **kwargs)
 
-    #***************#
-    #   hermite     #
-    #***************#
+    #*************#
+    #   hermite   #
+    #*************#
     @classmethod
     def hermite(cls, flip_deg, duration_s, offset_ppm=0.0, phase_deg=0.0, steps=64, **kwargs):
         """The Hermite envelope (Warren 1984), coefficients per nutation angle as in
@@ -350,9 +350,9 @@ class ShapedPulse(Event):
         return cls(flip_deg, duration_s, envelope, offset_ppm=offset_ppm, phase_deg=phase_deg,
                    **kwargs)
 
-    #**********************#
-    #   hyperbolic secant  #
-    #**********************#
+    #***********************#
+    #   hyperbolic secant   #
+    #***********************#
     @classmethod
     def hyperbolic_secant(cls, duration_s, bandwidth_hz, peak_hz, beta=5.3, power=1,
                           steps=256, **kwargs):
@@ -377,9 +377,9 @@ class ShapedPulse(Event):
         return cls(None, duration_s, envelope, frequency_hz=frequency, peak_hz=peak_hz,
                    **kwargs)
 
-    #*****************#
-    #   goia wurst    #
-    #*****************#
+    #****************#
+    #   goia wurst   #
+    #****************#
     @classmethod
     def goia_wurst(cls, duration_s, bandwidth_hz, peak_hz, n=16, m=4, modulation=0.85, steps=256,
                    **kwargs):
@@ -409,9 +409,9 @@ class ShapedPulse(Event):
                    frequency_hz=frequency.astype(np.float32), peak_hz=peak_hz,
                    gradient_shape=shape, **kwargs)
 
-    #**********#
-    #   slr    #
-    #**********#
+    #*********#
+    #   slr   #
+    #*********#
     @classmethod
     def slr(cls, flip_deg, duration_s, time_bandwidth, kind, offset_ppm=0.0, phase_deg=0.0,
             steps=256, ripples=(0.01, 0.01), minimum_phase=False, **kwargs):
@@ -478,9 +478,9 @@ class ShapedPulse(Event):
                    offset_ppm=offset_ppm, phase_deg=phase_deg,
                    peak_hz=peak / (2.0 * math.pi * duration_s / steps), **kwargs)
 
-    #***********#
-    #   sinc    #
-    #***********#
+    #**********#
+    #   sinc   #
+    #**********#
     @classmethod
     def sinc(cls, flip_deg, duration_s, offset_ppm=0.0, phase_deg=0.0, steps=128, lobes=3,
              **kwargs):
@@ -719,7 +719,7 @@ def relaxation(ctx, t_s):
 
 
 #**************************************************************************************************#
-#                                           Class Delay                                            #
+#                                            Class Delay                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # Free evolution under the system Hamiltonian for a duration in seconds.                           #
@@ -827,7 +827,7 @@ class Gradient(Event):
 
 
 #**************************************************************************************************#
-#                                        Class InducedKick                                         #
+#                                         Class InducedKick                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The phase an induced field accumulates over an interval: uniform cycles and moments per axis.    #
@@ -950,7 +950,7 @@ class Projection(Event):
 
 
 #**************************************************************************************************#
-#                                      Class CoherenceFilter                                       #
+#                                       Class CoherenceFilter                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # Keep only the selected coherence order(s) - the tensor-mask replacement for phase cycling and    #
@@ -1207,9 +1207,9 @@ class Sequence:
                            f"and gradient durations")
         return tuple(reasons)
 
-    #***********************#
-    #   structure, timings  #
-    #***********************#
+    #************************#
+    #   structure, timings   #
+    #************************#
     def structure(self):
         """The hashable key of the design: every event's structure in order, the
         cycle count, whether a TR is set, and a played spoiler's events. Two sequences
@@ -1273,9 +1273,9 @@ class Sequence:
         design.events = tuple(events)
         return design
 
-    #*******************#
-    #   composition     #
-    #*******************#
+    #*****************#
+    #   composition   #
+    #*****************#
     TIMINGS = ("te_s", "te1_s", "te2_s", "taus_s", "tm_s")
 
     def __add__(self, other):

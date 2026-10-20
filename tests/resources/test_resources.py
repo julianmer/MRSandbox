@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_resources.py                                         #
+#                                         test_resources.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -71,13 +71,13 @@ class TestRegistry:
 
 
 #**************************************************************************************************#
-#                                         Class TestFetch                                          #
+#                                          Class TestFetch                                         #
 #**************************************************************************************************#
 class TestFetch:
 
-    #*****************#
-    #   round trip    #
-    #*****************#
+    #****************#
+    #   round trip   #
+    #****************#
     def test_fetch_verifies_and_caches(self, local_resource, monkeypatch):
         source, _ = local_resource
         path = Resources.path("test/payload")
@@ -99,16 +99,16 @@ class TestFetch:
             Resources.path("test/payload")
         assert not Resources.cached("test/payload")
 
-    #*******************#
-    #   cache override  #
-    #*******************#
+    #********************#
+    #   cache override   #
+    #********************#
     def test_cache_honours_the_environment(self, tmp_path, monkeypatch):
         monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path / "elsewhere"))
         assert Resources.cache_dir() == tmp_path / "elsewhere"
 
-    #*******************#
-    #   placed by hand  #
-    #*******************#
+    #********************#
+    #   placed by hand   #
+    #********************#
     def test_a_member_of_an_archive_is_taken_out_by_itself(self, tmp_path, monkeypatch):
         monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path / "cache"))
         archive = tmp_path / "bundle.zip"

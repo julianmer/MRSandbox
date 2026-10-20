@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                           test_fsl.py                                            #
+#                                            test_fsl.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -83,7 +83,7 @@ def press(refocusing):
 
 
 #**************************************************************************************************#
-#                                          Class TestFsl                                           #
+#                                           Class TestFsl                                          #
 #**************************************************************************************************#
 class TestFsl:
 
@@ -113,9 +113,9 @@ class TestFsl:
                                   verbose=False)
             assert error(played(description, LAC), np.asarray(theirs)) < 0.01
 
-    #*******************#
-    #   a WIN sequence  #
-    #*******************#
+    #********************#
+    #   a win sequence   #
+    #********************#
     def test_win_cmrr_press_gives_win_basis(self):
         # WIN's description of the CMRR PRESS at 2.89 T, TE 35 (Clarke's win-mrs-basis-sets, a
         # local copy in data/) against the basis FSL-MRS made of it: one phase and size for all

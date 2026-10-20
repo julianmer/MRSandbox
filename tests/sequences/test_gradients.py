@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_gradients.py                                         #
+#                                         test_gradients.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -56,9 +56,9 @@ def crushed_echo(moment):
 #**************************************************************************************************#
 class TestGradient:
 
-    #****************#
-    #   sinc law     #
-    #****************#
+    #**************#
+    #   sinc law   #
+    #**************#
     def test_single_crusher_follows_the_sinc_law(self, engine):
         water = WaterSource.system(gamma_mhz_t=42.5774785)
         full = np.abs(amps(engine, Sequence(Pulse(90.0)), water)).sum()
@@ -93,9 +93,9 @@ class TestGradient:
             assert corr > 0.99999
             assert abs(np.abs(b).sum() / np.abs(a).sum() - 1.0) < 1e-3
 
-    #********************#
-    #   spurious fid     #
-    #********************#
+    #******************#
+    #   spurious fid   #
+    #******************#
     def test_imperfect_pulse_leaves_the_physical_spurious_fid(self, engine):
         # with a miscalibrated transmit both pulses err: longitudinal magnetization
         # survives the excitation and the imperfect 180 tips it into a spurious FID
@@ -133,9 +133,9 @@ class TestGradient:
             assert corr > 0.9999
             assert abs(np.abs(b).sum() / np.abs(a).sum() - 1.0) < 1e-3
 
-    #********************#
-    #   compiled path    #
-    #********************#
+    #*******************#
+    #   compiled path   #
+    #*******************#
     def test_compiled_path_carries_the_crushers(self, engine):
         # the isochromat ensemble compiles as a batch axis, so a crushed sequence
         # replays jitted with exactly the eager physics
@@ -183,9 +183,9 @@ class TestSliceSelection:
         assert abs(got - 2.70 / 0.004 / 100.0 / 20.0) < 0.05
         assert self.fraction(engine, 100.0, water, refocus=0.0) < 0.2 * got  # no lobe, dephased
 
-    #***********************************#
-    #   chemical shift displacement     #
-    #***********************************#
+    #*********************************#
+    #   chemical shift displacement   #
+    #*********************************#
     def test_chemical_shift_displaces_the_slab(self, engine):
         """The slab centre of an off-carrier spin sits at (carrier - nu) / g: the NAA
         acetyl singlet, 337 Hz from the water carrier, must land 11 mm away."""
@@ -247,7 +247,7 @@ class TestPulseFrame:
 
 
 #**************************************************************************************************#
-#                                      Class TestInducedKick                                       #
+#                                       Class TestInducedKick                                      #
 #**************************************************************************************************#
 class TestInducedKick:
 

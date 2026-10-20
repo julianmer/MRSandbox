@@ -10,9 +10,9 @@
 #                                                                                                  #
 ####################################################################################################
 
-#**********************#
-#   mrsi challenge     #
-#**********************#
+#********************#
+#   mrsi challenge   #
+#********************#
 # Source: LaMaster, J. T., Merkofer, J. P., van de Sande, D. M. J., Soher, B. J.,
 #         Strasser, B., Ma, C. The 2024 MRSI Data Processing and Quantification
 #         Challenge Synthetic Dataset. arXiv:2609.02637.

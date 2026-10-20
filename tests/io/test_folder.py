@@ -7,7 +7,7 @@
 # Created: 27/09/26                                                                                #
 #                                                                                                  #
 # Purpose: A folder of scans is told apart by what each file is, raw spectra go through spec2nii,  #
-#          runs find their water references, and the console reads the folder at once.            #
+#          runs find their water references, and the console reads the folder at once.             #
 #                                                                                                  #
 ####################################################################################################
 
@@ -99,7 +99,7 @@ class TestFolder:
 
 
 #**************************************************************************************************#
-#                                        Class TestConsole                                         #
+#                                         Class TestConsole                                        #
 #**************************************************************************************************#
 @pytest.mark.render
 class TestConsole:

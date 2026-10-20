@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            coils.py                                              #
+#                                             coils.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -111,7 +111,7 @@ class Loop:
 
 
 #**************************************************************************************************#
-#                                         Class CoilArray                                          #
+#                                          Class CoilArray                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # A receive array: loops, their noise resistance matrix, and the Roemer combination.               #
@@ -261,9 +261,9 @@ class CoilArray:
         b = self.sensitivities(position_mm, size_mm, turn).astype(np.complex128)
         return float(1.0 / np.sqrt(np.real(np.vdot(b, np.linalg.solve(self.noise_resistance, b)))))
 
-    #********************#
-    #   sensitivities    #
-    #********************#
+    #*******************#
+    #   sensitivities   #
+    #*******************#
     def sensitivities(self, position_mm, size_mm=None, turn=None):
         """Complex sensitivity vector b at a position (Roemer's transverse field vector).
 
@@ -312,7 +312,7 @@ class CoilArray:
 
 
 #**************************************************************************************************#
-#                                      Class MappedCoilArray                                       #
+#                                       Class MappedCoilArray                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # A receive array defined by measured sensitivity maps instead of loop geometry.                   #
@@ -423,9 +423,9 @@ class MappedCoilArray(CoilArray):
 
         return (Resources.cache_dir() / f"bigbrain_mr/coil_sens_stride{stride}.npz").exists()
 
-    #********************#
-    #   sensitivities    #
-    #********************#
+    #*******************#
+    #   sensitivities   #
+    #*******************#
     def sensitivities(self, position_mm, size_mm=None, turn=None):
         """Complex sensitivity vector at a position: the nearest mapped cell, or with
         `size_mm` the overlap-weighted mean over that voxel box (turned by `turn`), what

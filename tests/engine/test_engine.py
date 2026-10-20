@@ -111,7 +111,7 @@ class TestPulseAcquire:
 
 
 #**************************************************************************************************#
-#                                       Class TestB1Scale                                          #
+#                                         Class TestB1Scale                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The transmit scale follows the analytic flip laws through every pulse type.                      #
@@ -139,9 +139,9 @@ class TestB1Scale:
             ratio = self.water_amplitude(sim, PulseAcquire(), scale) / full
             assert abs(ratio - np.sin(np.radians(scale * 90.0))) < 1e-4
 
-    #**********************#
-    #   suppression law    #
-    #**********************#
+    #*********************#
+    #   suppression law   #
+    #*********************#
     def test_suppression_residual_follows_cos_to_the_n(self, sim):
         full = self.water_amplitude(sim, PulseAcquire(), 1.0)
         for scale, n in ((0.8, 3), (0.9, 2)):
@@ -149,9 +149,9 @@ class TestB1Scale:
             expected = abs(np.cos(np.radians(scale * 90.0))) ** n * np.sin(np.radians(scale * 90.0))
             assert abs(residual - expected) < 1e-3
 
-    #********************#
-    #   shaped pulses    #
-    #********************#
+    #*******************#
+    #   shaped pulses   #
+    #*******************#
     def test_shaped_pulses_scale_with_the_transmit_field(self, sim):
         acquire = Sequence(ShapedPulse.gaussian(90.0, 0.010, offset_ppm=4.65), CoherenceFilter(-1))
         full = self.water_amplitude(sim, acquire, 1.0)
@@ -181,9 +181,9 @@ class TestOffset:
     def magnitudes(lines):
         return np.abs(np.asarray(ops.convert_to_numpy(lines[1])))
 
-    #******************#
-    #   spin echoes    #
-    #******************#
+    #*****************#
+    #   spin echoes   #
+    #*****************#
     def test_spin_echoes_refocus_the_offset(self, sim):
         # hard pulses are offset blind and the echo refocuses the offset phase, so
         # a PRESS spectrum is exactly the on-resonance one
@@ -194,9 +194,9 @@ class TestOffset:
         np.testing.assert_allclose(np.asarray(ops.convert_to_numpy(on[1])),
                                    np.asarray(ops.convert_to_numpy(off[1])), atol=1e-5)
 
-    #***********************#
-    #   selective pulses    #
-    #***********************#
+    #**********************#
+    #   selective pulses   #
+    #**********************#
     def test_selective_pulse_misses_an_offset_spin(self, sim):
         water = self.water()
         excite = Sequence(SelectivePulse(90.0, offset_ppm=4.65, bandwidth_hz=40.0))
@@ -205,9 +205,9 @@ class TestOffset:
         assert self.magnitudes(sim.lines(excite, water, offset_hz=15.0)).sum() == full  # inside
         assert self.magnitudes(sim.lines(excite, water, offset_hz=30.0)).sum() < 1e-9  # outside
 
-    #********************#
-    #   shaped pulses    #
-    #********************#
+    #*******************#
+    #   shaped pulses   #
+    #*******************#
     def test_shaped_pulse_offset_equals_a_shifted_carrier(self, sim):
         # spins offset by delta under a carrier at c see what on-resonance spins see
         # under a carrier at c + delta; the carrier ramp is sampled at the step
@@ -248,9 +248,9 @@ class TestRenderPrecision:
             oracle = np.exp(1j * 2.0 * np.pi * np.float64(f[0]) * t64)
             assert np.abs(np.angle(fid / oracle)).max() < 5e-4
 
-    #**********************#
-    #   factorized render  #
-    #**********************#
+    #***********************#
+    #   factorized render   #
+    #***********************#
     def test_factorized_render_matches_the_dense_oracle(self, sim):
         # many Lorentzian lines with per-line widths against a float64 dense sum, at a
         # point count that is not a multiple of the block (the table is cropped), and
@@ -284,7 +284,7 @@ class TestRenderPrecision:
 
 
 #**************************************************************************************************#
-#                                        Class TestGraph                                           #
+#                                          Class TestGraph                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # One compiled graph per sequence structure: timings are inputs, so a TE series replays, a mutated #
@@ -308,7 +308,7 @@ class TestGraph:
         return np.asarray(ops.convert_to_numpy(amps))
 
     #**********************#
-    #   one graph per TE   #
+    #   one graph per te   #
     #**********************#
     def test_a_te_series_shares_one_graph(self):
         from mrsandbox import SemiLaser
@@ -331,9 +331,9 @@ class TestGraph:
                                        atol=3e-3 * np.abs(eager).max())
         assert len(engine._compiled) == 2
 
-    #****************#
-    #   mutation     #
-    #****************#
+    #**************#
+    #   mutation   #
+    #**************#
     def test_a_mutated_event_replays_its_new_physics(self):
         engine = Engine(3.0)
         lac = SpinSystem.from_database("Lac")[0]
@@ -346,9 +346,9 @@ class TestGraph:
         assert np.abs(after - before).max() > 0.1
         np.testing.assert_allclose(after, self.eager(engine, echo, lac), atol=1e-5)
 
-    #*******************#
-    #   timing gradient #
-    #*******************#
+    #*********************#
+    #   timing gradient   #
+    #*********************#
     def test_the_graph_is_differentiable_in_a_timing(self, needs_autograd):
         from nifti_mrs_plus.backend import value_and_grad
 

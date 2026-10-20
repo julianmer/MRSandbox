@@ -118,9 +118,9 @@ class TestDatabase:
         assert db.t2() == 0.160
         assert db.t1() == 1.300
 
-    #*****************#
-    #   pooled t1     #
-    #*****************#
+    #***************#
+    #   pooled t1   #
+    #***************#
     def test_pooled_t1_lands_in_the_known_range(self):
         db = Database()
         pooled = db.pooled_t1("NAA")
@@ -171,7 +171,7 @@ class TestPriors:
 
 
 #**************************************************************************************************#
-#                                      Class TestFieldPriors                                       #
+#                                       Class TestFieldPriors                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # The default relaxation priors follow the scanner field, falling back to 3 T where a field has    #
@@ -180,9 +180,9 @@ class TestPriors:
 #**************************************************************************************************#
 class TestFieldPriors:
 
-    #***************#
-    #   7 tesla     #
-    #***************#
+    #*************#
+    #   7 tesla   #
+    #*************#
     def test_seven_tesla_priors_follow_the_typed_sources(self):
         from mrsandbox.scan.defaults import default_params
 
@@ -196,9 +196,9 @@ class TestFieldPriors:
         assert p7.mm.t1.mm121 == p3.mm.t1.mm121 and p7.mm.t2 == p3.mm.t2
         assert p7.t2.GPC == p3.t2.GPC  # no rows at any field: the fixed fallback
 
-    #*****************#
-    #   1.5 tesla     #
-    #*****************#
+    #***************#
+    #   1.5 tesla   #
+    #***************#
     def test_the_water_t2_is_the_corrected_studies_median_and_each_a_voice_of_the_mix(self):
         from mrsandbox.database.relaxation import WATER_T2_3T
         from mrsandbox.scan.calibrations import calibrations
@@ -226,9 +226,9 @@ class TestFieldPriors:
         assert p15.t2.NAA.mean != p3.t2.NAA.mean  # NAA has 1.5 T rows of its own
         assert p15.mm.t1.mm091.value == 0.220 and p15.mm.t1.mm121.value == 0.200  # Kreis 2005
 
-    #*********************#
-    #   scanner drives    #
-    #*********************#
+    #********************#
+    #   scanner drives   #
+    #********************#
     def test_scans_take_the_field_from_the_scanner(self):
         import numpy as np
 
@@ -246,9 +246,9 @@ class TestFieldPriors:
         assert default_params(b0_t=4.0).t1.NAA == default_params(b0_t=3.0).t1.NAA
         assert default_params(b0_t=9.4).t1.NAA == default_params(b0_t=7.0).t1.NAA
 
-    #*******************#
-    #   lineshape       #
-    #*******************#
+    #***************#
+    #   lineshape   #
+    #***************#
     def test_the_microscopic_width_scales_with_the_field(self):
         from mrsandbox import Uniform
         from mrsandbox.scan.defaults import default_params
@@ -271,9 +271,9 @@ class TestFieldPriors:
         assert (gradients.b0_short_hz_per_mt_m == Uniform(-0.5, 0.5)
                 and gradients.b0_long_hz_per_mt_m == Uniform(-0.2, 0.2))
 
-    #********************#
-    #   three sources    #
-    #********************#
+    #*******************#
+    #   three sources   #
+    #*******************#
     def test_the_literature_is_chosen_where_it_exists_and_the_pooled_readings_elsewhere(self):
         # every leaf a reading serves is Sourced: the literature (de Graaf's creatine, the stated
         # width) chosen where one is published, the pooled readings where none is (the noise, the
@@ -318,9 +318,9 @@ class TestFieldPriors:
         assert (literature.noise.sigma == tree.noise.sigma
                 and literature.acquisition.delay_s == tree.acquisition.delay_s)
 
-    #**********************#
-    #   eddy transient     #
-    #**********************#
+    #********************#
+    #   eddy transient   #
+    #********************#
     def test_the_eddy_transient_is_the_pooled_rows_spread_about_zero(self):
         # the phase transient at the FID's start: the package's rows of either sign pooled for the
         # scanner, a Normal about zero with their 95th percentile as its spread; the failed readings
@@ -348,7 +348,7 @@ class TestFieldPriors:
 
 
 #**************************************************************************************************#
-#                                     Class TestScannerSurvey                                      #
+#                                      Class TestScannerSurvey                                     #
 #**************************************************************************************************#
 class TestScannerSurvey:
 
@@ -368,11 +368,12 @@ class TestScannerSurvey:
 
 
 #**************************************************************************************************#
-#                                        Class TestShifts                                          #
+#                                         Class TestShifts                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The shifts move with temperature and pH by the published functions, and agree with the older     #
 # paper's slopes of the differences within a metabolite.                                           #
+#                                                                                                  #
 #**************************************************************************************************#
 class TestShifts:
 

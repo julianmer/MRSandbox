@@ -305,9 +305,9 @@ BLOCKS = {
 }
 
 
-#**********************#
-#   a shaped pulse     #
-#**********************#
+#********************#
+#   a shaped pulse   #
+#********************#
 def shaped(block):
     """The ShapedPulse a "shaped pulse" block describes, by its shape's own settings."""
     slice = {} if block["slice_axis"] == "none" else dict(
@@ -324,9 +324,9 @@ def shaped(block):
                                                 phase_deg=block["phase_deg"], **own, **slice)
 
 
-#**********************#
+#***********************#
 #   an event in words   #
-#**********************#
+#***********************#
 def named(event):
     """What a block of the card's says of its event: a pulse's flip or "adiabatic", duration and
     slice axis; a gradient's axis and span; a projection, which has nothing to set."""
@@ -341,9 +341,9 @@ def named(event):
         f", slice along {event.gradient_axis}" if getattr(event, "gradient_hz_per_mm", 0.0) else "")
 
 
-#***********************#
-#   an adopted pulse    #
-#***********************#
+#**********************#
+#   an adopted pulse   #
+#**********************#
 def adjusted(block):
     """The event a fixed block took over from the card, with the scalar settings the designer put
     on it: its shape (the envelope, the sweep) stays the card's."""
@@ -405,9 +405,9 @@ def _datasets():
             for cohort in package()}
 
 
-#***************#
-#   describe    #
-#***************#
+#**************#
+#   describe   #
+#**************#
 def _describe(value):
     """A Value as the console lists it, (kind, numbers): "fixed" with (value,), "range" with (low,
     high), "normal" with (mean, sd), "empirical" with (median, 5th, 95th, subjects), or "other"
@@ -573,7 +573,7 @@ class Exam:
 
 
 #**************************************************************************************************#
-#                                          Class Session                                           #
+#                                           Class Session                                          #
 #**************************************************************************************************#
 #                                                                                                  #
 # What is in the scanner room and what was scanned, without any interface.                         #

@@ -40,7 +40,7 @@ class PulseAcquire(Sequence):
 
 
 #**************************************************************************************************#
-#                                           Class Press                                            #
+#                                            Class Press                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # Ideal PRESS: 90x - te1/2 - 180y - (te1+te2)/2 - 180y - te2/2 - acquire.                          #
@@ -88,7 +88,7 @@ class Press(Sequence):
 
 
 #**************************************************************************************************#
-#                                           Class Steam                                            #
+#                                            Class Steam                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # Ideal STEAM: 90x - te/2 - 90x - tm - 90x - te/2 - acquire, stimulated-echo pathway only.         #
@@ -140,7 +140,7 @@ def gaussian_for(bandwidth_hz):
 
 
 #**************************************************************************************************#
-#                                     Class SuppressionTrain                                       #
+#                                      Class SuppressionTrain                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # A generic water suppression module: frequency-selective pulses, each followed by a crusher.      #
@@ -588,7 +588,7 @@ class LocalizedSemiLaser(Sequence):
 
 
 #**************************************************************************************************#
-#                                  Class LocalizedMegaSemiLaser                                    #
+#                                   Class LocalizedMegaSemiLaser                                   #
 #**************************************************************************************************#
 #                                                                                                  #
 # MEGA editing on the semi-LASER localization, every pulse played.                                 #
@@ -689,7 +689,7 @@ class LocalizedMegaSemiLaser(Sequence):
 
 
 #**************************************************************************************************#
-#                                  Class OuterVolumeSuppression                                    #
+#                                   Class OuterVolumeSuppression                                   #
 #**************************************************************************************************#
 #                                                                                                  #
 # Outer-volume suppression as physics: slab-selective saturation of the regions around the voxel.  #
@@ -751,7 +751,7 @@ class OuterVolumeSuppression(Sequence):
 
 
 #**************************************************************************************************#
-#                                           Class Chess                                            #
+#                                            Class Chess                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # CHESS water suppression: repeated selective excitation and crushing (Haase et al. 1985).         #
@@ -818,7 +818,7 @@ class SiemensChess(SuppressionTrain):
 
 
 #**************************************************************************************************#
-#                                            Class Wet                                             #
+#                                             Class Wet                                            #
 #**************************************************************************************************#
 #                                                                                                  #
 # WET water suppression: the numerically optimized flip series of Ogg et al. 1994.                 #
@@ -848,7 +848,7 @@ class Wet(SuppressionTrain):
 
 
 #**************************************************************************************************#
-#                                           Class Vapor                                            #
+#                                            Class Vapor                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # VAPOR water suppression: variable pulse power and optimized relaxation delays (Tkac 1999).       #
@@ -930,7 +930,7 @@ class Cows(SuppressionTrain):
 
 
 #**************************************************************************************************#
-#                                         Class MegaPress                                          #
+#                                          Class MegaPress                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # MEGA-PRESS J-difference editing: PRESS with two frequency-selective editing pulses.              #
@@ -997,7 +997,7 @@ class MegaPress(Sequence):
 
 
 #**************************************************************************************************#
-#                                      Class HadamardEditing                                       #
+#                                       Class HadamardEditing                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # The machinery of Hadamard-encoded editing: MEGA sub-experiments with multi-band editing pulses   #
@@ -1100,7 +1100,7 @@ class Hercules(HadamardEditing):
 
 
 #**************************************************************************************************#
-#                                         Class SemiLaser                                          #
+#                                          Class SemiLaser                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # Semi-LASER: 90 excitation refocused by two pairs of adiabatic full passage pulses.               #

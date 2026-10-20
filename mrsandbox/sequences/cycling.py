@@ -97,9 +97,9 @@ class Cycled(Sequence):
             total = stepped if total is None else total + stepped
         return total / float(self.table.shape[0])
 
-    #***********************#
-    #   structure, timings  #
-    #***********************#
+    #************************#
+    #   structure, timings   #
+    #************************#
     def structure(self):
         return (super().structure(), _hashable(self.table), _hashable(self.receiver_deg),
                 self.jitter_deg is None)

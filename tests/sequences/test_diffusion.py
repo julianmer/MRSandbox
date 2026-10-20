@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_diffusion.py                                         #
+#                                         test_diffusion.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -43,9 +43,9 @@ class TestBValue:
                         Gradient(-K), Delay(0.005))
         assert abs(b_value_ms_um2(pgse) - EXPECTED) < 1e-9 * EXPECTED
 
-    #*****************#
-    #   spin echo     #
-    #*****************#
+    #***************#
+    #   spin echo   #
+    #***************#
     def test_same_sign_pair_around_a_refocusing_pulse_matches(self):
         echo = Sequence(Pulse(90.0), CoherenceFilter(+1), Gradient(K), Delay(DELTA / 2.0),
                         Pulse(180.0, phase_deg=90.0), CoherenceFilter(-1), Delay(DELTA / 2.0),
@@ -53,9 +53,9 @@ class TestBValue:
         assert abs(b_value_ms_um2(echo) - EXPECTED) < 1e-9 * EXPECTED
         assert b_value_ms_um2(Press(0.011, 0.019)) == 0.0  # filters carry no moments
 
-    #*****************#
-    #   storage       #
-    #*****************#
+    #*************#
+    #   storage   #
+    #*************#
     def test_stored_helix_keeps_attenuating_through_a_mixing_time(self):
         tm = 0.2
         steam = Sequence(Pulse(90.0), CoherenceFilter(-1), Gradient(K), Delay(DELTA),
@@ -66,18 +66,18 @@ class TestBValue:
         # stored helix attenuates through the whole mixing time, as a stimulated echo does
         assert abs(b_value_ms_um2(steam) - expected) < 1e-9 * expected
 
-    #*************#
-    #   axes      #
-    #*************#
+    #**********#
+    #   axes   #
+    #**********#
     def test_axes_add_independently(self):
         crossed = Sequence(Pulse(90.0), CoherenceFilter(-1), Gradient(K, axis="x"),
                            Gradient(K, axis="y"), Delay(DELTA), Gradient(-K, axis="x"),
                            Gradient(-K, axis="y"), Delay(0.005))
         assert abs(b_value_ms_um2(crossed) - 2.0 * EXPECTED) < 1e-9 * EXPECTED
 
-    #*******************#
-    #   filter pairs    #
-    #*******************#
+    #******************#
+    #   filter pairs   #
+    #******************#
     def test_a_filter_pair_weights_like_the_crushers_it_stands_for(self):
         # an editing pair keeps the order and carries opposite moments; a refocusing pair
         # carries equal moments across the order's turn: both rephase and both weight by
@@ -103,7 +103,7 @@ class TestBValue:
 
 
 #**************************************************************************************************#
-#                                      Class TestAttenuation                                       #
+#                                       Class TestAttenuation                                      #
 #**************************************************************************************************#
 class TestAttenuation:
 
@@ -198,9 +198,9 @@ class TestAttenuation:
         law = sum(share[t] * math.exp(-b * getattr(adc, t)) for t in share) / sum(share.values())
         assert abs(drawn / still - law) < 1e-3 * law
 
-    #**************************#
-    #   per metabolite adcs    #
-    #**************************#
+    #*************************#
+    #   per metabolite adcs   #
+    #*************************#
     def test_the_major_metabolites_carry_their_measured_adc_ratios(self):
         # Deelchand et al. 2018: tNAA 0.13, tCr 0.13, tCho 0.12, Glu 0.15, mIns 0.11
         # over their mean 0.128 scale the tissue ADCs; a metabolite without a row keeps them

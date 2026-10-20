@@ -64,9 +64,9 @@ class Developmental:
     CITATION = "Romascano et al. 2024, Scientific Data 11:429"
     URL = "https://openneuro.org/datasets/ds004611"
 
-    #**************#
-    #   cohort     #
-    #**************#
+    #************#
+    #   cohort   #
+    #************#
     @classmethod
     def cohort(cls, root, folder):
         """The ds004611_prisma_3t cohort from the dataset's local copy at `root`: each
@@ -139,7 +139,7 @@ class Developmental:
 
 
 #**************************************************************************************************#
-#                                            Class IXI                                             #
+#                                             Class IXI                                            #
 #**************************************************************************************************#
 #                                                                                                  #
 # The IXI dataset: dual-echo turbo spin echo PD and T2 images of adults at three London sites.     #
@@ -178,9 +178,9 @@ class IXI:
                 "reads PD at or below T2, or a T2 of well under a second, in most subjects)"),
     }
 
-    #**************#
-    #   cohort     #
-    #**************#
+    #************#
+    #   cohort   #
+    #************#
     @classmethod
     def cohort(cls, root, folder, site):
         """The cohort of one site from the local copy at `root` (one folder per subject
@@ -273,7 +273,7 @@ class IXI:
 
 
 #**************************************************************************************************#
-#                                        Class RadialMESE                                          #
+#                                         Class RadialMESE                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # One subject's 3D radial multi-echo spin echo at 3 T with its EPG-fitted T2 map.                  #
@@ -297,9 +297,9 @@ class RadialMESE:
     URL = "https://zenodo.org/records/10908743"
     FOLDER = pathlib.Path("Reconstruction") / "Nomotion" / "Nomoco" / "RecoEchoes"
 
-    #**************#
-    #   cohort     #
-    #**************#
+    #************#
+    #   cohort   #
+    #************#
     @classmethod
     def cohort(cls, root, folder):
         """The radial_mese_prisma_3t cohort from the deposit's Reconstruction archive unpacked

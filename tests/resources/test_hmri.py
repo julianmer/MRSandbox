@@ -6,7 +6,7 @@
 #                                                                                                  #
 # Created: 16/09/26                                                                                #
 #                                                                                                  #
-# Purpose: The hMRI map derivations recover known parameters from synthetic FLASH, SE/STE, and    #
+# Purpose: The hMRI map derivations recover known parameters from synthetic FLASH, SE/STE, and     #
 #          dual-echo signals, and the demo subject's derived stack lands in the 3 T ranges.        #
 #                                                                                                  #
 ####################################################################################################
@@ -36,9 +36,9 @@ class TestFormulas:
         return amplitude * np.sin(flip_rad) * (1.0 - saturation) * (1.0 - e1) / (
             1.0 - (1.0 - saturation) * e1 * np.cos(flip_rad))
 
-    #****************#
-    #   r1 and pd    #
-    #****************#
+    #***************#
+    #   r1 and pd   #
+    #***************#
     def test_r1_and_pd_recover_a_flash_pair(self):
         # a grid of R1 and B1 values: the rational approximation in its tangent form
         # lands within 1e-3 at the demo's angles (6 and 21 degrees, TR 25 ms), the
@@ -84,9 +84,9 @@ class TestFormulas:
         echoes[3, 0, 0] = 0.0
         assert HMRI.r2star(echoes, te)[0, 0] == 0.0
 
-    #****************#
-    #   transmit     #
-    #****************#
+    #**************#
+    #   transmit   #
+    #**************#
     def test_transmit_recovers_the_flip_ratio_from_se_ste_pairs(self):
         # the STE over SE ratio is cos(beta b1) exp(-TM / T1); the strongest pairs with
         # the tightest candidate assignment give b1 back, on either side of the
@@ -99,16 +99,16 @@ class TestFormulas:
         np.testing.assert_allclose(HMRI.transmit(se, ste, beta, tm, t1), b1, atol=1e-3)
         assert HMRI.transmit(np.zeros((11, 1)), np.zeros((11, 1)), beta, tm, t1)[0] == 0.0
 
-    #*************#
-    #   field     #
-    #*************#
+    #***********#
+    #   field   #
+    #***********#
     def test_field_is_the_phase_over_the_echo_spacing(self):
         assert HMRI.field_hz(np.float32(np.pi), 0.00246) == pytest.approx(1.0 / (2.0 * 0.00246),
                                                                            rel=1e-5)
 
-    #*******************#
-    #   grid helpers    #
-    #*******************#
+    #******************#
+    #   grid helpers   #
+    #******************#
     def test_resampling_and_smoothing_keep_a_uniform_map(self):
         affine = np.diag([4.0, 4.0, 4.0, 1.0])
         volume = np.ones((6, 6, 6), dtype=np.float32)
@@ -121,7 +121,7 @@ class TestFormulas:
 
 
 #**************************************************************************************************#
-#                                         Class TestStack                                          #
+#                                          Class TestStack                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The demo subject's derived stack, gated when the raw files are in the local cache.               #

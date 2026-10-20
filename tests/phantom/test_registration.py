@@ -6,7 +6,7 @@
 #                                                                                                  #
 # Created: 17/09/26                                                                                #
 #                                                                                                  #
-# Purpose: The linear registration recovers a known affine between two views of one object, and   #
+# Purpose: The linear registration recovers a known affine between two views of one object, and    #
 #          the composed affine makes the moved Volume read the target's values at its positions.   #
 #                                                                                                  #
 ####################################################################################################
@@ -21,7 +21,7 @@ from mrsandbox.phantom.registration import _matrix, overlap, register
 
 
 #**************************************************************************************************#
-#                                     Class TestRegistration                                       #
+#                                      Class TestRegistration                                      #
 #**************************************************************************************************#
 class TestRegistration:
 

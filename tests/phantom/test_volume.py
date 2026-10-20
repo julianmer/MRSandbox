@@ -37,9 +37,9 @@ def ramp(shape=(10, 10, 10), axis=0):
 #**************************************************************************************************#
 class TestVolume:
 
-    #**********************#
-    #   partial volumes    #
-    #**********************#
+    #*********************#
+    #   partial volumes   #
+    #*********************#
     def test_box_weights_are_the_exact_partial_volumes(self):
         volume = Volume(ramp(), np.eye(4))
         # a 4 mm box centred on 5.0 spans [3, 7]: cells 3 and 7 half, 4 to 6 whole
@@ -52,9 +52,9 @@ class TestVolume:
         _, whole = volume.box((5.0, 5.0, 5.0), 3.0)
         assert whole.shape == (3, 3, 3) and np.all(whole == 1.0)
 
-    #*************************#
-    #   scaled and shifted    #
-    #*************************#
+    #************************#
+    #   scaled and shifted   #
+    #************************#
     def test_scaled_and_shifted_affine_places_the_box(self):
         affine = np.diag([2.0, 2.0, 2.0, 1.0])
         affine[:3, 3] = -9.0  # world x = 2 i - 9, so i = 5 sits at x = 1
@@ -99,9 +99,9 @@ class TestVolume:
         _, slanted = volume.box((14.0, 14.0, 14.0), (11.0, 7.0, 5.0), turning((0.0, 0.0, 45.0)))
         assert abs(slanted.sum() - 385.0) < 0.01 * 385.0
 
-    #*********************#
-    #   trailing axes     #
-    #*********************#
+    #*******************#
+    #   trailing axes   #
+    #*******************#
     def test_trailing_axes_ride_along(self):
         data = np.stack([ramp(axis=0), ramp(axis=1)], axis=-1)
         volume = Volume(data, np.eye(4))
@@ -109,9 +109,9 @@ class TestVolume:
         assert mean.shape == (2,) and np.allclose(mean, (4.0, 6.0))
         assert np.allclose(volume.nearest((4.4, 5.6, 5.0)), (4.0, 6.0))
 
-    #***************#
-    #   outside     #
-    #***************#
+    #*************#
+    #   outside   #
+    #*************#
     def test_outside_the_grid_is_empty(self):
         volume = Volume(ramp(), np.eye(4))
         values, weights = volume.box((50.0, 5.0, 5.0), 3.0)
@@ -136,9 +136,9 @@ class TestVolume:
                     reason="bigbrain_mr maps not cached; Volume.load fetches them once")
 class TestBigBrainMaps:
 
-    #**************#
-    #   t1 map     #
-    #**************#
+    #************#
+    #   t1 map   #
+    #************#
     def test_t1_map_shares_the_brain_grid_and_reads_in_seconds(self):
         from mrsandbox import Brain, Mapped, Params, Press, Scanner, VirtualScan
 

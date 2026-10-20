@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                         virtual_scan.py                                          #
+#                                          virtual_scan.py                                         #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -29,7 +29,7 @@ from mrsandbox.spins import SpinSystem
 
 
 #**************************************************************************************************#
-#                                        Class VirtualScan                                         #
+#                                         Class VirtualScan                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # A brain, a scanner, and a sequence, configured by one Params tree.                               #
@@ -183,9 +183,9 @@ class VirtualScan:
         self._systems = {}
         self._b_value = None
 
-    #********************#
-    #   spin systems     #
-    #********************#
+    #******************#
+    #   spin systems   #
+    #******************#
     def systems(self, metabolite, temperature_c=None):
         """The spin systems of a metabolite from this scan's database, from the table `spins` names
         for it, built once and cached: every draw and every voxel reuses the same structural
@@ -240,9 +240,9 @@ class VirtualScan:
         return Voxel(self, position_mm, size_mm, compiled=compiled, box_center_mm=box_center_mm,
                      box_axes=box_axes, shim_at_mm=shim_at_mm, turn=turn)
 
-    #***********#
-    #   mrsi    #
-    #***********#
+    #**********#
+    #   mrsi   #
+    #**********#
     def mrsi(self, center_mm=(0.0, 0.0, 0.0), matrix=(16, 16), voxel_mm=10.0,
              thickness_mm=None, oversampling=1, weighting=None, sampling=None,
              profile=None, averages=None, trajectory=None, trajectory_params=None,
@@ -257,9 +257,9 @@ class VirtualScan:
                     trajectory_params=trajectory_params, dead_time_s=dead_time_s,
                     odd_sweeps=odd_sweeps, box_center_mm=box_center_mm)
 
-    #*****************#
-    #   training      #
-    #*****************#
+    #**************#
+    #   training   #
+    #**************#
     def generator(self, position_mm, size_mm, batch_size=16, seed=None, npoints=2048,
                   dwell_s=1.0 / 4000.0):
         """A seeded on-the-fly training stream for this voxel; see scan.generator.Generator."""

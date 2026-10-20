@@ -1,12 +1,12 @@
 ####################################################################################################
-#                                             icbm.py                                              #
+#                                              icbm.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
 #                                                                                                  #
 # Created: 05/09/26                                                                                #
 #                                                                                                  #
-# Purpose: Registry entries for the ICBM152 2009c template and the NIHPD pediatric templates,       #
+# Purpose: Registry entries for the ICBM152 2009c template and the NIHPD pediatric templates,      #
 #          one dict per source with the citation beside it, and the age band a child stands in.    #
 #                                                                                                  #
 ####################################################################################################
@@ -42,9 +42,9 @@ ICBM152 = {
     },
 }
 
-#************#
-#   nihpd    #
-#************#
+#***********#
+#   nihpd   #
+#***********#
 # Source: Fonov et al. 2011 (above), the NIHPD objective 1 templates of healthy children.
 # Data:   https://www.templateflow.org, tpl-MNIPediatricAsym res-02 probseg, one template per
 #         age band in years (the cohorts of TemplateFlow's description), in the MNI frame the

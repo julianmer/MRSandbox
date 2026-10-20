@@ -62,7 +62,7 @@ def our_fid(sequence, shifts, j):
 
 
 #**************************************************************************************************#
-#                                    Class TestReferenceOracle                                     #
+#                                     Class TestReferenceOracle                                    #
 #**************************************************************************************************#
 #                                                                                                  #
 # The engine against a from-scratch complex128 implementation.                                     #
@@ -148,7 +148,7 @@ class TestReferenceOracle:
 
 
 #**************************************************************************************************#
-#                                    Class TestDenmatsimParity                                     #
+#                                     Class TestDenmatsimParity                                    #
 #**************************************************************************************************#
 #                                                                                                  #
 # The engine against Clarke's fsl_denmatsim on identical inputs.                                   #
@@ -212,7 +212,7 @@ class TestDenmatsimParity:
 
 
 #**************************************************************************************************#
-#                                      Class TestMegaParity                                        #
+#                                       Class TestMegaParity                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # Cross-engine parity for J-difference editing: MEGA-PRESS on GABA with shaped editing pulses.     #
@@ -220,9 +220,9 @@ class TestDenmatsimParity:
 #**************************************************************************************************#
 class TestMegaParity:
 
-    #**********************#
-    #   edited sequence    #
-    #**********************#
+    #*********************#
+    #   edited sequence   #
+    #*********************#
     def test_mega_press_on_gaba(self):
         from mrsandbox import CoherenceFilter, Delay, Pulse, Sequence, ShapedPulse
 

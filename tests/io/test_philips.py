@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                         test_philips.py                                          #
+#                                          test_philips.py                                         #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -67,9 +67,9 @@ def test_sdat_reads_vax_floats(tmp_path):
             and parameters["sample_frequency"] == "2000")
 
 
-#*******************#
-#   lab / raw / sin #
-#*******************#
+#*********************#
+#   lab / raw / sin   #
+#*********************#
 def test_lab_raw_reads_the_older_plain_and_the_newer_bit_packed_stream(tmp_path):
     rng = np.random.default_rng(1)
     channels, samples = 2, 24

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                         spectroscopy.py                                          #
+#                                          spectroscopy.py                                         #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -107,7 +107,7 @@ def _found(pattern):
 
 
 #**************************************************************************************************#
-#                                          Class BigGABA                                           #
+#                                           Class BigGABA                                          #
 #**************************************************************************************************#
 #                                                                                                  #
 # Big GABA's PRESS arm: one parietal PRESS run per subject at 3 T on each vendor's systems.        #
@@ -281,7 +281,7 @@ class FMRSPain:
 
 
 #**************************************************************************************************#
-#                                         Class TissueSegmentation                                 #
+#                                     Class TissueSegmentation                                     #
 #**************************************************************************************************#
 #                                                                                                  #
 # The tissue segmentation dataset: semi-LASER in the medial parietal cortex at 3 T, two sessions.  #

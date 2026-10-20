@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_sequences.py                                         #
+#                                         test_sequences.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -41,7 +41,7 @@ def ch3_amplitude(sim, sequence):
 
 
 #**************************************************************************************************#
-#                                         Class TestPress                                          #
+#                                          Class TestPress                                         #
 #**************************************************************************************************#
 class TestPress:
 
@@ -57,7 +57,7 @@ class TestPress:
 
 
 #**************************************************************************************************#
-#                                         Class TestSteam                                          #
+#                                          Class TestSteam                                         #
 #**************************************************************************************************#
 class TestSteam:
 
@@ -71,9 +71,9 @@ class TestSteam:
         ratio = np.abs(steam).sum() / np.abs(reference).sum()
         assert abs(ratio - 0.5) < 1e-3
 
-    #*******************#
-    #   refocused       #
-    #*******************#
+    #***************#
+    #   refocused   #
+    #***************#
     def test_the_stimulated_echo_refocuses_the_shifts(self, sim):
         # the kept pathway is +1, 0, -1: the echo is in phase with a plain excitation
         # at any echo time (the pathway -1, 0, -1 has the same half amplitude and a

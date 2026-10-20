@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                           scanners.py                                            #
+#                                            scanners.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -11,9 +11,9 @@
 #                                                                                                  #
 ####################################################################################################
 
-#***********************#
-#   openneuro survey    #
-#***********************#
+#**********************#
+#   openneuro survey   #
+#**********************#
 # Source: the BIDS sidecars of the public OpenNeuro datasets, read on 19/09/26 from the GitHub
 #         mirrors (github.com/OpenNeuroDatasets).
 # Rule:   one sidecar per dataset, the first found of T1w, bold, svs, mrsi, dwi, epi, the B1 and

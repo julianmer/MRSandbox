@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_calibrate.py                                         #
+#                                         test_calibrate.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -170,7 +170,7 @@ class TestNoiseReading:
 
 
 #**************************************************************************************************#
-#                                   Class TestCovarianceReading                                    #
+#                                    Class TestCovarianceReading                                   #
 #**************************************************************************************************#
 class TestCovarianceReading:
 
@@ -289,7 +289,7 @@ class TestCovarianceReading:
 
 
 #**************************************************************************************************#
-#                                    Class TestReceiverReading                                     #
+#                                     Class TestReceiverReading                                    #
 #**************************************************************************************************#
 class TestReceiverReading:
 
@@ -312,7 +312,7 @@ class TestReceiverReading:
 
 
 #**************************************************************************************************#
-#                                    Class TestSpectrumReading                                     #
+#                                     Class TestSpectrumReading                                    #
 #**************************************************************************************************#
 @pytest.mark.render
 class TestSpectrumReading:
@@ -367,7 +367,7 @@ class TestSpectrumReading:
 
 
 #**************************************************************************************************#
-#                                   Class TestRelaxationReading                                    #
+#                                    Class TestRelaxationReading                                   #
 #**************************************************************************************************#
 @pytest.mark.render
 class TestRelaxationReading:
@@ -450,7 +450,7 @@ class TestWaterSeriesReading:
 
 
 #**************************************************************************************************#
-#                                 Class TestMacromoleculeReading                                   #
+#                                  Class TestMacromoleculeReading                                  #
 #**************************************************************************************************#
 @pytest.mark.render
 class TestMacromoleculeReading:
@@ -504,7 +504,7 @@ class TestMacromoleculeReading:
 
 
 #**************************************************************************************************#
-#                               Class TestMetaboliteSeriesReading                                  #
+#                                 Class TestMetaboliteSeriesReading                                #
 #**************************************************************************************************#
 @pytest.mark.render
 class TestMetaboliteSeriesReading:

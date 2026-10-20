@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                             uk7t.py                                              #
+#                                              uk7t.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -64,7 +64,7 @@ UK7T_ACQUISITION = {
 
 
 #**************************************************************************************************#
-#                                           Class UK7T                                             #
+#                                            Class UK7T                                            #
 #**************************************************************************************************#
 #                                                                                                  #
 # One subject on five 7 T scanners: the per-site transmit, field, and R2* maps, derived once.      #
@@ -167,9 +167,9 @@ class UK7T:
                                     Volume.load("bigbrain_mr/t1map_800um")))
         return np.load(cache)
 
-    #**************#
-    #   derive     #
-    #**************#
+    #************#
+    #   derive   #
+    #************#
     @classmethod
     def derive(cls, site="oxf"):
         """The three maps of a site from its members, as {name: array, name_affine: affine}."""
@@ -206,9 +206,9 @@ class UK7T:
                 "R2starmap": r2star, "R2starmap_affine": t2s_affine,
                 "T1map": t1, "T1map_affine": mp2rage_affine}
 
-    #*****************#
-    #   mp2rage       #
-    #*****************#
+    #*************#
+    #   mp2rage   #
+    #*************#
     @staticmethod
     def mp2rage_signals(t1_s, mp2rage, b1=1.0):
         """The two inversion-block signals of the MP2RAGE at T1 (seconds, any shape),
@@ -273,18 +273,18 @@ class UK7T:
             t1[where] = np.interp(-unified[where], -curve[branch], grid[branch])
         return t1
 
-    #*****************#
-    #   transmit      #
-    #*****************#
+    #**************#
+    #   transmit   #
+    #**************#
     @staticmethod
     def transmit(flip_map, prep_flip_deg, tenths=10.0):
         """The relative transmit field from a DREAM flip-angle map stored in tenths of a
         degree: the measured preparation flip over the nominal one; zero where the map is."""
         return np.where(flip_map > 0.0, flip_map / tenths / prep_flip_deg, 0.0).astype(np.float32)
 
-    #**************#
-    #   cohort     #
-    #**************#
+    #************#
+    #   cohort   #
+    #************#
     @classmethod
     def cohort(cls, folder=None):
         """The uk7t_oxford_7t cohort: the Oxford travelling head's own water T1 rows off

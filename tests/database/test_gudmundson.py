@@ -69,7 +69,7 @@ class TestGudmundson:
 
 
 #**************************************************************************************************#
-#                                        Class TestPooling                                         #
+#                                         Class TestPooling                                        #
 #**************************************************************************************************#
 class TestPooling:
 
@@ -82,9 +82,9 @@ class TestPooling:
         assert 0.2 < pooled.mean_s < 0.35
         assert pooled.sd_s > 0.0
 
-    #***************#
-    #   aliases     #
-    #***************#
+    #*************#
+    #   aliases   #
+    #*************#
     def test_aliases_gather_same_molecule_rows(self):
         db = Gudmundson()
         assert db.pooled_t2("Ins").n_studies > 0  # via mI, mIns, Myo
@@ -93,7 +93,7 @@ class TestPooling:
 
 
 #**************************************************************************************************#
-#                                     Class TestDiseasePriors                                      #
+#                                      Class TestDiseasePriors                                     #
 #**************************************************************************************************#
 #                                                                                                  #
 # Clinical cohorts pool into priors; disease values differ from healthy the way the field knows.   #
@@ -101,9 +101,9 @@ class TestPooling:
 #**************************************************************************************************#
 class TestDiseasePriors:
 
-    #*****************#
-    #   cohorts       #
-    #*****************#
+    #*************#
+    #   cohorts   #
+    #*************#
     def test_healthy_pool_lands_in_the_de_graaf_range(self):
         pooled = Gudmundson().pooled_concentration("NAA")
         assert pooled.n_studies > 20

@@ -241,9 +241,9 @@ class Cohort:
                        for path in folder.glob("*.json")})
 
 
-#*******************#
-#   the database    #
-#*******************#
+#******************#
+#   the database   #
+#******************#
 @functools.lru_cache(maxsize=None)
 def package():
     """The package's cohorts and the operator's own, loaded once: the measured database."""

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_generator.py                                         #
+#                                         test_generator.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -37,7 +37,7 @@ def scan():
 
 
 #**************************************************************************************************#
-#                                       Class TestGenerator                                        #
+#                                        Class TestGenerator                                       #
 #**************************************************************************************************#
 class TestGenerator:
 
@@ -132,9 +132,9 @@ class TestGenerator:
             assert np.abs(x[i, 0] + 1j * x[i, 1] - fid).max() < 1e-5 * np.abs(fid).max()
         assert len(scan._lines) <= 256
 
-    #*********************#
-    #   one frame shared  #
-    #*********************#
+    #**********************#
+    #   one frame shared   #
+    #**********************#
     def test_draws_at_one_frame_simulate_the_metabolites_once(self, scan):
         # a closed loop over concentrations and noise: the relaxation, the transmit scale and
         # the frequency offset pinned, every draw sits at one frame, whose lines are made once

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            tissue.py                                             #
+#                                             tissue.py                                            #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -11,9 +11,9 @@
 #                                                                                                  #
 ####################################################################################################
 
-#**********************#
-#   mrsi challenge     #
-#**********************#
+#********************#
+#   mrsi challenge   #
+#********************#
 # Source: LaMaster, J. T., Merkofer, J. P., van de Sande, D. M. J., Soher, B. J.,
 #         Strasser, B., Ma, C. The 2024 MRSI Data Processing and Quantification
 #         Challenge Synthetic Dataset. arXiv:2609.02637.
@@ -25,9 +25,9 @@ MRSI_CHALLENGE = {
     "water_shift_ppm": 4.65,
 }
 
-#*************************#
-#   water thermometry     #
-#*************************#
+#***********************#
+#   water thermometry   #
+#***********************#
 # Source: Cady, E. B., D'Souza, P. C., Penrice, J., Lorek, A. The estimation of local brain
 #         temperature by in vivo 1H magnetic resonance spectroscopy. Magn Reson Med 33 (1995)
 #         862-867: T = 286.9 - 94.0 x (water minus NAA methyl shift in ppm), calibrated in
@@ -52,9 +52,9 @@ CADY_1995 = {"intercept_c": 286.9, "c_per_ppm": 94.0}
 RZECHORZEK_2022 = {"healthy_mean_c": 38.5, "healthy_sd_c": 0.4, "healthy_range_c": (36.1, 40.9),
                    "luteal_offset_c": 0.36}
 
-#***************************#
-#   metabolite diffusion    #
-#***************************#
+#**************************#
+#   metabolite diffusion   #
+#**************************#
 # Source: Deelchand, D. K., Auerbach, E. J., Marjanska, M. Apparent diffusion coefficients of
 #         the five major metabolites measured in the human brain in vivo at 3T. Magn Reson Med
 #         79 (2018) 2896-2901, Table 1: trace/3 ADC with STEAM (TE/TM 21.2/105 ms), the

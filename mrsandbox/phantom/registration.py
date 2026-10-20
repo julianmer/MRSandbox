@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                         registration.py                                          #
+#                                          registration.py                                         #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -113,9 +113,9 @@ def register(source, target, coarse_mm=2.4, smooth_mm=2.0):
     return _matrix(base, centre)
 
 
-#**************#
-#   overlap    #
-#**************#
+#*************#
+#   overlap   #
+#*************#
 def overlap(source, target, matrix):
     """The Dice overlap of the two supports (values above zero) with `matrix` applied
     to the source, evaluated on the target's grid: a registration's quality figure."""

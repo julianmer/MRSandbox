@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                        test_downfield.py                                         #
+#                                         test_downfield.py                                        #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -29,9 +29,13 @@ F0_MHZ = 42.5774785 * 3.0
 AT_LEVEL_TE = Press(te1_s=0.011, te2_s=0.011)
 
 
-#*************#
-#   helpers   #
-#*************#
+#**************************************************************************************************#
+#                                          Class FakeVoxel                                         #
+#**************************************************************************************************#
+#                                                                                                  #
+# A stub carrying only the fractions the source protocol reads.                                    #
+#                                                                                                  #
+#**************************************************************************************************#
 class FakeVoxel:
     """A stub carrying only the fractions the source protocol reads."""
 
@@ -39,6 +43,9 @@ class FakeVoxel:
         self.fractions = Tissues(gm=gm, wm=wm, csf=csf)
 
 
+#*************#
+#   helpers   #
+#*************#
 def realize(**overrides):
     params = VirtualScan.default_params() | Params(downfield=overrides)
     return params.sample(seed=3)
@@ -49,9 +56,9 @@ def realize(**overrides):
 #**************************************************************************************************#
 class TestDownfieldLines:
 
-    #*****************#
-    #   nine peaks    #
-    #*****************#
+    #****************#
+    #   nine peaks   #
+    #****************#
     def test_nine_peaks_at_their_published_positions(self):
         truth = realize(presaturated=False)
         freqs, amps, gauss = ParameterizedDownfield().lines(None, AT_LEVEL_TE, FakeVoxel(), truth,
@@ -84,9 +91,9 @@ class TestDownfieldLines:
         assert abs(ratio[names.index("df837")] - np.exp(-30.0 / 16.3)) < 1e-6
         assert np.all((earlier / at).real > 1.0)
 
-    #*****************#
-    #   presaturation #
-    #*****************#
+    #*******************#
+    #   presaturation   #
+    #*******************#
     def test_presaturation_retains_exactly_r1_over_r1_plus_kex(self):
         # per-leaf sampling keeps every other draw identical between the two trees,
         # so the amplitude ratio isolates the retention factor exactly
@@ -102,9 +109,9 @@ class TestDownfieldLines:
         r1 = 1000.0 / 525.0
         assert abs(source.retention("df790") - r1 / (r1 + 0.5)) < 1e-12
 
-    #*******************#
-    #   tissue scaling  #
-    #*******************#
+    #********************#
+    #   tissue scaling   #
+    #********************#
     def test_tissue_scales_and_empty_voxels_are_silent(self):
         truth = realize(presaturated=False)
         source = ParameterizedDownfield()
@@ -117,7 +124,7 @@ class TestDownfieldLines:
 
 
 #**************************************************************************************************#
-#                                    Class TestDownfieldInScan                                     #
+#                                     Class TestDownfieldInScan                                    #
 #**************************************************************************************************#
 @pytest.mark.render  # a full-scan render, skipped on the tensorflow CI leg
 class TestDownfieldInScan:

@@ -44,7 +44,7 @@ def scan():
 
 
 #**************************************************************************************************#
-#                                      Class TestVirtualScan                                       #
+#                                       Class TestVirtualScan                                      #
 #**************************************************************************************************#
 class TestVirtualScan:
 
@@ -78,9 +78,9 @@ class TestVirtualScan:
         np.testing.assert_array_equal(ops.convert_to_numpy(fid_a), ops.convert_to_numpy(fid_b))
         assert np.abs(ops.convert_to_numpy(fid_a) - ops.convert_to_numpy(fid_c)).max() > 0.0
 
-    #*******************#
-    #   isochromats     #
-    #*******************#
+    #*****************#
+    #   isochromats   #
+    #*****************#
     def test_isochromats_reach_the_engine(self, scan):
         assert scan.engine.isochromats == 32  # the stated default
         eight = VirtualScan(scan.brain, scan.scanner, scan.sequence, isochromats=8)
@@ -223,7 +223,7 @@ class TestVirtualScan:
 
 
 #**************************************************************************************************#
-#                                     Class TestAcquisition                                        #
+#                                       Class TestAcquisition                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # The drawn acquisition imperfections modulate the FID by exactly the analytic factor.             #
@@ -254,9 +254,9 @@ class TestAcquisitionImperfections:
         expected = fid0 * np.exp(1j * (2.0 * np.pi * 5.0 * t + np.pi / 2.0))
         assert np.abs(fid1 - expected).max() < 1e-4 * np.abs(fid0).max()
 
-    #**************************#
-    #   compiled ensembles     #
-    #**************************#
+    #************************#
+    #   compiled ensembles   #
+    #************************#
     @pytest.mark.slow
     def test_a_shaped_ensemble_design_compiles_per_metabolite_to_the_same_fid(self, scan):
         # shaped pulses on an isochromat ensemble compile one graph per metabolite (a
@@ -276,9 +276,9 @@ class TestAcquisitionImperfections:
         assert len(source.engine._compiled) >= len(source.params.conc)
         np.testing.assert_allclose(fast, plain, atol=1e-4 * np.abs(plain).max())
 
-    #*******************#
-    #   temperature     #
-    #*******************#
+    #*****************#
+    #   temperature   #
+    #*****************#
     def test_temperature_moves_the_water_against_the_metabolites(self, scan):
         # two degrees of fever: the water component is the 37 C one turned by
         # -2 / 94.0 ppm (Cady 1995), the metabolites move a little with their own typed
@@ -305,9 +305,9 @@ class TestAcquisitionImperfections:
                  / np.abs(body["metabolites"]).max())
         assert 1e-6 < moved < 0.05
 
-    #**********************#
-    #   receiver delay     #
-    #**********************#
+    #********************#
+    #   receiver delay   #
+    #********************#
     def test_receiver_delay_samples_the_same_fid_later(self, scan):
         # a delay of k dwells is the undelayed FID advanced by k samples, every
         # component alike (metabolites, water, lipids, MM, downfield, the field
@@ -349,9 +349,9 @@ class TestAcquisitionImperfections:
 
         np.testing.assert_allclose(echo(8 / 4000.0, 512), echo(0.0, 520)[8:], atol=1e-4)
 
-    #**********************#
-    #   eddy phase         #
-    #**********************#
+    #****************#
+    #   eddy phase   #
+    #****************#
     def test_eddy_phase_is_augmentrums_seeded_trajectory(self, scan):
         # the eddy phase is Augmentrum's synthetic trajectory: a pure phase that
         # regenerates from the drawn seed, and exactly what its module applies to
@@ -385,9 +385,9 @@ class TestAcquisitionImperfections:
             clean[None, :], sw_hz=4000.0)[0][0]
         np.testing.assert_allclose(warped, expected, atol=1e-5 * np.abs(clean).max())
 
-    #********************#
-    #   spurious echo    #
-    #********************#
+    #*******************#
+    #   spurious echo   #
+    #*******************#
     def test_spurious_echo_rides_at_its_drawn_position(self, scan):
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         still = dict(noise=dict(sigma=0.0),
@@ -475,9 +475,9 @@ class TestMaps:
 
         np.testing.assert_allclose(fid(Mapped(flat)), fid(30.0), rtol=1e-6)
 
-    #*************************#
-    #   mapped concentration  #
-    #*************************#
+    #**************************#
+    #   mapped concentration   #
+    #**************************#
     def test_mapped_concentration_reads_the_box_mean(self, scan):
         from mrsandbox import Mapped, Volume
 
@@ -501,9 +501,9 @@ class TestMaps:
         shifted = amplitude(Params(conc=dict(NAA=Mapped(ramp))), (2.0, 0.0, 0.0))
         assert abs(centre / fixed - 0.7) < 1e-6 and abs(shifted / fixed - 1.1) < 1e-6
 
-    #*************#
-    #   header    #
-    #*************#
+    #************#
+    #   header   #
+    #************#
     def test_header_records_the_resolved_local_values(self, scan):
         from mrsandbox import Mapped, Volume
 
@@ -517,9 +517,9 @@ class TestMaps:
         assert truth["params"]["water"]["t1_s"] == "t1_synthetic"
         assert truth["local"] == {"conc.NAA": 1.3, "water.t1_s": 1.3}
 
-    #****************#
-    #   transmit     #
-    #****************#
+    #**************#
+    #   transmit   #
+    #**************#
     def test_transmit_map_scales_the_pulses_like_b1_scale(self, scan):
         from mrsandbox import Volume
 
@@ -551,7 +551,7 @@ class TestMaps:
 
 
 #**************************************************************************************************#
-#                                       Class TestLineshape                                        #
+#                                        Class TestLineshape                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # The microscopic field term: an exact Gaussian envelope on the spin-system components, and none   #
@@ -563,9 +563,9 @@ class TestLineshape:
                  acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
                                   eddy_transient_rad=0.0), oov=dict(fraction=0.0))
 
-    #*********************#
-    #   exact envelope    #
-    #*********************#
+    #********************#
+    #   exact envelope   #
+    #********************#
     def test_gaussian_width_is_an_exact_envelope_on_the_spin_systems(self, scan):
         from mrsandbox import NoDownfield, NoMM
 
@@ -582,9 +582,9 @@ class TestLineshape:
         np.testing.assert_allclose(broad, sharp * envelope, atol=1e-5 * np.abs(sharp).max())
         assert np.abs(broad[-1]) < 0.5 * np.abs(sharp[-1])  # the tail is damped
 
-    #*******************#
-    #   under a map     #
-    #*******************#
+    #*****************#
+    #   under a map   #
+    #*****************#
     def test_a_field_map_takes_its_own_width_out_of_the_drawn_broadening(self, scan):
         # the width records are read against twins without a map: under one, the voxel plays
         # the drawn Gaussian less the map's width here in quadrature, none when the map is wider
@@ -609,9 +609,9 @@ class TestLineshape:
         assert voxel(field).gauss_hz(truth) == pytest.approx(np.sqrt(144.0 - width ** 2), abs=1e-6)
         assert voxel(FieldMap.from_map(3.0 * gradient, affine, shim="none")).gauss_hz(truth) == 0.0
 
-    #**********************#
-    #   eddy transient     #
-    #**********************#
+    #********************#
+    #   eddy transient   #
+    #********************#
     def test_the_eddy_transient_is_an_exact_phase_on_the_fid(self, scan):
         # the phase transient at the FID's start (scan.calibrations EDDY_PHASE records): the phase
         # 5 ms after the first sample, decaying from there with its time constant and grown back
@@ -654,7 +654,7 @@ class TestLineshape:
 
 
 #**************************************************************************************************#
-#                                        Class TestNoiseModel                                      #
+#                                       Class TestNoiseModel                                       #
 #**************************************************************************************************#
 #                                                                                                  #
 # The drawn sigma belongs to one transient of the 8 mL reference voxel at 3 T and 5 kHz; averages, #
@@ -810,7 +810,7 @@ class TestNoiseModel:
 
 
 #**************************************************************************************************#
-#                                      Class TestComponents                                        #
+#                                       Class TestComponents                                       #
 #**************************************************************************************************#
 class TestComponents:
     # The component-separated acquisition: the same subject and noise as the
@@ -864,7 +864,7 @@ class TestComponents:
 
 
 #**************************************************************************************************#
-#                                     Class TestDrawnTemperature                                   #
+#                                    Class TestDrawnTemperature                                    #
 #**************************************************************************************************#
 class TestDrawnTemperature:
 

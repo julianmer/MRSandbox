@@ -230,9 +230,9 @@ def tissues(path, folder, strip_on=None, classes=3, crop=True):
     return mask
 
 
-#***********************#
-#   tissues by atlas    #
-#***********************#
+#**********************#
+#   tissues by atlas   #
+#**********************#
 def tissues_by_atlas(path, folder):
     """Tissue partial volumes of an image whose contrast or background defeats `strip` and a
     plain `segment` (a radial acquisition's streaks, a weak grey-white contrast): FSL's MNI152

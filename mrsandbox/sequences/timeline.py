@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                           timeline.py                                            #
+#                                            timeline.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -21,9 +21,9 @@ import numpy as np
 from mrsandbox.sequences.events import Delay, Gradient, ShapedPulse, trapezoid
 
 
-#*******************#
-#   event spans     #
-#*******************#
+#*****************#
+#   event spans   #
+#*****************#
 def event_spans(sequence):
     """When each event of a design plays, [(start_s, end_s)] in event order: delays
     and shaped pulses take their duration, everything else is instantaneous."""
@@ -39,9 +39,9 @@ def event_spans(sequence):
     return spans
 
 
-#*************************#
-#   gradient waveforms    #
-#*************************#
+#************************#
+#   gradient waveforms   #
+#************************#
 def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785):
     """The gradient waveforms of a design on `scanner`, sampled every `dt_s` out to
     `until_s`, as {axis: array in mT/m} over the axes the design uses.

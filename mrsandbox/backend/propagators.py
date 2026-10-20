@@ -25,7 +25,7 @@ from mrsandbox.backend import precision
 
 
 #**************************************************************************************************#
-#                                          Class Backend                                           #
+#                                           Class Backend                                          #
 #**************************************************************************************************#
 #                                                                                                  #
 # Static namespace for the per-backend primitives the physics is built on.                         #

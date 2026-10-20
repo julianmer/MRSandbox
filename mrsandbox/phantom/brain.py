@@ -25,7 +25,7 @@ from mrsandbox.phantom.volume import Volume
 
 
 #**************************************************************************************************#
-#                                           Class Brain                                            #
+#                                            Class Brain                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # Tissue probability maps plus the affine that places them in world millimetres.                   #
@@ -229,9 +229,9 @@ class Brain:
             return Tissues(gm=0.0, wm=0.0, csf=0.0)
         return Tissues(gm=float(mean[0]), wm=float(mean[1]), csf=float(mean[2]))
 
-    #*******************#
-    #   lipid weight    #
-    #*******************#
+    #******************#
+    #   lipid weight   #
+    #******************#
     def lipid_weight(self, position_mm, size_mm, turn=None):
         """Fraction of the voxel box that holds scalp, the fat layer.
 

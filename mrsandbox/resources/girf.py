@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                             girf.py                                              #
+#                                              girf.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -21,9 +21,9 @@ import numpy as np
 import scipy.fft
 
 
-#*******************#
-#   nws deposit     #
-#*******************#
+#*****************#
+#   nws deposit   #
+#*****************#
 # Source: Bacon, J. B., Jezzard, P., Clarke, W. T. MR spectroscopy without water suppression
 #         using the gradient impulse response function. MRM 96 (2026) 530-541.
 #         doi:10.1002/mrm.70383. The GIRF was measured on a 3 T Siemens Prisma with the
@@ -89,7 +89,7 @@ GIRF_MEASUREMENT = {
 
 
 #**************************************************************************************************#
-#                                           Class GIRF                                             #
+#                                            Class GIRF                                            #
 #**************************************************************************************************#
 #                                                                                                  #
 # A scanner's measured gradient impulse response, per input axis and spherical-harmonic term.      #
@@ -185,9 +185,9 @@ class GIRF:
         return cls({axis: {axis: (grid, stored["Hw"][:, k])} for k, axis in enumerate("xyz")},
                    name=name)
 
-    #**********#
-    #   named  #
-    #**********#
+    #***********#
+    #   named   #
+    #***********#
     @classmethod
     def named(cls, name):
         """The measurement a saved scan.profile names: a package deposit's, or the file an

@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                          test_field.py                                           #
+#                                           test_field.py                                          #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -42,7 +42,7 @@ def quadratic_field(n=50, amplitude_hz=10.0):
 
 
 #**************************************************************************************************#
-#                                        Class TestKernel                                          #
+#                                         Class TestKernel                                         #
 #**************************************************************************************************#
 class TestKernel:
 
@@ -106,9 +106,9 @@ class TestKernel:
         # its residual after the linear fit about 0.3 of that
         assert field.offsets(**BOX, shim="linear").std() > 0.4
 
-    #**********************#
-    #   second order shim  #
-    #**********************#
+    #***********************#
+    #   second order shim   #
+    #***********************#
     def test_quadratic_shim_nulls_the_second_order_harmonics(self):
         x = np.linspace(-1.0, 1.0, 50)
         harmonic = 10.0 * (x[:, None, None] ** 2 - x[None, :, None] ** 2 + 0.0 * x[None, None, :])
@@ -124,9 +124,9 @@ class TestKernel:
         with pytest.raises(ValueError, match="known:"):
             FieldMap.from_map(harmonic.astype(np.float32), field.affine, shim="cubic")
 
-    #***************#
-    #   outside     #
-    #***************#
+    #*************#
+    #   outside   #
+    #*************#
     def test_outside_the_map_nothing_dephases(self):
         field = centred_map(quadratic_field())
         kernel = field.kernel(position_mm=(500.0, 0.0, 0.0), size_mm=20.0, t_s=T)
@@ -134,7 +134,7 @@ class TestKernel:
 
 
 #**************************************************************************************************#
-#                                         Class TestScan                                           #
+#                                          Class TestScan                                          #
 #**************************************************************************************************#
 class TestScan:
     pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
@@ -160,16 +160,16 @@ class TestScan:
 
 
 #**************************************************************************************************#
-#                                     Class TestBigBrainField                                      #
+#                                      Class TestBigBrainField                                     #
 #**************************************************************************************************#
 @pytest.mark.skipif(not Resources.cached("bigbrain_mr/background_field_400um"),
                     reason="background field not cached; "
                            "FieldMap.load('bigbrain_mr') fetches it once")
 class TestBigBrainField:
 
-    #*******************#
-    #   preset loads    #
-    #*******************#
+    #******************#
+    #   preset loads   #
+    #******************#
     def test_preset_scales_with_field_and_shims_to_subhertz(self):
         at_3t = FieldMap.load("bigbrain_mr", b0_t=3.0)
         at_7t = FieldMap.load("bigbrain_mr", b0_t=7.0)
@@ -255,6 +255,7 @@ class TestQsmField:
 #                                                                                                  #
 # The field inside the pulses: groups of the voxel's field distribution play the sequence at       #
 # their own offset.                                                                                #
+#                                                                                                  #
 #**************************************************************************************************#
 class TestFieldGroups:
 

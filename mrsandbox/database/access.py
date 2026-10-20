@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            access.py                                             #
+#                                             access.py                                            #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -60,9 +60,9 @@ class Database:
         7.0: (relaxation.XIN,),
     }
 
-    #**************#
-    #   nuclei     #
-    #**************#
+    #************#
+    #   nuclei   #
+    #************#
     def gamma(self, nucleus="1H"):
         """Gyromagnetic ratio gamma-bar in MHz/T."""
         return self._lookup(nuclei.GAMMA_MHZ_PER_T, nucleus, "nucleus")
@@ -71,9 +71,9 @@ class Database:
         """Nuclear spin quantum number I."""
         return self._lookup(nuclei.SPIN, nucleus, "nucleus")
 
-    #********************#
-    #   spin systems     #
-    #********************#
+    #******************#
+    #   spin systems   #
+    #******************#
     SPIN_SYSTEMS = {"govindaraju": spinsystems.GOVINDARAJU,
                     "govind_2015": spinsystems.GOVIND_2015,
                     "degraaf_2019": spinsystems.DEGRAAF_2019,
@@ -142,9 +142,9 @@ class Database:
                 table[metabolite] = {"groups": list(record.values())}
         return table
 
-    #**********************#
-    #   concentrations     #
-    #**********************#
+    #********************#
+    #   concentrations   #
+    #********************#
     def shift_change(self, metabolite, shift_ppm, temperature_c, ph, within_ppm=0.05):
         """How far a proton of `metabolite` typed at `shift_ppm` (37 C, pH 7) moves at
         another temperature and pH, in ppm: the fitted function of the WERMTER_2026
@@ -275,9 +275,9 @@ class Database:
                                   "text": "\n".join(lines[node.lineno - 1:node.end_lineno])})
         return cards
 
-    #**********************#
-    #   lookup helpers     #
-    #**********************#
+    #********************#
+    #   lookup helpers   #
+    #********************#
     @staticmethod
     def _source(module, name):
         """Resolve a source named dict (case insensitive) from a table module."""

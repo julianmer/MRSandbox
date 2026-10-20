@@ -43,7 +43,7 @@ def _read(url, headers=None):
 
 
 #**************************************************************************************************#
-#                                          Class _Ranged                                           #
+#                                           Class _Ranged                                          #
 #**************************************************************************************************#
 class _Ranged(io.RawIOBase):
     """A remote file read by HTTP range requests, for zipfile to take the members it needs out of
@@ -78,7 +78,7 @@ class _Ranged(io.RawIOBase):
 
 
 #**************************************************************************************************#
-#                                         Class Resources                                          #
+#                                          Class Resources                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The registry of named remote files and the cache that serves them.                               #
@@ -105,9 +105,9 @@ class Resources:
                 **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO, **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT,
                 **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2}
 
-    #*************#
-    #   lookup    #
-    #*************#
+    #************#
+    #   lookup   #
+    #************#
     @classmethod
     def path(cls, name):
         """Local path of a registered resource, fetching and verifying on first use."""
@@ -137,9 +137,9 @@ class Resources:
         root = os.environ.get(cls.CACHE_ENV, "~/.cache/mrsandbox")
         return pathlib.Path(root).expanduser()
 
-    #*************#
-    #   fetch     #
-    #*************#
+    #***********#
+    #   fetch   #
+    #***********#
     @classmethod
     def _fetch(cls, url, destination, md5, member=None):
         """Download to a temporary sibling, verify the checksum (none where `md5` is None: the

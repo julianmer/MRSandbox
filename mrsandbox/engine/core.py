@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                             core.py                                              #
+#                                              core.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -32,7 +32,7 @@ from mrsandbox.backend import Backend, precision
 
 
 #**************************************************************************************************#
-#                                          Class Context                                           #
+#                                           Class Context                                          #
 #**************************************************************************************************#
 #                                                                                                  #
 # The tensor-side view of one spin system at one field, handed to sequence events.                 #
@@ -90,7 +90,7 @@ class Context:
 
 
 #**************************************************************************************************#
-#                                         Class Engine                                             #
+#                                           Class Engine                                           #
 #**************************************************************************************************#
 #                                                                                                  #
 # Runs sequences on spin systems at a freely choosable field and renders the outcome.              #
@@ -313,9 +313,9 @@ class Engine:
             amps = ops.mean(amps, axis=0)
         return ops.reshape(freqs, (-1,)), receiver * ops.reshape(amps, (-1,))
 
-    #**********#
-    #   graph  #
-    #**********#
+    #***********#
+    #   graph   #
+    #***********#
     def graph(self, sequence, groups, isochromats=None, pruned=False):
         """The jit-compiled graph of a sequence design on many systems:
         (t1_s, t2_s, b1_scale, offset_hz, timings) -> (freqs, amps), with t1_s and
@@ -389,9 +389,9 @@ class Engine:
         self._compiled[key] = (fn, self._group_bounds(groups))
         return self._compiled[key]
 
-    #*****************#
-    #   raw graph     #
-    #*****************#
+    #***************#
+    #   raw graph   #
+    #***************#
     def _raw_graph(self, sequence, groups, isochromats, pruned):
         """`graph`'s plain python function and bounds, unjitted and uncached: what a
         jit, an export, or a transformation fallback traces."""
@@ -488,9 +488,9 @@ class Engine:
             os.replace(fresh, path)
         return ops.convert_to_tensor(index), kept
 
-    #***************#
-    #   exports     #
-    #***************#
+    #*************#
+    #   exports   #
+    #*************#
     _code_salt = None
 
     @classmethod
@@ -628,9 +628,9 @@ class Engine:
             return tuple(Engine.tensors(value) for value in timings)
         return ops.convert_to_tensor(timings, dtype=precision.REAL)
 
-    #****************#
-    #   compiled     #
-    #****************#
+    #**************#
+    #   compiled   #
+    #**************#
     def compiled(self, sequence, system, isochromats=None, batched=False, shift_mm=None):
         """(t1_s, t2_s, b1_scale, offset_hz) -> (freqs, amps) for one system, replaying
         the design's graph (`graph`) with this sequence's own timings: the first call

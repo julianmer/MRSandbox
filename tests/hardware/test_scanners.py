@@ -6,7 +6,7 @@
 #                                                                                                  #
 # Created: 17/09/26                                                                                #
 #                                                                                                  #
-# Purpose: The scanner limits as the constraints a design must satisfy: peak B1, gradient and     #
+# Purpose: The scanner limits as the constraints a design must satisfy: peak B1, gradient and      #
 #          slew, and the delays absorbing the hardware durations of the ideal events.              #
 #                                                                                                  #
 ####################################################################################################
@@ -26,7 +26,7 @@ GAMMA = 42.5774785
 
 
 #**************************************************************************************************#
-#                                        Class TestLimits                                          #
+#                                         Class TestLimits                                         #
 #**************************************************************************************************#
 class TestLimits:
 

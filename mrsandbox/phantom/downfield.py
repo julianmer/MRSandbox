@@ -25,7 +25,7 @@ from mrsandbox.database import downfield
 
 
 #**************************************************************************************************#
-#                                      Class DownfieldSource                                       #
+#                                       Class DownfieldSource                                      #
 #**************************************************************************************************#
 #                                                                                                  #
 # How the downfield resonances enter the acquisition.                                              #
@@ -55,7 +55,7 @@ class DownfieldSource(abc.ABC):
 
 
 #**************************************************************************************************#
-#                                       Class NoDownfield                                          #
+#                                         Class NoDownfield                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # Silence: no downfield signal at all (the conventional 0 to 4.2 ppm world).                       #
@@ -66,7 +66,7 @@ class NoDownfield(DownfieldSource):
 
 
 #**************************************************************************************************#
-#                                  Class ParameterizedDownfield                                    #
+#                                   Class ParameterizedDownfield                                   #
 #**************************************************************************************************#
 #                                                                                                  #
 # The nine downfield Gaussians, vanishing physically under water presaturation.                    #

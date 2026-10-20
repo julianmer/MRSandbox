@@ -151,9 +151,9 @@ class FieldMap:
         """Wrap your own offset map (for example a measured B0 map in Hz)."""
         return cls(offsets_hz=offsets_hz, affine=affine, name=name, shim=shim)
 
-    #**************#
-    #   offsets    #
-    #**************#
+    #*************#
+    #   offsets   #
+    #*************#
     def offsets(self, position_mm, size_mm, shim=None, shim_at_mm=None, turn=None):
         """The Hz offsets of the map cells a voxel box (cubic, or per-axis edges)
         overlaps, after the voxel shim, flat.
@@ -224,9 +224,9 @@ class FieldMap:
                                   values[keep].astype(np.float64) * root, rcond=None)
         return columns(np.asarray(xyz_mm, dtype=np.float64)) @ fit
 
-    #*************#
-    #   kernel    #
-    #*************#
+    #************#
+    #   kernel   #
+    #************#
     def kernel(self, position_mm, size_mm, t_s, shim=None, bins=256, shim_at_mm=None,
                turn=None):
         """The complex dephasing kernel k(t) of a voxel box on a time grid.

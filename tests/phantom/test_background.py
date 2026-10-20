@@ -54,7 +54,7 @@ def make_scan(brain, params=None, **kwargs):
 
 
 #**************************************************************************************************#
-#                                         Class TestWater                                          #
+#                                          Class TestWater                                         #
 #**************************************************************************************************#
 class TestWater:
 
@@ -78,9 +78,9 @@ class TestWater:
         ratio = height_at(suppressed, INTERIOR, 4.65) / height_at(unsuppressed, INTERIOR, 4.65)
         assert abs(ratio - truth.water.residual_fraction) < 0.3 * truth.water.residual_fraction
 
-    #*********************#
-    #   per-tissue T1     #
-    #*********************#
+    #*******************#
+    #   per-tissue t1   #
+    #*******************#
     def test_each_tissue_recovers_with_its_own_t1(self, brain):
         # equal per-tissue values render as the one value does; a slow CSF beside fast tissues
         # leaves MORE water at a short TR than the mean T1 says (recovery is convex in T1), which
@@ -103,9 +103,9 @@ class TestWater:
         if fractions.csf > 0.02:
             assert water(PerTissue(gm=1.0, wm=1.0, csf=4.0)) > 1.01 * water(mean)
 
-    #*********************#
-    #   per-tissue T2     #
-    #*********************#
+    #*******************#
+    #   per-tissue t2   #
+    #*******************#
     def test_each_tissue_decays_with_its_own_t2(self, brain):
         # the water's parts: one per tissue present, each at the tissue's own T2 (the CSF's long
         # line beside the tissues' shorter ones), so what a train leaves is their sum and not one
@@ -119,9 +119,9 @@ class TestWater:
         assert [name for _, _, _, name in parts] == present
         assert max(t2 for _, _, t2, _ in parts) > 2.0 * min(t2 for _, _, t2, _ in parts)
 
-    #**********************#
+    #************************#
     #   out-of-voxel water   #
-    #**********************#
+    #************************#
     def test_the_leaked_water_is_one_broad_line_a_fraction_of_the_full_water(self, brain):
         # the water outside the voxel that the localization leaks (scan.calibrations OOV_WATER
         # record): one line at the water's frequency plus its offset, decaying with its own T2* (and
@@ -211,7 +211,7 @@ class TestLipids:
 
 
 #**************************************************************************************************#
-#                                    Class TestWaterRelaxation                                     #
+#                                     Class TestWaterRelaxation                                    #
 #**************************************************************************************************#
 #                                                                                                  #
 # Water relaxation follows the voxel's tissue composition through the cited per-tissue table.      #
@@ -219,9 +219,9 @@ class TestLipids:
 #**************************************************************************************************#
 class TestWaterRelaxation:
 
-    #****************#
-    #   weighting    #
-    #****************#
+    #***************#
+    #   weighting   #
+    #***************#
     def test_water_relaxation_weighs_the_local_tissue(self, brain):
         from mrsandbox import Tissues, VirtualScan, Scanner, Press
 
@@ -244,9 +244,9 @@ class TestWaterRelaxation:
         assert abs(t1_mix - (t1_gm + t1_wm) / 2.0) < 1e-9
         assert abs(t2_mix - (t2_gm + truth.water.t2_s.wm) / 2.0) < 1e-9
 
-    #****************#
-    #   overrides    #
-    #****************#
+    #***************#
+    #   overrides   #
+    #***************#
     def test_scalar_override_passes_through(self, brain):
         from mrsandbox import Params, Press, Scanner, VirtualScan
 
@@ -266,9 +266,9 @@ class TestWaterRelaxation:
 #**************************************************************************************************#
 class TestLipidModel:
 
-    #*******************#
-    #   peak pattern    #
-    #*******************#
+    #******************#
+    #   peak pattern   #
+    #******************#
     def test_lipid_spectrum_follows_the_hamilton_ratios(self, brain):
         from mrsandbox import NoMM, NoWater, Params, Press, Scanner, VirtualScan
 

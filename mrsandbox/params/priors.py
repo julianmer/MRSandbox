@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                            priors.py                                             #
+#                                             priors.py                                            #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -31,9 +31,9 @@ from mrsandbox.params.values import Fixed, Normal, Uniform
 class Priors:
     """Params subtrees built from database sources."""
 
-    #****************#
-    #   de graaf     #
-    #****************#
+    #**************#
+    #   de graaf   #
+    #**************#
     @staticmethod
     def de_graaf(metabolites=None, database=None):
         """Uniform concentration priors (mM) from the de Graaf ranges.
@@ -79,9 +79,9 @@ class Priors:
             leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
         return Params(leaves)
 
-    #*****************************#
-    #   gudmundson concentrations #
-    #*****************************#
+    #*******************************#
+    #   gudmundson concentrations   #
+    #*******************************#
     @staticmethod
     def gudmundson_concentrations(metabolites, groups=("Healthy", "Control"), tesla=None):
         """Concentration priors pooled from the Gudmundson database for a cohort, in mM.
@@ -133,9 +133,9 @@ class Priors:
             leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
         return Params(leaves)
 
-    #***************************#
-    #   simple relaxation       #
-    #***************************#
+    #***********************#
+    #   simple relaxation   #
+    #***********************#
     @staticmethod
     def simple_relaxation(database=None):
         """Fixed T1 and T2 leaves from the stated simple assumptions."""

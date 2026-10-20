@@ -7,9 +7,9 @@
 # Created: 17/09/26                                                                                #
 #                                                                                                  #
 # Purpose: The eddy currents a design's gradients induce: the timeline places the trapezoids, the  #
-#          exponential response reproduces the step law, the readout kernel carries the analytic  #
-#          phase, the box dephasing, and the asymmetric line they make, and the measured 3 T      #
-#          response puts the consensus-sized sidebands on unsuppressed water.                     #
+#          exponential response reproduces the step law, the readout kernel carries the analytic   #
+#          phase, the box dephasing, and the asymmetric line they make, and the measured 3 T       #
+#          response puts the consensus-sized sidebands on unsuppressed water.                      #
 #                                                                                                  #
 ####################################################################################################
 

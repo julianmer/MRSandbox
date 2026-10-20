@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                             hmri.py                                              #
+#                                              hmri.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -24,9 +24,9 @@ import numpy as np
 from mrsandbox.phantom.volume import Volume
 
 
-#******************#
-#   hmri demo      #
-#******************#
+#***************#
+#   hmri demo   #
+#***************#
 # Source: Callaghan, M. F., et al. Example dataset for the hMRI toolbox. Data in Brief 25
 #         (2019) 104132. doi:10.1016/j.dib.2019.104132.
 # Data:   https://github.com/hMRI-group/hMRI-toolbox-demodata (raw-data), CC BY 4.0. The
@@ -236,9 +236,9 @@ HMRI_ACQUISITION = {
 }
 
 
-#*****************#
-#   flip term     #
-#*****************#
+#***************#
+#   flip term   #
+#***************#
 def _flip_term(flip_rad, small_angle):
     """The flip angle as the rational approximation takes it: alpha, or 2 tan(alpha / 2)."""
     return flip_rad if small_angle else 2.0 * np.tan(flip_rad / 2.0)
@@ -253,7 +253,7 @@ def _finite(values, valid):
 
 
 #**************************************************************************************************#
-#                                           Class HMRI                                             #
+#                                            Class HMRI                                            #
 #**************************************************************************************************#
 #                                                                                                  #
 # The demo subject's quantitative maps, derived once from the raw scans and cached.                #
@@ -370,9 +370,9 @@ class HMRI:
         return (Resources.cache_dir() / "hmri/maps.npz").exists() or all(
             Resources.cached(name) for name in HMRI_DEMO)
 
-    #**************#
-    #   derive     #
-    #**************#
+    #************#
+    #   derive   #
+    #************#
     @classmethod
     def derive(cls):
         """Every map from the raw scans, as {name: array, name_affine: affine} with
@@ -500,9 +500,9 @@ class HMRI:
                  / np.sum(te_centred ** 2))
         return np.where(valid, -slope, 0.0).astype(np.float32)
 
-    #*****************#
-    #   transmit      #
-    #*****************#
+    #**************#
+    #   transmit   #
+    #**************#
     @staticmethod
     def transmit(se, ste, beta_deg, tm_s, t1_s, pairs=5):
         """The relative transmit field (actual over nominal flip) from spin-echo and
@@ -556,9 +556,9 @@ class HMRI:
                                                mode="constant", cval=0.0)
         return values.reshape(target_shape).astype(np.float32)
 
-    #*************#
-    #   field     #
-    #*************#
+    #***********#
+    #   field   #
+    #***********#
     @staticmethod
     def field_hz(phase_difference_rad, delta_te_s):
         """The field offset in Hz from a dual-echo phase difference over the echo
@@ -566,9 +566,9 @@ class HMRI:
         range is +- 1 / (2 delta TE), no unwrapping applied (stated)."""
         return (phase_difference_rad / (2.0 * np.pi * delta_te_s)).astype(np.float32)
 
-    #**************#
-    #   cohort     #
-    #**************#
+    #************#
+    #   cohort   #
+    #************#
     @classmethod
     def cohort(cls, folder=None):
         """The hmri_demo_prisma_3t cohort: the demo subject's own water T1 rows off its MPM

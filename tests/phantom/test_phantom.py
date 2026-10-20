@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                         test_phantom.py                                          #
+#                                          test_phantom.py                                         #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -22,7 +22,7 @@ from mrsandbox.resources import Resources
 
 
 #**************************************************************************************************#
-#                                         Class TestBrain                                          #
+#                                          Class TestBrain                                         #
 #**************************************************************************************************#
 class TestBrain:
 
@@ -46,9 +46,9 @@ class TestBrain:
         assert (float(np.sum(child.gm)) > float(np.sum(adult.gm))
                 and float(np.sum(child.wm)) < float(np.sum(adult.wm)))
 
-    #*********************#
-    #   the colin27 head  #
-    #*********************#
+    #**********************#
+    #   the colin27 head   #
+    #**********************#
     def test_the_colin27_head_carries_the_scalps_fat_in_the_mni_frame(self):
         head, adult = Brain.load("colin27"), Brain.load("icbm152")
         assert head.shape == (362, 434, 362) and np.allclose(np.diag(head.affine)[:3], 0.5)
@@ -84,9 +84,9 @@ class TestBrain:
         inside = brain.fractions(position_mm=(5.0, 5.0, 5.0), size_mm=4.0)
         assert inside == Tissues(gm=1.0, wm=0.0, csf=0.0)
 
-    #**********************#
-    #   anisotropic box    #
-    #**********************#
+    #*********************#
+    #   anisotropic box   #
+    #*********************#
     def test_anisotropic_box_averages_its_own_extent(self):
         # tissue in three z layers (cells 3, 4, 5 span z in [2.5, 5.5]): a box of
         # exactly that extent is pure tissue, stretching it along z alone dilutes the
@@ -121,9 +121,9 @@ class TestBrain:
                     reason="bigbrain_mr not cached; Brain.load('bigbrain_mr') fetches it once")
 class TestBigBrainMR:
 
-    #****************#
-    #   geometry     #
-    #****************#
+    #**************#
+    #   geometry   #
+    #**************#
     def test_loads_with_centred_world_coordinates(self):
         brain = Brain.load("bigbrain_mr")
         assert brain.shape == (194, 240, 204)

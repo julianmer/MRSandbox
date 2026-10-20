@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                          deuterium.py                                            #
+#                                           deuterium.py                                           #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -7,13 +7,13 @@
 # Created: 16/09/26                                                                                #
 #                                                                                                  #
 # Purpose: The deuterium (2H) spin systems and constants of deuterium metabolic imaging, typed     #
-#          from the literature with the citation beside each dict, in the record format of the    #
+#          from the literature with the citation beside each dict, in the record format of the     #
 #          Govindaraju table so SpinSystem.from_database(name, source="dmi") reads them.           #
 #                                                                                                  #
 ####################################################################################################
-#******************#
-#   deuterium      #
-#******************#
+#***************#
+#   deuterium   #
+#***************#
 # Source: Ruhm et al. (2024) Advances and prospects in deuterium metabolic imaging (DMI): a
 #         systematic review of in vivo studies. Table 5 (in vivo 2H chemical shifts of the
 #         detected deuterated metabolites) and the T1 values it quotes from de Graaf et al.

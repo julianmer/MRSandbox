@@ -59,7 +59,7 @@ class TestConversion:
 
 
 #**************************************************************************************************#
-#                                         Class TestStack                                          #
+#                                          Class TestStack                                         #
 #**************************************************************************************************#
 #                                                                                                  #
 # The Oxford session's derived stack, gated when the archive or its members are in the cache.      #

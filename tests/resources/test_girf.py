@@ -69,7 +69,7 @@ class TestPrediction:
 
 
 #**************************************************************************************************#
-#                                        Class TestDeposit                                         #
+#                                         Class TestDeposit                                        #
 #**************************************************************************************************#
 #                                                                                                  #
 # The deposit's 3 T Prisma response, gated when the release archive or its members are cached.     #

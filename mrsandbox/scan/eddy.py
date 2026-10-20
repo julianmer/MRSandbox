@@ -1,5 +1,5 @@
 ####################################################################################################
-#                                             eddy.py                                              #
+#                                              eddy.py                                             #
 ####################################################################################################
 #                                                                                                  #
 # Authors: J. P. Merkofer (j.p.merkofer@tue.nl)                                                    #
@@ -34,9 +34,9 @@ TIME_STEP_S = 1e-5
 INDUCED_BANDWIDTH_HZ = 20000.0
 
 
-#*************************#
-#   exponential response  #
-#*************************#
+#**************************#
+#   exponential response   #
+#**************************#
 def induced_fields(waveform_mt_m, dt_s, taus_s, b0_hz_per_mt_m, linear_fractions, tr_s=None):
     """The B0 offset (Hz) and the gradient error (mT/m) one axis's waveform induces
     through a sum of exponential eddy-current terms: every step of the gradient
@@ -141,9 +141,9 @@ def induced_sequence(sequence, scanner, response, position_mm, gamma_mhz_t=42.57
     return design
 
 
-#*******************#
-#   readout kernel  #
-#*******************#
+#********************#
+#   readout kernel   #
+#********************#
 def readout_kernel(sequence, scanner, position_mm, size_mm, npoints, dwell_s, response,
                    gamma_mhz_t=42.5774785, start_s=0.0):
     """The complex kernel the induced fields put on a voxel's FID, sampled at the
