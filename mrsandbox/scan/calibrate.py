@@ -1727,18 +1727,19 @@ class WaterReading:
         suppressed = _combined(data, dwell_s=dwell_s, f0_mhz=f0_mhz).mean(axis=1)
         reference_fid = _combined(reference, like=data, dwell_s=dwell_s,
                                   f0_mhz=f0_mhz).mean(axis=1)
-        full = float(np.abs(reference_fid[0]))
         # the residual water: the decaying exponentials within 0.4 ppm of the carrier, at t = 0
         m = min(1024, suppressed.size)
         freqs, damping, amplitudes = _exponentials(suppressed[:m], dwell_s)
         # within 0.4 ppm of the carrier, as the records
         water = (np.abs(freqs) < 0.4 * f0_mhz) & (damping < 0.0)
         residual = complex(amplitudes[water].sum())
-        # the voxel's own water: the reference's parts the same way, their weighted T2*
+        # the voxel's own water: the reference's parts the same way, their weighted T2*, and
+        # the full water at t = 0 as their sum (a receiver's filter dips the first sample)
         own_freqs, own_damping, own_amplitudes = _exponentials(reference_fid[:m], dwell_s)
         own = (np.abs(own_freqs) < 0.4 * f0_mhz) & (own_damping < 0.0)
         weights = np.abs(own_amplitudes[own])
         own_t2star = float((weights / -own_damping[own]).sum() / weights.sum())
+        full = float(abs(own_amplitudes[own].sum()))
         # the broad parts, the water the localization leaks; the narrow ones the voxel's own
         # residual
         t2star = -1.0 / damping[water]
