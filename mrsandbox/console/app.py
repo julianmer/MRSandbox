@@ -104,7 +104,8 @@ LOGO = next((path for path in (pathlib.Path(__file__).parents[2] / "assets" / "l
                                pathlib.Path(sys.prefix) / "share" / "mrsandbox" / "logo.png")
              if path.exists()), None)
 CHOICES = {"shape": ["sinc", "gaussian", "hermite", "slr"], "slice_axis": ["none", "x", "y", "z"],
-           "axis": ["x", "y", "z"], "scheme": list(SUPPRESSION), "pulses": ["played", "ideal"]}
+           "axis": ["x", "y", "z"], "scheme": list(SUPPRESSION), "pulses": ["played", "ideal"],
+           "recovery": ["counted", "left out"]}
 # the designer's blocks in plain words: an icon, what the block is, and its settings with their
 # units
 BLOCK_ICONS = {FIXED: "push_pin", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive",
@@ -124,7 +125,8 @@ BLOCK_NOTES = {
     "adiabatic pulse": "A hyperbolic secant full passage. It inverts over its whole bandwidth "
                        "whatever the B1, above a threshold; play them in pairs.",
     "delay": "Free evolution. The echo time is the sum of the delays and the pulses between "
-             "excitation and readout.",
+             "excitation and readout. Recovery left out: what recovers here is tipped by the next "
+             "pulse and crushed, as in STEAM's mixing time.",
     "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the "
                "echo and spoils the rest.",
     "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes "
@@ -150,6 +152,7 @@ CAPTIONS = {"flip_deg": "flip angle (°)", "phase_deg": "phase (°)",
             "duration_ms": "duration (ms)", "offset_ppm": "centre (ppm)", "shape": "shape",
             "slice_axis": "slice along",
             "slice_hz_per_mm": "slice gradient (Hz/mm)", "ms": "duration (ms)",
+            "recovery": "T1 recovery",
             "axis": "along", "cycles_per_mm": "dephasing (cycles/mm)",
             "order": "coherence order kept", "scheme": "scheme",
             "envelope": "envelope, amplitudes apart by commas", "pulses": "pulses",
@@ -2488,6 +2491,14 @@ async def console(client: Client):
                     ui.switch(caption, value=value, on_change=handler).props(
                         "dense color=accent").style("width: 230px")
                     ui.label(note).classes("label").style("text-transform: none; letter-spacing: 0")
+            with ui.row().classes("w-full items-center no-wrap"):
+                ui.number("isochromats per axis", value=session.isochromats, min=4, max=64, step=4,
+                          on_change=changed("isochromats")).props(
+                    "dense outlined dark").style("width: 230px")
+                ui.label("the positions the ensemble plays under slab pulses and crushers: fewer "
+                         "are faster, the big spin systems most, at the accuracy the engine's "
+                         "convergence states; a change compiles the designs again").classes(
+                    "label").style("text-transform: none; letter-spacing: 0")
             for name, leaves in IDEALS.items():
                 with ui.row().classes("w-full items-center no-wrap"):
                     ui.switch(name, value=not all(session.overrides.get(path) == value

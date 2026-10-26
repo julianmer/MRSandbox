@@ -294,7 +294,9 @@ BLOCKS = {
     # the card's, its flip, duration, carrier, phase, peak B1 and slice gradient are settings like
     # any block's
     FIXED: (dict(what="", event=None), lambda b: (adjusted(b),)),
-    "delay": (dict(ms=10.0), lambda b: (Delay(b["ms"] / 1000.0),)),
+    "delay": (dict(ms=10.0, recovery="counted"),
+              lambda b: (Delay(b["ms"] / 1000.0,
+                               recover=b.get("recovery", "counted") == "counted"),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15),
                 lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
     "coherence filter": (dict(order=-1, cycles_per_mm=0.0),
@@ -671,7 +673,7 @@ class Session:
 
     # what of the session is the room an exam is planned in and runs in
     ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "member_name",
-            "field", "transmit", "shim", "shim_mm", "hold_records")
+            "field", "transmit", "shim", "shim_mm", "hold_records", "isochromats")
 
     #**********#
     #   init   #
@@ -718,6 +720,9 @@ class Session:
         self.hold_records = False
         # the planes' window: (level, width) as fractions of the picture's own, None the picture's
         self.window = None
+        # the engine's ensemble under slab pulses and crushers, positions per axis: fewer are
+        # faster, the big spin systems most, at the accuracy Engine.convergence states
+        self.isochromats = 32
         self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
@@ -2118,7 +2123,8 @@ class Session:
                 design.append(("hard pulse", dict(flip_deg=float(event.flip_deg),
                                                   phase_deg=float(event.phase_deg))))
             elif isinstance(event, Delay):
-                design.append(("delay", dict(ms=1000.0 * float(event.t_s))))
+                design.append(("delay", dict(ms=1000.0 * float(event.t_s),
+                                             recovery="counted" if event.recover else "left out")))
             elif isinstance(event, CoherenceFilter) and len(event.orders) == 1:
                 design.append(("coherence filter", dict(order=int(event.orders[0]),
                                                         cycles_per_mm=float(event.crusher_per_mm))))
@@ -2803,8 +2809,8 @@ class Session:
         took = self._took.get((card.sequence, card.real, design.unfolded))
         if not design.unfolded or took is not None:
             return took
-        engine = Engine(self.profile().scanner)
-        key = design.structure()
+        engine = Engine(self.profile().scanner, isochromats=int(self.isochromats))
+        key = (design.structure(), int(self.isochromats))
         if key not in self._probes:
             probe, spent = SpinSystem.from_database("Glu"), []
             for side in (3, 6):
@@ -2896,10 +2902,11 @@ class Session:
         # the scanner's state of this exam pinned over the operator's settings
         shared = dict(records=records, params=self.params({**held, **state, **exam.overrides}),
                       girf=profile.girf, receiver=profile.receiver, **self.narrowing(),
-                      # one engine per field for every exam: its graphs are built once, not
-                      # once an exam
-                      engine=self._bodies.setdefault(("engine", profile.scanner.b0_t),
-                                                     Engine(profile.scanner)),
+                      # one engine per field and ensemble for every exam: its graphs are built
+                      # once, not once an exam
+                      engine=self._bodies.setdefault(
+                          ("engine", profile.scanner.b0_t, int(self.isochromats)),
+                          Engine(profile.scanner, isochromats=int(self.isochromats))),
                       **self.fields(card),
                       # the array's noise is tied to the scanner's record AT THIS VOXEL, so
                       # every place has the record's SNR: what an array gives by place (better
