@@ -26,10 +26,10 @@ data  = scan.voxel(position_mm=(10, -20, 5), size_mm=20).acquire(seed=7)    # NI
 ## Install
 
 ```
-pip install mrsandbox
+pip install "mrsandbox[jax]"
 ```
 
-Python 3.11 or newer. Public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) is fetched on first use into `~/.cache/mrsandbox`; `MRSANDBOX_CACHE` moves the cache.
+Python 3.11 or newer. The package runs on any one Keras backend and brings none of its own: `pip install mrsandbox` alone needs `jax`, `torch` or `tensorflow` present, and the extras `mrsandbox[jax]`, `mrsandbox[torch]` and `mrsandbox[tensorflow]` add one. JAX is the one the physics is measured on. Where several are installed, `KERAS_BACKEND` names the one used, else Keras's own default (`~/.keras/keras.json`, TensorFlow when that file is absent); where that default is not installed, the first installed of `jax`, `torch` and `tensorflow` is taken. On a Mac, torch's MPS device computes what it lacks (the eigendecomposition) on the CPU. Public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) is fetched on first use into `~/.cache/mrsandbox`; `MRSANDBOX_CACHE` moves the cache.
 
 ## What it does
 

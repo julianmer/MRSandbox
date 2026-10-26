@@ -31,8 +31,8 @@ if "KERAS_BACKEND" not in os.environ:
         installed = next((name for name in ("jax", "torch", "tensorflow")
                           if importlib.util.find_spec(name)), None)
         if installed is None:
-            raise ImportError("mrsandbox needs a Keras backend: jax (installed with the package), "
-                              "torch or tensorflow")
+            raise ImportError("mrsandbox needs a Keras backend: install jax, torch or "
+                              "tensorflow, as in pip install \"mrsandbox[jax]\"")
         os.environ["KERAS_BACKEND"] = installed
 
 #*************#
@@ -57,7 +57,7 @@ from mrsandbox.sequences import (Chess, Cows, CoherenceFilter, Cycled, Delay, Gr
                                  Vapor, Wet)
 from mrsandbox.spins import Operators, SpinSystem
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 
 #***************#

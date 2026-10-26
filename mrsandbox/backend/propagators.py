@@ -72,9 +72,16 @@ class Backend:
         """Real eigenvalues and complex64 eigenvectors of Hermitian matrices (..., d, d).
 
         Eigenvalues pass through `real` immediately (TF returns them complex); eigenvectors
-        are cast to complex64 so downstream products never mix dtypes.
+        are cast to complex64 so downstream products never mix dtypes. Where the tensor's
+        device has no eigh (torch's MPS before it gained one), the CPU computes it and the
+        result moves back; Keras's own eigh would move the tensor back to the device first.
         """
-        lam, v = ops.eigh(h)
+        try:
+            lam, v = ops.eigh(h)
+        except NotImplementedError:
+            import torch
+
+            lam, v = (t.to(h.device) for t in torch.linalg.eigh(h.cpu()))
         return nops.real(lam), nops.cast(v, precision.COMPLEX)
 
     #**************************#
