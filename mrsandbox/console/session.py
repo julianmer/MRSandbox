@@ -426,6 +426,18 @@ def _describe(value):
     return "other", reading(value)
 
 
+#*************#
+#   typical   #
+#*************#
+def _typical(value):
+    """The middle of a leaf's prior, the population's value: a fixed value, a range's midpoint,
+    a normal's mean, a pooled leaf's median; None for the rest (a map, a tissue record)."""
+    kind, numbers = _describe(value)
+    if kind in ("fixed", "normal", "empirical"):
+        return float(numbers[0])
+    return (numbers[0] + numbers[1]) / 2.0 if kind == "range" else None
+
+
 # the makers of the receive arrays on the shelf (hardware.arrays), as the console names them
 MAKERS = {"siemens": "Siemens", "ge": "GE", "philips": "Philips", "research": "Research"}
 
@@ -704,6 +716,8 @@ class Session:
         self.prescan, self.clock_s, self._drift = True, 0.0, None
         # the scanner's readings played at their values (a replica) or as the priors they state
         self.hold_records = False
+        # the planes' window: (level, width) as fractions of the picture's own, None the picture's
+        self.window = None
         self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
@@ -741,9 +755,12 @@ class Session:
         return self._bodies[self.subject]
 
     def picture(self):
-        """The subject as the planes show it, 8 bits on the subject's grid, made once per name."""
-        key = ("picture", self.subject)
+        """The subject as the planes show it, 8 bits on the subject's grid, made once per name
+        and window (`window`: the operator's level and width over the picture's own)."""
+        key = ("picture", self.subject, self.window)
         if key not in self._bodies:
+            for stale in [k for k in self._bodies if k[0] == "picture"]:
+                del self._bodies[stale]
             body = self.body()
             shown = (self.pictures[self.subject]() if self.subject in self.pictures
                      else 1.0 * body.wm + 0.62 * body.gm + 0.12 * body.csf)
@@ -752,6 +769,10 @@ class Session:
             # to the same contrast, a little head room above white matter
             low, high = ((0.0, float(np.percentile(shown[shown > 0], 99.8)))
                          if self.subject in self.pictures else (0.0, 1.15 * float(shown.max())))
+            if self.window is not None:
+                level, width = self.window
+                low, high = (low + (high - low) * (level - width / 2.0),
+                             low + (high - low) * (level + width / 2.0))
             self._bodies[key] = np.uint8(
                 255 * np.clip((shown - low) / max(float(high - low), 1e-6), 0.0, 1.0) * (shown > 0))
         return self._bodies[key]
@@ -989,9 +1010,10 @@ class Session:
 
     def place_of(self, position_mm):
         """What the subject is like in a voxel of the planned size about `position_mm`: the tissue,
-        the draw's concentrations and relaxation there, the field and the transmit field's means,
-        the distance to the lipid layer. The side panel shows it for the planned voxel, and for
-        the point the operator looks at with shift held."""
+        the draw's concentrations and relaxation there (each with the population's value, the
+        middle of its prior, as a pair), the field and the transmit field's means, the distance
+        to the lipid layer. The side panel shows it for the planned voxel, and for the point the
+        operator looks at with shift held."""
         kept = list(self.position_mm)
         self.position_mm = [float(v) for v in position_mm]
         try:
@@ -1000,29 +1022,37 @@ class Session:
             drawn, fields = voxel.sample(self.seed), self.fields()
             gm, wm = float(voxel.fractions.gm), float(voxel.fractions.wm)
 
-            def seen(name):
-                """The concentration the voxel shows: the draw's (that of an equal mix of grey and
-                white matter) split by the drawn grey to white contrast r over the tissue that is
-                there, CSF carrying none (Voxel.metabolite_weights)."""
+            def seen(name, concentration):
+                """The concentration the voxel shows: `concentration` (that of an equal mix of
+                grey and white matter) split by the drawn grey to white contrast r over the
+                tissue that is there, CSF carrying none (Voxel.metabolite_weights)."""
                 r = float(voxel.resolve(drawn["contrast"][name]))
-                return (float(voxel.resolve(drawn["conc"][name])) * (2.0 * r * gm + 2.0 * wm)
-                        / (1.0 + r))
+                return concentration * (2.0 * r * gm + 2.0 * wm) / (1.0 + r)
+
+            def pair(names, group, scale=1.0, split=lambda name, value: value):
+                """The draw's value and the population's for a leaf (the sum over `names`), the
+                draw's alone where the population has no middle."""
+                own = sum(split(name, float(voxel.resolve(drawn[group][name]))) for name in names)
+                typical = [_typical(scan.params[group][name]) for name in names]
+                if any(value is None for value in typical):
+                    return scale * own
+                return (scale * own, scale * sum(split(name, value)
+                                                 for name, value in zip(names, typical)))
 
             # under the names a spectroscopist reads them by: choline is the two choline compounds
             # together
             shown = {"NAA": ("NAA",), "Cr": ("Cr",), "PCr": ("PCr",), "Cho": ("PCho", "GPC"),
                      "Ins": ("Ins",), "Glu": ("Glu",), "Gln": ("Gln",),
                      "GABA": ("GABA",), "GSH": ("GSH",), "Lac": ("Lac",)}
+            relaxed = (("NAA", "NAA"), ("Cr", "Cr"), ("Cho", "PCho"))
             found = {"tissue": {name: float(getattr(voxel.fractions, name))
                                 for name in ("gm", "wm", "csf")},
-                     "concentrations (mM)": {label: sum(seen(name) for name in names)
+                     "concentrations (mM)": {label: pair(names, "conc", split=seen)
                                              for label, names in shown.items()
                                              if all(name in drawn["conc"] for name in names)},
-                     "T1 (ms)": {label: 1000.0 * float(voxel.resolve(drawn["t1"][name]))
-                                 for label, name in (("NAA", "NAA"), ("Cr", "Cr"), ("Cho", "PCho"))
+                     "T1 (ms)": {label: pair((name,), "t1", 1000.0) for label, name in relaxed
                                  if name in drawn["t1"]},
-                     "T2 (ms)": {label: 1000.0 * float(voxel.resolve(drawn["t2"][name]))
-                                 for label, name in (("NAA", "NAA"), ("Cr", "Cr"), ("Cho", "PCho"))
+                     "T2 (ms)": {label: pair((name,), "t2", 1000.0) for label, name in relaxed
                                  if name in drawn["t2"]}}
             field = {}
             if fields["field"] is not None:

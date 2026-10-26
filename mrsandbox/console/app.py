@@ -815,20 +815,23 @@ async def console(client: Client):
         with records:
             where = session.view_mm if chosen["looking"] else session.position_mm
             panel.text = "Where you look (shift)" if chosen["looking"] else "This voxel"
-            # a group under its heading: short names two to a row
+            # a group under its heading: short names two to a row; a pair is the draw's value
+            # with the population's in brackets
+            said = lambda value: (f"{value:.2f}" if abs(value) < 10.0 else f"{value:.1f}"
+                                  if abs(value) < 100.0 else f"{value:.0f}")
             for group, values in session.place_of(where).items():
-                ui.label(group).classes("label").style(
-                    f"width: 100%; margin-top: 8px; padding-top: 5px; "
-                    f"border-top: 1px solid {LINE}; color: {SAND}")
-                short = all(len(name) <= 5 for name in values)
+                paired = any(isinstance(value, tuple) for value in values.values())
+                ui.label(group + (", the population's in brackets" if paired else "")).classes(
+                    "label").style(f"width: 100%; margin-top: 8px; padding-top: 5px; "
+                                   f"border-top: 1px solid {LINE}; color: {SAND}")
+                short = all(len(name) <= 5 for name in values) and not paired
                 with ui.element("div").classes("info w-full").style(
                         f"grid-template-columns: {'auto 1fr auto 1fr' if short else '1fr auto'}; "
                         "column-gap: 8px; white-space: normal"):
                     for name, value in values.items():
                         ui.label(name).style(f"color: {DIM}")
-                        ui.label(f"{value:.2f}" if abs(value) < 10.0 else f"{value:.1f}"
-                                 if abs(value) < 100.0 else f"{value:.0f}").classes("value").style(
-                            "text-align: right")
+                        ui.label(f"{said(value[0])} ({said(value[1])})" if isinstance(value, tuple)
+                                 else said(value)).classes("value").style("text-align: right")
         for name, tool in tools.items():
             on = {"ovs": card.ovs, "shifts": chosen["shifts"], "slabs": chosen["slabs"],
                   "flip": chosen["flipped"], "overlay": session.overlay != "anatomy",
@@ -2942,9 +2945,28 @@ async def console(client: Client):
         dialog.open()
 
     def drag(plane):
-        """A plane's mouse: a press or a drag moves the voxel, the release settles the card."""
+        """A plane's mouse: a press or a drag moves the voxel, the release settles the card; the
+        right button drags the window and level (right: wider, up: brighter), a plain right click
+        is back to the picture's own."""
         def handle(event):
             kind, pressed = event.args.get("mouse_event_type"), event.args.get("buttons") == 1
+            if event.args.get("button") == 2 or event.args.get("buttons") == 2:
+                x, y = event.args.get("image_x", 0.0), event.args.get("image_y", 0.0)
+                if kind == "mousedown":
+                    chosen["window"] = (x, y, False)
+                elif kind == "mousemove" and chosen.get("window") is not None:
+                    last_x, last_y, _ = chosen["window"]
+                    level, width = session.window or (0.5, 1.0)
+                    session.window = (level + 0.004 * (y - last_y),
+                                      max(0.05, width + 0.004 * (x - last_x)))
+                    chosen["window"] = (x, y, True)
+                    paint()
+                elif kind == "mouseup" and chosen.get("window") is not None:
+                    if not chosen["window"][2]:
+                        session.window = None
+                        paint()
+                    chosen["window"] = None
+                return
             grid, exam = chosen["grid"], chosen["exam"]
             if (kind == "mousedown" and plane == "tra" and grid is not None
                     and not event.args.get("shiftKey")):
@@ -3727,7 +3749,8 @@ async def console(client: Client):
                                 "or off; the numbers live in the cards")
                             ui.icon("keyboard", size="20px").style(f"color: {DIM}").tooltip(
                                 "scroll: leaf through · press or drag: place the voxel · with "
-                                "shift: look around · " + KEYS)
+                                "shift: look around · right drag: window and level, a right "
+                                "click back · " + KEYS)
                         with ui.element("div").classes("w-full").style(
                                 "display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px"):
                             for name in ("tra", "sag", "cor"):
@@ -3739,6 +3762,8 @@ async def console(client: Client):
                                     # than the window can show, and the console then seems deaf to
                                     # the next clicks
                                     views[name].on("mouse", drag(name), throttle=0.06)
+                                    # the right button is the window's, not the browser menu's
+                                    views[name].on("contextmenu.prevent", lambda _: None)
                                     views[name].on("wheel.prevent", lambda e, plane=name: (
                                         session.scroll(plane, 1 if e.args["deltaY"] < 0 else -1),
                                         paint()), args=["deltaY"], throttle=0.04)

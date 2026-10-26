@@ -128,6 +128,21 @@ class TestSession:
         lines = (exam.ppm > 1.8) & (exam.ppm < 3.4)
         assert np.abs(mean - average)[lines].max() < 0.2 * np.abs(average[lines]).max()
 
+    def test_the_window_brightens_and_narrows_the_picture(self):
+        # the planes' window and level: a lower level brightens, a narrower width adds contrast;
+        # None is the picture's own
+        session = Session(ICBM)
+        own = session.picture().astype(float)
+        session.window = (0.3, 1.0)
+        bright = session.picture().astype(float)
+        session.window = (0.5, 0.4)
+        narrow = session.picture().astype(float)
+        session.window = None
+        inside = own > 0
+        assert bright[inside].mean() > own[inside].mean()
+        assert narrow[inside].std() > own[inside].std()
+        assert np.array_equal(session.picture(), own.astype(np.uint8))
+
     def test_held_readings_play_the_records_at_their_values(self, tmp_path):
         # a replica: every record of the scanner at its value, where a draw takes the record's
         # prior a quarter either side (a preset's pooled rows are priors, not records: a saved
