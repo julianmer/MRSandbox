@@ -135,7 +135,3 @@ Every physical claim is gated by a test, and the simulation is checked against i
   of two vendors (public OpenNeuro data) without a fit.
 * Numbers calibrated on in vivo data live as records with the exact conditions of their measurement. Only
   quantities read off raw data enter a record, never what a fitting program reported.
-
-## Licence
-
-MIT, see the LICENSE file.
