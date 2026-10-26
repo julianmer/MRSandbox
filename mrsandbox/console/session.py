@@ -3308,7 +3308,9 @@ class Session:
         """Write the basis set of an exam's design as FSL-MRS reads it (io.fsl.write_fsl_basis;
         BasiC converts it for the other fitting tools): the localization without the card's
         preludes, every metabolite the room simulates, the card's readout, on this scanner's
-        field, into `folder`/<the exam's name>_basis; returns that folder."""
+        field, into `folder`/<the exam's name>_basis; an edited card's sub-experiments and
+        their combinations (the difference) each in a folder of their own. Returns that
+        folder."""
         from mrsandbox.io import write_fsl_basis
 
         card = exam.card
@@ -3318,9 +3320,11 @@ class Session:
         truth = self.twin(exam.sequence, card=card).params.sample(self.seed)
         names = [name for name, value in truth.conc.items()
                  if isinstance(value, (int, float)) and float(value) > 0.0]
-        write_fsl_basis(folder, Sequence(*exam.sequence.events[skip:]), names,
+        bare = {name: Sequence(*design.events[skip:]) for name, design in exam.conditions.items()}
+        write_fsl_basis(folder, bare if len(bare) > 1 else next(iter(bare.values())), names,
                         b0_t=self.profile().scanner.b0_t, npoints=card.npoints,
-                        dwell_s=1.0 / card.bandwidth_hz, note=exam.name)
+                        dwell_s=1.0 / card.bandwidth_hz, note=exam.name,
+                        combinations=exam.combinations if len(bare) > 1 else None)
         return folder
 
     def export(self, exam, folder):

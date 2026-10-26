@@ -104,17 +104,44 @@ def fsl_fid(freqs, amps, npoints, dwell_s, f0_mhz, center_ppm, linewidth_hz):
 #*************#
 def write_fsl_basis(folder, sequence, names, b0_t=None, npoints=None, dwell_s=None,
                     linewidth_hz=None, center_ppm=None, nucleus=None, database=None,
-                    isochromats=None, note=""):
+                    isochromats=None, relaxation=None, b1_scale=1.0, offset_hz=0.0,
+                    combinations=None, note=""):
     """Write a basis set as FSL-MRS reads it (fsl_mrs.utils.mrs_io.fsl_io; BasiC converts it
     to the other fitting tools' formats): one JSON per metabolite of `names` in `folder`, each
     the metabolite's FID through `sequence` on this engine, its spin systems from the
-    database without relaxation (the design's own response, a Lorentzian `linewidth_hz` on
-    it), in FSL-MRS's frame and sign, the spectrometer frequency as the basis_centre. An
-    FslSequence brings its field, readout, width, centre, nucleus and resolution; a design of
-    the package's own takes them here (`b0_t`, `npoints` and `dwell_s` it must; the width
-    1 Hz, the centre 4.65 ppm, protons and the engine's ensemble unless given). Returns the
-    paths written."""
-    from mrsandbox import __version__
+    database (the design's own response, a Lorentzian `linewidth_hz` on it), in FSL-MRS's
+    frame and sign, the spectrometer frequency as the basis_centre. An FslSequence brings
+    its field, readout, width, centre, nucleus and resolution; a design of the package's own
+    takes them here (`b0_t`, `npoints` and `dwell_s` it must; the width 1 Hz, the centre 4.65
+    ppm, protons and the engine's ensemble unless given). The systems carry no relaxation
+    unless `relaxation` gives {metabolite: (t1_s, t2_s)}, and play at `b1_scale` and
+    `offset_hz`: a basis at one subject's frame. A dict of sequences {condition: Sequence} (an
+    edited design's sub-experiments) writes one folder per condition under `folder`, and
+    `combinations` {name: {condition: weight}} one more per weighted sum (the difference).
+    Returns the paths written."""
+    if isinstance(sequence, dict):
+        folder, fids, written = pathlib.Path(folder), {}, []
+        for condition, design in sequence.items():
+            fids[condition] = _fsl_basis(design, names, b0_t, npoints, dwell_s, linewidth_hz,
+                                         center_ppm, nucleus, database, isochromats, relaxation,
+                                         b1_scale, offset_hz)
+            written += _write_fsl_basis(folder / condition, *fids[condition], f"{note} {condition}")
+        for name, weights in (combinations or {}).items():
+            first = fids[next(iter(weights))]
+            summed = {metabolite: sum(weights[condition] * fids[condition][0][metabolite]
+                                      for condition in weights)
+                      for metabolite in first[0]}
+            written += _write_fsl_basis(folder / name, summed, *first[1:], f"{note} {name}")
+        return written
+    found = _fsl_basis(sequence, names, b0_t, npoints, dwell_s, linewidth_hz, center_ppm,
+                       nucleus, database, isochromats, relaxation, b1_scale, offset_hz)
+    return _write_fsl_basis(pathlib.Path(folder), *found, note)
+
+
+def _fsl_basis(sequence, names, b0_t, npoints, dwell_s, linewidth_hz, center_ppm, nucleus,
+               database, isochromats, relaxation, b1_scale, offset_hz):
+    """The basis FIDs of `write_fsl_basis` for one design, ({metabolite: fid}, dwell_s, f0_mhz,
+    linewidth_hz, nucleus, the design's name)."""
     from mrsandbox.engine import Engine
     from mrsandbox.spins import SpinSystem
 
@@ -133,21 +160,33 @@ def write_fsl_basis(folder, sequence, names, b0_t=None, npoints=None, dwell_s=No
     f0_mhz = GAMMA_MHZ_PER_T[nucleus] * b0_t
     engine = Engine(b0_t, sequence.receiver_phase_deg if own else 0.0,
                     given(isochromats, own and sequence.resolution[0], 32))
-    folder = pathlib.Path(folder)
-    folder.mkdir(parents=True, exist_ok=True)
-    written = []
+    fids = {}
     for name in names:
         systems = SpinSystem.from_database(name, **({} if database is None
                                                     else {"database": database}))
-        freqs, amps = (np.asarray(v) for v in engine.lines(sequence, *systems))
-        fid = fsl_fid(freqs, amps, npoints, dwell_s, f0_mhz, center_ppm, linewidth_hz)
+        if relaxation and name in relaxation:
+            t1_s, t2_s = relaxation[name]
+            systems = tuple(system.with_relaxation(t1_s=t1_s, t2_s=t2_s) for system in systems)
+        freqs, amps = (np.asarray(v) for v in engine.lines(sequence, *systems, b1_scale=b1_scale,
+                                                            offset_hz=offset_hz))
+        fids[name] = fsl_fid(freqs, amps, npoints, dwell_s, f0_mhz, center_ppm, linewidth_hz)
+    return (fids, dwell_s, f0_mhz, linewidth_hz, nucleus,
+            sequence.name if own else type(sequence).__name__)
+
+
+def _write_fsl_basis(folder, fids, dwell_s, f0_mhz, linewidth_hz, nucleus, design, note):
+    """The FIDs of `_fsl_basis` as FSL-MRS's files in `folder`; the paths written."""
+    from mrsandbox import __version__
+
+    folder.mkdir(parents=True, exist_ok=True)
+    written = []
+    for name, fid in fids.items():
         content = {"basis": {"basis_re": fid.real.tolist(), "basis_im": fid.imag.tolist(),
                              "basis_dwell": float(dwell_s), "basis_centre": float(f0_mhz),
                              "basis_width": float(linewidth_hz), "basis_name": name},
                    "meta": {"time": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
-                            "SimVersion": f"MRSandbox {__version__}",
-                            "sequence": sequence.name if own else type(sequence).__name__,
-                            "note": note}}
+                            "SimVersion": f"MRSandbox {__version__}", "sequence": design,
+                            "note": note.strip()}}
         if nucleus != "1H":
             content["basis"]["basis_nucleus"] = nucleus
         path = folder / f"{name}.json"

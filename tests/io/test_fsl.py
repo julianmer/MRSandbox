@@ -147,6 +147,39 @@ class TestFsl:
         assert abs(cr[np.abs(ppm - 3.03) < 0.05].max() / (naa * phase).real.max() - 1.0) < 0.1
         lac = (spectrum("Lac") * phase).real
         assert lac[np.abs(ppm - 1.31) < 0.08].min() < -0.5 * (naa * phase).real.max()
+        # at a subject's frame the systems relax: NAA's FID decays with its T2
+        write_fsl_basis(tmp_path / "relaxed", Press(0.072, 0.072), ("NAA",), b0_t=3.0,
+                        npoints=1024, dwell_s=dwell_s, linewidth_hz=2.0,
+                        relaxation={"NAA": (1.4, 0.1)})
+        relaxed = json.loads((tmp_path / "relaxed" / "NAA.json").read_text())["basis"]
+        own = json.loads((tmp_path / "basis" / "NAA.json").read_text())["basis"]
+        decayed, bare = (np.abs(np.asarray(b["basis_re"]) + 1j * np.asarray(b["basis_im"]))
+                         for b in (relaxed, own))
+        assert decayed[0] / bare[0] == pytest.approx(math.exp(-0.144 / 0.1), rel=0.02)
+        # an edited design: one folder per sub-experiment and per combination; the ON pulse's
+        # crushers take NAA's singlet out of ON (its band reaches 2.01 ppm), so the difference
+        # holds minus OFF's NAA, and GABA's difference is there
+        from mrsandbox import MegaPress
+
+        paths = write_fsl_basis(tmp_path / "edited", MegaPress.pair(), ("NAA", "GABA"), b0_t=3.0,
+                                npoints=1024, dwell_s=dwell_s,
+                                combinations={"difference": {"on": 1.0, "off": -1.0}})
+        assert sorted(path.parent.name for path in paths) == (["difference"] * 2 + ["off"] * 2
+                                                              + ["on"] * 2)
+
+        def fid(condition, name):
+            basis = json.loads((tmp_path / "edited" / condition / f"{name}.json").read_text())
+            return (np.asarray(basis["basis"]["basis_re"])
+                    + 1j * np.asarray(basis["basis"]["basis_im"]))
+
+        at = lambda condition, name, where: np.abs(np.fft.fftshift(np.fft.fft(
+            fid(condition, name)))[np.abs(ppm - where) < 0.03]).max()
+        # the singlet gone from ON, its aspartyl protons out of the band still there
+        assert at("on", "NAA", 2.01) < 1e-3 * at("off", "NAA", 2.01)
+        assert at("on", "NAA", 2.6) > 0.5 * at("off", "NAA", 2.6)
+        np.testing.assert_allclose(fid("difference", "NAA"), fid("on", "NAA") - fid("off", "NAA"),
+                                   atol=1e-6)
+        assert at("difference", "GABA", 3.01) > 0.1 * at("off", "GABA", 3.01)
 
     #********************#
     #   a win sequence   #
