@@ -136,12 +136,6 @@ Every physical claim is gated by a test, and the simulation is checked against i
 * Numbers calibrated on in vivo data live as records with the exact conditions of their measurement. Only
   quantities read off raw data enter a record, never what a fitting program reported.
 
-## Citation
-
-MRSandbox is described in an ISMRM 2027 abstract (submitted). Until it is out, cite the repository:
-
-> Merkofer JP. MRSandbox: a simulation sandbox for magnetic resonance spectroscopy. 2026. https://github.com/julianmer/MRSandbox
-
 ## Licence
 
 MIT, see the LICENSE file.

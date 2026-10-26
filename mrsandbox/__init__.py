@@ -57,7 +57,7 @@ from mrsandbox.sequences import (Chess, Cows, CoherenceFilter, Cycled, Delay, Gr
                                  Vapor, Wet)
 from mrsandbox.spins import Operators, SpinSystem
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 #***************#
