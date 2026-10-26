@@ -128,6 +128,35 @@ class TestSession:
         lines = (exam.ppm > 1.8) & (exam.ppm < 3.4)
         assert np.abs(mean - average)[lines].max() < 0.2 * np.abs(average[lines]).max()
 
+    def test_held_readings_play_the_records_at_their_values(self, tmp_path):
+        # a replica: every record of the scanner at its value, where a draw takes the record's
+        # prior a quarter either side (a preset's pooled rows are priors, not records: a saved
+        # profile with its own record stands in)
+        import dataclasses
+
+        from mrsandbox import Scanner
+        from mrsandbox.scan import ScannerProfile
+        from mrsandbox.scan.calibrations import calibrations
+
+        record = dataclasses.replace(
+            calibrations("siemens_prisma_3t")["noise.sigma"], value=8.0, prior=(6.0, 10.0),
+            source={"dataset": "my scanner", "citation": None, "url": None})
+        ScannerProfile(Scanner.preset("siemens_prisma_3t"), records=(record,)).save(
+            tmp_path / "my_prisma.json")
+        session = Session(ICBM)
+        session.load_scanner(tmp_path / "my_prisma.json")
+        session.protocol.water_reference, session.protocol.water_suppression = 0, "assumed residual"
+        session.protocol.averages, session.protocol.npoints, session.protocol.real = 2, 1024, False
+
+        def sigma():
+            truth = session.run(session.plan(), seed=3).data.hdr_ext.to_dict()
+            return float(truth["SimulationGroundTruth"]["params"]["noise"]["sigma"])
+
+        drawn = sigma()
+        session.hold_records = True
+        assert sigma() == pytest.approx(record.value) and drawn != pytest.approx(record.value)
+        assert session.queue[-1].room["hold_records"]
+
     def test_the_prescan_adjusts_the_water_suppression_to_the_subject(self):
         # the scanner's water suppression adjustment: the train's flips scaled to leave the least
         # water at the excitation over the voxel's tissues, field groups and transmit scale; the

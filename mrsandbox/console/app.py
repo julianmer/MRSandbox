@@ -3899,6 +3899,13 @@ async def console(client: Client):
                                                     "on, as scanners do: every exam starts on "
                                                     "resonance. off: it starts where the "
                                                     "session's drift has taken the scanner")
+                                                ui.switch("hold the scanner's readings",
+                                                          value=session.hold_records,
+                                                          on_change=changed("hold_records")).props(
+                                                    "dense color=accent").tooltip(
+                                                    "on: every record plays at its value, a "
+                                                    "replica of the scans it was read from. off: "
+                                                    "a quarter either side, as the records state")
                                             with ui.tab_panel("Imaging"):
                                                 with ui.row().classes("w-full no-wrap").style(
                                                         "gap: 4px"):

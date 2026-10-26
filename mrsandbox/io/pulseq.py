@@ -50,14 +50,26 @@ class PulseqSequence(Sequence):
         self.adc_phase_deg = adc_phase_deg
 
 
+#**********#
+#   area   #
+#**********#
+def _area(knots, levels, a, b):
+    """The integral over [a, b] of a waveform linear between its knots, zero outside them."""
+    inside = knots[(knots > a) & (knots < b)]
+    times = np.concatenate([[a], inside, [b]])
+    return float(np.trapezoid(np.interp(times, knots, levels, left=0.0, right=0.0), times))
+
+
 #****************#
 #   seq import   #
 #****************#
 def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0, readout=0):
     """Read a Pulseq .seq file into a PulseqSequence of event primitives.
 
-    Blocks translate one to one: RF events become ShapedPulses (with an optional flat
-    trapezoid under the pulse as the slice gradient), gradient-only blocks become a
+    Blocks translate one to one: RF events become ShapedPulses (with a flat trapezoid
+    under the pulse as the slice gradient, or an extended trapezoid or arbitrary waveform
+    sampled at the pulse's steps, modulated where it is not flat, its course before and
+    after the pulse within the block as kicks), gradient-only blocks become a
     physical Gradient kick of the dominant axis's area between two half-duration
     delays, empty blocks become delays, and each ADC block declares one readout.
     `readout` selects which ADC marks the returned sequence (0-based); every earlier
@@ -67,10 +79,10 @@ def read_seq(path, center_ppm=4.65, steps=128, extent_mm=20.0, readout=0):
     (water at 4.65).
 
     Stated idealizations: every gradient axis's area becomes its own kick
-    (trapezoids and arbitrary waveforms alike; under an RF pulse only flat trapezoids
-    play, as the slice gradient); ramp moments outside an RF pulse are not applied;
-    the readout itself is ungradiented, so events sharing an ADC block act only on
-    the readouts after it.
+    (trapezoids and arbitrary waveforms alike); a flat trapezoid under an RF pulse plays
+    as the slice gradient over the whole pulse, its ramp moments outside the pulse not
+    applied; one axis plays under a pulse; the readout itself is ungradiented, so
+    events sharing an ADC block act only on the readouts after it.
 
     Args:
         path: The .seq file.
@@ -119,9 +131,6 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
                                             adc_phase_deg=math.degrees(float(adc.phase_offset))))
             # the block then elapses in full before any later readout: fall through,
             # so its gradients kick and its duration passes as free evolution
-        if rf is not None and any(grad.type != "trap" for grad in traps.values()):
-            raise ValueError("an arbitrary gradient under an RF pulse is not supported; "
-                             "only flat trapezoids play as slice gradients")
         duration = float(block.block_duration)
         if rf is not None:
             if float(getattr(rf, "phase_ppm", 0.0)):
@@ -143,8 +152,42 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
             peak = float(amplitude.max())
             freq_offset = float(rf.freq_offset)
             sweep = np.diff(phase, prepend=phase[0]) / (2.0 * math.pi * dt) + freq_offset
-            flat = [(channel, grad) for channel, grad in traps.items()
-                    if grad.type == "trap" and grad.amplitude]
+            # every gradient of the block (Hz/m along its own times) split at the pulse: the
+            # one axis that plays under the pulse is its slice gradient, a flat trapezoid over
+            # the whole pulse (its ramps unapplied, stated), an extended trapezoid or an
+            # arbitrary waveform at the pulse's steps, modulated where it is not flat; what
+            # any axis plays before or after the pulse within the block kicks by its area
+            start, end = float(rf.delay), float(rf.delay) + float(rf.shape_dur)
+            slice_hz_per_mm, axis, shape, before, after = 0.0, "x", None, [], []
+            for channel, grad in traps.items():
+                if grad.type == "trap":
+                    if not grad.amplitude:
+                        continue
+                    knots = float(grad.delay) + np.cumsum([0.0, float(grad.rise_time),
+                                                           float(grad.flat_time),
+                                                           float(grad.fall_time)])
+                    levels = np.array([0.0, grad.amplitude, grad.amplitude, 0.0], dtype=float)
+                else:
+                    knots = np.asarray(grad.tt, dtype=np.float64) + float(grad.delay)
+                    levels = np.asarray(grad.waveform, dtype=np.float64)
+                course = np.interp(start + mid, knots, levels, left=0.0, right=0.0)
+                reference = course[np.abs(course).argmax()]
+                if reference:
+                    if slice_hz_per_mm:
+                        raise ValueError("two gradient axes under one RF pulse are not supported")
+                    axis = channel[1]
+                    if grad.type == "trap":
+                        slice_hz_per_mm = float(grad.amplitude) / 1000.0
+                        continue
+                    slice_hz_per_mm = float(reference) / 1000.0
+                    if course.max() - course.min() > 1e-6 * abs(reference):
+                        shape = (course / reference).astype(np.float32)
+                for lobes, (a, b) in ((before, (0.0, start)), (after, (end, duration))):
+                    moment = _area(knots, levels, a, b) / 1000.0
+                    if moment:
+                        lobes.append(Gradient(moment_per_mm=moment, extent_mm=extent_mm,
+                                              axis=channel[1]))
+            events.extend(before)
             events.append(ShapedPulse(
                 flip_deg=None,
                 duration_s=float(rf.shape_dur),
@@ -154,10 +197,12 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
                                        - math.pi * freq_offset * dt),
                 frequency_hz=sweep.astype(np.float32) if np.any(sweep) else None,
                 peak_hz=peak,
-                gradient_hz_per_mm=float(flat[0][1].amplitude) / 1000.0 if flat else 0.0,
-                gradient_axis=flat[0][0][1] if flat else "x",
+                gradient_hz_per_mm=slice_hz_per_mm,
+                gradient_axis=axis,
+                gradient_shape=shape,
                 extent_mm=extent_mm,
             ))
+            events.extend(after)
             tail = duration - float(rf.delay) - float(rf.shape_dur)
             if tail > 1e-9:
                 events.append(Delay(tail))

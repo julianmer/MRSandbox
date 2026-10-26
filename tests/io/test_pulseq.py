@@ -226,15 +226,43 @@ class TestMultiAxisImport:
         assert len(kicks) == 1 and kicks[0].axis == "y"
         assert abs(kicks[0].moment_per_mm - float(arbitrary.area) / 1000.0) < 1e-5
 
+        # an extended trapezoid under the pulse, a crusher lobe either side of its flat top and
+        # the pulse on the top (Pulseq's PRESS demo): the lobes kick before and after, the top
+        # plays as the slice gradient
         under_rf = pypulseq.Sequence(system=system)
-        rf = pypulseq.make_block_pulse(flip_angle=np.pi / 2, duration=2e-3, system=system)
-        under_rf.add_block(rf, pypulseq.make_arbitrary_grad(channel="z", waveform=waveform,
-                                                            system=system))
+        rf = pypulseq.make_block_pulse(flip_angle=np.pi, duration=2e-3, delay=1.5e-3,
+                                       system=system)
+        merged = pypulseq.make_extended_trapezoid(
+            channel="z", system=system,
+            times=np.array([0.0, 0.5e-3, 1.0e-3, 1.5e-3, 3.5e-3, 4.0e-3, 4.5e-3, 5e-3]),
+            amplitudes=np.array([0.0, 2e5, 2e5, 1e5, 1e5, 2e5, 2e5, 0.0]))
+        under_rf.add_block(rf, merged)
         under_rf.add_block(pypulseq.make_adc(num_samples=32, dwell=2.5e-4, system=system))
-        bad = tmp_path / "under_rf.seq"
-        under_rf.write(str(bad))
-        with pytest.raises(ValueError, match="arbitrary gradient under an RF pulse"):
-            read_seq(bad)
+        path = tmp_path / "under_rf.seq"
+        under_rf.write(str(path))
+        events = read_seq(path).events
+        kicks = [e for e in events if isinstance(e, Gradient)]
+        pulse = next(e for e in events if isinstance(e, ShapedPulse))
+        lobe = (0.5 * 0.5e-3 * 2e5 + 0.5e-3 * 2e5 + 0.5 * 0.5e-3 * 3e5) / 1000.0  # cycles per mm
+        assert [k.axis for k in kicks] == ["z", "z"]
+        assert all(abs(k.moment_per_mm - lobe) < 1e-6 for k in kicks)
+        assert pulse.gradient_hz_per_mm == pytest.approx(100.0) and pulse.gradient_shape is None
+        assert events.index(kicks[0]) < events.index(pulse) < events.index(kicks[1])
+        # a waveform that moves under the pulse modulates its slice gradient
+        modulated = pypulseq.Sequence(system=system)
+        rf = pypulseq.make_block_pulse(flip_angle=np.pi, duration=2e-3, system=system)
+        modulated.add_block(rf, pypulseq.make_extended_trapezoid(
+            channel="z", times=np.array([0.0, 0.5e-3, 1.0e-3, 1.5e-3, 2e-3]),
+            amplitudes=np.array([0.0, 2e5, 1e5, 2e5, 0.0]), system=system))
+        modulated.add_block(pypulseq.make_adc(num_samples=32, dwell=2.5e-4, system=system))
+        path = tmp_path / "modulated.seq"
+        modulated.write(str(path))
+        events = read_seq(path).events
+        pulse = next(e for e in events if isinstance(e, ShapedPulse))
+        assert not [e for e in events if isinstance(e, Gradient)]
+        assert pulse.gradient_hz_per_mm == pytest.approx(200.0, rel=1e-2)
+        assert pulse.gradient_shape.max() == pytest.approx(1.0, abs=1e-2)
+        assert pulse.gradient_shape.min() == pytest.approx(0.0, abs=0.05)
 
 
 #**************************************************************************************************#

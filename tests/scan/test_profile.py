@@ -158,6 +158,10 @@ class TestScannerProfile:
         shim = profile.scan(Brain.load("icbm152"),
                             Press(te1_s=0.011, te2_s=0.024)).params.lineshape.gauss_hz
         assert (shim.low, shim.high) == records["lineshape.gauss_hz"].prior
+        # the macromolecules' level off the 0.9 ppm peak: the raw is the twin's own, so the level
+        # it drew, within the reading's noise
+        assert not records["mm.level_mm"].failed
+        assert abs(records["mm.level_mm"].value / float(voxel.sample(0).mm.level_mm) - 1.0) < 0.25
         # the run's tracks: the scanner's drift and jitters, not the person's breathing or moves
         assert {"run.drift_hz_per_min", "run.phase_jitter_deg"} <= set(records)
         assert not {"run.resp_amp_hz", "run.events_per_min"} & {r.leaf for r in profile.records}

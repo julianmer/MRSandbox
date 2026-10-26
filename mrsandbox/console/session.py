@@ -659,7 +659,7 @@ class Session:
 
     # what of the session is the room an exam is planned in and runs in
     ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "member_name",
-            "field", "transmit", "shim", "shim_mm")
+            "field", "transmit", "shim", "shim_mm", "hold_records")
 
     #**********#
     #   init   #
@@ -702,6 +702,8 @@ class Session:
         # the averages' apodization in the display; the designer's perfect spectrum has none
         self.apodization_hz = 2.0
         self.prescan, self.clock_s, self._drift = True, 0.0, None
+        # the scanner's readings played at their values (a replica) or as the priors they state
+        self.hold_records = False
         self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
@@ -2305,14 +2307,23 @@ class Session:
         profile = profile if profile is not None else self.profile()
         if self.run_records:
             profile = dataclasses.replace(profile, records=profile.records + self.run_records)
-        member = self.member()
         scan = profile.scan(self.body(), sequence if sequence is not None else self.sequence(card),
                             params=params if params is not None else self.params(),
-                            subject=(member.traits if member is not None else self.person) or None,
-                            within=self.population_within(), **self.fields(card))
+                            **self.narrowing(), **self.fields(card))
+        return self.chosen(scan)
+
+    def narrowing(self):
+        """The person on the table and the population the pooled values come from, as
+        VirtualScan takes them."""
+        member = self.member()
+        return dict(subject=(member.traits if member is not None else self.person) or None,
+                    within=self.population_within())
+
+    def chosen(self, scan):
+        """A scan with the operator's source choices on its tree (`choices`: a leaf's literature
+        or measured source in place of the default's; a leaf without that source keeps its own)."""
         if self.choices:
             sourced = scan.params.sources()
-            # a leaf without that source keeps its own
             scan.params = scan.params.select(**{
                 path: source for path, source in self.choices.items()
                 if path in sourced and source in sourced[path].available})
@@ -2830,7 +2841,14 @@ class Session:
         # suppression train's residual differs from exam to exam. What the operator set stays.
         anew = int(np.random.SeedSequence([int(seed), self.queue.index(exam) + 1
                                            if exam in self.queue else 0]).generate_state(1)[0])
-        scan = self.twin(sequence, params=self.params(exam.overrides), card=card, profile=profile)
+        records = profile.records + self.run_records
+        # the scanner's readings held at their values, a replica of the scans they were read
+        # from; else every record a prior, as it states
+        held = ({record.leaf: float(record.value) for record in records
+                 if not record.failed and isinstance(record.value, (int, float))}
+                if self.hold_records else {})
+        scan = self.twin(sequence, params=self.params({**held, **exam.overrides}), card=card,
+                         profile=profile)
         truth = scan.params.sample(anew)
         drawn = truth.to_dict()
         state = {}
@@ -2843,8 +2861,11 @@ class Session:
                                 if isinstance(node, dict) else [(group, node)]):
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     state[path] = float(value)
-        # the room's recipe: the scanner's state of this exam pinned over the operator's settings
-        shared = dict(records=profile.records, params=self.params({**state, **exam.overrides}),
+        # the room's recipe, the twin's (Session.twin): the scanner's records and the session's
+        # run records, its receiver and gradient response, the person and the population, and
+        # the scanner's state of this exam pinned over the operator's settings
+        shared = dict(records=records, params=self.params({**held, **state, **exam.overrides}),
+                      girf=profile.girf, receiver=profile.receiver, **self.narrowing(),
                       # one engine per field for every exam: its graphs are built once, not
                       # once an exam
                       engine=self._bodies.setdefault(("engine", profile.scanner.b0_t),
@@ -2858,13 +2879,16 @@ class Session:
                           else coils).calibrated(exam.position_mm, exam.size_mm))
         # the prescan sees the person as the room draws them: the subject the seed's, the
         # scanner's state this exam's
-        table = VirtualScan(self.body(), profile.scanner, sequence, **shared)
+        table = self.chosen(VirtualScan(self.body(), profile.scanner, sequence, **shared))
         exam.adjustment = self.adjust(exam, table.voxel(exam.position_mm, exam.size_mm,
                                                         turn=turning(exam.turn_deg)
                                                         if any(exam.turn_deg) else None),
                                       table.params.sample(seed), state)
         room = Multiplex(self.body(), profile.scanner, exam.conditions, compiled=self.compiled,
                          **shared)
+        for scan in room.scans.values():
+            self.chosen(scan)
+        room.params = room.scans[room.conditions[0]].params
         names = list(exam.conditions)
         # interleaved, as an edited scan runs
         exam.schedule = [names[k % len(names)] for k in range(card.averages)]

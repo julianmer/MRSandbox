@@ -22,8 +22,8 @@ import numpy as np
 
 from mrsandbox.hardware import CoilArray, Loop, Receiver, Scanner
 from mrsandbox.resources.girf import GIRF
-from mrsandbox.scan.calibrate import (CovarianceReading, NoiseReading, ReceiverReading,
-                                      SpectrumReading, WaterReading, _raw)
+from mrsandbox.scan.calibrate import (CovarianceReading, MacromoleculeReading, NoiseReading,
+                                      ReceiverReading, SpectrumReading, WaterReading, _raw)
 from mrsandbox.scan.run import RunReading
 from mrsandbox.scan.calibrations import Calibration, calibrations
 from mrsandbox.scan.virtual_scan import VirtualScan
@@ -106,8 +106,10 @@ class ScannerProfile:
         the water transients the run interleaves with its own, the residual water the
         scanner's suppression leaves and its receiver delay become records too (WaterReading).
         The transients' tails give the receiver's filter (ReceiverReading), none where the
-        band shows none, and the transients' tracks the scanner's drift, wander and jitters
-        (scan.run RunReading; the person's breathing and moves are no scanner's).
+        band shows none, the transients' tracks the scanner's drift, wander and jitters
+        (scan.run RunReading; the person's breathing and moves are no scanner's), and the
+        0.9 ppm peak over NAA the macromolecules' level (MacromoleculeReading, where the twin's
+        source scales with a level leaf).
 
         A run `in_vitro` (a phantom: the twin's subject) calibrates the hardware alone: the
         channels' noise correlation (from `noise` where its FIDs ring), the receiver, the
@@ -126,14 +128,16 @@ class ScannerProfile:
                    if not in_vitro and (reference is not None or interleaved) else None),
             seeds=seeds, receiver=ReceiverReading.from_nifti(source).receiver(),
             # a run of fewer than eight transients has no tracks to read
-            run=RunReading.from_nifti(source) if _raw(source)[0].shape[2] >= 8 else None)
+            run=RunReading.from_nifti(source) if _raw(source)[0].shape[2] >= 8 else None,
+            mm=(MacromoleculeReading.from_nifti(source)
+                if not in_vitro and voxel.scan.mm.LEVEL_LEAF is not None else None))
 
     #*******************#
     #   from readings   #
     #*******************#
     @classmethod
     def from_readings(cls, spectrum, noise, voxel, dataset, covariance=None, array=None,
-                      load="a head", water=None, seeds=None, receiver=None, run=None):
+                      load="a head", water=None, seeds=None, receiver=None, run=None, mm=None):
         """The profile the readings of one acquisition give (`read` makes them from files; a
         cohort's builder from arrays): the spectrum's width first, with `water` the
         residual, the receiver delay, the leaked water and the eddy transient, then the noise
@@ -141,8 +145,9 @@ class ScannerProfile:
         with `covariance` and `array` the channels' own noise and the array so loaded.
         `seeds` draws the twin that many times per reading in place of the readers' own
         counts (fewer for a twin that plays shaped pulses); `receiver` is the filter read; `run`
-        the transients' tracks, of which the scanner's leaves are kept. Without `spectrum` and
-        `noise` the run is in vitro: the hardware's records alone."""
+        the transients' tracks, of which the scanner's leaves are kept; `mm` the 0.9 ppm peak's
+        reading, the macromolecules' level record. Without `spectrum` and `noise` the run is in
+        vitro: the hardware's records alone."""
         few = {} if seeds is None else {"seeds": seeds}
         shim = None if spectrum is None else spectrum.record(voxel, dataset, **few)
         read = ()
@@ -161,6 +166,8 @@ class ScannerProfile:
             sigma = dataclasses.replace(sigma, failed="read against a failed width: " + shim.failed)
         tracks = () if run is None else tuple(record for record in run.records(dataset)
                                               if record.carried_by == "scanner")
+        if mm is not None:
+            read += (mm.record(voxel, dataset, held=held, **few),)
         # every record under the scanner the file names
         stamp = sigma.scanner if sigma is not None else tracks[0].scanner if tracks else None
         records, coils = tuple(r for r in (sigma, shim) if r is not None), None

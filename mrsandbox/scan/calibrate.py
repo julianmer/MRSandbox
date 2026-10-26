@@ -48,6 +48,19 @@ APODIZED = ("the same single-transient NAA SNR after a 10 Hz exponential apodiza
             "simulation alike")
 
 
+#**********#
+#   hold   #
+#**********#
+def _hold(truth, held):
+    """A realized truth with the leaves of `held` {path: value} set to those values, as
+    drawn: a twin at the acquisition's own readings."""
+    for leaf, value in (held or {}).items():
+        branch, _, key = leaf.rpartition(".")
+        dict.__setitem__(functools.reduce(lambda node, part: node[part], branch.split("."),
+                                          truth), key, float(value))
+    return truth
+
+
 #*************#
 #   combine   #
 #*************#
@@ -418,12 +431,7 @@ class NoiseReading:
                                                   self.excitations)
         found = []
         for seed in range(seeds):
-            truth = voxel.sample(seed)
-            for leaf, value in (held or {}).items():
-                branch, _, key = leaf.rpartition(".")
-                # a realized leaf, as drawn
-                dict.__setitem__(functools.reduce(lambda node, part: node[part],
-                                                  branch.split("."), truth), key, float(value))
+            truth = _hold(voxel.sample(seed), held)
             _, fid = voxel._clean_fid(truth, self.npoints, dwell_s)
             row = []
             near = np.abs(ppm - LINES[self.line][0]) < LINES[self.line][1]
@@ -1157,15 +1165,18 @@ class MacromoleculeReading:
     #**************#
     #   the twin   #
     #**************#
-    def twin(self, voxel, seeds=3):
+    def twin(self, voxel, seeds=3, held=None):
         """The twin's own reading at `voxel`: per draw the clean spectrum's peak over NAA
         and the lipids' share of the peak (what the peak loses without them), as
-        {"peak_over_naa": [per seed], "lipid_share": [per seed]}."""
+        {"peak_over_naa": [per seed], "lipid_share": [per seed]}; `held` {leaf: value} holds
+        the twin's leaves at the values read off the same data (NoiseReading.sigma: the
+        peak's height over NAA's goes with the width)."""
         t = np.arange(self.npoints) * self.dwell_s
         turn = np.exp(-2j * np.pi * WATER_PPM * voxel._f0_mhz() * t)
         found = {"peak_over_naa": [], "lipid_share": []}
         for seed in range(seeds):
-            parts = voxel._component_fids(voxel.sample(seed), self.npoints, self.dwell_s)
+            parts = voxel._component_fids(_hold(voxel.sample(seed), held), self.npoints,
+                                          self.dwell_s)
             total = sum(np.asarray(fid) for fid in parts.values()) * turn
             peak = self._peak_over_naa(total, self.dwell_s, voxel._f0_mhz())
             lean = total - np.asarray(parts.get("lipids", 0.0)) * turn
@@ -1177,14 +1188,15 @@ class MacromoleculeReading:
     #************#
     #   record   #
     #************#
-    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=3):
+    def record(self, voxel, dataset, presets=(), citation=None, url=None, seeds=3, held=None):
         """The Calibration of the scan's macromolecule level leaf (mm.level_mm or mm.kappa):
         per draw the drawn leaf times the data's reading over the twin's, the median; the
-        prior a quarter either side; carried by the subject; failed by the stated rules."""
+        prior a quarter either side; carried by the subject; failed by the stated rules;
+        `held` as for `twin`, kept with the reading."""
         leaf = voxel.scan.mm.LEVEL_LEAF
         if leaf is None:
             raise ValueError(f"{type(voxel.scan.mm).__name__} scales with no mm leaf: nothing to record")
-        twin = self.twin(voxel, seeds)
+        twin = self.twin(voxel, seeds, held)
         drawn = [float(voxel.sample(seed).mm[leaf]) for seed in range(seeds)]
         values = [d * self.peak_over_naa / peak for d, peak in zip(drawn, twin["peak_over_naa"])]
         value = float(np.median(values))
@@ -1199,7 +1211,7 @@ class MacromoleculeReading:
                       "twin_peak_over_naa": round(float(np.median(twin["peak_over_naa"])), 4),
                       "factor": round(self.peak_over_naa
                                       / float(np.median(twin["peak_over_naa"])), 3),
-                      "twin_lipid_share": round(lipid, 3)},
+                      "twin_lipid_share": round(lipid, 3), "twin_held_at": dict(held or {})},
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),
