@@ -705,8 +705,9 @@ class Voxel:
                             truth, engine, sequence, self._f0_mhz(), faded))
                     finally:
                         self._field_offset_hz = 0.0
-                    water = water + np.float32(weight) * self._render_lines(
-                        lorentzian, npoints, dwell_s, start_s) * part_kernel
+                    if lorentzian is not None:     # a train can take a group's water whole
+                        water = water + np.float32(weight) * self._render_lines(
+                            lorentzian, npoints, dwell_s, start_s) * part_kernel
                 fids["water"] = water
         else:
             # the field inside the pulses: every group of the voxel's field distribution
