@@ -128,6 +128,21 @@ class TestSession:
         lines = (exam.ppm > 1.8) & (exam.ppm < 3.4)
         assert np.abs(mean - average)[lines].max() < 0.2 * np.abs(average[lines]).max()
 
+    def test_an_exams_basis_set_exports_as_fsl_mrs_reads_it(self, tmp_path):
+        # the design without its preludes, every metabolite the room simulates, one JSON each
+        import json
+
+        session = Session(ICBM)
+        session.protocol.water_reference, session.protocol.real = 0, False
+        session.protocol.npoints = 512
+        exam = session.plan()
+        folder = session.export_basis(exam, tmp_path)
+        written = sorted(path.stem for path in folder.glob("*.json"))
+        assert "NAA" in written and len(written) >= 20
+        basis = json.loads((folder / "NAA.json").read_text())["basis"]
+        assert len(basis["basis_re"]) == 512 and basis["basis_name"] == "NAA"
+        assert abs(basis["basis_dwell"] - 1.0 / session.protocol.bandwidth_hz) < 1e-12
+
     def test_the_window_brightens_and_narrows_the_picture(self):
         # the planes' window and level: a lower level brightens, a narrower width adds contrast;
         # None is the picture's own

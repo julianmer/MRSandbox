@@ -1163,7 +1163,8 @@ async def console(client: Client):
                 "acquired, aligned, or processed, every transient behind the average",)),
             ("Scan control", (
                 "Review: an exam in full, with the truth no scanner has; Export raw transients: "
-                "NIfTI-MRS with the truth in its header; Export Pulseq; Make a dataset: the card "
+                "NIfTI-MRS with the truth in its header; Export Pulseq; Export basis set: the "
+                "design's basis as FSL-MRS reads it; Make a dataset: the card "
                 "on many simulated subjects, every value drawn written beside the files",)),
             ("Where a value comes from", tuple(f"{SOURCE_WORDS[name]}: {SOURCE_SAYS[name]}"
                                               for name in SOURCE_WORDS)),
@@ -2180,6 +2181,18 @@ async def console(client: Client):
             ui.notify(f"Exported "
                       f"{session.export_seq(exam, pathlib.Path.home() / 'MRSandbox' / 'exports')}")
         except Exception as error:  # an idealization Pulseq cannot play: the design says which
+            ui.notify(f"Not exported: {error}", type="warning", multi_line=True)
+
+    def export_basis():
+        exam = chosen["exam"]
+        if exam is None:
+            ui.notify("Select an exam")
+            return
+        ui.notify("Simulating the basis set, a while for real pulses")
+        try:
+            folder = session.export_basis(exam, pathlib.Path.home() / "MRSandbox" / "exports")
+            ui.notify(f"Exported {folder}")
+        except Exception as error:
             ui.notify(f"Not exported: {error}", type="warning", multi_line=True)
 
     def field_changed(event):
@@ -4191,6 +4204,11 @@ async def console(client: Client):
                             "outline dense no-caps align=left").classes("w-full")
                         ui.button("Export Pulseq .seq", icon="code", on_click=export_seq).props(
                             "outline dense no-caps align=left").classes("w-full")
+                        ui.button("Export basis set", icon="stacked_line_chart",
+                                  on_click=export_basis).props(
+                            "outline dense no-caps align=left").classes("w-full").tooltip(
+                            "the design's basis set as FSL-MRS reads it (one JSON a metabolite); "
+                            "BasiC converts it for LCModel, Osprey, jMRUI and the rest")
                         ui.button("Make a dataset", icon="dataset", on_click=dataset).props(
                             "outline dense no-caps align=left").classes("w-full").mark(
                             "make a dataset")

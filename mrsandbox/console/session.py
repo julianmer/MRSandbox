@@ -3304,6 +3304,25 @@ class Session:
         write_seq(exam.sequence, str(path), exam.card.npoints, 1.0 / exam.card.bandwidth_hz, f0_mhz)
         return path
 
+    def export_basis(self, exam, folder):
+        """Write the basis set of an exam's design as FSL-MRS reads it (io.fsl.write_fsl_basis;
+        BasiC converts it for the other fitting tools): the localization without the card's
+        preludes, every metabolite the room simulates, the card's readout, on this scanner's
+        field, into `folder`/<the exam's name>_basis; returns that folder."""
+        from mrsandbox.io import write_fsl_basis
+
+        card = exam.card
+        folder = (pathlib.Path(folder).expanduser()
+                  / (exam.name.replace(" ", "_").replace(".", "p") + "_basis"))
+        skip = sum(len(prelude.events) for prelude in self.preludes(card).values())
+        truth = self.twin(exam.sequence, card=card).params.sample(self.seed)
+        names = [name for name, value in truth.conc.items()
+                 if isinstance(value, (int, float)) and float(value) > 0.0]
+        write_fsl_basis(folder, Sequence(*exam.sequence.events[skip:]), names,
+                        b0_t=self.profile().scanner.b0_t, npoints=card.npoints,
+                        dwell_s=1.0 / card.bandwidth_hz, note=exam.name)
+        return folder
+
     def export(self, exam, folder):
         """Write an exam's raw data, the transients apart, as NIfTI-MRS into `folder`;
         returns the path."""

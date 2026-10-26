@@ -15,6 +15,7 @@
 #*************#
 #   imports   #
 #*************#
+import datetime
 import json
 import math
 import pathlib
@@ -78,13 +79,81 @@ class FslSequence(Sequence):
         """The engine's lines (Hz in the package's frame, complex amplitudes) as FSL-MRS's FID of
         this readout: center_ppm on the carrier, its Lorentzian on; lines beyond the band
         dropped."""
-        t = np.arange(self.npoints) * self.dwell_s
-        f0_mhz = GAMMA_MHZ_PER_T[self.nucleus] * self.b0_t
-        offset = np.asarray(freqs, dtype=np.float64) - self.center_ppm * f0_mhz
-        inside = np.abs(offset) < 0.5 / self.dwell_s
-        lines = np.exp(2j * np.pi * np.outer(t, offset[inside]))
-        return lines @ np.asarray(amps, dtype=np.complex128)[inside] * np.exp(
-            -np.pi * self.linewidth_hz * t)
+        return fsl_fid(freqs, amps, self.npoints, self.dwell_s,
+                       GAMMA_MHZ_PER_T[self.nucleus] * self.b0_t, self.center_ppm,
+                       self.linewidth_hz)
+
+
+#*********#
+#   fid   #
+#*********#
+def fsl_fid(freqs, amps, npoints, dwell_s, f0_mhz, center_ppm, linewidth_hz):
+    """The engine's lines (Hz in the package's frame, complex amplitudes) as FSL-MRS's FID:
+    `center_ppm` on the carrier, a Lorentzian of `linewidth_hz` on, `npoints` at `dwell_s`;
+    lines beyond the band dropped."""
+    t = np.arange(npoints) * dwell_s
+    offset = np.asarray(freqs, dtype=np.float64) - center_ppm * f0_mhz
+    inside = np.abs(offset) < 0.5 / dwell_s
+    lines = np.exp(2j * np.pi * np.outer(t, offset[inside]))
+    return lines @ np.asarray(amps, dtype=np.complex128)[inside] * np.exp(
+        -np.pi * linewidth_hz * t)
+
+
+#*************#
+#   writing   #
+#*************#
+def write_fsl_basis(folder, sequence, names, b0_t=None, npoints=None, dwell_s=None,
+                    linewidth_hz=None, center_ppm=None, nucleus=None, database=None,
+                    isochromats=None, note=""):
+    """Write a basis set as FSL-MRS reads it (fsl_mrs.utils.mrs_io.fsl_io; BasiC converts it
+    to the other fitting tools' formats): one JSON per metabolite of `names` in `folder`, each
+    the metabolite's FID through `sequence` on this engine, its spin systems from the
+    database without relaxation (the design's own response, a Lorentzian `linewidth_hz` on
+    it), in FSL-MRS's frame and sign, the spectrometer frequency as the basis_centre. An
+    FslSequence brings its field, readout, width, centre, nucleus and resolution; a design of
+    the package's own takes them here (`b0_t`, `npoints` and `dwell_s` it must; the width
+    1 Hz, the centre 4.65 ppm, protons and the engine's ensemble unless given). Returns the
+    paths written."""
+    from mrsandbox import __version__
+    from mrsandbox.engine import Engine
+    from mrsandbox.spins import SpinSystem
+
+    own = isinstance(sequence, FslSequence)
+    given = lambda value, theirs, default: (value if value is not None
+                                            else theirs if own else default)
+    b0_t, npoints, dwell_s = (given(b0_t, own and sequence.b0_t, None),
+                              given(npoints, own and sequence.npoints, None),
+                              given(dwell_s, own and sequence.dwell_s, None))
+    if b0_t is None or npoints is None or dwell_s is None:
+        raise ValueError("a design of the package's own needs its field, points and dwell: "
+                         "b0_t, npoints, dwell_s")
+    linewidth_hz = given(linewidth_hz, own and sequence.linewidth_hz, 1.0)
+    center_ppm = given(center_ppm, own and sequence.center_ppm, 4.65)
+    nucleus = given(nucleus, own and sequence.nucleus, "1H")
+    f0_mhz = GAMMA_MHZ_PER_T[nucleus] * b0_t
+    engine = Engine(b0_t, sequence.receiver_phase_deg if own else 0.0,
+                    given(isochromats, own and sequence.resolution[0], 32))
+    folder = pathlib.Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    written = []
+    for name in names:
+        systems = SpinSystem.from_database(name, **({} if database is None
+                                                    else {"database": database}))
+        freqs, amps = (np.asarray(v) for v in engine.lines(sequence, *systems))
+        fid = fsl_fid(freqs, amps, npoints, dwell_s, f0_mhz, center_ppm, linewidth_hz)
+        content = {"basis": {"basis_re": fid.real.tolist(), "basis_im": fid.imag.tolist(),
+                             "basis_dwell": float(dwell_s), "basis_centre": float(f0_mhz),
+                             "basis_width": float(linewidth_hz), "basis_name": name},
+                   "meta": {"time": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+                            "SimVersion": f"MRSandbox {__version__}",
+                            "sequence": sequence.name if own else type(sequence).__name__,
+                            "note": note}}
+        if nucleus != "1H":
+            content["basis"]["basis_nucleus"] = nucleus
+        path = folder / f"{name}.json"
+        path.write_text(json.dumps(content))
+        written.append(path)
+    return written
 
 
 #*************#

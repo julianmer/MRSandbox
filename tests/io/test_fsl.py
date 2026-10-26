@@ -113,6 +113,41 @@ class TestFsl:
                                   verbose=False)
             assert error(played(description, LAC), np.asarray(theirs)) < 0.01
 
+    #***************#
+    #   a basis     #
+    #***************#
+    def test_a_basis_is_written_as_fsl_mrs_reads_it(self, tmp_path):
+        # a PRESS basis at TE 144 for three metabolites, read back by FSL-MRS's own reader: the
+        # names, the readout and the field in the headers; the FIDs in FSL-MRS's frame, NAA at
+        # 2.01 ppm, creatine's methyl as tall as NAA's (three protons each), lactate's doublet
+        # inverted
+        fsl_io = pytest.importorskip("fsl_mrs.utils.mrs_io.fsl_io")
+        from mrsandbox import Press
+        from mrsandbox.io import write_fsl_basis
+
+        f0_mhz, dwell_s = 3.0 * GAMMA, 1.0 / 2000.0
+        paths = write_fsl_basis(tmp_path / "basis", Press(0.072, 0.072), ("NAA", "Cr", "Lac"),
+                                b0_t=3.0, npoints=1024, dwell_s=dwell_s, linewidth_hz=2.0)
+        assert sorted(path.name for path in paths) == ["Cr.json", "Lac.json", "NAA.json"]
+        _, names, headers = fsl_io.readFSLBasisFiles(tmp_path / "basis")
+        assert names == ["Cr", "Lac", "NAA"]
+        assert headers[0]["dwelltime"] == dwell_s and headers[0]["fwhm"] == 2.0
+        assert abs(headers[0]["centralFrequency"] / 1e6 - f0_mhz) < 1e-6
+        ppm = 4.65 + np.fft.fftshift(np.fft.fftfreq(1024, dwell_s)) / f0_mhz
+
+        def spectrum(name):
+            basis = json.loads((tmp_path / "basis" / f"{name}.json").read_text())["basis"]
+            fid = np.asarray(basis["basis_re"]) + 1j * np.asarray(basis["basis_im"])
+            return np.fft.fftshift(np.fft.fft(fid))
+
+        naa = spectrum("NAA")
+        phase = np.exp(-1j * np.angle(naa[np.abs(naa).argmax()]))
+        assert abs(ppm[np.abs(naa).argmax()] - 2.01) < 0.02
+        cr = (spectrum("Cr") * phase).real
+        assert abs(cr[np.abs(ppm - 3.03) < 0.05].max() / (naa * phase).real.max() - 1.0) < 0.1
+        lac = (spectrum("Lac") * phase).real
+        assert lac[np.abs(ppm - 1.31) < 0.08].min() < -0.5 * (naa * phase).real.max()
+
     #********************#
     #   a win sequence   #
     #********************#
