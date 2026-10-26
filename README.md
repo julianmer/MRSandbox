@@ -144,4 +144,4 @@ MRSandbox is described in an ISMRM 2027 abstract (submitted). Until it is out, c
 
 ## Licence
 
-See the LICENSE file.
+MIT, see the LICENSE file.
