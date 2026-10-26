@@ -28,9 +28,12 @@ if "KERAS_BACKEND" not in os.environ:
     named = (json.loads(config.read_text()).get("backend", "tensorflow") if config.exists()
              else "tensorflow")
     if importlib.util.find_spec(named) is None:
-        os.environ["KERAS_BACKEND"] = next(
-            (name for name in ("jax", "torch", "tensorflow") if importlib.util.find_spec(name)),
-            named)
+        installed = next((name for name in ("jax", "torch", "tensorflow")
+                          if importlib.util.find_spec(name)), None)
+        if installed is None:
+            raise ImportError("mrsandbox needs a Keras backend: install the jax, torch or "
+                              "tensorflow extra, as in pip install \"mrsandbox[jax]\"")
+        os.environ["KERAS_BACKEND"] = installed
 
 #*************#
 #   imports   #

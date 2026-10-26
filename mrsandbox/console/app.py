@@ -1044,9 +1044,9 @@ async def console(client: Client):
                 return
             done.text = f"Written: {path}"
             reveal.set_visibility(True)
-            reveal.on("click", lambda: subprocess.run(
-                ["open", "-R", str(path)] if sys.platform == "darwin" else
-                ["xdg-open", str(path.parent)], check=False))
+            reveal.on("click", lambda: os.startfile(path.parent) if sys.platform == "win32"
+                      else subprocess.run(["open", "-R", str(path)] if sys.platform == "darwin"
+                                          else ["xdg-open", str(path.parent)], check=False))
 
         with ui.dialog() as dialog, ui.card().classes("pane").style("min-width: 640px"):
             heading(f"Export · {exam.name}",

@@ -10,7 +10,7 @@
 #          one question for any voxel box in millimetres: what fractions of grey matter, white     #
 #          matter, and CSF sit inside. Every preset is fetched on first use through resources      #
 #          (ICBM152 from TemplateFlow, BigBrain-MR from Zenodo); your own maps load through the    #
-#          same interface. The wheel ships no data.                                                #
+#          same interface. The wheel ships no raw data.                                            #
 #                                                                                                  #
 ####################################################################################################
 

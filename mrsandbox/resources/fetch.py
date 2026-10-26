@@ -93,7 +93,7 @@ class Resources:
     accept them, is registered with a "page" in place of a "url": it is never
     fetched, and `path` says where to download it and where to place it. Small data
     kept in this repository's data/ folder carries a "repo" path: a source checkout
-    copies it from there, an installed package fetches it; the wheel ships no data.
+    copies it from there, an installed package fetches it; the wheel ships no raw data.
     The cache defaults to ~/.cache/mrsandbox and can be moved with the MRSANDBOX_CACHE
     environment variable.
     """

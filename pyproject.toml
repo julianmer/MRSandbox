@@ -9,7 +9,18 @@ description = "A simulation sandbox for magnetic resonance spectroscopy."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Julian P. Merkofer", email = "j.p.merkofer@tue.nl" }]
-classifiers = ["Private :: Do Not Upload"]
+keywords = ["MRS", "magnetic resonance spectroscopy", "simulation", "density matrix", "NIfTI-MRS"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "numpy",
     "scipy",
@@ -18,6 +29,11 @@ dependencies = [
     "keras>=3.15",
     "nifti-mrs-plus>=0.2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/julianmer/MRSandbox"
+Source = "https://github.com/julianmer/MRSandbox"
+Issues = "https://github.com/julianmer/MRSandbox/issues"
 
 [project.optional-dependencies]
 # flatbuffers serializes the engine's graph exports (jax.export)

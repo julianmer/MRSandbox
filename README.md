@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo/logo.png" alt="MRSandbox Logo" width="130" style="margin-bottom: -30px;"/>
+  <img src="https://raw.githubusercontent.com/julianmer/MRSandbox/main/assets/logo/logo.png" alt="MRSandbox Logo" width="130" style="margin-bottom: -30px;"/>
   <h1 style="margin-top: 5px; margin-bottom: 5px;">MRSandbox</h1>
   <p style="margin-top: 0px;"><em>A simulation sandbox for magnetic resonance spectroscopy</em></p>
 </div>
@@ -14,12 +14,29 @@ read from a quantitative map. The simulations are written with Keras operations 
 and differentiable on JAX, PyTorch, and TensorFlow.
 
 ```python
+from mrsandbox import Brain, Press, Scanner, VirtualScan
+
 brain = Brain.load("icbm152")                      # the MNI average brain, fetched once and cached
 scan  = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
 data  = scan.voxel(position_mm=(10, -20, 5), size_mm=20).acquire(seed=7)    # NIfTI-MRS
 ```
 
 > MRSandbox is under active development and grows with my research. It is a personal research toolbox and interfaces are adjusted as we see fit.
+
+## Install
+
+```
+pip install "mrsandbox[jax]"
+```
+
+Python 3.11 or newer. The package runs on one Keras backend: `jax` is the one the physics is measured on, `torch` and `tensorflow` are the other extras. Acquisitions play their spurious echoes and eddy phase through [Augmentrum](https://github.com/julianmer/Augmentrum), which declares fsl-mrs (not on PyPI) and so installs as the tests do:
+
+```
+pip install --no-deps "git+https://github.com/julianmer/Augmentrum"
+pip install spec2nii tqdm shutup matplotlib "nifti-mrs-plus[ops]"
+```
+
+The console comes with `mrsandbox[console]`, the tests, ruff and pypulseq with `mrsandbox[dev]`. Large public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) are fetched on first use into `~/.cache/mrsandbox`, checksum verified; `MRSANDBOX_CACHE` moves the cache. The wheel ships the measured cohorts' readings (JSON) and no raw data.
 
 ## What it does
 
@@ -65,7 +82,7 @@ The data are NIfTI-MRS with the receiver's centre at 4.65 ppm. The header of eve
 
 ## The console
 
-<img src="assets/console.png" alt="The virtual scanner console: three exam cards planned and run on the QSM challenge head, the last one's spectrum live" width="100%"/>
+<img src="https://raw.githubusercontent.com/julianmer/MRSandbox/main/assets/console.png" alt="The virtual scanner console: three exam cards planned and run on the QSM challenge head, the last one's spectrum live" width="100%"/>
 
 <sub>The head is the QSM reconstruction challenge 2.0 head (Marques et al. 2021, MRM 86:526). Data were provided (in part) by the Donders Institute for Brain, Cognition and Behaviour.</sub>
 
@@ -106,7 +123,7 @@ One line per folder; the docstrings hold the rest.
 * `params/` holds the parameter system: values that are fixed, drawn, per tissue, or mapped, in composable trees.
 * `database/` stores literature values as cited Python dicts: concentrations, relaxation, shifts, pulses, phantoms.
 * `phantom/` defines the subjects: brains with continuous tissue fractions, phantoms of solution, and the water, lipid, macromolecule, and downfield sources.
-* `resources/` fetches large public datasets on first use into a checksummed cache. The wheel ships no data.
+* `resources/` fetches large public datasets on first use into a checksummed cache; the wheel ships the measured cohorts' readings and no raw data.
 * `hardware/` describes scanners with their limits, the digital receiver, and receive arrays with their noise.
 * `sequences/` builds sequences as event lists: PRESS, STEAM, semi-LASER, MEGA-PRESS, HERMES, HERCULES, water suppression, ideal or with the localization and the pulses played.
 * `spins/` and `engine/` hold the spin systems and run the density matrix, plain or as one compiled graph per design.
@@ -125,3 +142,13 @@ Every physical claim is gated by a test, and the simulation is checked against i
   of two vendors (public OpenNeuro data) without a fit.
 * Numbers calibrated on in vivo data live as records with the exact conditions of their measurement. Only
   quantities read off raw data enter a record, never what a fitting program reported.
+
+## Citation
+
+MRSandbox is described in an ISMRM 2027 abstract (submitted). Until it is out, cite the repository:
+
+> Merkofer JP. MRSandbox: a simulation sandbox for magnetic resonance spectroscopy. 2026. https://github.com/julianmer/MRSandbox
+
+## Licence
+
+See the LICENSE file.
