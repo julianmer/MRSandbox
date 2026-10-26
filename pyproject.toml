@@ -28,6 +28,8 @@ dependencies = [
     "nifti-mrs",
     "keras>=3.15",
     "nifti-mrs-plus>=0.2.0",
+    # the transient instabilities, the spurious echoes and the eddy phase of every acquisition
+    "augmentrum>=0.0.3",
 ]
 
 [project.urls]
@@ -40,11 +42,6 @@ Issues = "https://github.com/julianmer/MRSandbox/issues"
 jax = ["jax", "flatbuffers"]
 torch = ["torch"]
 tensorflow = ["tensorflow"]
-# Augmentrum drives the transient instabilities (scan.Multiplex.transients) and, as it
-# grows, the other signal-level augmentations. It declares fsl-mrs, which is not on
-# PyPI, but imports it lazily, so install it as the CI does: augmentrum without
-# dependencies, then spec2nii, tqdm, shutup, matplotlib, and nifti-mrs-plus[ops].
-augment = ["augmentrum>=0.0.2"]
 # the virtual scanner console (mrsandbox.console): uvx --from "mrsandbox[console]" mrsandbox-console;
 # pandas holds the measured database as one table (scan.cohort.table)
 console = ["nicegui", "pywebview", "pillow", "dcm2niix", "pandas", "mrsandbox[jax]"]
@@ -60,10 +57,6 @@ mrsandbox-console = "mrsandbox.console.app:main"
 
 [tool.setuptools.packages.find]
 include = ["mrsandbox*"]
-
-# the package's cohorts: subjects' readings with their conditions, no raw data (scan.cohort)
-[tool.setuptools.package-data]
-"mrsandbox.resources" = ["cohorts/*.json"]
 
 [tool.setuptools.dynamic]
 version = { attr = "mrsandbox.__version__" }

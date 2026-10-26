@@ -23,7 +23,8 @@ import shutil
 import urllib.request
 import zipfile
 
-from mrsandbox.resources import (bigbrain, challenge, colin27, girf, hmri, icbm, mrshub, qsm,
+from mrsandbox.resources import (bigbrain, challenge, cohorts, colin27, girf, gudmundson, hmri, icbm,
+                                 mrshub, qsm,
                                  uk7t)
 
 
@@ -93,7 +94,7 @@ class Resources:
     accept them, is registered with a "page" in place of a "url": it is never
     fetched, and `path` says where to download it and where to place it. Small data
     kept in this repository's data/ folder carries a "repo" path: a source checkout
-    copies it from there, an installed package fetches it; the wheel ships no raw data.
+    copies it from there, an installed package fetches it; the wheel ships no data.
     The cache defaults to ~/.cache/mrsandbox and can be moved with the MRSANDBOX_CACHE
     environment variable.
     """
@@ -103,7 +104,8 @@ class Resources:
     # one dict per data source, each in its own cited module
     REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **icbm.NIHPD, **colin27.COLIN27,
                 **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO, **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT,
-                **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2}
+                **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2,
+                **cohorts.COHORTS, **gudmundson.GUDMUNDSON}
 
     #************#
     #   lookup   #

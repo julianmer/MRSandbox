@@ -29,14 +29,7 @@ data  = scan.voxel(position_mm=(10, -20, 5), size_mm=20).acquire(seed=7)    # NI
 pip install "mrsandbox[jax]"
 ```
 
-Python 3.11 or newer. The package runs on one Keras backend: `jax` is the one the physics is measured on, `torch` and `tensorflow` are the other extras. Acquisitions play their spurious echoes and eddy phase through [Augmentrum](https://github.com/julianmer/Augmentrum), which declares fsl-mrs (not on PyPI) and so installs as the tests do:
-
-```
-pip install --no-deps "git+https://github.com/julianmer/Augmentrum"
-pip install spec2nii tqdm shutup matplotlib "nifti-mrs-plus[ops]"
-```
-
-The console comes with `mrsandbox[console]`, the tests, ruff and pypulseq with `mrsandbox[dev]`. Large public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) are fetched on first use into `~/.cache/mrsandbox`, checksum verified; `MRSANDBOX_CACHE` moves the cache. The wheel ships the measured cohorts' readings (JSON) and no raw data.
+Python 3.11 or newer. The package runs on one Keras backend: `jax` is the one the physics is measured on, `torch` and `tensorflow` are the other extras. Acquisitions play their spurious echoes and eddy phase through [Augmentrum](https://github.com/julianmer/Augmentrum), which comes with the install. The console comes with `mrsandbox[console]`, the tests, ruff and pypulseq with `mrsandbox[dev]`. The wheel ships no data: the measured cohorts' readings come from this repository and the large public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) from their publishers, fetched on first use into `~/.cache/mrsandbox`, checksum verified where the publisher states one; `MRSANDBOX_CACHE` moves the cache.
 
 ## What it does
 
@@ -123,7 +116,7 @@ One line per folder; the docstrings hold the rest.
 * `params/` holds the parameter system: values that are fixed, drawn, per tissue, or mapped, in composable trees.
 * `database/` stores literature values as cited Python dicts: concentrations, relaxation, shifts, pulses, phantoms.
 * `phantom/` defines the subjects: brains with continuous tissue fractions, phantoms of solution, and the water, lipid, macromolecule, and downfield sources.
-* `resources/` fetches large public datasets on first use into a checksummed cache; the wheel ships the measured cohorts' readings and no raw data.
+* `resources/` fetches large public datasets on first use into a checksummed cache. The wheel ships no data.
 * `hardware/` describes scanners with their limits, the digital receiver, and receive arrays with their noise.
 * `sequences/` builds sequences as event lists: PRESS, STEAM, semi-LASER, MEGA-PRESS, HERMES, HERCULES, water suppression, ideal or with the localization and the pulses played.
 * `spins/` and `engine/` hold the spin systems and run the density matrix, plain or as one compiled graph per design.
@@ -136,7 +129,7 @@ One line per folder; the docstrings hold the rest.
 
 Every physical claim is gated by a test, and the simulation is checked against independent references.
 
-* An in-test complex128 oracle and Clarke's `fsl_denmatsim` (correlation above 0.9999) check the engine.
+* An in-test complex128 oracle and Clarke's `fsl_denmatsim` (correlation above 0.9999) check the engine. The parity tests need the `externals/denmatsim` submodule (FMRIB's GitLab); without it they skip.
 * Shaped pulses reproduce the bandwidth products of de Graaf's Table 5.1, and analytic laws hold exactly where they should.
 * Raw in vivo data check the whole: played HERMES and HERCULES reproduce the edited spectra of two scanners
   of two vendors (public OpenNeuro data) without a fit.

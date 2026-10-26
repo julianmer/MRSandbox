@@ -1807,6 +1807,7 @@ class Session:
         """The measured database as the operator browses it, one row per cohort: its name, its
         label, the subjects, readings and failed readings it holds, the leaves it reads, where
         it comes from, and whether it is the operator's own (~/MRSandbox/cohorts)."""
+        from mrsandbox.resources.cohorts import NAMES
         from mrsandbox.scan import cohort as cohorts
 
         rows = []
@@ -1820,7 +1821,8 @@ class Session:
                          "leaves": ", ".join(sorted({r.leaf for r in records})),
                          "source": source.get("dataset") or "",
                          "citation": source.get("citation") or "", "url": source.get("url") or "",
-                         "yours": not (cohorts.COHORTS / f"{cohort.name}.json").exists()})
+                         "yours": cohort.name not in NAMES
+                         and not (cohorts.COHORTS / f"{cohort.name}.json").exists()})
         return rows
 
     def parameter(self, leaf):

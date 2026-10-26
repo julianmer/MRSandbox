@@ -211,7 +211,8 @@ DATASETS = {
 #*************#
 def rebuild(data, names=None, into=None, fetch=True):
     """Every package cohort (those named in `names`) rebuilt from the datasets' local copies
-    under `data`, each saved into `into` (the package's cohorts unless given), and the pool
+    under `data`, each saved into `into` (the repository's data/cohorts unless given; a new
+    name is registered in resources.cohorts.NAMES), and the pool
     forgotten so this process draws on the new rows. A copy that is missing is fetched first
     (with `fetch`) where its host serves it openly; one whose host wants a login stops the call
     before anything is fetched or built, saying where to get it and how to lay it out. Returns

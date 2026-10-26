@@ -59,12 +59,18 @@ class TestGudmundson:
         rows = Gudmundson().t2("NAA")
         assert len(rows) > 5
 
-    #*******************************#
-    #   missing submodule message   #
-    #*******************************#
-    def test_missing_checkout_raises_with_instructions(self, monkeypatch):
+    #**********************#
+    #   missing tables     #
+    #**********************#
+    def test_without_the_submodule_or_a_fetch_the_tables_are_unavailable(self, monkeypatch):
+        from mrsandbox.resources import Resources
+
+        def refused(name):
+            raise FileNotFoundError(name)
         monkeypatch.setattr(Gudmundson, "ROOT", Gudmundson.ROOT / "nope")
-        with pytest.raises(FileNotFoundError, match="submodule update"):
+        monkeypatch.setattr(Resources, "path", staticmethod(refused))
+        assert not Gudmundson.available()
+        with pytest.raises(FileNotFoundError):
             Gudmundson().concentrations("NAA")
 
 

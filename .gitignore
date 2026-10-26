@@ -48,4 +48,5 @@ CLAUDE.md
 # calibrations are read from (fetched by hand, gigabytes). Only the challenge basis is tracked.
 data/*
 !data/mrsi_challenge/
+!data/cohorts/
 paper/

@@ -64,8 +64,21 @@ class Gudmundson:
     #******************#
     @classmethod
     def available(cls):
-        """True when the externals/mrs-database submodule is checked out."""
-        return (cls.ROOT / "Values_Concentrations.csv").exists()
+        """True when the tables can be read: the externals/mrs-database submodule is checked
+        out, or an installed package fetches them on first use (resources.gudmundson)."""
+        try:
+            return cls._file("Values_Concentrations.csv").is_file()
+        except OSError:
+            return False
+
+    @classmethod
+    def _file(cls, name):
+        """One table: the submodule's copy in a source checkout, else fetched on first use."""
+        path = cls.ROOT / name
+        if path.exists():
+            return path
+        from mrsandbox.resources import Resources
+        return Resources.path(f"gudmundson/{name}")
 
     #*************#
     #   queries   #
@@ -82,14 +95,9 @@ class Gudmundson:
     #   row selection   #
     #*******************#
     def _select(self, table, metabolite, group, tesla):
-        if not self.available():
-            raise FileNotFoundError(
-                "the Gudmundson database is not checked out; run "
-                "`git submodule update --init externals/mrs-database`"
-            )
-        references = self._table(str(self.ROOT / f"References_{table}.csv"), key=True)
+        references = self._table(str(self._file(f"References_{table}.csv")), key=True)
         rows = []
-        for row in self._table(str(self.ROOT / f"Values_{table}.csv"), key=False):
+        for row in self._table(str(self._file(f"Values_{table}.csv")), key=False):
             if row.get("Metabolite") != metabolite:
                 continue
             merged = {**references.get((row.get("Reference"), row.get("ID")), {}), **row}

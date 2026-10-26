@@ -25,6 +25,8 @@ import pytest
 
 from mrsandbox.resources import Resources
 
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
 
 #*************#
 #   helpers   #
@@ -58,12 +60,14 @@ class TestRegistry:
                 assert entry["page"].startswith("https://"), name
                 continue
             assert entry["url"].startswith("https://"), name
-            assert re.fullmatch(r"[0-9a-f]{32}", entry["md5"]), name
-            if "repo" in entry:  # kept in this repository's data/ folder, never in the wheel
-                source = pathlib.Path(__file__).parents[2] / entry["repo"]
-                assert (entry["repo"].startswith("data/")
-                        and entry["url"].endswith(entry["repo"])), name
-                assert Resources._md5(source) == entry["md5"], name
+            if entry["md5"] is not None:  # none where the publisher states none, or the data moves
+                assert re.fullmatch(r"[0-9a-f]{32}", entry["md5"]), name
+            if "repo" in entry:  # kept in this repository or its submodules, never in the wheel
+                source = ROOT / entry["repo"]
+                assert entry["repo"].startswith(("data/", "externals/")), name
+                assert entry["url"].endswith(pathlib.PurePath(entry["repo"]).name), name
+                if entry["md5"] is not None:
+                    assert Resources._md5(source) == entry["md5"], name
 
     def test_unknown_name_is_a_clear_error(self):
         with pytest.raises(KeyError, match="unknown resource"):
@@ -134,3 +138,57 @@ class TestFetch:
         (tmp_path / "test").mkdir()
         (tmp_path / "test" / "placed.nii.gz").write_bytes(b"data")
         assert Resources.path("test/placed") == tmp_path / "test" / "placed.nii.gz"
+
+
+#**************************************************************************************************#
+#                                     Class TestRepositoryData                                     #
+#**************************************************************************************************#
+class TestRepositoryData:
+    """The data kept in the repository (the cohorts, the Gudmundson tables through its submodule)
+    reaches an installed package through the registry, so the wheel ships none of it."""
+
+    #***************#
+    #   registered  #
+    #***************#
+    def test_every_cohort_is_registered_with_its_file(self):
+        from mrsandbox.resources import cohorts
+        from mrsandbox.scan import cohort
+
+        assert set(cohorts.NAMES) == {path.stem for path in cohort.COHORTS.glob("*.json")}
+        for name in cohorts.NAMES:
+            entry = Resources.REGISTRY[f"cohorts/{name}"]
+            assert (ROOT / entry["repo"]).is_file() and entry["url"].endswith(f"/{name}.json")
+
+    def test_the_gudmundson_tables_are_registered_with_the_submodule(self):
+        from mrsandbox.resources import gudmundson
+
+        for name in gudmundson.TABLES:
+            entry = Resources.REGISTRY[f"gudmundson/{name}"]
+            assert entry["repo"] == f"externals/mrs-database/{name}" and entry["md5"] is None
+
+    #***************#
+    #   installed   #
+    #***************#
+    def test_an_installed_package_reads_a_cohort_through_the_cache(self, tmp_path, monkeypatch):
+        # without the repository's folder, the registry serves the cohort (here from the
+        # checkout's copy, as the published file would be served)
+        from mrsandbox.scan import cohort
+
+        monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path / "cache"))
+        monkeypatch.setattr(cohort, "COHORTS", tmp_path / "absent")
+        loaded = cohort.Cohort.named("uk7t_oxford_7t")
+        assert loaded.name == "uk7t_oxford_7t" and len(loaded.members) == 1
+        assert (tmp_path / "cache" / "cohorts" / "uk7t_oxford_7t.json").is_file()
+        assert "uk7t_oxford_7t" in cohort.Cohort.names()
+
+    def test_an_installed_package_reads_the_gudmundson_tables_through_the_cache(self, tmp_path,
+                                                                                monkeypatch):
+        from mrsandbox.database.gudmundson import Gudmundson
+
+        if not (ROOT / "externals" / "mrs-database" / "Values_T2.csv").is_file():
+            pytest.skip("the mrs-database submodule is not checked out")
+        monkeypatch.setenv(Resources.CACHE_ENV, str(tmp_path / "cache"))
+        monkeypatch.setattr(Gudmundson, "ROOT", tmp_path / "absent")
+        assert Gudmundson.available()
+        assert Gudmundson._file("Values_T2.csv") == tmp_path / "cache" / "gudmundson" / "Values_T2.csv"
+        assert Gudmundson().t2("NAA", tesla=3)

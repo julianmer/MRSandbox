@@ -30,7 +30,9 @@ from mrsandbox.phantom import Brain
 from mrsandbox.scan.calibrations import Calibration
 from mrsandbox.scan.profile import ScannerProfile
 
-COHORTS = pathlib.Path(__file__).resolve().parent.parent / "resources" / "cohorts"
+# the package's cohorts: the repository's data/cohorts in a source checkout; an installed package
+# fetches them from there on first use (resources.cohorts names them)
+COHORTS = pathlib.Path(__file__).resolve().parents[2] / "data" / "cohorts"
 # the operator's own cohorts, joined to the pool beside the package's (Cohort.save a cohort
 # here and it is pooled and listed; forget() in a running process)
 OWN = pathlib.Path.home() / "MRSandbox" / "cohorts"
@@ -229,16 +231,21 @@ class Cohort:
     #***********#
     @classmethod
     def named(cls, name):
-        """One of the package's cohorts (mrsandbox/resources/cohorts) or the operator's
-        own (~/MRSandbox/cohorts), by name; the package's wins the name."""
+        """One of the package's cohorts (the repository's data/cohorts, fetched on first use by
+        an installed package) or the operator's own (~/MRSandbox/cohorts), by name; the
+        package's wins the name."""
+        from mrsandbox.resources import Resources
         path = COHORTS / f"{name}.json"
+        if not path.exists() and f"cohorts/{name}" in Resources.REGISTRY:
+            path = Resources.path(f"cohorts/{name}")
         return cls.load(path if path.exists() else OWN / f"{name}.json")
 
     @staticmethod
     def names():
         """The package's cohorts and the operator's own."""
-        return sorted({path.stem for folder in (COHORTS, OWN) if folder.is_dir()
-                       for path in folder.glob("*.json")})
+        from mrsandbox.resources.cohorts import NAMES
+        return sorted({*NAMES, *(path.stem for folder in (COHORTS, OWN) if folder.is_dir()
+                                 for path in folder.glob("*.json"))})
 
 
 #******************#
