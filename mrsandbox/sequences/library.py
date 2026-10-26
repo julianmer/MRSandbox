@@ -49,15 +49,17 @@ class PulseAcquire(Sequence):
 class Press(Sequence):
     """Ideal PRESS: 90x - te1/2 - 180y - (te1+te2)/2 - 180y - te2/2 - acquire.
 
-    Coherence filters select the double spin echo, the idealization of a crusher scheme
-    that works. `crushers` plays the scheme in their place: a pair of gradient kicks
-    around each refocusing pulse, dephasing on the isochromat ensemble whatever the
-    pulse did not refocus. With perfect pulses and moments of whole cycles over the
-    ensemble the two agree exactly; with a transmit field off its nominal value a weak
-    pair lets through what a scanner's weak crushers let through (the spurious signal
-    of unrefocused coherences), and a strong pair removes it. The localized designs
-    keep their filters: their one-dimensional projection (events.Projection) holds
-    only while no gradient on another axis selects the pathway.
+    Coherence filters on both sides of each refocusing pulse select the double spin echo,
+    the idealization of a crusher pair: only what was transverse in the pathway's order
+    before the pulse passes, not the magnetization that recovered during the delay and
+    that an imperfect pulse tips. `crushers` plays the scheme in their place: a pair of
+    gradient kicks around each refocusing pulse, dephasing on the isochromat ensemble
+    whatever the pulse did not refocus. With perfect pulses and moments of whole cycles
+    over the ensemble the two agree exactly; with a transmit field off its nominal value
+    a weak pair lets through what a scanner's weak crushers let through (the spurious
+    signal of unrefocused coherences), and a strong pair removes it. The localized
+    designs keep their filters: their one-dimensional projection (events.Projection)
+    holds only while no gradient on another axis selects the pathway.
 
     Args:
         te1_s: First echo time in seconds (may be a traced tensor).
@@ -77,9 +79,10 @@ class Press(Sequence):
         self.te2_s = te2_s
         refocus = Pulse(180.0, phase_deg=90.0)
         if crushers is None:
-            events = (Pulse(90.0), CoherenceFilter(-1), Delay(te1_s / 2.0), refocus,
-                      CoherenceFilter(+1), Delay((te1_s + te2_s) / 2.0), refocus,
-                      CoherenceFilter(-1), Delay(te2_s / 2.0))
+            events = (Pulse(90.0), CoherenceFilter(-1), Delay(te1_s / 2.0),
+                      CoherenceFilter(-1), refocus, CoherenceFilter(+1),
+                      Delay((te1_s + te2_s) / 2.0),
+                      CoherenceFilter(+1), refocus, CoherenceFilter(-1), Delay(te2_s / 2.0))
         else:
             first, second = Gradient(crushers[0], 20.0), Gradient(crushers[1], 20.0)
             events = (Pulse(90.0), Delay(te1_s / 2.0), first, refocus, first,
@@ -98,7 +101,11 @@ class Steam(Sequence):
     """Ideal STEAM: 90x - te/2 - 90x - tm - 90(-x) - te/2 - acquire, stimulated-echo pathway
     only: order +1 in the first half, stored along z through the mixing time, order -1
     in the second half, so the shifts refocus at the echo (the pathway -1, 0, -1 has the
-    same half amplitude and never refocuses).
+    same half amplitude and never refocuses). The filters stand for the crushers of the two
+    echo halves and of the mixing time: what recovered during the first half is dropped
+    before the second pulse, and what recovers during the mixing time is left out (Delay
+    recover=False), since the third pulse would tip both and the second half's crusher
+    dephase them, which a filter on order zero cannot tell from the stored echo.
 
     Args:
         te_s: Echo time in seconds.
@@ -114,9 +121,9 @@ class Steam(Sequence):
         self.tm_s = tm_s
         last = Pulse(90.0, phase_deg=180.0)  # the echo upright, in phase with a plain excitation
         if crushers is None:
-            events = (Pulse(90.0), CoherenceFilter(+1), Delay(te_s / 2.0), Pulse(90.0),
-                      CoherenceFilter(0), Delay(tm_s), last, CoherenceFilter(-1),
-                      Delay(te_s / 2.0))
+            events = (Pulse(90.0), CoherenceFilter(+1), Delay(te_s / 2.0), CoherenceFilter(+1),
+                      Pulse(90.0), CoherenceFilter(0), Delay(tm_s, recover=False), last,
+                      CoherenceFilter(-1), Delay(te_s / 2.0))
         else:
             # `crushers` plays the scheme in the filters' place (see Press): the same kick in both
             # echo halves, which the stimulated echo's orders +1 and -1 undo, and a spoiler in the
@@ -225,18 +232,20 @@ def voxel_edges(size_mm):
 #   slab pulse   #
 #****************#
 def slab_pulse(flip_deg, duration_s, time_bandwidth, axis, edge_mm, span, reference_ppm, f0_mhz,
-               phase_deg=0.0):
+               phase_deg=0.0, recover=True):
     """One slice-selective Shinnar-Le Roux pulse of a localized design and its gradient
     in Hz per mm: the slab of `edge_mm` for spins at `reference_ppm` (the bandwidth,
     the time-bandwidth product over the duration, over the edge), the ensemble
     spanning `span` edges, and the carrier, a phase ramp from the pulse's start,
-    reading `phase_deg` at the pulse's centre."""
+    reading `phase_deg` at the pulse's centre; `recover` False for a pulse between
+    crushers (ShapedPulse)."""
     slope = time_bandwidth / duration_s / edge_mm
     kind = "excitation" if flip_deg == 90 else "refocusing"
     pulse = ShapedPulse.slr(float(flip_deg), duration_s, time_bandwidth, kind, steps=128,
                             offset_ppm=reference_ppm,
                             phase_deg=phase_deg - 180.0 * reference_ppm * f0_mhz * duration_s,
-                            gradient_hz_per_mm=slope, gradient_axis=axis, extent_mm=span * edge_mm)
+                            gradient_hz_per_mm=slope, gradient_axis=axis, extent_mm=span * edge_mm,
+                            recover=recover)
     return pulse, slope
 
 
@@ -291,8 +300,9 @@ class LocalizedPress(Sequence):
     5.2 ms would take 31 uT). Each axis is averaged as soon as its pulse has played
     (`Projection`), and coherence filters on BOTH sides of every refocusing pulse
     select the pathway, as its crusher pair does: only what was transverse before the
-    pulse may pass, not the magnetization that recovered during the delay and that
-    the pulse's edges excite. Every pulse's phase sets its carrier, a ramp from the
+    pulse may pass, not the magnetization that recovered during the delay or inside
+    the pulse (its recovery left out) and that the pulse's edges excite. Every pulse's
+    phase sets its carrier, a ramp from the
     pulse's start, to read its nominal phase at the pulse's centre. The echo times run
     between the pulse centres.
 
@@ -332,9 +342,9 @@ class LocalizedPress(Sequence):
         excitation, slope = slab_pulse(90, excitation_s, self.EXCITATION_TBW, axes[0], edges[0],
                                        *frame)
         refocus_y, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, axes[1], edges[1],
-                                  *frame, 90.0)
+                                  *frame, 90.0, recover=False)
         refocus_z, _ = slab_pulse(180, refocusing_s, self.REFOCUSING_TBW, axes[2], edges[2],
-                                  *frame, 90.0)
+                                  *frame, 90.0, recover=False)
         super().__init__(
             excitation,
             Gradient(-self.REPHASE * slope * excitation_s, span * edges[0], axis=axes[0]),
@@ -413,8 +423,10 @@ class LocalizedMegaPress(Sequence):
             raise ValueError(f"taus_s {self.taus_s} are too short for the pulses between them")
         press, frame = LocalizedPress, (span, reference_ppm, f0_mhz)
         excitation, slope = slab_pulse(90, t90, press.EXCITATION_TBW, "x", edges[0], *frame)
-        refocus_y, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "y", edges[1], *frame, 90.0)
-        refocus_z, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "z", edges[2], *frame, 90.0)
+        refocus_y, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "y", edges[1], *frame, 90.0,
+                                  recover=False)
+        refocus_z, _ = slab_pulse(180, t180, press.REFOCUSING_TBW, "z", edges[2], *frame, 90.0,
+                                  recover=False)
         # one editing pulse object played twice: computed once per run
         edit = editing_pulse(edit_ppm, f0_mhz, edit_s)
         m = self.EDIT_CRUSHER_PER_MM
@@ -464,11 +476,13 @@ class LocalizedSteam(Sequence):
     The stimulated-echo pathway +1, 0, -1 is selected by coherence filters on both
     sides of the second and third pulse, as the crushers of the two echo halves and
     of the mixing time do; zero-quantum coherences of coupled spins pass the mixing
-    time, as they do on a scanner. The first pulse is rephased after it, the second,
-    which stores, before it (the same pulse run backwards), the third after it, each
-    by 0.52 of its gradient moment, and each axis is averaged as soon as its pulse
-    has played (`Projection`). The times run between pulse centres; the carriers
-    read their nominal phase at the pulse centres.
+    time, as they do on a scanner, while what recovers during it is left out (Delay
+    recover=False): the third pulse tips it and the second half's crusher dephases it,
+    which the filter on order zero cannot tell from the stored echo. The first pulse is
+    rephased after it, the second, which stores, before it (the same pulse run
+    backwards), the third after it, each by 0.52 of its gradient moment, and each axis
+    is averaged as soon as its pulse has played (`Projection`). The times run between
+    pulse centres; the carriers read their nominal phase at the pulse centres.
 
     Args:
         te_s: Echo time in seconds.
@@ -494,17 +508,18 @@ class LocalizedSteam(Sequence):
             raise ValueError(f"te_s {te_s} and tm_s {tm_s} are too short for the "
                              f"{t * 1e3:.1f} ms pulses")
 
-        def slab(axis, edge, phase_deg):
+        def slab(axis, edge, phase_deg, recover=True):
             pulse, slope = slab_pulse(90, t, self.PULSE_TBW, axis, edge, span, reference_ppm,
-                                      f0_mhz, phase_deg)
+                                      f0_mhz, phase_deg, recover=recover)
             return pulse, Gradient(-self.REPHASE * slope * t, span * edge, axis=axis)
 
         (first, after_x), (second, before_y), (third, after_z) = (
-            slab("x", edges[0], 0.0), slab("y", edges[1], 0.0), slab("z", edges[2], 180.0))
+            slab("x", edges[0], 0.0), slab("y", edges[1], 0.0, recover=False),
+            slab("z", edges[2], 180.0, recover=False))
         super().__init__(
             first, after_x, CoherenceFilter(+1), Projection(span), Delay(te_s / 2.0 - t),
             CoherenceFilter(+1), before_y, second, CoherenceFilter(0), Projection(span),
-            Delay(tm_s - t),
+            Delay(tm_s - t, recover=False),
             CoherenceFilter(0), third, after_z, CoherenceFilter(-1), Projection(span),
             Delay(te_s / 2.0 - t / 2.0),
             tr_s=tr_s,
@@ -570,7 +585,7 @@ class LocalizedSemiLaser(Sequence):
                                           steps=128, offset_ppm=reference_ppm,
                                           extent_mm=span * edge,
                                           gradient_hz_per_mm=self.AFP_BANDWIDTH_HZ / edge,
-                                          gradient_axis=axis)
+                                          gradient_axis=axis, recover=False)
 
         # one pulse object per pair: its propagator is computed once per run
         afp_y, afp_z = afp("y", edges[1]), afp("z", edges[2])
@@ -662,7 +677,7 @@ class LocalizedMegaSemiLaser(Sequence):
                                           steps=128, offset_ppm=reference_ppm,
                                           extent_mm=span * edge,
                                           gradient_hz_per_mm=laser.AFP_BANDWIDTH_HZ / edge,
-                                          gradient_axis=axis)
+                                          gradient_axis=axis, recover=False)
 
         afp_y, afp_z, edit = (afp("y", edges[1]), afp("z", edges[2]),
                               editing_pulse(edit_ppm, f0_mhz, edit_s))
@@ -974,11 +989,13 @@ class MegaPress(Sequence):
             Pulse(90.0),
             CoherenceFilter(-1),
             Delay(t1),
+            CoherenceFilter(-1),
             Pulse(180.0, phase_deg=90.0),
             CoherenceFilter(+1),
             Delay(t2),
             SelectivePulse(180.0, offset_ppm=edit_ppm, bandwidth_hz=bandwidth_hz),
             Delay(t3),
+            *((CoherenceFilter(+1),) if crushers else ()),
             Pulse(180.0, phase_deg=90.0),
             *((CoherenceFilter(-1),) if crushers else ()),
             Delay(t4),
@@ -1143,17 +1160,17 @@ class SemiLaser(Sequence):
 
         # one pulse object played four times: its propagator is computed once per run
         afp = ShapedPulse.hyperbolic_secant(afp_duration_s, afp_bandwidth_hz, afp_peak_hz,
-                                            offset_ppm=4.65)
+                                            offset_ppm=4.65, recover=False)
         tau = (te_s - 4.0 * afp_duration_s) / 8.0
         if tau < 0.0:
             raise ValueError(f"te_s {te_s} is too short for four {afp_duration_s * 1e3:.1f} ms "
                              "refocusing pulses")
         if crushers is None:
             events = (Pulse(90.0), CoherenceFilter(-1), Delay(tau),
-                      afp, CoherenceFilter(+1), Delay(2.0 * tau),
-                      afp, CoherenceFilter(-1), Delay(2.0 * tau),
-                      afp, CoherenceFilter(+1), Delay(2.0 * tau),
-                      afp, CoherenceFilter(-1), Delay(tau))
+                      CoherenceFilter(-1), afp, CoherenceFilter(+1), Delay(2.0 * tau),
+                      CoherenceFilter(+1), afp, CoherenceFilter(-1), Delay(2.0 * tau),
+                      CoherenceFilter(-1), afp, CoherenceFilter(+1), Delay(2.0 * tau),
+                      CoherenceFilter(+1), afp, CoherenceFilter(-1), Delay(tau))
         else:
             # `crushers` plays a gradient pair around each of the four pulses in the filters'
             # place (see Press): four moments in cycles per millimetre over the 20 mm ensemble,

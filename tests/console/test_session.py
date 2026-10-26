@@ -1015,8 +1015,8 @@ class TestSession:
         assert [text for _, text in drawn["pulses"]] == ["90°", "180°", "180°"]
         assert (np.allclose([time for time, _ in drawn["pulses"]], [0.0, 5.5, 20.5], atol=0.6)
                 and drawn["adc"][0] == pytest.approx(30.0))
-        # filters, no gradient played
-        assert len(drawn["marks"]) == 3 and max(abs(g) for _, g in drawn["x"]) == 0.0
+        # filters (one after the 90, one on each side of every 180), no gradient played
+        assert len(drawn["marks"]) == 5 and max(abs(g) for _, g in drawn["x"]) == 0.0
         session.protocol.sequence = "Custom"  # the starter: a spin echo with crushers
         drawn = session.diagram()
         assert drawn["adc"][0] == pytest.approx(30.0) and max(abs(g) for _, g in drawn["x"]) > 5.0

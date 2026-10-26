@@ -20,7 +20,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Cycled, Delay, Engine, Gradient, Press, Pulse, Sequence, SpinSystem
+from mrsandbox import (CoherenceFilter, Cycled, Delay, Engine, Gradient, Press, Pulse, Sequence,
+                       SpinSystem)
 
 
 @pytest.fixture(scope="module")
@@ -84,17 +85,22 @@ class TestCycling:
         bare = amplitudes(engine, bare_press(), two_spins(), 0.8)
         assert np.abs(bare - filtered).max() > 1e-2 * np.abs(filtered).max()
 
-    def test_relaxing_cycle_matches_crushers_where_the_filters_leak(self, engine):
-        # with T1 and imperfect flips the filters keep what neither a cycle nor a
-        # crusher pair does: the magnetization recovered before the first 180,
-        # tipped to +1 there and refocused to -1 at the second, an O(TE / T1) term
+    def test_relaxing_cycle_matches_crushers_and_filters(self, engine):
+        # with T1 and imperfect flips the magnetization recovered before the first 180 is
+        # tipped to +1 there and refocused to -1 at the second: the cycle cancels it, the
+        # crusher pair dephases it, and the filter before each 180 drops it; a filter after
+        # the pulse alone keeps it, an O(TE / T1) term
         table, receiver = exorcycle()
         pair = two_spins().with_relaxation(t1_s=1.3, t2_s=0.25)
         cycled = amplitudes(engine, Cycled(bare_press(), table, receiver), pair, 0.8)
         crushed = amplitudes(engine, crushed_press(), pair, 0.8)
         filtered = amplitudes(engine, Press(te1_s=0.011, te2_s=0.019), pair, 0.8)
         np.testing.assert_allclose(cycled, crushed, atol=1e-6 * np.abs(crushed).max())
-        gap = np.abs(cycled - filtered).max() / np.abs(filtered).max()
+        np.testing.assert_allclose(cycled, filtered, atol=1e-6 * np.abs(filtered).max())
+        after = Sequence(Pulse(90.0), CoherenceFilter(-1), Delay(0.0055),
+                         Pulse(180.0, phase_deg=90.0), CoherenceFilter(+1), Delay(0.015),
+                         Pulse(180.0, phase_deg=90.0), CoherenceFilter(-1), Delay(0.0095))
+        gap = np.abs(cycled - amplitudes(engine, after, pair, 0.8)).max() / np.abs(filtered).max()
         assert 1e-3 < gap < 5e-2, gap
         # with four spins the cycle keeps a path crushers dephase (-1, -3, -1 through
         # a triple quantum), which at these flips is below 1e-4 of the signal

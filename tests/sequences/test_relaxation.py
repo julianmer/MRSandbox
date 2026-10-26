@@ -16,6 +16,7 @@
 #*************#
 #   imports   #
 #*************#
+import copy
 import math
 
 import numpy as np
@@ -35,9 +36,17 @@ def engine():
     return Engine(3.0)
 
 
-def total_amplitude(engine, sequence, system):
-    _, amps = engine.lines(sequence, system)
+def total_amplitude(engine, sequence, system, b1_scale=1.0):
+    _, amps = engine.lines(sequence, system, b1_scale=b1_scale)
     return float(np.abs(ops.convert_to_numpy(amps)).sum())
+
+
+def unrecovered(event):
+    """A shaped pulse with its recovery left out; any other event as it is."""
+    if isinstance(event, ShapedPulse):
+        event = copy.copy(event)
+        event.recover = False
+    return event
 
 
 #**************************************************************************************************#
@@ -200,6 +209,37 @@ class TestRepetition:
             ratio = (total_amplitude(engine, filtered(tr), self.system(t1))
                      / total_amplitude(engine, filtered(None), self.system(t1)))
             assert abs(ratio - (1.0 - math.exp(-(tr - tau) / t1))) < 1e-5
+
+    #*********************#
+    #   recovered water   #
+    #*********************#
+    def test_nulled_water_stays_nulled_through_imperfect_pulses(self, engine):
+        # a train that nulls the water exactly, then the design with every pulse 2 percent
+        # over nominal: what recovers during the delays, or inside a played pulse, is tipped by
+        # the imperfect 180s, or by STEAM's third pulse, where a crusher dephases it; the
+        # filters on both sides of each pulse drop it, the pulses between crushers and STEAM's
+        # mixing time leave their recovery out
+        from mrsandbox.sequences import (Chess, LocalizedPress, LocalizedSteam, MegaPress,
+                                         SemiLaser, Steam)
+
+        water = WaterSource.system(42.5774785).with_relaxation(t1_s=1.3, t2_s=0.08)
+        train = Chess(flip_deg=90.0 / 1.02)
+        f0_mhz = 3.0 * 42.5774785
+        for design in (Press(0.011, 0.023, tr_s=2.0), Steam(0.034, 0.010, tr_s=2.0),
+                       MegaPress(tr_s=2.0), SemiLaser(0.034, tr_s=2.0),
+                       LocalizedPress(0.014, 0.020, f0_mhz, tr_s=2.0),
+                       LocalizedSteam(0.034, 0.010, f0_mhz, tr_s=2.0)):
+            full = total_amplitude(engine, design, water, 1.02)
+            left = total_amplitude(engine, train + design, water, 1.02)
+            if any(isinstance(event, ShapedPulse) and event.gradient_hz_per_mm
+                   for event in design.events):
+                # a played excitation's own recovery, tipped by its remainder, is residual
+                # water a scanner has too; with it left out as well, nothing is left
+                assert 1e-4 * full < left < 3e-3 * full, (type(design).__name__, left / full)
+                quiet = copy.copy(design)
+                quiet.events = tuple(unrecovered(event) for event in design.events)
+                left = total_amplitude(engine, train + quiet, water, 1.02)
+            assert left < 1e-5 * full, (type(design).__name__, left / full)
 
     #*****************#
     #   convergence   #

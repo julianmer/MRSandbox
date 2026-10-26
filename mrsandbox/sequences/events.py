@@ -278,6 +278,9 @@ class ShapedPulse(Event):
             and the moments along x, y, z in cycles per millimetre, at the step
             midpoints and, last, at the pulse's end. The spins then run off resonance
             during the pulse by that field (scan.eddy fills it).
+        recover: False leaves the populations' recovery toward equilibrium out of the
+            pulse (as for Delay): a refocusing or storing pulse between crushers, whose
+            own recovery the pulse's remainder tips and the crusher after it dephases.
     """
 
     free = ("flip_deg", "duration_s", "envelope", "offset_ppm", "frequency_hz", "peak_hz",
@@ -294,10 +297,11 @@ class ShapedPulse(Event):
     def __init__(self, flip_deg, duration_s, envelope, offset_ppm=0.0, phase_deg=0.0,
                  gradient_hz_per_mm=0.0, gradient_axis="x", extent_mm=20.0,
                  frequency_hz=None, peak_hz=None, induced=None, gradient_shape=None,
-                 gradient_normal=None):
+                 gradient_normal=None, recover=True):
         if gradient_axis not in ("x", "y", "z"):
             raise ValueError(f"unknown gradient axis {gradient_axis!r}; known: x, y, z")
         self.flip_deg = flip_deg
+        self.recover = recover
         self.duration_s = duration_s
         self.envelope = envelope
         self.offset_ppm = offset_ppm
@@ -512,6 +516,8 @@ class ShapedPulse(Event):
             if steps not in maps:
                 maps[steps] = relaxation(ctx, dt * (steps / 2.0))
             scale, shift = maps[steps]
+            if not self.recover:
+                shift = 0.0
             rho = self._sandwich(segments[k], rho * scale + shift) * scale + shift
         frame = -2.0 * math.pi * total
         if ops.ndim(total) > 0:
@@ -743,6 +749,10 @@ class Delay(Event):
     Args:
         t_s: Duration in seconds - may be a traced tensor, so sequence timings stay
             free, sweepable, and differentiable.
+        recover: False leaves the populations' recovery toward equilibrium out of this
+            delay (their decay stays): what recovers here is tipped by the next pulse and
+            dephased by a crusher no filter can stand for, as in a STEAM mixing time, where
+            the stored echo and the recovered magnetization are both order zero.
     """
 
     free = ("t_s",)
@@ -750,8 +760,9 @@ class Delay(Event):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, t_s):
+    def __init__(self, t_s, recover=True):
         self.t_s = t_s
+        self.recover = recover
 
     #***********#
     #   apply   #
@@ -763,6 +774,8 @@ class Delay(Event):
                  * ops.convert_to_tensor(self.t_s, dtype=precision.REAL)
                  * ops.cast(ctx.q, precision.REAL))
         rho = rho * ops.exp(nops.complex_from(ops.zeros_like(angle), angle))
+        if not self.recover:
+            return rho * relaxation(ctx, self.t_s)[0]
         return relaxed(rho, ctx, self.t_s)
 
 

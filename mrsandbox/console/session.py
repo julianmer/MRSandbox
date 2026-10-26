@@ -46,11 +46,11 @@ from mrsandbox.scan.maps import MapReading
 from mrsandbox.scan.run import MotionReading, PhysioReading
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.cohort import holding, package
-from mrsandbox.scan import Multiplex, ScannerProfile
+from mrsandbox.scan import Multiplex, ScannerProfile, VirtualScan
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay, Gradient,
                                  Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
-                                 OuterVolumeSuppression, Press, PulseAcquire, SelectivePulse,
+                                 OuterVolumeSuppression, Press, SelectivePulse,
                                  Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
 from mrsandbox.sequences.events import Projection, trapezoid
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
@@ -2843,23 +2843,28 @@ class Session:
                                 if isinstance(node, dict) else [(group, node)]):
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     state[path] = float(value)
-        exam.adjustment = self.adjust(exam, scan.voxel(exam.position_mm, exam.size_mm,
-                                                       turn=turning(exam.turn_deg)
-                                                       if any(exam.turn_deg) else None),
-                                      truth, state)
-        room = Multiplex(self.body(), profile.scanner, exam.conditions, records=profile.records,
-                         params=self.params({**state, **exam.overrides}), compiled=self.compiled,
-                         # one engine per field for every exam: its graphs are built once, not
-                         # once an exam
-                         engine=self._bodies.setdefault(("engine", profile.scanner.b0_t),
-                                                        Engine(profile.scanner)),
-                         **self.fields(card),
-                         # the array's noise is tied to the scanner's record AT THIS VOXEL, so
-                         # every place has the record's SNR: what an array gives by place (better
-                         # under its loops) is not in the console yet
-                         coils=None if coils is None else (
-                             coils.loaded(own_noise=self.own_share()[0]) if coils.loops
-                             else coils).calibrated(exam.position_mm, exam.size_mm))
+        # the room's recipe: the scanner's state of this exam pinned over the operator's settings
+        shared = dict(records=profile.records, params=self.params({**state, **exam.overrides}),
+                      # one engine per field for every exam: its graphs are built once, not
+                      # once an exam
+                      engine=self._bodies.setdefault(("engine", profile.scanner.b0_t),
+                                                     Engine(profile.scanner)),
+                      **self.fields(card),
+                      # the array's noise is tied to the scanner's record AT THIS VOXEL, so
+                      # every place has the record's SNR: what an array gives by place (better
+                      # under its loops) is not in the console yet
+                      coils=None if coils is None else (
+                          coils.loaded(own_noise=self.own_share()[0]) if coils.loops
+                          else coils).calibrated(exam.position_mm, exam.size_mm))
+        # the prescan sees the person as the room draws them: the subject the seed's, the
+        # scanner's state this exam's
+        table = VirtualScan(self.body(), profile.scanner, sequence, **shared)
+        exam.adjustment = self.adjust(exam, table.voxel(exam.position_mm, exam.size_mm,
+                                                        turn=turning(exam.turn_deg)
+                                                        if any(exam.turn_deg) else None),
+                                      table.params.sample(seed), state)
+        room = Multiplex(self.body(), profile.scanner, exam.conditions, compiled=self.compiled,
+                         **shared)
         names = list(exam.conditions)
         # interleaved, as an edited scan runs
         exam.schedule = [names[k % len(names)] for k in range(card.averages)]
@@ -2892,20 +2897,25 @@ class Session:
         """The scanner's water suppression adjustment for an exam, as a prescan finds it on the
         subject: the factor on the train's flips that leaves of the water what the scanner's own
         adjustment leaves: the drawn water.adjusted_residual (a record per scanner, read against
-        the water references, signed by the residual's phase against the metabolites) of the full
-        water's steady state at the excitation. The water is summed over the voxel's field groups
-        (in or out of the pulses' band), its tissues (each with its own T1 and content) and the
+        the water references at the echo, signed by the residual's phase against the metabolites)
+        of the full water's steady state. The water is summed over the voxel's field groups
+        (in or out of the pulses' band), its tissues (each with its own T1 and content, and
+        weighed by its T2 decay over the echo, where the record is read) and the
         drawn transmit scale, in the closed form of the train's ideal pulses: a spin in the band
-        keeps cos(flip) of its Mz, the crusher keeps Mz alone, the gaps and the rest of the TR
-        recover with T1 (from the excitation to the next train), which is what the engine then
-        plays. A played train the engine plays to its steady state instead, one water spin per
-        tissue and field group in one batch: its pulses' own band and the T1 acting through them
-        put the null where the closed form cannot follow. The exam's designs get the adjusted
-        train. 1.0 without a prescan, without a train, or with the shortcut water."""
+        keeps cos(flip) of its Mz, the crusher keeps Mz alone, the gaps (the OVS slabs' time
+        among them) and the rest of the TR recover with T1 (from the excitation to the next
+        train), which is what the engine then plays. A played train the engine plays to its
+        steady state instead, one water spin per tissue and field group in one batch, through
+        the card's own design without its gradients: its pulses' own band and the T1 acting
+        through them put the null where the closed form cannot follow, what recovers inside the
+        excitation is tipped by the pulse's remainder, and each tissue decays through the echo
+        as the pulses play it. The exam's designs get the adjusted train. 1.0 without a
+        prescan, without a train, or with the shortcut water."""
         card = exam.card
         if not self.prescan or card.water_suppression not in SUPPRESSION:
             return 1.0
-        train = SUPPRESSION[card.water_suppression](real=card.real)
+        preludes = self.preludes(card)
+        train = preludes[card.water_suppression]
         n = len(train.events)
         if not train.adjusted or any(
                 len(design.events) < n
@@ -2925,20 +2935,25 @@ class Session:
                     per_tissue(truth.water.t2_s, name))
                    for name in ("gm", "wm", "csf")
                    if getattr(fractions, name) * content[name] > 0.0]
-        tr_s = card.tr_ms / 1000.0
+        tr_s, te_s = card.tr_ms / 1000.0, card.te_ms / 1000.0
+        # from the train's last pulse to the excitation the OVS slabs take their time (the voxel's
+        # water lies off their bands): a gap of the train's
+        gap = preludes["OVS"].duration_s if "OVS" in preludes else 0.0
+        delays = (*train.delays_s[:-1], train.delays_s[-1] + gap)
         # the water recovers from the excitation to the next train
-        rest = max(tr_s - sum(train.delays_s), 0.0)
+        rest = max(tr_s - sum(delays), 0.0)
         if train.pulse_s is None:
             factors = np.linspace(0.5, 1.5, 1001)
             water, full = np.zeros_like(factors), 0.0
-            for share, t1, _ in tissues:
-                # the reference: no train, the same TR
-                full += share * (1.0 - np.exp(-(rest + sum(train.delays_s)) / t1))
+            for share, t1, t2 in tissues:
+                # the reference: no train, the same TR; the echo's decay on both
+                share = share * np.exp(-te_s / t2)
+                full += share * (1.0 - np.exp(-(rest + sum(delays)) / t1))
                 for mean, weight in groups:
-                    inband = abs(mean - shift) <= train.bandwidth_hz / 2.0
+                    inband = abs(shift - mean) <= train.bandwidth_hz / 2.0
                     mz = np.ones_like(factors)
                     for _ in range(8):                                    # to the steady state
-                        for flip, delay in zip(train.flips_deg, train.delays_s):
+                        for flip, delay in zip(train.flips_deg, delays):
                             if inband:
                                 mz = mz * np.cos(np.radians(flip * factors * b1))
                             mz = 1.0 - (1.0 - mz) * np.exp(-delay / t1)
@@ -2948,11 +2963,26 @@ class Session:
                     water = water + share * weight * before
         else:
             # the played train in the engine's spoiled steady state of the TR, every tissue and
-            # field group a draw of one batch (T1, T2, the transmit scale, the offset); what stands
-            # before the excitation over the full water's, weighted as the closed form weights its
-            # tissues
+            # field group a draw of one batch (T1, T2, the transmit scale, the offset), through the
+            # card's own design without its gradients (one spin at the slabs' centre, Projections
+            # and Gradients dropped), so what the readout sees is landed: the water recovering
+            # through the excitation and tipped by its remainder, each tissue decaying through
+            # the echo as the pulses play it
+            def quiet(event):
+                if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
+                    event = copy.copy(event)
+                    event.gradient_hz_per_mm, event.gradient_shape = 0.0, None
+                    event.gradient_normal = None
+                return event
+
+            skip = sum(len(prelude.events) for prelude in preludes.values())
+            readout = [quiet(event) for event in exam.sequence.events[skip:]
+                       if not isinstance(event, (Projection, Gradient))]
+            probe = Sequence(*((Delay(gap),) if gap else ()), *readout, tr_s=tr_s)
             engine = voxel.scan.engine
-            rows = [(t1, t2, share * weight, mean - shift) for share, t1, t2 in tissues
+            # the offset as the voxel plays it (scan.voxel offset_hz): the scanner's frequency
+            # error less the group's field
+            rows = [(t1, t2, share * weight, shift - mean) for share, t1, t2 in tissues
                     for mean, weight in groups]
             draws = [ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
                 [[t1] for t1, _, _, _ in rows], [[t2] for _, t2, _, _ in rows], [b1] * len(rows),
@@ -2962,11 +2992,13 @@ class Session:
                 fn, _ = engine.compiled_batch(design, ((system,),))
                 return np.asarray(ops.convert_to_numpy(
                     Backend.vmap(fn, in_axes=(0, 0, 0, 0))(*draws)[1]))
-            reference = steady(PulseAcquire(tr_s=tr_s))
-            shares = np.array([share * (1.0 - np.exp(-tr_s / t1)) for t1, _, share, _ in rows])
+            reference = steady(probe)
+            # each tissue and group weighs what its full water gives the readout
+            shares = (np.array([share for _, _, share, _ in rows])
+                      * np.abs(reference.sum(axis=1)))
             factors = np.linspace(0.5, 1.5, 101)
             water = np.array([np.sum(shares * np.real(np.sum(
-                steady(train.scaled(factor) + PulseAcquire(tr_s=tr_s)) * np.conj(reference),
+                steady(train.scaled(factor) + probe) * np.conj(reference),
                 axis=1)) / np.sum(np.abs(reference) ** 2, axis=1)) for factor in factors])
             full = float(shares.sum())
         # the scanner's adjustment leaves its record's residual, not zero: land there, on the
@@ -2989,10 +3021,13 @@ class Session:
                               & (magnitude[1:-1] <= magnitude[2:])) + 1
         null = dips[np.abs(factors[dips] - 1.0).argmin()] if dips.size else magnitude.argmin()
         crossings = np.flatnonzero(np.sign(error[:-1]) != np.sign(error[1:]))
-        above = crossings[crossings >= null]
+        # from the grid interval ending at the null's point on: the null itself may lie inside it
+        above = crossings[crossings >= null - 1]
         if above.size:
+            # the crossing itself, between its two grid points
             k = above[0]
-            factor = float(factors[k if abs(error[k]) <= abs(error[k + 1]) else k + 1])
+            factor = float(factors[k] + (factors[k + 1] - factors[k])
+                           * error[k] / (error[k] - error[k + 1]))
         else:
             factor = float(factors[null])
         tuned = train.scaled(factor)
