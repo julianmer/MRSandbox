@@ -20,5 +20,10 @@ under that dataset's terms, as the package's resource modules state them.
 | hmri_demo_prisma_3t | the hMRI toolbox demo dataset (github.com/hMRI-group/hMRI-toolbox-demodata) | CC BY 4.0 |
 | uk7t_oxford_7t | the UK7T Network travelling head, Oxford (ora.ox.ac.uk, Clarke et al. 2020) | ODC-By |
 
+The macromolecule basis in `data/mrsi_challenge/` (nine component spectra, M0.91 to M3.77) is the
+example dataset's basis of the 2024 MRSI Data Processing and Quantification Challenge (LaMaster,
+Merkofer, van de Sande, Soher, Strasser, Ma; arXiv:2609.02637), copied unchanged from the challenge's
+distribution; the package's author is an author of that dataset.
+
 Share-alike terms (IXI, NeuroMET) apply to those cohort files; the non-commercial terms of NeuroMET
 and Big GABA apply to their cohort files.
