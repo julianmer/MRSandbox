@@ -26,10 +26,10 @@ data  = scan.voxel(position_mm=(10, -20, 5), size_mm=20).acquire(seed=7)    # NI
 ## Install
 
 ```
-pip install "mrsandbox[jax]"
+pip install mrsandbox
 ```
 
-Python 3.11 or newer. The package runs on one Keras backend: `jax` is the one the physics is measured on, `torch` and `tensorflow` are the other extras. Acquisitions play their spurious echoes and eddy phase through [Augmentrum](https://github.com/julianmer/Augmentrum), which comes with the install. The console comes with `mrsandbox[console]`, the tests, ruff and pypulseq with `mrsandbox[dev]`. The wheel ships no data: the measured cohorts' readings come from this repository and the large public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) from their publishers, fetched on first use into `~/.cache/mrsandbox`, checksum verified where the publisher states one; `MRSANDBOX_CACHE` moves the cache.
+Python 3.11 or newer. JAX comes with the install as the Keras backend the physics is measured on; `mrsandbox[torch]` and `mrsandbox[tensorflow]` add the other two. Acquisitions play their spurious echoes and eddy phase through [Augmentrum](https://github.com/julianmer/Augmentrum), which comes with the install. The console comes with `mrsandbox[console]`, the tests, ruff and pypulseq with `mrsandbox[dev]`. The wheel ships no data: the measured cohorts' readings come from this repository and the large public data (the digital heads, the measured maps, the raw datasets the calibrations are read from) from their publishers, fetched on first use into `~/.cache/mrsandbox`, checksum verified where the publisher states one; `MRSANDBOX_CACHE` moves the cache.
 
 ## What it does
 

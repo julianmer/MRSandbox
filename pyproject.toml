@@ -32,6 +32,10 @@ dependencies = [
     "nifti-mrs-plus>=0.2.0",
     # the transient instabilities, the spurious echoes and the eddy phase of every acquisition
     "augmentrum>=0.0.3",
+    # the backend the physics is measured on, so a plain install runs; flatbuffers serializes
+    # the engine's graph exports (jax.export)
+    "jax",
+    "flatbuffers",
 ]
 
 [project.urls]
@@ -40,7 +44,6 @@ Source = "https://github.com/julianmer/MRSandbox"
 Issues = "https://github.com/julianmer/MRSandbox/issues"
 
 [project.optional-dependencies]
-# flatbuffers serializes the engine's graph exports (jax.export)
 jax = ["jax", "flatbuffers"]
 torch = ["torch"]
 tensorflow = ["tensorflow"]
