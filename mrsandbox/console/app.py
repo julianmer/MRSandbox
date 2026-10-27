@@ -81,6 +81,7 @@ height: 50px; padding: 0; font-size: 10.5px;
          line-height: 1.15; cursor: grab; }}
 .chip.over {{ border-left: 4px solid {GLOW}; }}
 .chip.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
+.pick {{ fill: transparent; cursor: pointer; }} .pick:hover {{ fill: {GLOW}; fill-opacity: 0.12; }}
 .chip.prelude {{ border-style: dashed; color: {DIM} !important; cursor: default; }}
 .tool.on {{ border-color: {SAND}; color: {GLOW} !important; background: #2b241e; }}
 .info {{ display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 5px; \
@@ -328,7 +329,7 @@ if LOGO is not None:
 #*************#
 #   diagram   #
 #*************#
-def lanes(drawn, width=470.0, lane=62.0, mark=None):
+def lanes(drawn, width=470.0, lane=62.0, mark=None, picks=None):
     """A pulse sequence diagram (Session.diagram) drawn the way the literature draws one
     (Landheer et al. 2020, Figure 1; Tkac et al. 1999, Figure 1 for a suppression train), as
     SVG: the RF with its lobes and flips (an ideal pulse a bar of fixed width, a 90 half as
@@ -337,7 +338,9 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
     the localization's pulses on top. A prelude that outlasts the localization (a
     suppression train) is drawn on a time axis of its own, compressed into a framed stretch.
     `mark` (start, end, shift) lights a span in ms up, the designer's chosen block, moved right
-    by `shift` drawing units (a coherence filter is drawn after its instant, not on it)."""
+    by `shift` drawing units (a coherence filter is drawn after its instant, not on it). `picks`
+    [(start, end, block, shift)] makes every block of the designer's design a clickable band of
+    the diagram: a click sends the block's number to the page (event pick_block)."""
     names = ("RF", "Gx", "Gy", "Gz", "Signal")
     left, right, top, fold, tall = 50.0, 12.0, 30.0, 0.24 * width, 2.0 * lane
     start, stop = drawn["adc"]
@@ -365,7 +368,9 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
 
     middles = [top + 0.72 * tall] + [top + tall + lane * (k + 0.5) for k in range(4)]
     height = top + tall + 4 * lane + 24.0
-    peak = max([abs(v) for axis in "xyz" for _, v in drawn[axis]] + [1e-9])
+    # each gradient axis on a scale of its own, as the papers draw them: a small slice-selection
+    # gradient is not lost beside another axis's large rephasing lobe
+    peaks = {axis: max([abs(v) for _, v in drawn[axis]] + [1e-9]) for axis in "xyz"}
     reach = 0.62 * tall / max([abs(v) for _, v in drawn["rf"]] + [h for _, h, _ in drawn["bars"]]
                               + [1e-9])
     out = [f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="100%" style="display: block" '
@@ -373,8 +378,8 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
     if mark is not None:
         out.append(f'<rect x="{x(mark[0]) - 5 + mark[2]:.1f}" y="{top - 4}" '
                    f'width="{x(mark[1]) - x(mark[0]) + 10:.1f}" height="{tall + 4 * lane + 8}" '
-                   f'rx="3" fill="{GLOW}" fill-opacity="0.1" stroke="{GLOW}" '
-                   f'stroke-opacity="0.5" />')
+                   f'rx="3" fill="{GLOW}" fill-opacity="0.07" stroke="{GLOW}" '
+                   f'stroke-opacity="0.6" />')
     for (a, b, name) in drawn["groups"]:
         out.append(f'<rect x="{x(a) + 1:.1f}" y="{top - 2}" width="{fold - 2:.1f}" '
                    f'height="{tall + 3 * lane + 4}" rx="2" fill="{GLOW}" '
@@ -383,11 +388,18 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
                    f'text-anchor="middle" font-size="9">{name}'
                    + ("" if name.endswith("ideal") else f" · {b - a:.0f} ms") + "</text>")
     for name, middle in zip(names, middles):
-        out.append(f'<text x="6" y="{middle + 3:.1f}" fill="{DIM}">{name}</text>'
+        out.append(f'<text x="6" y="{middle + 4:.1f}" fill="{INK}" font-size="11">{name}</text>'
                    f'<line x1="{left}" x2="{width - right}" y1="{middle:.1f}" y2="{middle:.1f}" '
                    f'stroke="{LINE}" />')
+    # the pulses' centres carried down through the gradient lanes, as the papers do, so what is
+    # simultaneous reads at once
+    for t, _ in drawn["pulses"]:
+        if not folded(t):
+            out.append(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{top + 0.12 * tall:.1f}" '
+                       f'y2="{middles[3] + 0.45 * lane:.1f}" stroke="{DIM}" stroke-width="0.6" '
+                       f'stroke-dasharray="1 3" opacity="0.7" />')
     out.append(f'<path d="{path(drawn["rf"], middles[0], reach)}" fill="{GLOW}" '
-               f'fill-opacity="0.22" stroke="{GLOW}" stroke-width="1.2" stroke-linejoin="round" />')
+               f'fill-opacity="0.32" stroke="{GLOW}" stroke-width="1.5" stroke-linejoin="round" />')
     for t, tallness, selective in drawn["bars"]:
         # a band-selective pulse (water suppression, editing) is drawn as a Gaussian, as in Tkac
         # 1999 and Mescher 1998
@@ -403,27 +415,28 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
                    f'height="{reach * tallness:.1f}" fill="{GLOW}" '
                    f'fill-opacity="{0.35 if tallness < 0.75 else 0.85}" stroke="{GLOW}" />')
     for k, axis in enumerate("xyz"):
-        traced = path(drawn[axis], middles[k + 1], 0.42 * lane / peak)
+        traced = path(drawn[axis], middles[k + 1], 0.42 * lane / peaks[axis])
         spans = [(a, b) for a, b, which in drawn["crushers"] if which == axis]
         out.append(f'<clipPath id="crush{axis}">' + "".join(
             f'<rect x="{x(a):.1f}" y="{middles[k + 1] - lane / 2}" width="{x(b) - x(a):.1f}" '
             f'height="{lane}" />' for a, b in spans)
-            + f'</clipPath><path d="{traced}" fill="{SAND}" fill-opacity="0.08" stroke="{SAND}" '
-              f'stroke-width="1.1" />'
-              f'<path d="{traced}" fill="{COPPER}" stroke="{SAND}" stroke-width="1.1" '
-              f'clip-path="url(#crush{axis})" />')
-        # an ideal crusher right after its pulse, the same on every axis
+            + f'</clipPath><path d="{traced}" fill="{SAND}" fill-opacity="0.22" stroke="{SAND}" '
+              f'stroke-width="1.5" stroke-linejoin="round" />'
+              f'<path d="{traced}" fill="{COPPER}" stroke="{SAND}" stroke-width="1.5" '
+              f'stroke-linejoin="round" clip-path="url(#crush{axis})" />')
+        # an ideal crusher at its instant, the same on every axis: a dashed stroke that takes
+        # no width, so it never lies over the gradient that follows it
         for t, _ in drawn["marks"]:
-            at, base = x(t) + 5.0, middles[k + 1]
-            out.append(f'<path d="M{at:.1f},{base:.1f} l2,-{0.3 * lane:.1f} l5,0 '
-                       f'l2,{0.3 * lane:.1f}" fill="{COPPER}" fill-opacity="0.25" '
-                       f'stroke="{SAND}" stroke-width="0.9" stroke-dasharray="2 1.5" />')
+            at, base = x(t), middles[k + 1]
+            out.append(f'<line x1="{at:.1f}" x2="{at:.1f}" y1="{base - 0.36 * lane:.1f}" '
+                       f'y2="{base:.1f}" stroke="{SAND}" stroke-width="1.2" '
+                       f'stroke-dasharray="2 1.5" />')
     # the flips below the RF lane, the intervals between the localization's pulses on top
     last = -1e9
     for t, text in drawn["pulses"]:
         if text and x(t) - last > 22.0:
-            out.append(f'<text x="{x(t):.1f}" y="{middles[0] + 0.27 * tall:.1f}" fill="{INK}" '
-                       f'text-anchor="middle" font-size="10">{text}</text>')
+            out.append(f'<text x="{x(t):.1f}" y="{middles[0] - 0.64 * tall:.1f}" fill="{INK}" '
+                       f'text-anchor="middle" font-size="11">{text}</text>')
             last = x(t)
     centres = [t for t, _ in drawn["pulses"] if not folded(t)] + [start]
     for a, b in zip(centres[:-1], centres[1:]):
@@ -447,7 +460,12 @@ def lanes(drawn, width=470.0, lane=62.0, mark=None):
                    f'y2="{height - 18}" stroke="{DIM}" />'
                    f'<text x="{x(begin + t):.1f}" y="{height - 7}" fill="{DIM}" '
                    f'text-anchor="middle" font-size="9">{t:g}</text>')
-    out.append(f'<text x="6" y="{height - 7}" fill="{DIM}" font-size="9">ms</text></svg>')
+    out.append(f'<text x="6" y="{height - 7}" fill="{DIM}" font-size="9">ms</text>')
+    for a, b, block, shift in sorted(picks or [], key=lambda p: p[0] - p[1]):
+        x0, x1 = x(a) + shift, max(x(b) + shift, x(a) + shift + 5.0)
+        out.append(f'<rect class="pick" fill="transparent" x="{x0 - 2.5:.1f}" y="{top - 4}" width="{x1 - x0 + 5.0:.1f}" '
+                   f'height="{tall + 4 * lane + 8}" onclick="emitEvent(\'pick_block\', {block})" />')
+    out.append("</svg>")
     return "".join(out)
 
 
@@ -574,8 +592,8 @@ async def console(client: Client):
                 n = np.asarray(normal, dtype=float) / np.linalg.norm(normal)
                 a = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
                 a = a / np.linalg.norm(a)
-                chosen["rings"].append(ui.scene.ring(0.92 * radius * MM, radius * MM, 40).material(
-                    COPPER, 0.85).move(*(np.asarray(centre) * MM)).rotate_R(
+                chosen["rings"].append(ui.scene.ring(0.8 * radius * MM, radius * MM, 40).material(
+                    COPPER, 1.0).move(*(np.asarray(centre) * MM)).rotate_R(
                     np.stack([a, np.cross(n, a), n], axis=1).tolist()))
             if loops_only:
                 return
@@ -818,23 +836,22 @@ async def console(client: Client):
         with records:
             where = session.view_mm if chosen["looking"] else session.position_mm
             panel.text = "Where you look (shift)" if chosen["looking"] else "This voxel"
-            # a group under its heading: short names two to a row; a pair is the draw's value
-            # with the population's in brackets
+            # a group under its heading: short names two to a row; a pair (the draw's value with
+            # the population's) shows the draw alone
             said = lambda value: (f"{value:.2f}" if abs(value) < 10.0 else f"{value:.1f}"
                                   if abs(value) < 100.0 else f"{value:.0f}")
             for group, values in session.place_of(where).items():
-                paired = any(isinstance(value, tuple) for value in values.values())
-                ui.label(group + (", the population's in brackets" if paired else "")).classes(
-                    "label").style(f"width: 100%; margin-top: 8px; padding-top: 5px; "
-                                   f"border-top: 1px solid {LINE}; color: {SAND}")
-                short = all(len(name) <= 5 for name in values) and not paired
+                ui.label(group).classes("label").style(
+                    f"width: 100%; margin-top: 8px; padding-top: 5px; "
+                    f"border-top: 1px solid {LINE}; color: {SAND}")
+                short = all(len(name) <= 5 for name in values)
                 with ui.element("div").classes("info w-full").style(
                         f"grid-template-columns: {'auto 1fr auto 1fr' if short else '1fr auto'}; "
                         "column-gap: 8px; white-space: normal"):
                     for name, value in values.items():
                         ui.label(name).style(f"color: {DIM}")
-                        ui.label(f"{said(value[0])} ({said(value[1])})" if isinstance(value, tuple)
-                                 else said(value)).classes("value").style("text-align: right")
+                        ui.label(said(value[0]) if isinstance(value, tuple) else said(value)
+                                 ).classes("value").style("text-align: right")
         for name, tool in tools.items():
             on = {"ovs": card.ovs, "shifts": chosen["shifts"], "slabs": chosen["slabs"],
                   "flip": chosen["flipped"], "overlay": session.overlay != "anatomy",
@@ -1734,10 +1751,16 @@ async def console(client: Client):
                     [0] + [len(BLOCKS[kind][1](settings)) for kind, settings in session.design])
                 spans = (drawn["spans"][counts[state["at"]]:counts[state["at"] + 1]]
                          if session.design else [])
+                picks = []
+                for block, (kind, _) in enumerate(session.design):
+                    there = drawn["spans"][counts[block]:counts[block + 1]]
+                    if there:
+                        picks.append((there[0][0], there[-1][1], block,
+                                      9.5 if kind == "coherence filter" else 0.0))
                 preview.content = lanes(drawn, width=820.0, lane=44.0, mark=(
                     spans[0][0], spans[-1][1],
                     9.5 if session.design[state["at"]][0] == "coherence filter" else 0.0)
-                    if spans else None)
+                    if spans else None, picks=picks)
                 problem.text = (f"{len(session.design)} blocks · the readout opens at "
                                 f"{drawn['adc'][0]:.1f} ms")
                 problem.style(f"color: {DIM}")
@@ -1988,23 +2011,27 @@ async def console(client: Client):
                     "unelevated dense no-caps").style("flex: none").tooltip(
                     "the card plays this design, after its water suppression and OVS")
                 keys = ui.keyboard(on_key=key, ignore=["input", "select", "textarea"])
+                ui.on("pick_block", lambda event: (
+                    state.__setitem__("at", min(max(int(event.args), 0), len(session.design) - 1)),
+                    refresh()))
             with ui.row().classes("w-full no-wrap").style("gap: 10px"):
                 preview = ui.html("", sanitize=False).style("flex: 3; min-width: 0")
                 with ui.element("div").style("flex: 2; min-width: 0; position: relative"):
+                    # the controls above the plot, not over it
+                    with ui.row().classes("w-full items-center justify-end no-wrap").style(
+                            "gap: 12px"):
+                        perfect = ui.switch("perfect", on_change=lambda: look() if outcome.options[
+                            "series"][0]["data"] else None).props("dense color=accent").tooltip(
+                            "no broadening: the lines keep their T2 alone; off, the drawn "
+                            "lineshape and the display's 2 Hz")
+                        ui.button("Spectrum of this design", icon="insights", on_click=look).props(
+                            "outline dense no-caps")
                     outcome = ui.echart({**copy.deepcopy(SPECTRUM), "title": {
                         **SPECTRUM["title"], "text": "the spectrum this design gives"}}).style(
                         "height: 340px").classes("w-full")
                     busy = ui.spinner(size="56px", color=SAND).style(
-                        "position: absolute; top: 42%; left: 46%")
+                        "position: absolute; top: 55%; left: 46%")
                     busy.set_visibility(False)
-                    ui.button("Spectrum of this design", icon="insights", on_click=look).props(
-                        "outline dense no-caps").style(
-                        "position: absolute; bottom: 72px; right: 12px")
-                    perfect = ui.switch("perfect", on_change=lambda: look() if outcome.options[
-                        "series"][0]["data"] else None).props("dense color=accent").style(
-                        "position: absolute; bottom: 108px; right: 12px").tooltip(
-                        "no broadening: the lines keep their T2 alone; off, the drawn lineshape "
-                        "and the display's 2 Hz")
             several = ui.column().classes("w-full").style("gap: 4px")
             ui.label("The design, in the order it plays, after the card's water suppression and "
                      "OVS · press a block to choose it · drag one onto another to move it "

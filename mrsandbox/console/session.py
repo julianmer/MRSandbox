@@ -2725,6 +2725,8 @@ class Session:
                                 {name: self.own(card.tr_ms / 1000.0, name) for name in self.designs}
                                 if card.sequence == "Custom" and len(self.designs) > 1
                                 else {"scan": self.sequence(bare)})
+                # a reference of several conditions plays each of them at least once
+                bare = dataclasses.replace(bare, averages=max(bare.averages, len(unsuppressed)))
                 self.queue.append(dataclasses.replace(
                     exam, name=f"{number + 1} {card.sequence} water reference", frames=[],
                     spectra={}, tracks={}, truth={},
