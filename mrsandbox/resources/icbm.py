@@ -77,6 +77,30 @@ NIHPD = {
     for tissue, md5 in zip(("gm", "wm", "csf"), NIHPD_MD5[cohort])
 }
 
+#*************#
+#   cerebra   #
+#*************#
+# Source: Manera, A. L., Dadar, M., Fonov, V., Collins, D. L. CerebrA, registration and manual
+#         label correction of Mindboggle-101 atlas for MNI-ICBM152 template. Scientific Data 7
+#         (2020) 237: 51 cortical, subcortical and cerebellar labels a hemisphere on the
+#         symmetric ICBM 2009c template at 1 mm; cerebral white matter is left unlabelled.
+# Data:   https://nist.mni.mcgill.ca/cerebra/, the NIfTI archive, its two members taken out of it
+#         by range requests; the same atlas is deposited on G-Node (10.12751/g-node.be5e62).
+# Notes:  the MNI models' copyright notice (free to use, copy, modify, and distribute provided
+#         the copyright notice appears).
+CEREBRA = {
+    f"cerebra/{name}": {
+        "url": "https://packages.bic.mni.mcgill.ca/mni-models/icbm152/"
+               "mni_icbm152_nlin_sym_09c_CerebrA_nifti.zip",
+        "member": member,
+        "md5": md5,
+        "filename": f"cerebra/{member}",
+    }
+    for name, member, md5 in (
+        ("labels", "mni_icbm152_CerebrA_tal_nlin_sym_09c.nii", "3863b0bab2e855d20767dfe3b49cb623"),
+        ("names", "CerebrA_LabelDetails.csv", "1ee543d2895c103b3dc9ccd71a6b7152"))
+}
+
 
 #**************#
 #   the band   #

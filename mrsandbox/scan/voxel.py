@@ -163,6 +163,7 @@ class Voxel:
         self.size_mm = (tuple(float(x) for x in size_mm) if hasattr(size_mm, "__len__")
                         else float(size_mm))
         self.fractions = scan.brain.fractions(position_mm, self.size_mm, self.turn)
+        self._parts = None  # the fractions by region, read when a tree carries regions
         self.compiled = compiled
         self._kernels = {}
         self._field_offset_hz = 0.0  # the field group the sequence is being played for
@@ -423,21 +424,35 @@ class Voxel:
     #*************#
     def metabolite_weights(self, truth):
         """The complex weight of every metabolite's unit lines in this voxel, in
-        truth.conc order: the resolved concentration split per tissue by the drawn GM
-        to WM contrast r as gm 2r/(1+r) + wm 2/(1+r) (an equal-mix voxel carries exactly
-        the drawn value, pure tissues the published contrast), times the diffusion
-        attenuation of the local ADC under the drawn diffusion model."""
+        truth.conc order: the resolved concentration times the voxel's share of it
+        (`share`), times the diffusion attenuation of the local ADC under the drawn
+        diffusion model."""
         faded = self._diffusion_factor(truth)
         sticks = truth.diffusion.model == "sticks"
         transferred = self.transfer(truth)
         weights = []
         for name, concentration in truth.conc.items():
-            r = truth.contrast[name]
-            tissue = (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
-            weights.append(self.resolve(concentration) * tissue
+            weights.append(self.resolve(concentration) * self.share(truth, name)
                            * faded(truth.diffusion.adc[name], sticks)
                            * transferred.get(name, 1.0))
         return np.asarray(weights, dtype=np.complex64)
+
+    def share(self, truth, name):
+        """How much of a metabolite's drawn concentration this voxel holds: its tissue split by
+        the drawn GM to WM contrast r as gm 2r/(1+r) + wm 2/(1+r) (an equal-mix voxel carries
+        exactly the drawn value, pure tissues the published contrast), each region's part
+        scaled by the metabolite's factors there where the tree carries regions
+        (database.regional) and the brain has them."""
+        r = truth.contrast[name]
+        factors = truth.get("regions", {}).get(name)
+        if factors and self._parts is None:
+            self._parts = self.scan.brain.parts(self.position_mm, self.size_mm, self.turn)
+        if not factors or not self._parts:
+            return (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
+        unit = Tissues(1.0, 1.0)
+        return sum(2.0 * r * part.gm * factors.get(region, unit).gm
+                   + 2.0 * part.wm * factors.get(region, unit).wm
+                   for region, part in self._parts.items()) / (1.0 + r)
 
     #**************#
     #   transfer   #

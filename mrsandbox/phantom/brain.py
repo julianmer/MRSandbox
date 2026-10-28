@@ -21,6 +21,7 @@ import numpy as np
 
 from mrsandbox.database import tissue
 from mrsandbox.params import Tissues
+from mrsandbox.phantom import regions
 from mrsandbox.phantom.volume import Volume
 
 
@@ -41,6 +42,10 @@ class Brain:
         fat: Optional map of the fat-bearing tissue around the skull, an array on the
             same grid or a Volume on its own; with it the lipid layer is that tissue,
             without it the brain boundary.
+        regions: Optional region of every cell on the same grid (indices into
+            phantom.regions REGIONS), or "cerebra" for the CerebrA atlas carried onto the
+            grid on first use (a brain in the MNI frame); without it the brain has no
+            regions and every metabolite follows its tissue alone.
     """
 
     # the NIHPD pediatric templates, one per age band in years (resources.icbm NIHPD_BANDS)
@@ -72,7 +77,7 @@ class Brain:
     #**********#
     #   init   #
     #**********#
-    def __init__(self, gm, wm, csf, affine, name="custom", fat=None):
+    def __init__(self, gm, wm, csf, affine, name="custom", fat=None, regions=None):
         maps = tuple(np.asarray(m, dtype=np.float32) for m in (gm, wm, csf))
         if not (maps[0].shape == maps[1].shape == maps[2].shape):
             raise ValueError("gm, wm, and csf maps must share one shape")
@@ -83,6 +88,7 @@ class Brain:
         self.affine = self.maps.affine
         self.name = name
         self._shell = None
+        self._regions = regions
 
     #*************#
     #   loading   #
@@ -126,6 +132,7 @@ class Brain:
             csf=images["csf"].get_fdata(),
             affine=images["gm"].affine,
             name=name,
+            regions="cerebra",
         )
 
     @classmethod
@@ -146,7 +153,8 @@ class Brain:
             for tissue in ("gm", "wm", "csf")
         }
         return cls(gm=masks["gm"], wm=masks["wm"], csf=masks["csf"],
-                   affine=volume.affine, name="bigbrain_mr")
+                   affine=volume.affine, name="bigbrain_mr",
+                   regions=regions.numbered(labels, regions.BIGBRAIN))
 
     @classmethod
     def _load_qsm(cls):
@@ -179,7 +187,7 @@ class Brain:
         maps = {label: np.asarray(image.dataobj.get_unscaled(), dtype=np.float32)
                 for label, image in images.items()}
         return cls(gm=maps["gm"], wm=maps["wm"], csf=maps["csf"], affine=images["gm"].affine,
-                   name="colin27", fat=maps["fat"] + maps["marrow"])
+                   name="colin27", fat=maps["fat"] + maps["marrow"], regions="cerebra")
 
     #***********#
     #   scalp   #
@@ -228,6 +236,39 @@ class Brain:
         if mean is None:
             return Tissues(gm=0.0, wm=0.0, csf=0.0)
         return Tissues(gm=float(mean[0]), wm=float(mean[1]), csf=float(mean[2]))
+
+    #*************#
+    #   regions   #
+    #*************#
+    @property
+    def regions(self):
+        """The region of every cell (indices into phantom.regions REGIONS) as a Volume on the
+        maps' grid, an atlas named at construction carried onto it on first use; None for a
+        brain without regions."""
+        if isinstance(self._regions, str):
+            self._regions = regions.resample(*getattr(regions, self._regions)(), self.affine,
+                                             self.shape)
+        if self._regions is not None and not isinstance(self._regions, Volume):
+            self._regions = Volume(np.asarray(self._regions, dtype=np.uint8), self.affine,
+                                   name=self.name)
+        return self._regions
+
+    def parts(self, position_mm, size_mm, turn=None):
+        """The tissue fractions inside a voxel box split by region, {region: Tissues}, the
+        parts summing to `fractions`; empty for a brain without regions or a box outside the
+        maps."""
+        if self.regions is None:
+            return {}
+        values, weights = self.maps.box(position_mm, size_mm, turn)
+        labels, _ = self.regions.box(position_mm, size_mm, turn)
+        total = weights.sum()
+        if total <= 0.0:
+            return {}
+        index, weights = labels.ravel(), weights.ravel() / total
+        sums = np.stack([np.bincount(index, weights * values[..., k].ravel(),
+                                     minlength=len(regions.REGIONS)) for k in range(3)])
+        return {regions.REGIONS[i]: Tissues(*map(float, sums[:, i]))
+                for i in np.flatnonzero(sums.sum(axis=0))}
 
     #******************#
     #   lipid weight   #

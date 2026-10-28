@@ -194,6 +194,45 @@ class TestVirtualScan:
         for name in ("NAA", "Ser", "GABA"):
             assert abs(mixed[name] - (in_gm[name] + in_wm[name]) / 2.0) < 1e-4 * mixed[name]
 
+    #*************#
+    #   regions   #
+    #*************#
+    def test_each_region_holds_its_published_level(self, scan):
+        from mrsandbox import Brain
+        from mrsandbox.phantom.regions import REGIONS
+
+        shape, affine = (8, 8, 8), np.eye(4)
+        affine[:3, 3] = -3.5
+        ones, zeros = np.ones(shape, np.float32), np.zeros(shape, np.float32)
+        labels = np.full(shape, REGIONS.index("frontal"), np.uint8)
+        labels[4:] = REGIONS.index("thalamus")
+
+        def voxels(regions):
+            brain = Brain(gm=ones, wm=zeros, csf=zeros, affine=affine, regions=regions)
+            source = VirtualScan(brain, scan.scanner, scan.sequence)
+            return [source.voxel(position_mm=(x, 0.0, 0.0), size_mm=2.0) for x in (-2.0, 2.0)]
+
+        frontal, thalamus = voxels(labels)
+        truth = frontal.sample(seed=7)
+        r = truth.contrast.NAA
+        # a nucleus holds one level over the drawn value: Hangel et al.'s thalamic total creatine
+        # over the mean of their cortex and white matter
+        assert thalamus.share(truth, "Cr") == pytest.approx(8.81 / ((7.07 + 7.24) / 2.0))
+        # a lobe its tissue's level: Wright et al.'s frontal grey NAA over their lobes' mean, the
+        # newest source where Hangel et al. and Pouwels and Frahm give the lobe too
+        assert frontal.share(truth, "NAA") == pytest.approx(
+            2.0 * r / (1.0 + r) * 9.39 / ((9.39 + 10.23 + 10.4) / 3.0))
+        # the amplitudes follow the shares; a metabolite no study gives keeps its tissue's level
+        parts = [voxel.components(truth) for voxel in (frontal, thalamus)]
+        index = list(truth.conc).index("Cr")
+        cr = [float(np.abs(ops.convert_to_numpy(p[index][1])).sum()) for p in parts]
+        assert cr[1] / cr[0] == pytest.approx(thalamus.share(truth, "Cr")
+                                              / frontal.share(truth, "Cr"), rel=1e-4)
+        assert thalamus.share(truth, "Ser") == frontal.share(truth, "Ser")
+        # a brain without regions follows its tissue alone
+        plain, _ = voxels(None)
+        assert plain.share(truth, "NAA") == pytest.approx(2.0 * r / (1.0 + r))
+
     #*******************************#
     #   physics through the stack   #
     #*******************************#

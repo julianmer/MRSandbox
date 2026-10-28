@@ -1025,14 +1025,11 @@ class Session:
             scan = self.twin()
             voxel = scan.voxel(tuple(self.position_mm), tuple(self.size_mm), turn=self.turn)
             drawn, fields = voxel.sample(self.seed), self.fields()
-            gm, wm = float(voxel.fractions.gm), float(voxel.fractions.wm)
 
             def seen(name, concentration):
                 """The concentration the voxel shows: `concentration` (that of an equal mix of
-                grey and white matter) split by the drawn grey to white contrast r over the
-                tissue that is there, CSF carrying none (Voxel.metabolite_weights)."""
-                r = float(voxel.resolve(drawn["contrast"][name]))
-                return concentration * (2.0 * r * gm + 2.0 * wm) / (1.0 + r)
+                grey and white matter) times the voxel's share of it (Voxel.share)."""
+                return concentration * voxel.share(drawn, name)
 
             def pair(names, group, scale=1.0, split=lambda name, value: value):
                 """The draw's value and the population's for a leaf (the sum over `names`), the

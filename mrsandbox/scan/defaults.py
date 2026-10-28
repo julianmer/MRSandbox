@@ -428,8 +428,12 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         events_per_min=_sourced("run.events_per_min", served, Uniform,
                                 literature=Uniform(0.1, 0.5), cited=RUN_CITED["events"]),
         motion_mm=_sourced("run.motion_mm", served, Uniform) or Fixed(0.0)))
-    contrast = Params(contrast={name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0
-                                for name, (gm, wm) in rows.items()})
+    ratios = {name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()}
+    contrast = Params(contrast=ratios)
+    # regions: each metabolite's level by brain region over its tissue level, from the regional
+    # studies (database.regional, params.Priors.regional); a brain without regions, or a region
+    # no study gives, follows the tissue alone
+    regions = Params(regions=Priors.regional(names, ratios))
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
     # magnetization transfer (phantom.transfer): every tissue's bound pool (Stanisz et al. 2005 at
     # 3 T, the one field typed, stated elsewhere; CSF holds none) and the rate at which each
@@ -446,8 +450,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                          if name not in NO_TRANSFER else Fixed(0.0)),
                              cited=TRANSFER_CITED["none" if name in NO_TRANSFER else "creatine"])
               for name in ("Cr", "PCr", *NO_TRANSFER) if name in names}))
-    tree = (Params(conc=conc) | relaxation | contrast | diffusion | background | imperfections | run
-            | transfer)
+    tree = (Params(conc=conc) | relaxation | contrast | regions | diffusion | background
+            | imperfections | run | transfer)
     # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its
     # dataset source (a cohort subject's reading), chosen: a reading made on a given scan outranks
     # the pool; a record of the hardware outside the tree (the array's noise share) is the

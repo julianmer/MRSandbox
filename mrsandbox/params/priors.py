@@ -15,10 +15,14 @@
 #*************#
 #   imports   #
 #*************#
-from mrsandbox.database import Database, concentrations
+import itertools
+
+import numpy as np
+
+from mrsandbox.database import Database, concentrations, regional
 from mrsandbox.database.gudmundson import Gudmundson
 from mrsandbox.params.trees import Params
-from mrsandbox.params.values import Fixed, Normal, Uniform
+from mrsandbox.params.values import Fixed, Normal, PerTissue, Uniform
 
 
 #**************************************************************************************************#
@@ -101,6 +105,57 @@ class Priors:
                       else None)
             if pooled is not None:
                 leaves[name] = Normal(pooled.mean_s, pooled.sd_s)
+        return Params(leaves)
+
+    #**************#
+    #   regional   #
+    #**************#
+    @staticmethod
+    def regional(metabolites, contrast):
+        """Each metabolite's level by brain region (phantom.regions) as factors over the drawn
+        grey and white matter concentrations, {metabolite: {region: PerTissue}}.
+
+        A study's value counts relative to its own reference (its whole cortex and white
+        matter, or the mean of its lobes), so studies with their own units and referencing give
+        the pattern alone, and the package's GM to WM contrast keeps setting the tissues' levels.
+        A lobe takes a factor per tissue, against the reference in that tissue. A nucleus holds
+        one concentration whatever the tissue maps call its cells (stated): its value over the
+        mean of the grey and white references times the drawn concentration, that of an equal
+        mix, so its parts carry the contrast `r` back out. The newest study gives a region where
+        several do (database.regional STUDIES); a value with a spread above its mean is left
+        out; a region no study gives stays at 1.
+
+        Args:
+            metabolites: The package's names to cover.
+            contrast: {name: GM to WM ratio r}, the tree's contrast values.
+
+        Returns:
+            Params of the covered metabolites, each {region: PerTissue(gm, wm)}.
+        """
+        from mrsandbox.phantom.regions import LOBES
+
+        found = {}
+        for study in regional.STUDIES:
+            values = study["values"]
+            for row, (regions, tissue) in study["stands_for"].items():
+                for paper, (mean, sd) in values[row].items():
+                    if paper not in study["quantified"] or sd > mean:
+                        continue
+                    reference = np.mean([np.mean([values[r][paper][0] for r in rows])
+                                         for t, rows in study["reference"].items()
+                                         if tissue in (t, None)])
+                    for name, region in itertools.product(regional.NAMES[paper], regions):
+                        found.setdefault((name, region), {}).setdefault(tissue, mean / reference)
+        leaves = {}
+        for (name, region), by in found.items():
+            if name not in metabolites:
+                continue
+            r = contrast[name]
+            if region in LOBES:
+                gm, wm = by.get("gm", 1.0), by.get("wm", 1.0)
+            else:
+                gm, wm = by[None] * (1.0 + r) / (2.0 * r), by[None] * (1.0 + r) / 2.0
+            leaves.setdefault(name, {})[region] = PerTissue(gm=gm, wm=wm)
         return Params(leaves)
 
     #*******************#

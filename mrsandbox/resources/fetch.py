@@ -102,7 +102,8 @@ class Resources:
     CACHE_ENV = "MRSANDBOX_CACHE"
 
     # one dict per data source, each in its own cited module
-    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **icbm.NIHPD, **colin27.COLIN27,
+    REGISTRY = {**bigbrain.BIGBRAIN_MR, **icbm.ICBM152, **icbm.NIHPD, **icbm.CEREBRA,
+                **colin27.COLIN27,
                 **mrshub.MM_CONSENSUS, **hmri.HMRI_DEMO, **uk7t.UK7T_DEPOSIT, **girf.NWS_DEPOSIT,
                 **girf.REVERSE_DEPOSIT, **challenge.MRSI_CHALLENGE, **qsm.QSM_RC2,
                 **cohorts.COHORTS, **gudmundson.GUDMUNDSON}
