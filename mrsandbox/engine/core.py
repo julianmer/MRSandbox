@@ -63,6 +63,9 @@ class Context:
         mz, hadamard: Per-spin magnetic quantum numbers (n, d) and the transverse
             eigenbasis H (d, d) of spins.Operators, so ideal pulses rotate without an
             eigendecomposition in the graph.
+        split: None propagates every shaped-pulse step by its exact exponential; an
+            integer plays the step split into the free evolution and the RF in that many
+            fourth-order sub-steps (ShapedPulse.SPLIT_PIECES).
     """
 
     lam: object
@@ -87,6 +90,7 @@ class Context:
     gradient_x: object = 0.0
     gradient_y: object = 0.0
     gradient_z: object = 0.0
+    split: object = None
 
 
 #**************************************************************************************************#
@@ -108,15 +112,21 @@ class Engine:
         isochromats: Default ensemble size for gradient-bearing sequences (positions
             spanning each gradient extent); raise it for dense multi-axis schemes.
             Per-call arguments override it.
+        split: None (the default) propagates every step of a shaped pulse by its exact
+            exponential; an integer k plays each step as a fourth-order splitting of the
+            free evolution and the RF in k sub-steps (ShapedPulse.SPLIT_PIECES,
+            Backend.split_step), 3k matmuls a step instead of the exponential's fifteen, at
+            an error that falls as 1/k^4.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, b0, receiver_phase_deg=90.0, isochromats=32):
+    def __init__(self, b0, receiver_phase_deg=90.0, isochromats=32, split=None):
         self.b0_t = getattr(b0, "b0_t", b0)
         self.receiver_phase_deg = receiver_phase_deg
         self.isochromats = isochromats
+        self.split = split
         self._compiled = {}
         self._draws = {}
         self._renderers = {}
@@ -150,6 +160,7 @@ class Engine:
             t2_s=system.t2_s,
             b1_scale=b1_scale,
             offset_hz=offset_hz,
+            split=self.split,
         )
 
     #***********#
@@ -516,7 +527,7 @@ class Engine:
     def _export_path(self, kind, sequence, groups, isochromats, pruned):
         """Where a graph's serialized export persists, or None to stay live: only on the
         jax backend with the persistent compilation cache configured. The key holds the
-        code salt, the engine's field, receiver phase and ensemble, the design's
+        code salt, the engine's field, receiver phase, split and ensemble, the design's
         structure with its timing shapes, and every structural number of the systems;
         never a looser key, a stale export would silently play other physics."""
         import keras
@@ -535,7 +546,7 @@ class Engine:
         shapes = self._timing_shapes(sequence.timings())
         systems = tuple(tuple((s.name, s.nucleus, s.shifts_ppm, s.j_hz, s.scale, s.gamma_mhz_t,
                                s.spin, s.nuclei) for s in group) for group in groups)
-        text = repr((self._export_salt(), self.b0_t, self.receiver_phase_deg, kind,
+        text = repr((self._export_salt(), self.b0_t, self.receiver_phase_deg, self.split, kind,
                      sequence.structure(), shapes, systems, isochromats, pruned,
                      precision.REAL))
         digest = hashlib.sha256(text.encode()).hexdigest()
@@ -874,7 +885,7 @@ class Engine:
         from mrsandbox.sequences.events import Sequence, ShapedPulse
 
         def spectrum(design, isochromats):
-            engine = Engine(self.b0_t, self.receiver_phase_deg, isochromats)
+            engine = Engine(self.b0_t, self.receiver_phase_deg, isochromats, self.split)
             _, spec = engine.spectrum(design, *systems, npoints=4096, sw_hz=4000.0, lw_hz=lw_hz)
             return np.asarray(ops.convert_to_numpy(spec)).astype(np.complex128)
 

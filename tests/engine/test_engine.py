@@ -550,6 +550,27 @@ class TestGraph:
         finally:
             jax.config.update("jax_compilation_cache_dir", before)
 
+    def test_the_split_keys_its_own_export(self, backend, tmp_path):
+        # an exact engine's stored graph never serves a split one, nor one split another way
+        if backend != "jax":
+            pytest.skip("graphs persist as jax exports")
+        import jax
+
+        from mrsandbox import SpinSystem
+
+        before = jax.config.jax_compilation_cache_dir
+        jax.config.update("jax_compilation_cache_dir", str(tmp_path))
+        try:
+            groups = (tuple(SpinSystem.from_database("Lac")),)
+            design = Press(te1_s=0.012, te2_s=0.02, tr_s=1.5)
+            paths = [Engine(3.0, split=split)._export_path("graph", design, groups, 32, False)
+                     for split in (None, 1, 2)]
+        finally:
+            jax.config.update("jax_compilation_cache_dir", before)
+        if paths[0] is None:
+            pytest.skip("jax.export's serialization needs flatbuffers")
+        assert len(set(paths)) == 3
+
     def test_a_framed_graph_reloads_across_engines_untraced(self, backend, tmp_path, monkeypatch):
         # a second engine takes the frame's and the draws' exports: no context is built, the
         # pulses and the draws are the first engine's to the bit at any batch, and a transmit

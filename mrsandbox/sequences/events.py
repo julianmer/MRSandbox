@@ -261,6 +261,11 @@ class ShapedPulse(Event):
     that pattern and its gradient with respect to them is exact. An envelope given as a
     tensor keeps every step its own.
 
+    The context's `split` (Engine's) plays each step's exponential as a composition of
+    the free evolution and the RF instead (Backend.split_step): `split` sub-steps, each
+    the three Strang pieces of SPLIT_PIECES, 3 * split matmuls a step instead of the
+    exponential's fifteen, at an error that falls as split^-4.
+
     Args:
         flip_deg: On-resonance flip angle in degrees.
         duration_s: Total pulse duration in seconds.
@@ -296,6 +301,8 @@ class ShapedPulse(Event):
     STEP_BLOCK_ELEMENTS = 2 ** 24
     # the pieces the propagation is cut into for the relaxation between them
     RELAXATION_SEGMENTS = 8
+    # a split sub-step's Strang pieces as fractions of it: Yoshida's fourth-order triple jump
+    SPLIT_PIECES = tuple(w / (2.0 - 2.0 ** (1.0 / 3.0)) for w in (1.0, -2.0 ** (1.0 / 3.0), 1.0))
 
     #**********#
     #   init   #
@@ -658,9 +665,14 @@ class ShapedPulse(Event):
         if repeats is not None:
             # the steps that share an envelope value share their exponential
             f1 = ops.take(f1, np.unique(repeats, return_index=True)[1], axis=0)
-        h = ops.expand_dims(ops.expand_dims(nops.cast(f1, precision.COMPLEX), -1), -1) * ctx.fx
-        h = h + h_free  # (steps, d, d), or (steps, isochromats, d, d) with a vector b1
-        w = Backend.expm_herm(h, dt)
+        if ctx.split is None:
+            h = ops.expand_dims(ops.expand_dims(nops.cast(f1, precision.COMPLEX), -1), -1) * ctx.fx
+            h = h + h_free  # (steps, d, d), or (steps, isochromats, d, d) with a vector b1
+            w = Backend.expm_herm(h, dt)
+        else:
+            # Fx is diagonal in the hadamard basis with the summed mz rows as eigenvalues
+            pieces = tuple(piece / ctx.split for piece in self.SPLIT_PIECES) * ctx.split
+            w = Backend.split_step(h_free, ctx.hadamard, ops.sum(ctx.mz, axis=0), f1, dt, pieces)
         if repeats is not None:
             w = ops.take(w, repeats, axis=0)
         if ops.ndim(b1) == 0:

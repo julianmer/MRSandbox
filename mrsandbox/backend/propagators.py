@@ -18,6 +18,7 @@
 #*************#
 import math
 
+import numpy as np
 from keras import ops
 from nifti_mrs_plus import ops as nops
 
@@ -153,3 +154,49 @@ class Backend:
             keep = ops.expand_dims(ops.expand_dims(s > float(k), -1), -1)
             u = ops.where(keep, u @ u, u)
         return u
+
+    #****************#
+    #   split step   #
+    #****************#
+    @staticmethod
+    def split_step(h, basis, m, f1, dt, pieces=(1.0,)):
+        """exp(-i 2 pi (H + f1 A) dt) for Hermitian H and A = basis diag(m) basis^H (Hz),
+        batched over the leading axes of f1, as a composition of symmetric (Strang) pieces
+        whose durations are the fractions `pieces` of dt, in order: each piece of duration
+        tau is E(tau/2) R(tau) E(tau/2), with E the free evolution and
+        R(tau) = exp(-i 2 pi f1 A tau) = basis diag(phase) basis^H. The free halves of
+        neighbouring pieces join, so the step is E basis P (C P) ... (C P) basis^H E with
+        C = basis^H E basis and P the diagonal phases: one matmul per piece, the free
+        factors a few exponentials (expm_herm) shared by every step. Equal pieces are
+        Strang's sub-steps (error falling as the square of their number); fractions that
+        cancel the third-order error give a fourth-order step (Yoshida's triple jump). The
+        phases are smooth in f1, so the gradient with respect to f1 and dt is exact at
+        degenerate eigenvalues too.
+
+        The basis is the system's constant, read on the host: a basis of spins 1/2 in
+        float32 has its entries +-2^(-r/2) all rounded alike, so each round trip
+        basis^H basis would shrink a state by a part in 1e7, the same way at every step;
+        its signs, with their inverse the transpose over 2^r, are exact. A basis with
+        another spin keeps its own adjoint."""
+        dt = ops.cast(ops.convert_to_tensor(dt), precision.REAL)
+        basis = np.asarray(ops.convert_to_numpy(basis), dtype=np.complex128)
+        r = round(-2.0 * math.log2(np.abs(basis).max()))
+        signs = np.rint(basis * 2.0 ** (r / 2.0))
+        if np.abs(signs - basis * 2.0 ** (r / 2.0)).max() < 1e-4:
+            basis, back = signs, signs.T / 2.0 ** r
+        else:
+            back = basis.conj().T
+        basis, back = (nops.cast(ops.convert_to_tensor(x), precision.COMPLEX)
+                       for x in (basis, back))
+        ends = {pieces[0] / 2.0, pieces[-1] / 2.0}
+        joins = {(a + b) / 2.0 for a, b in zip(pieces[:-1], pieces[1:])}
+        free = {f: Backend.expm_herm(h, dt * f) for f in ends | joins}
+        u = None
+        for k, piece in enumerate(pieces):
+            angle = (-2.0 * math.pi * piece) * ops.expand_dims(f1, -1) * dt * m
+            phase = ops.expand_dims(ops.exp(nops.complex_from(ops.zeros_like(angle), angle)), -1)
+            if u is None:
+                u = phase * (back @ free[piece / 2.0])
+            else:
+                u = phase * ((back @ free[(pieces[k - 1] + piece) / 2.0] @ basis) @ u)
+        return (free[pieces[-1] / 2.0] @ basis) @ u

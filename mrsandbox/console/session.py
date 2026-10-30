@@ -673,7 +673,7 @@ class Session:
 
     # what of the session is the room an exam is planned in and runs in
     ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "member_name",
-            "field", "transmit", "shim", "shim_mm", "hold_records", "isochromats")
+            "field", "transmit", "shim", "shim_mm", "hold_records", "isochromats", "split")
 
     #**********#
     #   init   #
@@ -723,6 +723,9 @@ class Session:
         # the engine's ensemble under slab pulses and crushers, positions per axis: fewer are
         # faster, the big spin systems most, at the accuracy Engine.convergence states
         self.isochromats = 32
+        # the shaped pulses' steps: None each by its exact exponential, an integer the split step
+        # in that many sub-steps (Engine's split), faster at the error Backend.split_step states
+        self.split = None
         self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
@@ -2810,8 +2813,8 @@ class Session:
         took = self._took.get((card.sequence, card.real, design.unfolded))
         if not design.unfolded or took is not None:
             return took
-        engine = Engine(self.profile().scanner, isochromats=int(self.isochromats))
-        key = (design.structure(), int(self.isochromats))
+        engine = Engine(self.profile().scanner, isochromats=int(self.isochromats), split=self.split)
+        key = (design.structure(), int(self.isochromats), self.split)
         if key not in self._probes:
             probe, spent = SpinSystem.from_database("Glu"), []
             for side in (3, 6):
@@ -2906,8 +2909,9 @@ class Session:
                       # one engine per field and ensemble for every exam: its graphs are built
                       # once, not once an exam
                       engine=self._bodies.setdefault(
-                          ("engine", profile.scanner.b0_t, int(self.isochromats)),
-                          Engine(profile.scanner, isochromats=int(self.isochromats))),
+                          ("engine", profile.scanner.b0_t, int(self.isochromats), self.split),
+                          Engine(profile.scanner, isochromats=int(self.isochromats),
+                                 split=self.split)),
                       **self.fields(card),
                       # the array's noise is tied to the scanner's record AT THIS VOXEL, so
                       # every place has the record's SNR: what an array gives by place (better

@@ -8,7 +8,8 @@
 #                                                                                                  #
 # Purpose: Substrate gate: the eigh propagator is unitary, trace-preserving, matches a float64     #
 #          numpy reference, jit-compiles, and its timing gradients are exact - including at        #
-#          degenerate eigenvalues, which equivalent spins make the norm.                           #
+#          degenerate eigenvalues, which equivalent spins make the norm. The split step converges  #
+#          to the exponential at second order.                                                     #
 #                                                                                                  #
 ####################################################################################################
 
@@ -19,6 +20,7 @@ import math
 
 import numpy as np
 import pytest
+import scipy.linalg
 from keras import ops
 
 from nifti_mrs_plus.backend import jit, value_and_grad
@@ -73,6 +75,37 @@ class TestPropagator:
             np.testing.assert_allclose(
                 u_batch[i], ops.convert_to_numpy(Backend.expm_herm(h, dt)), atol=2e-5
             )
+
+    #****************#
+    #   split step   #
+    #****************#
+    def test_split_step_converges_to_the_exponential(self, random_hermitian):
+        # the Strang step of H + f1 A against the exact exponential in float64, batched over
+        # f1: unitary, second order (each doubling of the sub-steps about quarters the error), and
+        # exact where the two parts commute (f1 = 0)
+        from mrsandbox.backend import precision
+
+        h = random_hermitian(6, seed=7).astype(np.complex128)
+        m, basis = np.linalg.eigh(random_hermitian(6, seed=8, scale_hz=1.0).astype(np.complex128))
+        f1, dt = np.array([0.0, 100.0, 400.0]), 2e-4
+        exact = np.stack([scipy.linalg.expm(-2j * math.pi * (h + f * basis @ np.diag(m)
+                                                             @ basis.conj().T) * dt) for f in f1])
+        precision.set_precision("float64")
+        try:
+            errors = []
+            for k in (1, 2, 4):
+                u = ops.convert_to_numpy(Backend.split_step(*(ops.convert_to_tensor(x) for x in (
+                    h, basis, m, f1)), dt, (1.0 / k,) * k))
+                np.testing.assert_allclose(u @ np.conj(np.swapaxes(u, -1, -2)),
+                                           np.broadcast_to(np.eye(6), u.shape), atol=1e-12)
+                errors.append(np.abs(u - exact).max(axis=(1, 2)))
+        finally:
+            precision.set_precision("float32")
+        errors = np.array(errors)
+        assert errors[:, 0].max() < 1e-12
+        assert errors[0, 2] > 1e-6
+        ratios = errors[:-1, 1:] / errors[1:, 1:]
+        assert np.all((ratios > 3.5) & (ratios < 5.0))
 
 
 #**************************************************************************************************#

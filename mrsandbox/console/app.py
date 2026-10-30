@@ -2526,6 +2526,18 @@ async def console(client: Client):
                          "are faster, the big spin systems most, at the accuracy the engine's "
                          "convergence states; a change compiles the designs again").classes(
                     "label").style("text-transform: none; letter-spacing: 0")
+            splits = {"exact": None, "split, 1 sub-step": 1, "split, 2 sub-steps": 2}
+            with ui.row().classes("w-full items-center no-wrap"):
+                ui.select(list(splits), label="pulse steps",
+                          value=next(k for k, v in splits.items() if v == session.split),
+                          on_change=lambda e: (setattr(session, "split", splits[e.value]),
+                                               draw())).props(
+                    "dense outlined dark").style("width: 230px")
+                ui.label("each step of a shaped pulse by its exact exponential, or split into the "
+                         "free evolution and the RF at fourth order: cheaper, at an error that "
+                         "falls sixteenfold per doubling of the sub-steps; a change compiles the "
+                         "designs again").classes(
+                    "label").style("text-transform: none; letter-spacing: 0")
             for name, leaves in IDEALS.items():
                 with ui.row().classes("w-full items-center no-wrap"):
                     ui.switch(name, value=not all(session.overrides.get(path) == value

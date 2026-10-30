@@ -130,6 +130,11 @@ class TestApp:
                 user.find("switches").click()  # realism and the run as one list of switches
                 await user.should_see("on is real, off is ideal or still")
                 await user.should_see("breathing (Hz)")
+                await user.should_see("free evolution and the RF at fourth order")
+                steps = next(e for e in user.find(kind=ui.select).elements
+                             if "split, 1 sub-step" in e.options)
+                steps.value = "split, 1 sub-step"
+                steps.value = "exact"   # the exams below play the exact steps
                 user.find("Done").click()
                 user.find(marker="scanner settings").click()  # the scanner card: one list of lines
                 await user.should_see("your scanner file")

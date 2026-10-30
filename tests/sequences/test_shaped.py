@@ -232,12 +232,15 @@ class TestShapedPulse:
         assert np.all(np.isfinite(grad))
         assert np.abs(grad).max() > 0.0
 
-    def test_envelope_gradient_is_finite_on_equivalent_spins(self, engine, needs_autograd):
+    @pytest.mark.parametrize("split", [None, 2])
+    def test_envelope_gradient_is_finite_on_equivalent_spins(self, split, needs_autograd):
         # creatine's equivalent protons give degenerate eigenvalues, where the
         # derivative of an eigendecomposition divides by zero; the matmul-only
-        # propagator has no such term, so waveform optimization works on any system
+        # propagator has no such term, nor has the split step (its eigendecomposition is
+        # the context's, outside the derivative), so waveform optimization works on any system
         from nifti_mrs_plus.backend import value_and_grad
 
+        engine = Engine(B0_T, split=split)
         (cr, *_) = SpinSystem.from_database("Cr")
 
         def residual(envelope):
@@ -320,6 +323,30 @@ class TestShapedPulse:
         assert abs(float(ours) - float(theirs)) < 1e-5 * abs(float(theirs))
         np.testing.assert_allclose(ops.convert_to_numpy(grad), reference,
                                    rtol=1e-4, atol=1e-5 * np.abs(reference).max())
+
+    #****************#
+    #   split step   #
+    #****************#
+    def test_the_split_step_meets_the_exact_path(self):
+        # the localized PRESS on Lac at 8 isochromats with every shaped-pulse step split into
+        # the free evolution and the RF, against each step's exact exponential, in float64 so
+        # only the splitting shows: one fourth-order sub-step within 1e-4 of the largest line,
+        # two within 1e-5, the error falling as the fourth power of the sub-steps
+        from mrsandbox import LocalizedPress
+        from mrsandbox.backend import precision
+
+        lac = SpinSystem.from_database("Lac")[0]
+        design = LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ)
+        precision.set_precision("float64")
+        try:
+            exact, one, two = (np.asarray(ops.convert_to_numpy(
+                Engine(B0_T, isochromats=8, split=split).lines(design, lac)[1]))
+                for split in (None, 1, 2))
+        finally:
+            precision.set_precision("float32")
+        errors = [np.abs(a - exact).max() / np.abs(exact).max() for a in (one, two)]
+        assert errors[0] < 1e-4 and errors[1] < 1e-5
+        assert errors[0] > 10.0 * errors[1]
 
 
 #**************************************************************************************************#

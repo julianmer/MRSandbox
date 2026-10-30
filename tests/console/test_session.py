@@ -316,7 +316,7 @@ class TestSession:
         session.protocol.water_suppression = "assumed residual"
         session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 4, 512
         first = session.run(session.plan(queued=False), seed=3)
-        key = ("engine", session.profile().scanner.b0_t, int(session.isochromats))
+        key = ("engine", session.profile().scanner.b0_t, int(session.isochromats), session.split)
         engine = session._bodies[key]
         kept = session.run(session.plan(queued=False), seed=3)
         assert session._bodies[key] is engine and engine._compiled
