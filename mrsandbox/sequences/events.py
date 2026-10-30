@@ -255,6 +255,12 @@ class ShapedPulse(Event):
     little more than exp(-duration/T2) says, and a long saturation pulse's null moves
     with the T1 recovery inside it.
 
+    An envelope given as values whose values repeat (every symmetric one) exponentiates
+    each distinct value once: which steps share a value is then structure, and the
+    envelope's timing is its distinct values, so a compiled graph plays any values of
+    that pattern and its gradient with respect to them is exact. An envelope given as a
+    tensor keeps every step its own.
+
     Args:
         flip_deg: On-resonance flip angle in degrees.
         duration_s: Total pulse duration in seconds.
@@ -560,6 +566,40 @@ class ShapedPulse(Event):
                                                      dtype=precision.REAL)
                    for k, axis in enumerate("xyz"))
 
+    #*************#
+    #   repeats   #
+    #*************#
+    def _repeats(self):
+        """Every step's index among the envelope's distinct values (sorted), or None
+        without repeats: read off an envelope given as values, held by a bound copy from
+        its design (`bound`), and None for an envelope given as a tensor."""
+        if isinstance(self.envelope, (np.ndarray, list, tuple)):
+            values, inverse = np.unique(np.asarray(self.envelope), return_inverse=True)
+            return inverse if values.size < inverse.size else None
+        return getattr(self, "repeats", None)
+
+    #************************#
+    #   structure, timings   #
+    #************************#
+    def structure(self):
+        repeats = self._repeats()
+        return super().structure() + (None if repeats is None else _hashable(repeats),)
+
+    def timings(self):
+        values, repeats = super().timings(), self._repeats()
+        if repeats is None:
+            return values
+        at = [name for name in self.free if getattr(self, name) is not None].index("envelope")
+        distinct = ops.take(self.envelope, np.unique(repeats, return_index=True)[1], axis=0)
+        return values[:at] + (distinct,) + values[at + 1:]
+
+    def bound(self, values):
+        repeats = self._repeats()
+        event = super().bound(values)
+        if repeats is not None:
+            event.envelope, event.repeats = ops.take(event.envelope, repeats, axis=0), repeats
+        return event
+
     #****************#
     #   propagator   #
     #****************#
@@ -614,9 +654,15 @@ class ShapedPulse(Event):
         # (log2(steps) batched matmuls), one sandwich applies it, and the frame
         # rotation over the whole pulse follows as a phase per coherence order,
         # exactly as a Delay applies the offset
+        repeats = self._repeats()
+        if repeats is not None:
+            # the steps that share an envelope value share their exponential
+            f1 = ops.take(f1, np.unique(repeats, return_index=True)[1], axis=0)
         h = ops.expand_dims(ops.expand_dims(nops.cast(f1, precision.COMPLEX), -1), -1) * ctx.fx
         h = h + h_free  # (steps, d, d), or (steps, isochromats, d, d) with a vector b1
         w = Backend.expm_herm(h, dt)
+        if repeats is not None:
+            w = ops.take(w, repeats, axis=0)
         if ops.ndim(b1) == 0:
             w = ops.expand_dims(w, 1)
         m = ops.sum(ctx.mz, axis=0)
@@ -663,11 +709,39 @@ class ShapedPulse(Event):
             w = ops.concatenate([w, ops.broadcast_to(eye, w[:1].shape)], axis=0)
             index = np.array([[first + j if j < n else steps for j in range(width)]
                               for first, n in zip(bounds[:-1], lengths)])
+            # an ensemble sharing W folds the first level of the product: in two steps of an
+            # isochromat, U_b U_a = D_b W_b (D_b^H D_a) W_a D_a^H, the matmul sees the
+            # isochromat only through the diagonal D_b^H D_a, a phase per total Fz value mu,
+            # so the pair is D_b (sum over mu of phase_mu W_b P_mu W_a) D_a^H: the blocks
+            # W_b P_mu W_a cost one matmul for the whole ensemble, and the per-isochromat
+            # products start at half the steps
+            fold = ops.ndim(total) > 0 and ops.ndim(b1) == 0 and width > 1
+            if fold:
+                # every state's total Fz, read as the system's constant it is
+                spins = np.asarray(ops.convert_to_numpy(ctx.mz)).sum(axis=0)
+                groups = [np.flatnonzero(spins == mu) for mu in np.unique(spins)]
+                even = width - width % 2
             segments, held = [], block // width
             for start in range(0, len(lengths), held):
-                rows = ops.take(d, index[start:start + held], axis=0)
-                u = (ops.expand_dims(rows, -1) * ops.take(w, index[start:start + held], axis=0)
-                     * ops.expand_dims(ops.conj(rows), -2))
+                at = index[start:start + held]
+                rows = ops.take(d, at, axis=0)
+                if fold:
+                    w_b = ops.take(w[:, 0], at[:, 1:even:2], axis=0)
+                    w_a = ops.take(w[:, 0], at[:, 0:even:2], axis=0)
+                    blocks = ops.stack([ops.take(w_b, g, axis=-1) @ ops.take(w_a, g, axis=-2)
+                                        for g in groups], axis=2)
+                    b, a = rows[:, 1:even:2], rows[:, 0:even:2]
+                    phase = ops.take(ops.conj(b) * a, [g[0] for g in groups], axis=-1)
+                    u = (ops.expand_dims(b, -1) * ops.einsum("skpm,skmij->skpij", phase, blocks)
+                         * ops.expand_dims(ops.conj(a), -2))
+                    if width % 2:
+                        last = rows[:, even:]
+                        u = ops.concatenate([u, ops.expand_dims(last, -1)
+                                             * ops.take(w, at[:, even:], axis=0)
+                                             * ops.expand_dims(ops.conj(last), -2)], axis=1)
+                else:
+                    u = (ops.expand_dims(rows, -1) * ops.take(w, at, axis=0)
+                         * ops.expand_dims(ops.conj(rows), -2))
                 if ops.ndim(total) == 0 and ops.ndim(b1) == 0:
                     u = u[:, :, 0]
                 while int(u.shape[1]) > 1:

@@ -87,9 +87,9 @@ class Cycled(Sequence):
                 phase = event.phase_deg + float(self.table[step, column])
                 if jitter is not None:
                     phase = phase + jitter[step, column]
-                events[k] = event.bound(tuple(phase if name == "phase_deg" else getattr(event, name)
-                                              for name in event.free
-                                              if getattr(event, name) is not None))
+                names = [name for name in event.free if getattr(event, name) is not None]
+                events[k] = event.bound(tuple(phase if name == "phase_deg" else value
+                                              for name, value in zip(names, event.timings())))
             stepped = Sequence(*events, tr_s=self.tr_s, cycles=self.cycles).run(rho, ctx)
             angle = (-math.radians(float(self.receiver_deg[step]))
                      * ops.cast(ctx.q, precision.REAL))

@@ -251,6 +251,76 @@ class TestShapedPulse:
         assert np.all(np.isfinite(grad))
         assert np.abs(grad).max() > 0.0
 
+    #**************************#
+    #   repeats and the fold   #
+    #**************************#
+    def test_repeats_and_the_fold_equal_the_plain_product(self, monkeypatch):
+        # the localized PRESS on an ensemble of eight: the envelopes with repeats exponentiated
+        # once per value and the ensemble's step pairs folded, against the same design with
+        # every envelope a tensor (each step its own) and a block budget of one step for the
+        # whole ensemble (each product plain, step by step); in float64, where the two orders
+        # of the same products agree to its rounding (float32 differs by its own, a part in 1e6)
+        import copy
+
+        from mrsandbox import LocalizedPress
+        from mrsandbox.backend import precision
+
+        engine = Engine(B0_T, isochromats=8)
+        lac = SpinSystem.from_database("Lac")[0]
+        design = LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ)
+        assert any(isinstance(event, ShapedPulse) and event._repeats() is not None
+                   for event in design.events)
+        plain = copy.copy(design)
+        plain.events = tuple(copy.copy(event) for event in design.events)
+        for event in plain.events:
+            if isinstance(event, ShapedPulse):
+                event.envelope = ops.convert_to_tensor(np.asarray(event.envelope))
+        precision.set_precision("float64")
+        try:
+            _, ours = engine.lines(design, lac)
+            monkeypatch.setattr(ShapedPulse, "STEP_BLOCK_ELEMENTS", 8 * lac.dim ** 2)
+            _, theirs = engine.lines(plain, lac)
+        finally:
+            precision.set_precision("float32")
+        ours, theirs = (np.asarray(ops.convert_to_numpy(a)) for a in (ours, theirs))
+        assert np.abs(ours - theirs).max() < 1e-10 * np.abs(theirs).max()
+
+    def test_a_symmetric_envelope_is_timed_by_its_distinct_values(self, engine, needs_autograd):
+        # the Gaussian's 32 steps hold 16 values: they are its timing, the pattern is
+        # structure, and the gradient with respect to them through the bound design equals
+        # the chain rule's through the plain path (an envelope tensor gathered from them)
+        from nifti_mrs_plus.backend import value_and_grad
+
+        pulse = ShapedPulse.gaussian(90.0, 0.004, offset_ppm=3.0, steps=32)
+        values = np.unique(pulse.envelope)
+        assert values.size == 16
+        np.testing.assert_array_equal(ops.convert_to_numpy(pulse.timings()[2]), values)
+        nudged = pulse.envelope.copy()
+        nudged[0] *= 1.01
+        assert ShapedPulse(90.0, 0.004, nudged, offset_ppm=3.0).structure() != pulse.structure()
+
+        lac = SpinSystem.from_database("Lac")[0]
+        design, inverse = acquire(pulse), pulse._repeats()
+
+        def observable(distinct, repeated):
+            if repeated:
+                timings = design.timings()
+                played = design.bound(((*timings[0][:2], distinct, *timings[0][3:]),)
+                                      + timings[1:])
+            else:
+                played = acquire(ShapedPulse(90.0, 0.004, ops.take(distinct, inverse, axis=0),
+                                             offset_ppm=3.0))
+            _, amps = engine.lines(played, lac)
+            return ops.sum(ops.real(amps) ** 2)
+
+        at = ops.convert_to_tensor(values)
+        ours, grad = value_and_grad(lambda v: observable(v, True))(at)
+        theirs, reference = value_and_grad(lambda v: observable(v, False))(at)
+        reference = ops.convert_to_numpy(reference)
+        assert abs(float(ours) - float(theirs)) < 1e-5 * abs(float(theirs))
+        np.testing.assert_allclose(ops.convert_to_numpy(grad), reference,
+                                   rtol=1e-4, atol=1e-5 * np.abs(reference).max())
+
 
 #**************************************************************************************************#
 #                                      Class TestPulseProfiles                                     #
