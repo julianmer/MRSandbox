@@ -23,6 +23,7 @@ import collections
 import copy
 import dataclasses
 import io
+import multiprocessing
 import os
 import pathlib
 import subprocess
@@ -39,7 +40,8 @@ from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING,
                                        GEARS, IDEALS, LENT, MAKERS, MRSI, OVERLAYS, PLACE, PLACES,
                                        PROCESS,
                                        REAL, RUN, RUN_OF, SCANNERS, TARGETS, adjusted, named,
-                                       SEQUENCES, SUPPRESSION, TEMPLATES, Session)
+                                       SEQUENCES, SUPPRESSION, TEMPLATES, WORKER, Session,
+                                       started, working)
 from mrsandbox.hardware.scanners import PRESETS
 from mrsandbox.io import read_dicom
 from mrsandbox.phantom import FieldMap
@@ -1021,7 +1023,7 @@ async def console(client: Client):
             listing()
             began = time.perf_counter()
             try:
-                await run.io_bound(session.run, exam)
+                await run.io_bound(session.remote, "run", exam)
             except Exception as error:
                 exam.status, exam.problem = "failed", str(error)
             if status.is_deleted:       # the window closed while the exam ran
@@ -1924,7 +1926,7 @@ async def console(client: Client):
             the strip shows them; perfect, without broadening as well."""
             busy.set_visibility(True)
             try:
-                ppm, real = await run.io_bound(session.showcase, perfect.value)
+                ppm, real = await run.io_bound(session.remote, "showcase", perfect.value)
             except Exception as error:
                 problem.text = str(error)[:160]
                 problem.style(f"color: {BAD}")
@@ -4344,16 +4346,11 @@ def main():
                              'Terminal=false\nCategories=Science;Education;\n')
             print(f"{name} is in the applications menu ({entry})")
         return
-    import keras
-
-    if keras.backend.backend() == "jax":
-        # the engine's kernels are compiled once per machine, not once per launch
-        import jax
-
-        jax.config.update("jax_compilation_cache_dir",
-                          str(pathlib.Path.home() / ".cache" / "mrsandbox" / "jax"))
-        jax.config.update("jax_persistent_cache_min_compile_time_secs", 0.0)
-        jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
+    working()
+    # the simulations in a process of their own, so a compile never holds the page; a child process
+    # (the worker, the native window) runs this module again and starts none
+    if multiprocessing.parent_process() is None:
+        WORKER["pool"] = started()
     if "MRSANDBOX_CONSOLE_PORT" in os.environ:
         ui.run(title="MRSandbox Console", favicon=LOGO, dark=True, reload=False,
                show="MRSANDBOX_CONSOLE_HEADLESS" not in os.environ,

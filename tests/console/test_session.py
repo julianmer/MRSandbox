@@ -322,6 +322,34 @@ class TestSession:
         assert session._bodies[key] is engine and engine._compiled
         assert np.array_equal(np.asarray(kept.data[:]), np.asarray(first.data[:]))
 
+    def test_the_worker_plays_an_exam_as_the_page_does(self, monkeypatch):
+        # Session.remote sends the page's state and the exam to the worker process and takes the
+        # exam, the clock and the timings back; a stand-in pool pickles both ways as a process
+        # does: the data are the page's own, and the clock moves by the scan
+        import concurrent.futures
+        import pickle
+
+        from mrsandbox.console import session as console
+
+        class Pickling:
+            def submit(self, fn, *args):
+                future = concurrent.futures.Future()
+                result = fn(*pickle.loads(pickle.dumps(args)))
+                future.set_result(pickle.loads(pickle.dumps(result)))
+                return future
+
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
+        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 4, 512
+        here = session.run(session.plan(), seed=3)
+        monkeypatch.setitem(console.WORKER, "pool", Pickling())
+        monkeypatch.setitem(console.WORKER, "session", Session())
+        clock, there = session.clock_s, session.plan()
+        assert session.remote("run", there, 3) is not there and there.status == "done"
+        assert np.array_equal(np.asarray(there.data[:]), np.asarray(here.data[:]))
+        assert session.clock_s == clock + there.card.scan_time_s
+
     def test_the_scanner_drifts_through_the_session_and_a_prescan_centres_it(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0

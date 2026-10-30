@@ -15,10 +15,13 @@
 #*************#
 #   imports   #
 #*************#
+import concurrent.futures
 import copy
 import dataclasses
 import functools
 import json
+import multiprocessing
+import os
 import pathlib
 import time
 
@@ -2801,6 +2804,40 @@ class Session:
                             getattr(exam.sequence, "unfolded", False))] = (
                     time.perf_counter() - began)
 
+    def remote(self, task, *args):
+        """`task` ("run" or "showcase") on `args` played in the console's worker process (WORKER's
+        pool, one process, `started`): the page's process never traces nor compiles, so the page
+        stays live however long the work takes. The worker's session takes this one's state for
+        the task (`worked`), and the clock, the timings and a run's exam with its data come back.
+        A subject or coil read this session (a loader of its own) stays here with the work on it,
+        as does all work without a pool. A worker that died (the computer out of memory) is
+        replaced for the next task, and this one fails."""
+        room = args[0].room if task == "run" else {name: getattr(self, name) for name in self.ROOM}
+        if ("pool" not in WORKER or room["subject"] not in SUBJECTS
+                or room["coil"] not in self.COILS):
+            return getattr(self, task)(*args)
+        self.drift_hz_per_min   # drawn here once a session; the worker plays it
+        state = {name: value for name, value in vars(self).items() if not name.startswith("_")
+                 and name not in ("subjects", "pictures", "coils", "queue")}
+        # a queued exam moves the scanner's clock, a preview does not: the queue crosses as the
+        # exam alone, pickled with it, so the worker holds one object in both
+        state.update(_drift=self._drift, _took=self._took,
+                     queue=[args[0]] if task == "run" and args[0] in self.queue else [])
+        try:
+            result, self.clock_s, self._took = WORKER["pool"].submit(
+                worked, state, task, *args).result()
+        except concurrent.futures.BrokenExecutor:
+            WORKER["pool"] = started()
+            raise
+        if task == "run":
+            # the data cross as their nibabel image (NIfTI-MRS holds weak references)
+            if result.data is not None:
+                from nifti_mrs.nifti_mrs import NIFTI_MRS
+
+                result.data = NIFTI_MRS(result.data)
+            vars(args[0]).update(vars(result))
+        return result
+
     def compute_s(self, card=None):
         """About how long this computer takes to simulate a card, in seconds, or None until
         something tells: what the last exam of its kind took here. A card that plays the whole
@@ -3378,3 +3415,62 @@ class Session:
         table = folder / "truth.csv"
         pd.DataFrame(rows).to_csv(table, index=False)
         return table
+
+
+#****************#
+#   the worker   #
+#****************#
+# the console simulates in a process of its own: the page's process holds its pool here, and the
+# worker process its one session, kept with the graphs it has built from one task to the next
+WORKER = {}
+
+
+#*************#
+#   started   #
+#*************#
+def started():
+    """The console's worker: one spawned process, `working` ten steps below the page, warmed at
+    once on the default room's card (`worked`)."""
+    pool = concurrent.futures.ProcessPoolExecutor(1, multiprocessing.get_context("spawn"),
+                                                  initializer=working, initargs=(10,))
+    pool.submit(worked, None, "run")
+    return pool
+
+
+#*************#
+#   working   #
+#*************#
+def working(nice=0):
+    """Ready a process to simulate for the console: jax's compilation cache in the user's cache
+    folder, so the engine's kernels compile once per machine and not once per launch, and the
+    process `nice` steps below the page in the scheduler, so the page and the computer stay
+    smooth while it works."""
+    import keras
+
+    os.nice(nice)
+    if keras.backend.backend() == "jax":
+        import jax
+
+        jax.config.update("jax_compilation_cache_dir",
+                          str(pathlib.Path.home() / ".cache" / "mrsandbox" / "jax"))
+        jax.config.update("jax_persistent_cache_min_compile_time_secs", 0.0)
+        jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
+
+
+#************#
+#   worked   #
+#************#
+def worked(state, task, *args):
+    """In the worker process: the Session method `task` on `args` with the page's `state`
+    (Session.remote), returning its result, the clock and the timings. With no state the default
+    room's card plays once and is thrown away, the console's warm-up at launch: its graphs are
+    built while the operator plans."""
+    session = WORKER.setdefault("session", Session())
+    if state is None:
+        session.run(session.plan(queued=False))
+        return None
+    vars(session).update(state)
+    result = getattr(session, task)(*args)
+    if task == "run" and result.data is not None:
+        result.data = result.data.image.nibImage
+    return result, session.clock_s, session._took
