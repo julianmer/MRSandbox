@@ -7,7 +7,8 @@
 # Created: 19/09/26                                                                                #
 #                                                                                                  #
 # Purpose: Gate of console.app, the console's face: a simulated operator (nicegui.testing) opens   #
-#          the page and every pop-up, and sets what they offer, without a browser.                 #
+#          the page and every pop-up, and sets what they offer, without a browser; the shortcut    #
+#          it installs starts this environment with the logo.                                      #
 #                                                                                                  #
 ####################################################################################################
 
@@ -252,3 +253,37 @@ class TestApp:
                 await user.should_see("36 subjects in 1 datasets of", retries=40)
 
         asyncio.run(visit())
+
+
+#**************************************************************************************************#
+#                                        Class TestShortcut                                        #
+#**************************************************************************************************#
+class TestShortcut:
+
+    @pytest.mark.parametrize("platform", ["darwin", "linux"])
+    def test_the_shortcut_starts_this_environment_with_the_logo(self, platform, tmp_path,
+                                                                monkeypatch):
+        import plistlib
+        import sys
+
+        from PIL import Image
+
+        from mrsandbox.console import app
+
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setattr(sys, "platform", platform)
+        monkeypatch.setattr(sys, "argv", ["mrsandbox-console", "--install-shortcut"])
+        app.main()
+        command = f'"{sys.executable}" -m mrsandbox.console.app'
+        if platform == "darwin":
+            contents = tmp_path / "Applications" / "MRSandbox Console.app" / "Contents"
+            plist = plistlib.loads((contents / "Info.plist").read_bytes())
+            launcher = contents / "MacOS" / plist["CFBundleExecutable"]
+            assert command in launcher.read_text() and launcher.stat().st_mode & 0o111
+            assert Image.open(contents / "Resources" / plist["CFBundleIconFile"]).size[0] >= 512
+        else:
+            share = tmp_path / ".local" / "share"
+            entry = (share / "applications" / "mrsandbox-console.desktop").read_text()
+            assert f"Exec={command}" in entry
+            assert f"Icon={share / 'icons' / 'mrsandbox-console.png'}" in entry
+            assert Image.open(share / "icons" / "mrsandbox-console.png").size == (256, 256)

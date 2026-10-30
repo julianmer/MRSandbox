@@ -4287,7 +4287,63 @@ async def console(client: Client):
 #**********#
 def main():
     """Start the console in a window of its own; with MRSANDBOX_CONSOLE_PORT set it serves a
-    browser at that port instead (MRSANDBOX_CONSOLE_HEADLESS: without opening one)."""
+    browser at that port instead (MRSANDBOX_CONSOLE_HEADLESS: without opening one).
+
+    `mrsandbox-console --install-shortcut` instead puts the console among this computer's
+    applications with the logo, started from this Python environment: an app in ~/Applications
+    on macOS, a menu entry in ~/.local/share/applications on Linux, a Start menu shortcut on
+    Windows. Run it again after moving the environment; an environment that disappears (uvx's)
+    leaves a shortcut that starts nothing."""
+    if sys.argv[1:] == ["--install-shortcut"]:
+        name, logo = "MRSandbox Console", Image.open(LOGO)
+        if sys.platform == "darwin":
+            import plistlib
+
+            bundle = pathlib.Path.home() / "Applications" / f"{name}.app"
+            (bundle / "Contents" / "MacOS").mkdir(parents=True, exist_ok=True)
+            (bundle / "Contents" / "Resources").mkdir(exist_ok=True)
+            launcher = bundle / "Contents" / "MacOS" / "console"
+            launcher.write_text(f'#!/bin/sh\nexec "{sys.executable}" -m mrsandbox.console.app\n')
+            launcher.chmod(0o755)
+            logo.save(bundle / "Contents" / "Resources" / "logo.icns")
+            with open(bundle / "Contents" / "Info.plist", "wb") as plist:
+                plistlib.dump({"CFBundleName": name, "CFBundleDisplayName": name,
+                               "CFBundleIdentifier": "org.mrsandbox.console",
+                               "CFBundleExecutable": "console", "CFBundleIconFile": "logo.icns",
+                               "CFBundlePackageType": "APPL", "NSHighResolutionCapable": True},
+                              plist)
+            # Finder reads a bundle's icon again once the bundle has changed
+            os.utime(bundle)
+            print(f"{name} is in {bundle.parent}: open it from Launchpad or Spotlight, or drag it "
+                  "to the Dock")
+        elif sys.platform == "win32":
+            pythonw = pathlib.Path(sys.executable).with_name("pythonw.exe")
+            icon = pathlib.Path(os.environ["LOCALAPPDATA"]) / "MRSandbox" / "console.ico"
+            icon.parent.mkdir(parents=True, exist_ok=True)
+            logo.save(icon, sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+            link = (pathlib.Path(os.environ["APPDATA"]) / "Microsoft" / "Windows" / "Start Menu"
+                    / "Programs" / f"{name}.lnk")
+            quoted = lambda path: "'" + str(path).replace("'", "''") + "'"
+            subprocess.run(["powershell", "-NoProfile", "-Command",
+                            f"$s = (New-Object -ComObject WScript.Shell).CreateShortcut("
+                            f"{quoted(link)}); $s.TargetPath = "
+                            f"{quoted(pythonw if pythonw.exists() else sys.executable)}; "
+                            "$s.Arguments = '-m mrsandbox.console.app'; "
+                            f"$s.IconLocation = {quoted(icon)}; $s.Save()"], check=True)
+            print(f"{name} is in the Start menu ({link}); pin it to the taskbar from there")
+        else:
+            share = pathlib.Path.home() / ".local" / "share"
+            icon = share / "icons" / "mrsandbox-console.png"
+            icon.parent.mkdir(parents=True, exist_ok=True)
+            logo.resize((256, 256)).save(icon)
+            entry = share / "applications" / "mrsandbox-console.desktop"
+            entry.parent.mkdir(parents=True, exist_ok=True)
+            entry.write_text(f'[Desktop Entry]\nType=Application\nName={name}\n'
+                             'Comment=The MRSandbox virtual MR scanner\n'
+                             f'Exec="{sys.executable}" -m mrsandbox.console.app\nIcon={icon}\n'
+                             'Terminal=false\nCategories=Science;Education;\n')
+            print(f"{name} is in the applications menu ({entry})")
+        return
     import keras
 
     if keras.backend.backend() == "jax":
