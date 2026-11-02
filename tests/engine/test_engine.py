@@ -403,6 +403,44 @@ class TestGraph:
         # one graph per design, the batched replay included
         assert len(engine._compiled) == 2
 
+    #*********************#
+    #   batched systems   #
+    #*********************#
+    def test_a_graph_plays_the_systems_of_one_algebra_as_a_batch(self):
+        # a graph stacks the systems alike in their operators (Engine.algebra) and maps one
+        # chain over each stack, in the voxel's layout of a group per system: the lines of
+        # every system are the eager chain's, in the groups' order, through the full graph
+        # and through the framed one
+        from mrsandbox.sequences.library import LocalizedPress
+
+        engine = Engine(3.0, isochromats=8)
+        systems = [system for name in ("NAA", "Lac", "Cr") for system in SpinSystem.from_database(name)]
+        groups = tuple((system,) for system in systems)
+        assert [system.dim for system in systems] == [2, 16, 16, 2, 2, 2]
+        design = LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ, tr_s=1.5)
+        stacks = engine._stacked(design, groups, 8)
+        assert [positions for _, positions, _, _ in stacks] == [[0, 3, 4, 5], [1, 2]]
+        t1 = np.asarray([0.9, 1.2, 1.5, 1.1, 1.3, 1.4], dtype=np.float32)
+        t2 = np.asarray([0.10, 0.25, 0.15, 0.2, 0.3, 0.12], dtype=np.float32)
+        b1, offset = ops.convert_to_tensor(np.float32(0.9)), ops.convert_to_tensor(np.float32(5.0))
+        fn, bounds = engine.compiled_batch(design, groups)
+        f_all, a_all = (np.asarray(ops.convert_to_numpy(v))
+                        for v in fn(ops.convert_to_tensor(t1), ops.convert_to_tensor(t2), b1, offset))
+        for k, system in enumerate(systems):
+            f, a = (np.asarray(ops.convert_to_numpy(v)) for v in engine.lines(
+                design, system.with_relaxation(t1_s=t1[k], t2_s=t2[k]), b1_scale=0.9,
+                offset_hz=5.0))
+            np.testing.assert_array_equal(f_all[bounds[k]:bounds[k + 1]], f)
+            assert np.abs(a_all[bounds[k]:bounds[k + 1]] - a).max() < 1e-5 * np.abs(a).max()
+        pruned, kept = engine.compiled_batch(design, groups, pruned=True)
+        frame, lines, _, kept_framed = engine.framed(design, groups)
+        np.testing.assert_array_equal(kept, kept_framed)
+        args = (ops.convert_to_tensor(t1), ops.convert_to_tensor(t2), b1, offset)
+        f_full, a_full = (np.asarray(ops.convert_to_numpy(v)) for v in pruned(*args))
+        f_one, a_one = (np.asarray(ops.convert_to_numpy(v)) for v in lines(*args, frame(b1, offset)))
+        np.testing.assert_array_equal(f_one, f_full)
+        assert np.abs(a_one - a_full).max() < 1e-5 * np.abs(a_full).max()
+
     #******************#
     #   framed graph   #
     #******************#

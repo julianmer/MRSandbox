@@ -20,7 +20,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import Brain, Fixed, Normal, Params, Press, Scanner, Uniform, VirtualScan
+from mrsandbox import (Brain, Engine, Fixed, Normal, Params, Press, Scanner, Uniform,
+                       VirtualScan)
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
 pytestmark = pytest.mark.render
@@ -297,9 +298,9 @@ class TestAcquisitionImperfections:
     #   compiled ensembles   #
     #************************#
     @pytest.mark.slow
-    def test_a_shaped_ensemble_design_compiles_per_metabolite_to_the_same_fid(self, scan):
-        # shaped pulses on an isochromat ensemble compile one graph per metabolite (a
-        # graph holds its intermediates); the FID is the plain path's
+    def test_a_shaped_ensemble_design_compiles_per_algebra_to_the_same_fid(self, scan):
+        # shaped pulses on an isochromat ensemble compile one graph per operator algebra (a
+        # graph holds its intermediates), its systems as one batch; the FID is the plain path's
         from mrsandbox import CoherenceFilter, Delay, Gradient, Projection, Sequence, ShapedPulse
 
         design = Sequence(
@@ -315,8 +316,10 @@ class TestAcquisitionImperfections:
         _, fast = voxel.fid(seed=5, npoints=256)
         # the metabolites played: those of a concentration above zero here
         played = voxel.frame(voxel.sample(seed=5))[0]
-        assert len(played) > 10
-        assert len(source.engine._compiled) >= len(played)
+        algebras = {Engine.algebra(s) for name in played for s in source.systems(name)}
+        assert len(played) > 10 > len(algebras)
+        # each algebra's full and pruned graph, the water's beside them
+        assert 2 * len(algebras) <= len(source.engine._compiled) < 2 * len(played)
         np.testing.assert_allclose(fast, plain, atol=1e-4 * np.abs(plain).max())
 
     #*****************#

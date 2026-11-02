@@ -324,6 +324,36 @@ class Engine:
             amps = ops.mean(amps, axis=0)
         return ops.reshape(freqs, (-1,)), receiver * ops.reshape(amps, (-1,))
 
+    #*************#
+    #   stacked   #
+    #*************#
+    @staticmethod
+    def algebra(system):
+        """What a system's operators are built from (spins.Operators) and its
+        spectrometer frequency: systems alike here share every context tensor but
+        their eigensystem, shifts and thermal state, so one graph plays them as a
+        batch (`_stacked`)."""
+        return (system.nucleus, system.nuclei, system.spin, system.gamma_mhz_t, system.n)
+
+    def _stacked(self, sequence, groups, isochromats):
+        """The systems of `groups` in batches of one `algebra`, in order of first
+        appearance: per batch the context of its first system (the shared operators
+        and ensemble), the positions of its systems in the flat order of the groups,
+        their group indices (for t1_s and t2_s), and the leaves that differ per
+        system (lam, v, nu_hz, rho_eq) stacked on a leading axis for Backend.vmap: a
+        graph runs one chain per batch, its matmuls batched over the systems, instead
+        of a chain per system."""
+        batches = {}
+        systems = [(which, system) for which, group in enumerate(groups) for system in group]
+        for position, (which, system) in enumerate(systems):
+            ctx = self._ensemble_context(sequence, self.context(system), isochromats)
+            batches.setdefault(self.algebra(system), []).append((position, which, ctx))
+        return [(members[0][2], [position for position, _, _ in members],
+                 np.asarray([which for _, which, _ in members]),
+                 tuple(ops.stack([getattr(ctx, name) for _, _, ctx in members])
+                       for name in ("lam", "v", "nu_hz", "rho_eq")))
+                for members in batches.values()]
+
     #***********#
     #   graph   #
     #***********#
@@ -417,23 +447,30 @@ class Engine:
                 return ops.take(freqs, index), ops.take(amps, index)
 
             return gathered, kept
-        contexts = [(index, self._ensemble_context(sequence, self.context(system), isochromats))
-                    for index, group in enumerate(groups) for system in group]
+        stacks = self._stacked(sequence, groups, isochromats)
         axes = sorted(self.extents(sequence))
 
         def fn(t1_s, t2_s, b1_scale, offset_hz, timings, shift):
             design = sequence.bound(timings)
-            freqs, amps = [], []
-            for index, ctx0 in contexts:
+            freqs, amps = {}, {}
+            for ctx0, positions, which, leaves in stacks:
                 moved = {"gradient_" + axis:
                          getattr(ctx0, "gradient_" + axis) + shift["xyz".index(axis)]
                          for axis in axes}
-                ctx = dataclasses.replace(ctx0, t1_s=t1_s[index], t2_s=t2_s[index],
-                                          b1_scale=b1_scale, offset_hz=offset_hz, **moved)
-                f, a = self._system_lines(design, ctx)
-                freqs.append(f)
-                amps.append(a)
-            return ops.concatenate(freqs), ops.concatenate(amps)
+
+                def one(lam, v, nu_hz, rho_eq, t1, t2):
+                    ctx = dataclasses.replace(ctx0, lam=lam, v=v, nu_hz=nu_hz, rho_eq=rho_eq,
+                                              t1_s=t1, t2_s=t2, b1_scale=b1_scale,
+                                              offset_hz=offset_hz, **moved)
+                    return self._system_lines(design, ctx)
+
+                f, a = Backend.vmap(one, (0,) * 6)(*leaves, ops.take(t1_s, which),
+                                                   ops.take(t2_s, which))
+                for k, position in enumerate(positions):
+                    freqs[position], amps[position] = f[k], a[k]
+            order = range(len(freqs))
+            return (ops.concatenate([freqs[p] for p in order]),
+                    ops.concatenate([amps[p] for p in order]))
 
         return fn, self._group_bounds(groups)
 
@@ -770,9 +807,7 @@ class Engine:
                 # exports serve never builds the contexts
                 if built:
                     return built[0]
-                contexts = [(group, self._ensemble_context(sequence, self.context(system),
-                                                           isochromats))
-                            for group, members in enumerate(groups) for system in members]
+                stacks = self._stacked(sequence, groups, isochromats)
                 axes = sorted(self.extents(sequence))
 
                 def placed(ctx0, shift, **values):
@@ -791,22 +826,34 @@ class Engine:
 
                 def frame(b1_scale, offset_hz, timings, shift):
                     design = sequence.bound(timings)
-                    return tuple(tuple(pulse.propagator(placed(ctx0, shift, b1_scale=b1_scale,
-                                                               offset_hz=offset_hz))
-                                       for pulse in pulses(design)) for _, ctx0 in contexts)
+                    held = []
+                    for ctx0, _, _, (lam, v, _, _) in stacks:
+                        def played(lam, v):
+                            ctx = placed(ctx0, shift, lam=lam, v=v, b1_scale=b1_scale,
+                                         offset_hz=offset_hz)
+                            return tuple(pulse.propagator(ctx) for pulse in pulses(design))
+
+                        held.append(Backend.vmap(played, (0, 0))(lam, v))
+                    return tuple(held)
 
                 def lines(t1_s, t2_s, b1_scale, offset_hz, timings, shift, frame):
                     design = sequence.bound(timings)
-                    freqs, amps = [], []
-                    for (group, ctx0), held in zip(contexts, frame):
-                        ctx = placed(ctx0, shift, t1_s=t1_s[group], t2_s=t2_s[group],
-                                     b1_scale=b1_scale, offset_hz=offset_hz)
-                        f, a = self._system_lines(design, ctx,
-                                                  dict(zip(map(id, pulses(design)), held)))
-                        freqs.append(f)
-                        amps.append(a)
-                    return (ops.take(ops.concatenate(freqs), index),
-                            ops.take(ops.concatenate(amps), index))
+                    ids = tuple(map(id, pulses(design)))
+                    freqs, amps = {}, {}
+                    for (ctx0, positions, which, leaves), held in zip(stacks, frame):
+                        def one(lam, v, nu_hz, rho_eq, t1, t2, held):
+                            ctx = placed(ctx0, shift, lam=lam, v=v, nu_hz=nu_hz, rho_eq=rho_eq,
+                                         t1_s=t1, t2_s=t2, b1_scale=b1_scale,
+                                         offset_hz=offset_hz)
+                            return self._system_lines(design, ctx, dict(zip(ids, held)))
+
+                        f, a = Backend.vmap(one, (0,) * 7)(*leaves, ops.take(t1_s, which),
+                                                           ops.take(t2_s, which), held)
+                        for k, position in enumerate(positions):
+                            freqs[position], amps[position] = f[k], a[k]
+                    order = range(len(freqs))
+                    return (ops.take(ops.concatenate([freqs[p] for p in order]), index),
+                            ops.take(ops.concatenate([amps[p] for p in order]), index))
 
                 built.append((frame, lines))
                 return built[0]

@@ -18,8 +18,8 @@
 import numpy as np
 import pytest
 
-from mrsandbox import (Brain, CoherenceFilter, Delay, Fixed, Gradient, Params, Press, Projection,
-                       Scanner, Sequence, ShapedPulse, VirtualScan)
+from mrsandbox import (Brain, CoherenceFilter, Delay, Engine, Fixed, Gradient, Params, Press,
+                       Projection, Scanner, Sequence, ShapedPulse, VirtualScan)
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
 pytestmark = pytest.mark.render
@@ -167,9 +167,11 @@ class TestGenerator:
         gen = source.generator(**VOXEL, batch_size=4, seed=11, npoints=256)
         x, _ = gen[2]
         (pulses,) = source._propagators.values()
-        # a pulse frame per metabolite present: those at 0 mM are not simulated
+        # a pulse frame per operator algebra among the metabolites present (those at 0 mM are
+        # not simulated), their systems batched
         present = [name for name in source.params.conc if source.params.conc[name] != Fixed(0.0)]
-        assert len(pulses) == len(present) and all(p is not None for p in pulses)
+        algebras = {Engine.algebra(s) for name in present for s in source.systems(name)}
+        assert len(pulses) == len(algebras) < len(present) and all(p is not None for p in pulses)
         assert len(source._frame_lines) == 4  # the relaxation still draws per sample
         source._frame_lines.clear()  # the lone replays run the full graphs
         alone = source.voxel(compiled=True, **VOXEL)

@@ -19,7 +19,7 @@
 import math
 
 import numpy as np
-from keras import ops
+from keras import ops, tree
 from nifti_mrs_plus import ops as nops
 
 from mrsandbox.backend import precision
@@ -46,22 +46,23 @@ class Backend:
     @staticmethod
     def vmap(fn, in_axes):
         """`fn` mapped over a leading axis of the arguments `in_axes` marks with 0 (None
-        passes an argument whole), the outputs stacked on a new leading axis: jax's
-        vmap on jax tensors, where the batch axis stays hidden from the traced code and
-        one compiled graph serves the whole batch, and a loop over the batch with the
+        passes an argument whole; a mapped argument may be a nest of tensors, every
+        leaf mapped), the outputs stacked on a new leading axis: jax's vmap on jax
+        tensors, where the batch axis stays hidden from the traced code and one
+        compiled graph serves the whole batch, and a loop over the batch with the
         results stacked everywhere else (the same values, one dispatch per element).
         Dispatches at call time on the tensors passed, like jit."""
         def mapped(*args):
-            if any(nops.is_jax(arg) for arg in args):
+            if any(nops.is_jax(leaf) for leaf in tree.flatten(args)):
                 import jax
 
                 return jax.vmap(fn, in_axes=in_axes)(*args)
-            size = next(int(arg.shape[0]) for arg, axis in zip(args, in_axes) if axis == 0)
-            outputs = [fn(*(arg[i] if axis == 0 else arg for arg, axis in zip(args, in_axes)))
+            size = next(int(tree.flatten(arg)[0].shape[0])
+                        for arg, axis in zip(args, in_axes) if axis == 0)
+            outputs = [fn(*(tree.map_structure(lambda leaf: leaf[i], arg) if axis == 0 else arg
+                            for arg, axis in zip(args, in_axes)))
                        for i in range(size)]
-            if isinstance(outputs[0], tuple):
-                return tuple(ops.stack(column) for column in zip(*outputs))
-            return ops.stack(outputs)
+            return tree.map_structure(lambda *column: ops.stack(column), *outputs)
 
         return mapped
 
