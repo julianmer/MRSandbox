@@ -350,6 +350,31 @@ class TestSession:
         assert np.array_equal(np.asarray(there.data[:]), np.asarray(here.data[:]))
         assert session.clock_s == clock + there.card.scan_time_s
 
+    @pytest.mark.slow
+    def test_a_spawned_worker_plays_an_exam_as_the_page_does(self, monkeypatch):
+        # the worker as the console starts it, a spawned process `working` (without the warm-up):
+        # the exam through Session.remote crosses two processes and equals the one played here
+        import concurrent.futures
+        import multiprocessing
+
+        from mrsandbox.console import worker
+
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
+        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 4, 512
+        here = session.run(session.plan(), seed=3)
+        pool = concurrent.futures.ProcessPoolExecutor(1, multiprocessing.get_context("spawn"),
+                                                      initializer=worker.working)
+        monkeypatch.setitem(worker.WORKER, "pool", pool)
+        try:
+            there = session.plan()
+            session.remote("run", there, 3)
+        finally:
+            pool.shutdown()
+        assert there.status == "done"
+        assert np.array_equal(np.asarray(there.data[:]), np.asarray(here.data[:]))
+
     def test_the_scanner_drifts_through_the_session_and_a_prescan_centres_it(self):
         session = Session(ICBM)
         session.protocol.water_reference = 0

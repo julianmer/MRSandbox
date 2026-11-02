@@ -40,6 +40,7 @@ class TestApp:
         async def visit():
             async with user_simulation() as user:
                 import mrsandbox.console.app as app
+                import mrsandbox.console.page as page
 
                 importlib.reload(app)  # the page registers with this simulation
                 await user.open("/")
@@ -107,7 +108,7 @@ class TestApp:
                 next(iter(user.find(marker="line B0").elements)).value = "uniform"
                 # by their markers: a simulated page keeps no order
                 for line in ("anatomy", "GM", "WM", "CSF"):
-                    app.choose_file = lambda prompt, line=line: chosen[line]
+                    page.choose_file = lambda prompt, line=line: chosen[line]
                     next(iter(user.find(marker=f"line {line}").elements)).value = (
                         "your own file ...")
                     await asyncio.sleep(0.4)  # the line's choice is taken in a task of its own

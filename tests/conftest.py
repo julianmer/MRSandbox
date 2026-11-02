@@ -24,7 +24,7 @@ import pytest
 
 if os.environ["KERAS_BACKEND"] == "jax":
     # the engine's graphs compile once per machine, not once per run, as the console has it
-    # (console.app.main): the same cache directory, so a test and the console share what either
+    # (console.worker.working): the same cache directory, so a test and the console share what either
     # compiled
     import jax
 

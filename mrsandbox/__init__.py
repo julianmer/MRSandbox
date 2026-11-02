@@ -36,26 +36,52 @@ if "KERAS_BACKEND" not in os.environ:
         os.environ["KERAS_BACKEND"] = installed
 
 #*************#
-#   imports   #
+#   exports   #
 #*************#
-from mrsandbox.backend import Backend  # noqa: E402
-from mrsandbox.database import Database
-from mrsandbox.engine import Context, Engine
-from mrsandbox.hardware import CoilArray, Loop, MappedCoilArray, Receiver, Scanner
-from mrsandbox.params import (Clipped, Empirical, Fixed, Mapped, Mixture, Normal, Params, PerTissue,
-                              Priors, Sourced, Tissues, Uniform, Value)
-from mrsandbox.phantom import (Brain, ChallengeMM, CoupledMM, FieldMap, MeasuredMM, NoDownfield,
-                               NoLipids, NoMM, NoWater, ParameterizedDownfield, ParameterizedMM,
-                               Phantom, Skull, Suppressed, Unsuppressed, Volume)
-from mrsandbox.scan import MRSI, Generator, Multiplex, ScannerProfile, VirtualScan, Voxel
-from mrsandbox.sequences import (Chess, Cows, CoherenceFilter, Cycled, Delay, Gradient,
-                                 HadamardEditing, Hercules, Hermes, InducedKick, LocalizedMegaPress,
-                                 LocalizedMegaSemiLaser, LocalizedPress, LocalizedSemiLaser,
-                                 LocalizedSteam, MegaPress, OuterVolumeSuppression, Press,
-                                 Projection, Pulse, PulseAcquire, SelectivePulse, SemiLaser,
-                                 Sequence, ShapedPulse, SiemensChess, Steam, SuppressionTrain,
-                                 Vapor, Wet)
-from mrsandbox.spins import Operators, SpinSystem
+# the package's names by the module that holds them, imported on first use (a module __getattr__):
+# importing a part of the package (the console's window) does not load the engine and its backend
+EXPORTS = {
+    "mrsandbox.backend": ("Backend",),
+    "mrsandbox.database": ("Database",),
+    "mrsandbox.engine": ("Context", "Engine"),
+    "mrsandbox.hardware": ("CoilArray", "Loop", "MappedCoilArray", "Receiver", "Scanner"),
+    "mrsandbox.params": ("Clipped", "Empirical", "Fixed", "Mapped", "Mixture", "Normal", "Params",
+                         "PerTissue", "Priors", "Sourced", "Tissues", "Uniform", "Value"),
+    "mrsandbox.phantom": ("Brain", "ChallengeMM", "CoupledMM", "FieldMap", "MeasuredMM",
+                          "NoDownfield", "NoLipids", "NoMM", "NoWater", "ParameterizedDownfield",
+                          "ParameterizedMM", "Phantom", "Skull", "Suppressed", "Unsuppressed",
+                          "Volume"),
+    "mrsandbox.scan": ("MRSI", "Generator", "Multiplex", "ScannerProfile", "VirtualScan", "Voxel"),
+    "mrsandbox.sequences": ("Chess", "Cows", "CoherenceFilter", "Cycled", "Delay", "Gradient",
+                            "HadamardEditing", "Hercules", "Hermes", "InducedKick",
+                            "LocalizedMegaPress", "LocalizedMegaSemiLaser", "LocalizedPress",
+                            "LocalizedSemiLaser", "LocalizedSteam", "MegaPress",
+                            "OuterVolumeSuppression", "Press", "Projection", "Pulse",
+                            "PulseAcquire", "SelectivePulse", "SemiLaser", "Sequence",
+                            "ShapedPulse", "SiemensChess", "Steam", "SuppressionTrain", "Vapor",
+                            "Wet"),
+    "mrsandbox.spins": ("Operators", "SpinSystem"),
+}
+OWNER = {name: module for module, names in EXPORTS.items() for name in names}
+__all__ = [*OWNER, "replicate"]
+
+
+def __getattr__(name):
+    import importlib
+
+    if name in OWNER:
+        value = getattr(importlib.import_module(OWNER[name]), name)
+        globals()[name] = value
+        return value
+    # a subpackage asked for as an attribute (mrsandbox.scan) is imported as Python would
+    if importlib.util.find_spec(f"{__name__}.{name}") is not None:
+        return importlib.import_module(f"{__name__}.{name}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | set(__all__))
+
 
 __version__ = "0.1.3"
 
