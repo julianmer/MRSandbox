@@ -119,6 +119,34 @@ class TestWater:
         assert [name for _, _, _, name in parts] == present
         assert max(t2 for _, _, t2, _ in parts) > 2.0 * min(t2 for _, _, t2, _ in parts)
 
+    #*****************#
+    #   temperature   #
+    #*****************#
+    def test_a_train_sees_the_water_where_the_temperature_puts_it(self, brain):
+        # the water line moves down with the tissue temperature (a hundredth of a ppm a degree);
+        # the suppression train is played on the warm water where it sits, not at 4.65 ppm, so a
+        # water far enough off the train's band escapes it, and its lines come out moved
+        from mrsandbox.sequences.library import Chess
+
+        def water(temperature_c):
+            quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0),
+                           water=dict(temperature_c=temperature_c))
+            scan = VirtualScan(brain, Scanner.preset("generic_3t"),
+                               Chess(3, bandwidth_hz=40.0) + Press(te1_s=0.011, te2_s=0.019),
+                               params=quiet, water=Unsuppressed())
+            voxel = scan.voxel(position_mm=INTERIOR, size_mm=20.0)
+            truth = voxel.sample(seed=7)
+            parts = voxel._water_parts(truth, scan.engine, voxel.design(truth), voxel._f0_mhz(),
+                                       voxel._diffusion_factor(truth))
+            freqs, amps = (np.concatenate([ops.convert_to_numpy(part[k]) for part in parts])
+                           for k in (0, 1))
+            return abs(amps.sum()), float(freqs[np.abs(amps).argmax()]), voxel._f0_mhz()
+
+        warm, cool = water(62.0), water(37.0)
+        # 25 degrees move the water 0.27 ppm, outside the 40 Hz band
+        assert warm[0] > 20.0 * cool[0]
+        assert warm[1] - cool[1] == pytest.approx(-25.0 / 94.0 * warm[2], abs=0.5)
+
     #************************#
     #   out-of-voxel water   #
     #************************#

@@ -242,6 +242,15 @@ class Voxel:
         readout shifts by the same value afterwards (the acquisition modulation)."""
         return self.resolve(truth.acquisition.shift_hz) - self._field_offset_hz
 
+    def water_shift_hz(self, truth):
+        """How far the water line sits below its typed place at the drawn tissue temperature,
+        in hertz (the thermometry calibration, tissue.CADY_1995; the metabolites take theirs
+        in their systems, `_metabolite_lines`): the water's sequence runs at the voxel's
+        offset plus this, so a train sees the warm water where it is, and its lines move
+        down by it afterwards (`_water_parts`)."""
+        return ((self.resolve(truth.water.temperature_c) - 37.0) / CADY_1995["c_per_ppm"]
+                * self._f0_mhz())
+
     def frame(self, truth):
         """The resolved frame the metabolite lines and basis are rendered in at this
         voxel: (the metabolites present, T1 per metabolite, T2 per metabolite, transmit,
@@ -344,10 +353,9 @@ class Voxel:
             return None
         transferred = self.transfer(truth).get("water", 1.0)
         adc = truth.diffusion.water
-        # the water line moves with the temperature, fourteen times more than the metabolites
-        # (which take their systems at the same temperature, `_metabolite_lines`)
-        warm = self.resolve(truth.water.temperature_c) - 37.0
-        return [(w_freqs - np.float32(warm / CADY_1995["c_per_ppm"] * f0_mhz),
+        # the water line moves with the temperature (the sequence saw it there, `water_shift_hz`)
+        shift = np.float32(self.water_shift_hz(truth))
+        return [(w_freqs - shift,
                  w_amps * np.complex64(faded(getattr(adc, part) if part and isinstance(adc, Tissues)
                                              else adc) * transferred),
                  1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s, part in water]
@@ -762,11 +770,15 @@ class Voxel:
         modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
                                   + np.radians(acquisition.phase_deg)))
         if acquisition.eddy_transient_rad:
-            # the phase transient at the FID's start (the records' phase 5 ms after the first
-            # sample, decaying from there)
-            since_start = np.arange(npoints) * dwell_s
-            modulation = modulation * np.exp(1j * float(acquisition.eddy_transient_rad) * np.exp(
-                (0.005 - since_start) / float(acquisition.eddy_transient_tau_s)))
+            # the phase transient at the FID's start, exp(-t / tau) grown back from 5 ms, scaled
+            # so that the reader's measure of it (calibrate._eddy_transient) is the leaf
+            from mrsandbox.scan.calibrate import EDDY_AT_S, EDDY_LINE_S, _eddy_transient
+
+            t = np.arange(max(npoints, int(round(EDDY_LINE_S[1] / dwell_s)) + 1)) * dwell_s
+            shape = np.exp((EDDY_AT_S - t) / float(acquisition.eddy_transient_tau_s))
+            modulation = modulation * np.exp(
+                1j * float(acquisition.eddy_transient_rad) / _eddy_transient(shape, dwell_s)
+                * shape[:npoints])
         if acquisition.eddy_std_rad > 0.0:
             key = (int(acquisition.eddy_seed), float(acquisition.eddy_std_rad),
                    float(acquisition.eddy_lp_cut_hz), npoints, float(dwell_s))

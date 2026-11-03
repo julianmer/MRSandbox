@@ -3030,6 +3030,8 @@ class Session:
                       spread_hz=voxel.gauss_hz(truth))]
                   if field is not None else [(0.0, 1.0)])
         shift, b1 = state.get("acquisition.shift_hz", 0.0), voxel.b1_scale(truth)
+        # the water sits below the train's centre by its temperature shift
+        warm = voxel.water_shift_hz(truth)
         content, fractions = self.body().water_content, voxel.fractions
         per_tissue = lambda leaf, name: (getattr(leaf, name) if isinstance(leaf, Tissues)
                                          else voxel.resolve(leaf))
@@ -3052,7 +3054,7 @@ class Session:
                 share = share * np.exp(-te_s / t2)
                 full += share * (1.0 - np.exp(-(rest + sum(delays)) / t1))
                 for mean, weight in groups:
-                    inband = abs(shift - mean) <= train.bandwidth_hz / 2.0
+                    inband = abs(shift - mean + warm) <= train.bandwidth_hz / 2.0
                     mz = np.ones_like(factors)
                     for _ in range(8):                                    # to the steady state
                         for flip, delay in zip(train.flips_deg, delays):
@@ -3082,9 +3084,9 @@ class Session:
                        if not isinstance(event, (Projection, Gradient))]
             probe = Sequence(*((Delay(gap),) if gap else ()), *readout, tr_s=tr_s)
             engine = voxel.scan.engine
-            # the offset as the voxel plays it (scan.voxel offset_hz): the scanner's frequency
-            # error less the group's field
-            rows = [(t1, t2, share * weight, shift - mean) for share, t1, t2 in tissues
+            # the offset as the voxel plays the water (scan.voxel offset_hz, water_shift_hz): the
+            # scanner's frequency error less the group's field, plus the temperature shift
+            rows = [(t1, t2, share * weight, shift - mean + warm) for share, t1, t2 in tissues
                     for mean, weight in groups]
             draws = [ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
                 [[t1] for t1, _, _, _ in rows], [[t2] for _, t2, _, _ in rows], [b1] * len(rows),

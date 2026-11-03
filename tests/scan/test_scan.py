@@ -659,10 +659,11 @@ class TestLineshape:
     #   eddy transient   #
     #********************#
     def test_the_eddy_transient_is_an_exact_phase_on_the_fid(self, scan):
-        # the phase transient at the FID's start (scan.calibrations EDDY_PHASE records): the phase
-        # 5 ms after the first sample, decaying from there with its time constant and grown back
-        # to the start, on every component
+        # the phase transient at the FID's start (scan.calibrations EDDY_PHASE records): exp(-t / tau)
+        # grown back from 5 ms, on every component, scaled so that the reader's measure of it (the
+        # phase 5 ms after the first sample beyond the line through 20 to 60 ms) is the leaf
         from mrsandbox import NoDownfield, NoMM
+        from mrsandbox.scan.calibrate import _eddy_transient
 
         def fid(transient_rad):
             params = Params(**{**self.STILL, "acquisition": dict(self.STILL["acquisition"],
@@ -675,10 +676,12 @@ class TestLineshape:
 
         plain, turned = fid(0.0), fid(0.5)
         t = np.arange(512) / 4000.0
-        phase = 0.5 * np.exp((0.005 - t) / 0.01)
+        shape = np.exp((0.005 - t) / 0.01)
+        phase = 0.5 / _eddy_transient(shape, 1 / 4000.0) * shape
         np.testing.assert_allclose(turned, plain * np.exp(1j * phase),
                                    atol=1e-5 * np.abs(plain).max())
-        assert abs(phase[0] - 0.5 * np.e ** 0.5) < 1e-9 and phase[int(0.005 / (1 / 4000.0))] == 0.5
+        assert abs(_eddy_transient(phase, 1 / 4000.0) - 0.5) < 1e-9
+        assert 0.5 < phase[int(0.005 / (1 / 4000.0))] < 0.7 and phase[0] > phase[20]
 
     #***********************#
     #   background exempt   #

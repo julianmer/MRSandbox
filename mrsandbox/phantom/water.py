@@ -80,17 +80,19 @@ class WaterSource(abc.ABC):
         and b1 stay inputs, so the first call compiles and every voxel replays. The
         relaxation leaves resolve at the voxel (per-tissue values weighted by its
         composition, maps read over its box); `t1_s` and `t2_s` play one tissue's own
-        instead. A draw `prepare` replayed with its batch is read from the cache."""
+        instead. The sequence runs at the voxel's offset plus the water's temperature
+        shift (scan.voxel water_shift_hz), so a train sees the warm water where it is.
+        A draw `prepare` replayed with its batch is read from the cache."""
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
         t2_s = voxel.resolve(truth.water.t2_s) if t2_s is None else t2_s
         held = getattr(self, "_lines", {}).get(id(truth))
-        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[3],
-               voxel.offset_hz(truth))
+        offset_hz = voxel.offset_hz(truth) + voxel.water_shift_hz(truth)
+        key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[3], offset_hz)
         if held is not None and held[0] is truth and key in held[1]:
             return held[1][key]
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in
-                    (t1_s, t2_s, voxel.b1_input(truth), voxel.offset_hz(truth))))
+                    (t1_s, t2_s, voxel.b1_input(truth), offset_hz)))
 
     #*************#
     #   prepare   #
@@ -106,7 +108,7 @@ class WaterSource(abc.ABC):
                 continue
             key = (engine, sequence, float(voxel.resolve(truth.water.t1_s)),
                    float(voxel.resolve(truth.water.t2_s)), voxel.frame(truth)[3],
-                   voxel.offset_hz(truth))
+                   voxel.offset_hz(truth) + voxel.water_shift_hz(truth))
             entry = held.get(id(truth))
             if entry is None or entry[0] is not truth:
                 if len(held) >= 256:

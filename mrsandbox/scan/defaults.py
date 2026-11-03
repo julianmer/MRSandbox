@@ -302,10 +302,11 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     one.
         #   eddy_transient_rad, eddy_transient_tau_s: the phase transient at the
         #     FID's start that the water references show (the package's cohorts,
-        #     scan.cohort), as the phase 5 ms after the first sample, decaying as
-        #     exp(-t / tau) from there and grown back to the start: a Normal about
-        #     zero whose sd is the record's, zero for a scanner without one; the time
-        #     constant a stated range.
+        #     scan.cohort), as the reader measures it (the phase 5 ms after the first
+        #     sample beyond the line through 20 to 60 ms), played as exp(-t / tau)
+        #     grown back to the start and scaled so the reader reads the leaf: a Normal
+        #     about zero whose sd is the record's, zero for a scanner without one; the
+        #     time constant a stated range.
         acquisition=dict(shift_hz=Normal(0.0, 2.0), phase_deg=Uniform(-20.0, 20.0),
                          delay_s=_sourced("acquisition.delay_s", served, Uniform) or Fixed(0.0),
                          eddy_std_rad=(0.0, 0.6), eddy_lp_cut_hz=(10.0, 40.0),

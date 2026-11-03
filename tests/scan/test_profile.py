@@ -210,6 +210,34 @@ class TestScannerProfile:
                 / power[1024 - 102: 1024 + 102].mean())
         assert 0.3 < edge < 0.6, edge
 
+    def test_the_eddy_transient_reads_back_as_the_leaf_either_way_round(self):
+        from mrsandbox import Unsuppressed
+
+        # the transient a scanner's water reference shows: the reader's measure of what the twin
+        # plays is the leaf whatever the transient's time constant, in the engine's convention
+        # whichever way round the file is stored
+        n, dwell_s = 2048, 1.0 / 2000.0
+        params = CALM | Params(water=dict(residual_fraction=0.01), lineshape=dict(gauss_hz=0.0),
+                               acquisition=dict(eddy_transient_rad=-0.1,
+                                                eddy_transient_tau_s=0.005))
+        press = Press(te1_s=0.011, te2_s=0.024)
+        scans = [ScannerProfile.preset("generic_3t").scan(Brain.load("icbm152"), press,
+                                                           params=params, **kwargs)
+                 for kwargs in ({}, {"water": Unsuppressed()})]
+        voxels = [scan.voxel(PLACE, SIZE) for scan in scans]
+        truths = [voxel.sample(0) for voxel in voxels]
+        for tau_s in (0.005, 0.02):
+            fids = []
+            for voxel, truth in zip(voxels, truths):
+                dict.__setitem__(truth.acquisition, "eddy_transient_tau_s", tau_s)
+                _, fid = voxel._clean_fid(truth, n, dwell_s)
+                fids.append(np.asarray(fid) * np.exp(-2j * np.pi * 4.65 * voxel._f0_mhz()
+                                                     * np.arange(n) * dwell_s))
+            for stored in (fids, [np.conj(fid) for fid in fids]):
+                reading = WaterReading.from_arrays(*(fid[:, None, None] for fid in stored),
+                                                   dwell_s, voxel._f0_mhz())
+                assert reading.eddy_transient_rad == pytest.approx(-0.1, abs=0.01)
+
     def test_the_residual_water_and_the_receiver_delay_are_read_off_a_scan_and_its_reference(
             self, tmp_path):
         from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext

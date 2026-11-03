@@ -25,6 +25,38 @@ from mrsandbox.scan.voxel import noise_scale
 
 
 #**************************************************************************************************#
+#                                      Class TestRawReadings                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The readers on a scan session placed by hand under data/ (private, never committed; skipped      #
+# when absent).                                                                                    #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestRawReadings:
+
+    RAW = "data/ScanSessions/Session4/20230209_MRS/listdata/raw_004.list"
+
+    def test_the_mr7700_pair_reads_its_residual_leak_and_transient(self):
+        from pathlib import Path
+
+        from mrsandbox.io.philips import DataList
+        from mrsandbox.scan.calibrate import WaterReading
+
+        if not Path(self.RAW).exists():
+            pytest.skip("the private scan session is not placed")
+        scan = DataList.load(self.RAW)
+        reading = WaterReading.from_arrays(scan.vectors("STD", 0), scan.vectors("STD", 1),
+                                           1.0 / 2000.0, 127.7525)
+        # the inverted narrow residual, the broad leak beside it, and the phase transient at the
+        # start that this scanner's references show (negative, dead by 20 ms)
+        assert reading.residual_over_full == pytest.approx(0.00062, rel=0.1)
+        assert abs(reading.water_phase_deg) > 90.0
+        assert reading.leak_over_full == pytest.approx(0.00108, rel=0.1)
+        assert reading.leak_t2star_s < 0.7 * reading.water_t2star_s
+        assert -0.06 < reading.eddy_transient_rad < -0.03
+
+
+#**************************************************************************************************#
 #                                      Class TestNoiseReading                                      #
 #**************************************************************************************************#
 @pytest.mark.render
@@ -378,9 +410,12 @@ class TestRelaxationReading:
         t2 = {"NAA": 0.53, "Cr": 0.31, "Cho": 0.20}
         phantom = Phantom.braino(temperature_c=37.0, t2_s=t2)
         n, dwell_s = 4096, 1.0 / 2000.0
+        # the eddy transient at the start off: it bends the lines' shapes, and this gate is the
+        # T2 reader's (the transient has its own gates)
+        still = Params(acquisition=dict(eddy_transient_rad=0.0))
         voxels = {te: VirtualScan(phantom, Scanner.preset("generic_3t"),
                                   Press(te1_s=0.012, te2_s=te - 0.012, tr_s=10.0),
-                                  water=NoWater()).voxel((0.0, 0.0, 0.0), 20.0)
+                                  water=NoWater(), params=still).voxel((0.0, 0.0, 0.0), 20.0)
                   for te in (0.03, 0.06, 0.12, 0.2, 0.3)}
         # the line's width is drawn, and how much a neighbour overlaps a singlet with it: five
         # draws, the median of each reading
