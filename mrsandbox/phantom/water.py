@@ -99,8 +99,10 @@ class WaterSource(abc.ABC):
     #*************#
     def prepare(self, engine, sequence, voxel, truths, f0_mhz):
         """The water lines of many draws in one replay mapped over the draws
-        (Engine.replay_draws), at each draw's mean relaxation, left for `_engine_lines`;
-        a draw with a transmit profile keeps its own replay, a tissue's own T1 too."""
+        (Engine.replay_draws), at each draw's mean relaxation, left for `_engine_lines`
+        as numpy rows (one transfer for the batch, and the voxel's arithmetic on them
+        stays on the host); a draw with a transmit profile keeps its own replay, a
+        tissue's own T1 too."""
         held = self.__dict__.setdefault("_lines", {})
         members = []
         for truth in truths:
@@ -124,7 +126,8 @@ class WaterSource(abc.ABC):
             ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
                 [[key[2]] for _, key, _ in members], [[key[3]] for _, key, _ in members],
                 [key[4] for _, key, _ in members], [key[5] for _, key, _ in members]))
-        freqs, amps = replay(t1, t2, b1, offset)
+        freqs, amps = (np.asarray(ops.convert_to_numpy(value))
+                       for value in replay(t1, t2, b1, offset))
         for row, (_, key, cache) in enumerate(members):
             cache[key] = (freqs[row], amps[row])
 
