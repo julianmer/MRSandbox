@@ -1076,6 +1076,20 @@ async def console(client: Client, loading):
                     "unelevated dense no-caps").mark("dataset make")
         dialog.open()
 
+    def cache_statement():
+        """Where the simulation's compiled graphs persist and how much they hold."""
+        try:
+            import jax
+
+            folder = pathlib.Path(jax.config.jax_compilation_cache_dir)
+        except Exception:
+            return "the simulation's graphs are compiled afresh each launch on this backend"
+        held = sum(f.stat().st_size for f in folder.rglob("*") if f.is_file())
+        return (f"the simulation's graphs persist in {folder} ({held / 1e9:.1f} GB), built once "
+                "per machine and code: after launch the console builds the library's designs' "
+                "graphs in the background, the default card's first, and mrsandbox-console --warm "
+                "builds them in the terminal; a launch after that waits seconds")
+
     def guide():
         """How the console works, part by part, in a few plain sentences each."""
         parts = (
@@ -1111,6 +1125,7 @@ async def console(client: Client, loading):
                 "on many simulated subjects, every value drawn written beside the files",)),
             ("Where a value comes from", tuple(f"{SOURCE_WORDS[name]}: {SOURCE_SAYS[name]}"
                                               for name in SOURCE_WORDS)),
+            ("The compile cache", (cache_statement(),)),
         )
         with ui.dialog() as dialog, ui.card().classes("pane").style(
                 "min-width: 760px; max-width: 900px"):

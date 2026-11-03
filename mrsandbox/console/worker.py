@@ -15,9 +15,11 @@
 #   imports   #
 #*************#
 import concurrent.futures
+import dataclasses
 import multiprocessing
 import os
 import pathlib
+import time
 
 #************#
 #   worker   #
@@ -25,6 +27,11 @@ import pathlib
 # the page's process holds the pool here, and the worker process its one session, kept with the
 # graphs it has built from one task to the next
 WORKER = {}
+# the library's families the console warms at launch (`warm`), the default card's first: the
+# card's sequence and whether its pulses are played (HERCULES has no ideal design)
+FAMILIES = (("PRESS", True), ("PRESS", False), ("STEAM", True), ("STEAM", False),
+            ("sLASER", True), ("sLASER", False), ("MEGA-PRESS", True), ("MEGA-PRESS", False),
+            ("HERMES GABA GSH", True), ("HERMES GABA GSH", False), ("HERCULES", True))
 
 
 #*************#
@@ -35,7 +42,7 @@ def started():
     once on the default room's card (`worked`)."""
     pool = concurrent.futures.ProcessPoolExecutor(1, multiprocessing.get_context("spawn"),
                                                   initializer=working, initargs=(5,))
-    pool.submit(worked, None, "run")
+    pool.submit(worked, None, "warm")
     return pool
 
 
@@ -59,19 +66,58 @@ def working(nice=0):
         jax.config.update("jax_persistent_cache_min_entry_size_bytes", -1)
 
 
+#**********#
+#   warm   #
+#**********#
+def warm(session, families=FAMILIES, said=lambda text: None):
+    """The library's designs' graphs built into this machine's cache, the default card's family
+    first: each family's card (the session's card otherwise, four transients so an edited
+    scheme has one each, no reference) is played once as a preview and thrown away, so its
+    exports persist (Engine's, beside jax's cache); a family whose graphs this code built here
+    before (a marker beside the exports,
+    keyed by the engine's code salt) is skipped, so a launch after the first costs nothing.
+    `said` hears each family's seconds. Returns [(sequence, played, seconds)] of the families
+    built; nothing without a persistent cache (another backend)."""
+    import jax
+
+    from mrsandbox.engine.core import Engine
+
+    directory = jax.config.jax_compilation_cache_dir
+    if directory is None:
+        return []
+    marks = pathlib.Path(directory) / "warm"
+    card, built = session.protocol, []
+    try:
+        for sequence, played in families:
+            mark = marks / f"{sequence}, {'played' if played else 'ideal'}, {Engine._export_salt()}"
+            if mark.exists():
+                continue
+            session.protocol = dataclasses.replace(card, sequence=sequence, real=played,
+                                                   averages=4, water_reference=0)
+            start = time.perf_counter()
+            session.run(session.plan(queued=False))
+            marks.mkdir(parents=True, exist_ok=True)
+            mark.touch()
+            built.append((sequence, played, time.perf_counter() - start))
+            said(f"{sequence}, {'played' if played else 'ideal'}: {built[-1][2]:.0f} s")
+    finally:
+        session.protocol = card
+    return built
+
+
 #************#
 #   worked   #
 #************#
 def worked(state, task, *args):
     """In the worker process: the Session method `task` on `args` with the page's `state`
-    (Session.remote), returning its result, the clock and the timings. With no state the default
-    room's card plays once and is thrown away, the console's warm-up at launch: its graphs are
+    (Session.remote), returning its result, the clock and the timings. With no state the
+    library's families are warmed (`warm`), the console's warm-up at launch: their graphs are
     built while the operator plans."""
     from mrsandbox.console.session import Session
 
     session = WORKER.setdefault("session", Session())
     if state is None:
-        session.run(session.plan(queued=False))
+        warm(session)
         return None
     vars(session).update(state)
     result = getattr(session, task)(*args)

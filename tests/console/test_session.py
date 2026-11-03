@@ -15,6 +15,7 @@
 #   imports   #
 #*************#
 import os
+import dataclasses
 import pathlib
 import shutil
 
@@ -186,6 +187,29 @@ class TestSession:
         session.hold_records = True
         assert sigma() == pytest.approx(record.value) and drawn != pytest.approx(record.value)
         assert session.queue[-1].room["hold_records"]
+
+    def test_the_warm_up_builds_each_family_once(self, tmp_path):
+        import jax
+
+        from mrsandbox.console.worker import warm
+
+        # the ideal PRESS warmed into a fresh cache: its exports appear and the family is marked;
+        # a second warm-up finds the marker and builds nothing; the card is left as it was
+        before = jax.config.jax_compilation_cache_dir
+        jax.config.update("jax_compilation_cache_dir", str(tmp_path))
+        try:
+            session = Session(ICBM)
+            session.protocol.water_suppression = "assumed residual"
+            card = dataclasses.replace(session.protocol)
+            said = []
+            built = warm(session, families=(("PRESS", False),), said=said.append)
+            assert [b[:2] for b in built] == [("PRESS", False)] and len(said) == 1
+            assert list((tmp_path / "exports").glob("*.npz"))
+            assert list((tmp_path / "warm").iterdir())[0].name.startswith("PRESS, ideal, ")
+            assert warm(session, families=(("PRESS", False),)) == []
+            assert session.protocol == card
+        finally:
+            jax.config.update("jax_compilation_cache_dir", before)
 
     def test_the_side_panel_names_the_voxels_regions_and_the_switch_drops_them(self):
         session = Session(ICBM)

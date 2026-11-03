@@ -143,7 +143,17 @@ def main():
     applications with the logo, started from this Python environment: an app in ~/Applications
     on macOS, a menu entry in ~/.local/share/applications on Linux, a Start menu shortcut on
     Windows. Run it again after moving the environment; an environment that disappears (uvx's)
-    leaves a shortcut that starts nothing."""
+    leaves a shortcut that starts nothing. `mrsandbox-console --warm` builds the library's
+    designs' graphs into this machine's cache in the terminal (what a launch does in the
+    background, console.worker warm) and returns."""
+    if sys.argv[1:] == ["--warm"]:
+        from mrsandbox.console.session import Session
+        from mrsandbox.console.worker import warm, working
+
+        working()
+        built = warm(Session(), said=print)
+        print(f"{len(built)} families built; the rest were in the cache already")
+        return
     if sys.argv[1:] == ["--install-shortcut"]:
         name, logo = "MRSandbox Console", Image.open(LOGO)
         if sys.platform == "darwin":
