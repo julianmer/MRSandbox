@@ -253,22 +253,36 @@ class Brain:
                                    name=self.name)
         return self._regions
 
-    def parts(self, position_mm, size_mm, turn=None):
+    def parts(self, position_mm, size_mm, turn=None, soft_mm=None):
         """The tissue fractions inside a voxel box split by region, {region: Tissues}, the
-        parts summing to `fractions`; empty for a brain without regions or a box outside the
-        maps."""
+        parts summing to `fractions`; each cell belongs to the regions by memberships smoothed
+        over `soft_mm` (regions.SOFT_MM when None, 0 the atlas's hard borders), so a level
+        ramps across a border instead of stepping; empty for a brain without regions or a
+        box outside the maps."""
         if self.regions is None:
             return {}
         values, weights = self.maps.box(position_mm, size_mm, turn)
-        labels, _ = self.regions.box(position_mm, size_mm, turn)
+        span = self.regions._span(position_mm, size_mm, turn)
         total = weights.sum()
-        if total <= 0.0:
+        if span is None or total <= 0.0:
             return {}
-        index, weights = labels.ravel(), weights.ravel() / total
-        sums = np.stack([np.bincount(index, weights * values[..., k].ravel(),
-                                     minlength=len(regions.REGIONS)) for k in range(3)])
-        return {regions.REGIONS[i]: Tissues(*map(float, sums[:, i]))
-                for i in np.flatnonzero(sums.sum(axis=0))}
+        # the labels around the box as far as the smoothing reaches, the box's cells inside
+        first, last = span[0], span[1]
+        soft = regions.SOFT_MM if soft_mm is None else float(soft_mm)
+        sigma = soft / np.linalg.norm(self.affine[:3, :3], axis=0) / np.sqrt(8.0 * np.log(2.0))
+        margin = np.ceil(3.0 * sigma).astype(int)
+        low = np.maximum(first - margin, 0)
+        high = np.minimum(last + margin, np.asarray(self.regions.shape[:3]) - 1)
+        labels = self.regions.data[tuple(slice(lo, hi + 1) for lo, hi in zip(low, high))]
+        inside = tuple(slice(f - lo, l - lo + 1) for f, l, lo in zip(first, last, low))
+        weights = weights / total
+        parts = {}
+        for index, membership in regions.memberships(labels, sigma).items():
+            weighed = weights * membership[inside]
+            sums = [float((weighed * values[..., k]).sum()) for k in range(3)]
+            if sum(sums) > 0.0:
+                parts[regions.REGIONS[index]] = Tissues(*sums)
+        return parts
 
     #******************#
     #   lipid weight   #

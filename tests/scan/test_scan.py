@@ -210,8 +210,13 @@ class TestVirtualScan:
 
         def voxels(regions):
             brain = Brain(gm=ones, wm=zeros, csf=zeros, affine=affine, regions=regions)
-            source = VirtualScan(brain, scan.scanner, scan.sequence)
-            return [source.voxel(position_mm=(x, 0.0, 0.0), size_mm=2.0) for x in (-2.0, 2.0)]
+            # the borders hard and the texture still: these are the levels' own gates
+            source = VirtualScan(brain, scan.scanner, scan.sequence,
+                                 params=Params(texture=dict(sd=0.0)))
+            voxels = [source.voxel(position_mm=(x, 0.0, 0.0), size_mm=2.0) for x in (-2.0, 2.0)]
+            for voxel in voxels:
+                voxel._parts = brain.parts(voxel.position_mm, voxel.size_mm, soft_mm=0.0)
+            return voxels
 
         frontal, thalamus = voxels(labels)
         truth = frontal.sample(seed=7)
@@ -233,6 +238,37 @@ class TestVirtualScan:
         # a brain without regions follows its tissue alone
         plain, _ = voxels(None)
         assert plain.share(truth, "NAA") == pytest.approx(2.0 * r / (1.0 + r))
+
+    #*************#
+    #   texture   #
+    #*************#
+    def test_the_levels_carry_a_smooth_texture_within_a_region(self, scan):
+        from mrsandbox import Brain
+        from mrsandbox.phantom.regions import REGIONS
+
+        # one region throughout: the levels still vary from place to place by the drawn spread,
+        # smoothly (neighbours alike, far places not), the same field for the same truth, every
+        # metabolite its own; a zero spread is the tissue formula exactly
+        shape, affine = (40, 40, 40), np.eye(4)
+        affine[:3, 3] = -19.5
+        ones, zeros = np.ones(shape, np.float32), np.zeros(shape, np.float32)
+        brain = Brain(gm=ones, wm=zeros, csf=zeros, affine=affine,
+                      regions=np.full(shape, REGIONS.index("frontal"), np.uint8))
+        source = VirtualScan(brain, scan.scanner, scan.sequence,
+                             params=Params(texture=dict(sd=0.1, scale_mm=20.0, seed=5.0)))
+        at = lambda x: source.voxel(position_mm=(x, 0.0, 0.0), size_mm=2.0)
+        truth = at(0.0).sample(seed=3)
+        frontal = float(truth.regions.NAA.frontal.gm) * 2.0 * truth.contrast.NAA / (
+            1.0 + truth.contrast.NAA)
+        grains = [at(x).share(truth, "NAA") / frontal for x in (-15.0, -14.0, 0.0, 15.0)]
+        assert grains[0] == pytest.approx(grains[1], abs=0.02)
+        assert abs(grains[0] - grains[3]) > 0.02 and abs(grains[2] - 1.0) < 0.4
+        assert at(-15.0).share(truth, "NAA") == at(-15.0).share(truth, "NAA")
+        assert at(0.0).texture(truth)["NAA"] != at(0.0).texture(truth)["Cr"]
+        still = VirtualScan(brain, scan.scanner, scan.sequence,
+                            params=Params(texture=dict(sd=0.0)))
+        quiet = still.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=2.0)
+        assert quiet.texture(quiet.sample(seed=3)) == {}
 
     #*******************************#
     #   physics through the stack   #

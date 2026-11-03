@@ -187,6 +187,20 @@ class TestSession:
         assert sigma() == pytest.approx(record.value) and drawn != pytest.approx(record.value)
         assert session.queue[-1].room["hold_records"]
 
+    def test_the_side_panel_names_the_voxels_regions_and_the_switch_drops_them(self):
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.water_suppression = "assumed residual"
+        # the planned voxel's share of its tissue by region, the largest first; the regional maps
+        # switch off leaves the tree without its regions subtree and the panel without the group
+        place = session.place_of(session.position_mm)
+        assert "regions" in place and 0.98 < sum(place["regions"].values()) <= 1.0 + 1e-6
+        assert list(place["regions"].values()) == sorted(place["regions"].values(), reverse=True)
+        assert "regions" in session.twin().params
+        session.regional = False
+        assert "regions" not in session.twin().params
+        assert "regions" in session.place_of(session.position_mm)
+
     def test_the_prescan_adjusts_the_water_suppression_to_the_subject(self):
         # the scanner's water suppression adjustment: the train's flips scaled to leave the least
         # water at the excitation over the voxel's tissues, field groups and transmit scale; the

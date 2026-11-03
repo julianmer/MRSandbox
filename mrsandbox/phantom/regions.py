@@ -68,6 +68,28 @@ CEREBRA = {
             "Fourth Ventricle"),
 }
 
+#*************#
+#   borders   #
+#*************#
+# the scale over which one region's level blends into its neighbour's at a border: the full width
+# at half maximum of the Gaussian the memberships are smoothed by (stated: about a cortical
+# thickness, so a map at millimetre voxels ramps where the atlas steps)
+SOFT_MM = 3.0
+
+
+def memberships(labels, sigma_cells):
+    """Each region's membership of every cell of a label block, {region index: block}: the
+    region's indicator smoothed by a Gaussian of `sigma_cells` per axis (the memberships of
+    a cell sum to one); the indicators themselves at a zero sigma."""
+    import scipy.ndimage
+
+    present = np.unique(labels)
+    if not np.any(sigma_cells):
+        return {int(r): (labels == r).astype(np.float64) for r in present}
+    return {int(r): scipy.ndimage.gaussian_filter((labels == r).astype(np.float64), sigma_cells,
+                                                  mode="nearest") for r in present}
+
+
 #**************#
 #   bigbrain   #
 #**************#

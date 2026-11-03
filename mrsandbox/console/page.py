@@ -117,6 +117,8 @@ RECORDS = {"noise.sigma": "Noise level (the simulation's unit: one transient, 8 
 # the settings' groups by name, and the ways a parameter can be set
 GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)",
           "t2": "T2 of the metabolites (s)", "contrast": "Grey to white matter concentration ratio",
+          "regions": "Regional levels over the tissue's (factors per tissue)",
+          "texture": "Within-region texture of the levels",
           "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
           "mm": "Macromolecules", "downfield": "Downfield peaks", "lineshape": "Line shape (Hz)",
           "noise": "Noise", "b1_scale": "B1 scale",
@@ -158,6 +160,8 @@ STATED = {"gradients": "the eddy terms of a design's gradients: ranges set so th
           "acquisition.eddy_lp_cut_hz": "its stated bandwidth",
           "acquisition.eddy_seed": "a seed",
           "acquisition.eddy_transient_tau_s": "a stated time constant of the transient",
+          "texture.sd": "a stated spread of the levels within a region",
+          "texture.scale_mm": "a stated scale of that texture", "texture.seed": "a seed",
           "lipids": "subcutaneous fat: water-like proton density and stated relaxation",
           "water.residual_fraction": "the shortcut's residual, stated",
           "oov.t2star_s": "typed from the Trio readings of the leaked water, not pooled",
@@ -220,6 +224,8 @@ NAMES = {"noise.sigma": "noise level (one transient, 8 mL, 3 T)",
          "acquisition.delay_s": "receiver delay (s)",
          "acquisition.eddy_transient_rad": "eddy phase transient at the start (rad)",
          "acquisition.eddy_transient_tau_s": "its time constant (s)",
+         "texture.sd": "within-region spread of the levels (of the level)",
+         "texture.scale_mm": "its scale (mm)", "texture.seed": "its seed",
          "acquisition.shift_hz": "frequency offset (Hz)",
          "acquisition.phase_deg": "zero-order phase (deg)",
          "acquisition.eddy_std_rad": "eddy phase over the FID (rad, std)",
@@ -2405,6 +2411,10 @@ async def console(client: Client, loading):
             session.field = FIELDS.get(session.subject, "uniform") if event.value else "uniform"
             draw()
 
+        def regional(event):
+            session.regional = event.value
+            draw()
+
         def running(key, off):
             def handle(event):
                 session.overrides.pop(f"run.{key}", None)
@@ -2430,7 +2440,12 @@ async def console(client: Client, loading):
                     ("B0 field",
                      "the measured field of the head, shimmed as the Geometry tab says (the B0 "
                      "overlay shows it after the shim)",
-                     session.field != "uniform", field)):
+                     session.field != "uniform", field),
+                    ("regional maps",
+                     "every metabolite's level by brain region as the regional studies measured "
+                     "it (the settings' regions group, the atlas's borders softened); off, the "
+                     "grey and white matter formula alone everywhere",
+                     session.regional, regional)):
                 with ui.row().classes("w-full items-center no-wrap"):
                     ui.switch(caption, value=value, on_change=handler).props(
                         "dense color=accent").style("width: 230px")

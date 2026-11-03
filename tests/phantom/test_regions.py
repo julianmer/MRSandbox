@@ -48,13 +48,33 @@ class TestRegions:
     #***********#
     def test_the_parts_split_the_fractions_by_region(self):
         brain = halves()
-        parts = brain.parts((-1.0, 0.0, 0.0), 4.0)
-        # a box three quarters on the frontal half, one on the thalamic
+        parts = brain.parts((-1.0, 0.0, 0.0), 4.0, soft_mm=0.0)
+        # a box three quarters on the frontal half, one on the thalamic, at the atlas's borders
         assert set(parts) == {"frontal", "thalamus"}
         assert parts["frontal"].gm == pytest.approx(0.6 * 0.75)
         assert parts["thalamus"].wm == pytest.approx(0.3 * 0.25)
         total = np.sum([list(part) for part in parts.values()], axis=0)
         assert np.allclose(total, list(brain.fractions((-1.0, 0.0, 0.0), 4.0)))
+
+    #********************#
+    #   soft borders   #
+    #********************#
+    def test_a_border_ramps_over_the_stated_scale(self):
+        brain = halves()
+        # a 1 mm box stepped across the border: the frontal share falls from one to nothing over
+        # a few millimetres instead of stepping, the parts still summing to the fractions, and
+        # right on the border the two halves hold a half each
+        shares = []
+        for x in np.arange(-3.0, 4.0, 1.0):
+            parts = brain.parts((x, 0.0, 0.0), 1.0)
+            total = np.sum([list(part) for part in parts.values()], axis=0)
+            assert np.allclose(total, list(brain.fractions((x, 0.0, 0.0), 1.0)))
+            shares.append(parts.get("frontal", (0.0,))[0] / total[0])
+        assert shares[0] > 0.95 and shares[-1] < 0.05
+        assert all(a >= b for a, b in zip(shares, shares[1:]))
+        assert max(-np.diff(shares)) < 0.5
+        on_border = brain.parts((0.0, 0.0, 0.0), 1.0)
+        assert on_border["frontal"].gm == pytest.approx(on_border["thalamus"].gm, abs=1e-6)
 
     def test_a_brain_without_regions_has_no_parts(self):
         brain = halves(regions=False)

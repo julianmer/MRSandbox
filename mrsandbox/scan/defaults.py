@@ -435,6 +435,12 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     # studies (database.regional, params.Priors.regional); a brain without regions, or a region
     # no study gives, follows the tissue alone
     regions = Params(regions=Priors.regional(names, ratios))
+    # texture: how each metabolite's level varies within a region, a smooth random field over the
+    # brain read at the voxel (scan.voxel texture): its spread as a fraction of the level and its
+    # scale are stated ranges (the regional studies' spreads are between subjects, not within a
+    # region), the seed drawn so the field regenerates from the truth
+    texture = Params(texture=dict(sd=(0.0, 0.1), scale_mm=(15.0, 40.0),
+                                  seed=(0.0, 2.0 ** 31 - 1.0)))
     relaxation = Params(t2=t2, t1=Priors.literature_t1(names, database=db, tesla=tesla))
     # magnetization transfer (phantom.transfer): every tissue's bound pool (Stanisz et al. 2005 at
     # 3 T, the one field typed, stated elsewhere; CSF holds none) and the rate at which each
@@ -451,8 +457,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                          if name not in NO_TRANSFER else Fixed(0.0)),
                              cited=TRANSFER_CITED["none" if name in NO_TRANSFER else "creatine"])
               for name in ("Cr", "PCr", *NO_TRANSFER) if name in names}))
-    tree = (Params(conc=conc) | relaxation | contrast | regions | diffusion | background
-            | imperfections | run | transfer)
+    tree = (Params(conc=conc) | relaxation | contrast | regions | texture | diffusion
+            | background | imperfections | run | transfer)
     # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its
     # dataset source (a cohort subject's reading), chosen: a reading made on a given scan outranks
     # the pool; a record of the hardware outside the tree (the array's noise share) is the

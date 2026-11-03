@@ -450,17 +450,42 @@ class Voxel:
         the drawn GM to WM contrast r as gm 2r/(1+r) + wm 2/(1+r) (an equal-mix voxel carries
         exactly the drawn value, pure tissues the published contrast), each region's part
         scaled by the metabolite's factors there where the tree carries regions
-        (database.regional) and the brain has them."""
+        (database.regional) and the brain has them, times the within-region texture here
+        (`texture`)."""
         r = truth.contrast[name]
         factors = truth.get("regions", {}).get(name)
         if factors and self._parts is None:
             self._parts = self.scan.brain.parts(self.position_mm, self.size_mm, self.turn)
+        grain = self.texture(truth).get(name, 1.0)
         if not factors or not self._parts:
-            return (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
+            return grain * (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
         unit = Tissues(1.0, 1.0)
-        return sum(2.0 * r * part.gm * factors.get(region, unit).gm
-                   + 2.0 * part.wm * factors.get(region, unit).wm
-                   for region, part in self._parts.items()) / (1.0 + r)
+        return grain * sum(2.0 * r * part.gm * factors.get(region, unit).gm
+                           + 2.0 * part.wm * factors.get(region, unit).wm
+                           for region, part in self._parts.items()) / (1.0 + r)
+
+    def texture(self, truth):
+        """Each metabolite's within-region factor at this voxel's centre, {name: factor}: one
+        plus the drawn spread (texture.sd) times a smooth random field of unit variance and
+        the drawn scale (a dozen cosines in directions and phases seeded by texture.seed,
+        every metabolite's its own), read here alone, never as a volume; empty, every factor
+        one, where the spread is zero or the anatomy has no regions (a phantom, a bare
+        brain)."""
+        grains = getattr(truth, "texture", None)
+        if grains is None or float(grains.sd) <= 0.0 or self.scan.brain.regions is None:
+            return {}
+        centre = tuple(self.box_center_mm or self.position_mm)
+        held, key = self._lines_cache(truth), ("texture", centre)
+        if key not in held:
+            names, modes = tuple(truth.conc), 12
+            rng = np.random.default_rng(int(grains.seed))
+            directions = rng.standard_normal((len(names), modes, 3))
+            directions /= np.linalg.norm(directions, axis=-1, keepdims=True)
+            phases = rng.uniform(0.0, 2.0 * np.pi, (len(names), modes))
+            field = np.cos(directions @ (np.asarray(centre) * 2.0 * np.pi / float(grains.scale_mm))
+                           + phases).sum(axis=1) * np.sqrt(2.0 / modes)
+            held[key] = dict(zip(names, 1.0 + float(grains.sd) * field))
+        return held[key]
 
     #**************#
     #   transfer   #

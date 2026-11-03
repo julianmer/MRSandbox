@@ -175,6 +175,8 @@ IDEALS = {
     "residual water": {"water.residual_fraction": 0.0, "oov.fraction": 0.0},
     "frequency and phase errors": {"acquisition.shift_hz": 0.0, "acquisition.phase_deg": 0.0},
     "eddy currents": {"acquisition.eddy_std_rad": 0.0, "acquisition.eddy_transient_rad": 0.0},
+    # the levels even within a region (scan.voxel texture)
+    "regional texture": {"texture.sd": 0.0},
     "spurious echoes": {"spurious.amplitude": 0.0},
     # no bound pool: the saturation pulses take nothing through it (phantom.transfer)
     "magnetization transfer": {"mt.pool_fraction": 0.0},
@@ -720,6 +722,9 @@ class Session:
         self.prescan, self.clock_s, self._drift = True, 0.0, None
         # the scanner's readings played at their values (a replica) or as the priors they state
         self.hold_records = False
+        # the metabolites' levels by region (the tree's regions subtree, database.regional), or the
+        # tissue formula alone everywhere
+        self.regional = True
         # the planes' window: (level, width) as fractions of the picture's own, None the picture's
         self.window = None
         # the engine's ensemble under slab pulses and crushers, positions per axis: fewer are
@@ -1052,8 +1057,15 @@ class Session:
                      "Ins": ("Ins",), "Glu": ("Glu",), "Gln": ("Gln",),
                      "GABA": ("GABA",), "GSH": ("GSH",), "Lac": ("Lac",)}
             relaxed = (("NAA", "NAA"), ("Cr", "Cr"), ("Cho", "PCho"))
+            parts = self.body().parts(tuple(self.position_mm), tuple(self.size_mm), self.turn)
             found = {"tissue": {name: float(getattr(voxel.fractions, name))
                                 for name in ("gm", "wm", "csf")},
+                     # the voxel's share of its tissue by region (the atlas's borders softened),
+                     # the largest first, slivers under half a percent left out
+                     **({"regions": {region.replace("_", " "): share for region, share in sorted(
+                         ((region, sum(part) / sum(voxel.fractions)) for region, part in parts.items()),
+                         key=lambda item: -item[1]) if share >= 0.005}}
+                        if parts and sum(voxel.fractions) > 0.0 else {}),
                      "concentrations (mM)": {label: pair(names, "conc", split=seen)
                                              for label, names in shown.items()
                                              if all(name in drawn["conc"] for name in names)},
@@ -2350,6 +2362,9 @@ class Session:
         scan = profile.scan(self.body(), sequence if sequence is not None else self.sequence(card),
                             params=params if params is not None else self.params(),
                             **self.narrowing(), **self.fields(card))
+        if not self.regional:
+            scan.params = Params({key: value for key, value in scan.params.items()
+                                  if key != "regions"})
         return self.chosen(scan)
 
     def narrowing(self):
