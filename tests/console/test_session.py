@@ -221,13 +221,13 @@ class TestSession:
         (session.protocol.paradigm, session.protocol.rest_s, session.protocol.task_s,
          session.protocol.cycles, session.protocol.averages, session.protocol.tr_ms) = (
             "blocks", 4.0, 8.0, 1, 12, 1000.0)
-        session.overrides["fmrs.rise_s"] = 1.0
+        session.overrides["fmrs.bold_s"] = 1.0
         exam = session.run(session.plan())
         task = exam.data.hdr_ext.to_dict()["SimulationSchedule"]["task"]
         assert task["paradigm"] == {"onsets_s": [4.0], "durations_s": [8.0]}
-        response = exam.tracks["response"]
-        assert len(response) == 12 and response[:5] == [0.0] * 5 and response[-1] > 0.5
-        assert set(task["courses"]) <= set(exam.truth)
+        bold = exam.tracks["bold"]
+        assert len(bold) == 12 and bold[:5] == [0.0] * 5 and bold[-1] > 0.9
+        assert set(task["courses"]) <= set(exam.truth) and set(task["responses"]) == set(task["courses"])
 
     def test_the_side_panel_names_the_voxels_regions_and_the_switch_drops_them(self):
         session = Session(ICBM)

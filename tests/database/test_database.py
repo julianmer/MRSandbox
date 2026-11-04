@@ -290,6 +290,11 @@ class TestFieldPriors:
         tree = default_params(b0_t=3.0, scanner="siemens_trio_3t")
         # magnetization transfer's rates: published, beside the readings of Bacon et al.'s spectra
         transfer = {f"mt.rate.{name}" for name in ("Cr", "PCr", "NAA", "NAAG", "PCho", "GPC")}
+        # a task's effects: the 7 T visual studies' ranges for eight metabolites, the pain runs'
+        # readings alone for NAA and myo-inositol (database.fmrs, the fMRS in pain cohort)
+        studied = {f"fmrs.effect.{name}" for name in ("Lac", "Glu", "GABA", "Asp", "Glc", "GSH",
+                                                      "Gln", "Gly")}
+        read = {"fmrs.effect.NAA", "fmrs.effect.Ins"}
         assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma",
                                        "water.adjusted_residual", "acquisition.delay_s",
                                        "acquisition.eddy_transient_rad", "oov.fraction", "water.t1_s",
@@ -297,14 +302,15 @@ class TestFieldPriors:
                                            "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz",
                                            "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
                                            "broaden_hz", "events_per_min", "motion_mm")),
-                                       *transfer}
+                                       *transfer, *studied, *read}
         assert {path: leaf.chosen for path, leaf in tree.sources().items()
                 if not path.startswith("run.")} == {
             "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled",
             "water.adjusted_residual": "pooled", "acquisition.delay_s": "pooled",
             "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled",
             "water.t1_s": "literature", "water.t2_s": "literature", "mm.level_mm": "literature", "mm.kappa": "literature",
-            **{path: "literature" for path in transfer}}
+            **{path: "literature" for path in transfer},
+            **{path: "literature" for path in studied}, **{path: "pooled" for path in read}}
         # the run: the envelope until read; the head's move has no literature, the rows serve it
         assert all(leaf.chosen == "literature" for path, leaf in tree.sources().items()
                    if path.startswith("run.") and path != "run.motion_mm")

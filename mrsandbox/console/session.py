@@ -3011,7 +3011,7 @@ class Session:
                        if key in header.get("SimulationSchedule", {})}
         exam.echoes = header["SimulationSchedule"].get("spurious", {}).get("amplitude", [])
         if header["SimulationSchedule"].get("task"):
-            exam.tracks["response"] = header["SimulationSchedule"]["task"]["response"]
+            exam.tracks["bold"] = header["SimulationSchedule"]["task"]["bold"]
         exam.truth = {name: float(value)
                       for name, value in header["SimulationGroundTruth"]["params"]["conc"].items()
                       if isinstance(value, (int, float))}

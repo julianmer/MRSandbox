@@ -19,26 +19,22 @@
 # Source: Mangia, S., Tkac, I., Gruetter, R., Van de Moortele, P. F., Maraviglia, B., Ugurbil, K.
 #         Sustained neuronal activation raises oxidative metabolism to a new steady-state level:
 #         evidence from 1H NMR spectroscopy in the human visual cortex. J Cereb Blood Flow Metab 27
-#         (2007) 1055-1063, doi 10.1038/sj.jcbfm.9600401: 7 T, visual stimulation of 5.3 and 10.6
-#         min; the changes as percent of the level (mean, sd); lactate at its new steady state
-#         within the first minute of activation, back to baseline only after the stimulus ended.
-MANGIA_2007 = {"field_t": 7.0, "stimulus": "visual", "change": {"Lac": (0.23, 0.05),
-                                                                "Glu": (0.03, 0.01),
-                                                                "Asp": (-0.15, 0.06)},
-               "lactate_steady_within_s": 60.0}
-
-#*******************#
-#   bednarik 2015   #
-#*******************#
-# Source: Bednarik, P., Tkac, I., Giove, F., DiNuzzo, M., Deelchand, D. K., Emir, U. E., Eberly,
-#         L. E., Mangia, S. Neurochemical and BOLD responses during neuronal activation measured
-#         in the human visual cortex at 7 Tesla. J Cereb Blood Flow Metab 35 (2015) 601-610,
-#         doi 10.1038/jcbfm.2014.233: 12 volunteers, a block design of visual stimulation; the
-#         changes in umol/g (mean, sd) and as the paper's percent of the level.
-BEDNARIK_2015 = {"field_t": 7.0, "stimulus": "visual", "subjects": 12,
-                 "change_umol_g": {"Lac": (0.26, 0.06), "Glu": (0.28, 0.03), "Asp": (-0.20, 0.04),
-                                   "Glc": (-0.19, 0.03)},
-                 "change": {"Lac": 0.30, "Glu": 0.03, "Asp": -0.05, "Glc": -0.16}}
+#         (2007) 1055-1063, doi 10.1038/sj.jcbfm.9600401: 7 T STEAM TE 6 ms TR 5 s, 12 volunteers,
+#         flickering checkerboard in blocks of 5.3 min on and off twice and of 10.6 min; the
+#         changes as fractions of the level (mean, sd; Table 1 in umol/g), lactate at its new
+#         steady state within the first minute (Figure 2), glutamate delayed by minutes and
+#         aspartate its mirror (Figure 3), glucose falling through the stimulus without a plateau;
+#         back to baseline over about three minutes after the stimulus; the BOLD effect raised the
+#         creatine height about 2 percent through the stimulus (Figure 2B) and a 0.4 Hz broadening
+#         matched the stimulus spectrum's lines to rest (Figure 4).
+MANGIA_2007 = {"field_t": 7.0, "stimulus": "visual", "subjects": 12,
+               "blocks_s": (318.0, 636.0),
+               "change": {"Lac": (0.23, 0.05), "Glu": (0.03, 0.01), "Asp": (-0.15, 0.06),
+                          "Glc": (-0.12, 0.07)},
+               "change_umol_g": {"Lac": (0.24, 0.01), "Glu": (0.23, 0.01), "Asp": (-0.14, 0.02),
+                                 "Glc": (-0.13, 0.02)},
+               "lactate_steady_within_s": 60.0, "glutamate_delayed": True,
+               "back_within_s": 180.0, "bold_narrowing_hz": 0.4, "bold_height_rise": 0.02}
 
 #**************#
 #   lin 2012   #
@@ -46,11 +42,40 @@ BEDNARIK_2015 = {"field_t": 7.0, "stimulus": "visual", "subjects": 12,
 # Source: Lin, Y., Stephenson, M. C., Xin, L., Napolitano, A., Morris, P. G. Investigating the
 #         metabolic changes due to visual stimulation using functional proton magnetic resonance
 #         spectroscopy at 7 T. J Cereb Blood Flow Metab 32 (2012) 1484-1495,
-#         doi 10.1038/jcbfm.2012.33: single and repeated visual stimulation; increases of 2 to 11
-#         percent in lactate, glutamate and glutathione, decreases in aspartate, glutamine and
-#         glycine; glutathione's course like glutamate's.
-LIN_2012 = {"field_t": 7.0, "stimulus": "visual", "increase_range": (0.02, 0.11),
-            "increased": ("Lac", "Glu", "GSH"), "decreased": ("Asp", "Gln", "Gly")}
+#         doi 10.1038/jcbfm.2012.33: 7 T STEAM TE 15 ms TR 3 s, 10 volunteers, moving wedges; one
+#         stimulus of 13.2 min after 6.6 min of rest and 19.8 min of recovery, and two of 9.9 min
+#         after rests of 9.9 min; Table 1's changes as fractions (mean, sd): the single stimulus
+#         over its whole length, lactate +0.26 +-0.07 in its first 6.6 min and falling toward
+#         baseline while the stimulus went on, no lactate rise to the second stimulus; glutamate
+#         and glutathione recovering slowly, still raised 9.9 min after; the BOLD narrowing about
+#         0.5 Hz at 7 T.
+LIN_2012 = {"field_t": 7.0, "stimulus": "visual", "subjects": 10,
+            "blocks_s": (792.0, 594.0),
+            "change": {"Glu": (0.02, 0.01), "Asp": (-0.09, 0.08), "Lac": (0.10, 0.06),
+                       "GSH": (0.07, 0.04), "Gln": (-0.08, 0.05), "Gly": (-0.11, 0.06),
+                       "Glc": (-0.22, 0.18)},
+            "lactate_first_block": (0.26, 0.07), "lactate_peak_within_s": 99.0,
+            "lactate_transient": True, "bold_narrowing_hz": 0.5}
+
+#*******************#
+#   bednarik 2015   #
+#*******************#
+# Source: Bednarik, P., Tkac, I., Giove, F., DiNuzzo, M., Deelchand, D. K., Emir, U. E., Eberly,
+#         L. E., Mangia, S. Neurochemical and BOLD responses during neuronal activation measured
+#         in the human visual cortex at 7 Tesla. J Cereb Blood Flow Metab 35 (2015) 601-610,
+#         doi 10.1038/jcbfm.2014.233: 7 T semi-LASER TE 26 ms TR 5 s, 12 volunteers, two blocks of
+#         5.3 min between rests of 5.3 min; Table 1 after the line widths were matched, as
+#         fractions of the level (mean) and in umol/g (mean, sem); lactate and glutamate at their
+#         plateaus within about a minute and two (Figure 2), back within about two after the
+#         stimulus; the creatine line 0.46 Hz narrower through the stimulus (the water's 0.1 to
+#         1.0 Hz per subject, with the BOLD-fMRI amplitude 2.4 +-1.2 percent).
+BEDNARIK_2015 = {"field_t": 7.0, "stimulus": "visual", "subjects": 12, "blocks_s": (318.0,),
+                 "change": {"Glu": 0.033, "Lac": 0.296, "Asp": -0.054, "Glc": -0.160,
+                            "GABA": 0.037},
+                 "change_umol_g": {"Glu": (0.28, 0.03), "Lac": (0.26, 0.06), "Asp": (-0.20, 0.04),
+                                   "Glc": (-0.19, 0.03)},
+                 "plateau_within_s": {"Lac": 60.0, "Glu": 120.0}, "back_within_s": 120.0,
+                 "bold_narrowing_hz": 0.46, "bold_fmri": (0.024, 0.012)}
 
 #****************#
 #   koush 2022   #
@@ -58,11 +83,17 @@ LIN_2012 = {"field_t": 7.0, "stimulus": "visual", "increase_range": (0.02, 0.11)
 # Source: Koush, Y., Rothman, D. L., Behar, K. L., de Graaf, R. A., Hyder, F. Human brain
 #         functional MRS reveals interplay of metabolites implicated in neurotransmission and
 #         neuroenergetics. J Cereb Blood Flow Metab 42 (2022) 911-934,
-#         doi 10.1177/0271678X221076570: the ranges across the visual and motor studies it
-#         reviews, as fractions of the level (GABA from the one visual study reporting it and a
-#         second reporting a 5 percent decrease beside a 7 percent lactate rise).
-KOUSH_2022 = {"range": {"Glu": (0.015, 0.05), "Lac": (0.09, 0.30), "Asp": (-0.15, -0.05),
-                        "Glc": (-0.16, -0.12), "GABA": (-0.06, -0.05)}}
+#         doi 10.1177/0271678X221076570: the ranges over the 7 T visual studies (page 917), the
+#         other stimuli and fields of its Table 1 as fractions, and the J-difference reading of a
+#         flashing checkerboard at 4 T (Figure 2, mean, sd).
+KOUSH_2022 = {"visual_7t": {"Glu": (0.015, 0.05), "Lac": (0.09, 0.30), "Asp": (-0.15, -0.05),
+                            "Glc": (-0.16, -0.12), "GABA": (-0.06, -0.06)},
+              "motor_7t": {"Lac": 0.17, "Glu": 0.02}, "motor_learning_gaba": -0.20,
+              "visual_3t": {"Glu": 0.12, "Lac": 0.50},
+              "pain_acc_3t": {"Glx": 0.22, "GABA": -0.15}, "pain_insula_3t": {"Glu": 0.18},
+              "stroop_dacc": {"Glu": 0.03},
+              "visual_4t_edited": {"GABA": (-0.057, 0.033), "Glx": (0.030, 0.021),
+                                   "Lac": (0.078, 0.054)}}
 
 #********************#
 #   archibald 2020   #
@@ -84,27 +115,40 @@ ARCHIBALD_2020 = {"field_t": 3.0, "stimulus": "heat pain", "subjects": 15,
 #*******************#
 # Source: Zhu, X. H., Chen, W. Observed BOLD effects on cerebral metabolite resonances in human
 #         visual cortex during visual stimulation: a functional 1H MRS study at 4 T. Magn Reson
-#         Med 46 (2001) 841-847, doi 10.1002/mrm.1267: the line widths narrow and the peak
-#         heights rise with the BOLD effect, as fractions.
-ZHU_CHEN_2001 = {"field_t": 4.0, "linewidth_change": {"NAA": -0.017, "Cr": -0.018,
-                                                      "water": -0.023},
-                 "height_change": {"NAA": 0.025, "Cr": 0.031, "water": 0.031}}
+#         Med 46 (2001) 841-847, doi 10.1002/mrm.1267: 4 T PRESS TE 23 ms, six subjects, a
+#         checkerboard in blocks of 6.4 and 12.8 min; Table 1's heights and widths as fractions
+#         (mean, sem), the widths 0.2 to 0.3 Hz narrower (Figure 4), the course following the
+#         stimulus within tens of seconds (Figure 4).
+ZHU_CHEN_2001 = {"field_t": 4.0, "stimulus": "visual", "subjects": 6, "blocks_s": (384.0, 768.0),
+                 "linewidth_change": {"NAA": (-0.017, 0.005), "Cr": (-0.018, 0.005),
+                                      "water": (-0.023, 0.003)},
+                 "height_change": {"NAA": (0.025, 0.006), "Cr": (0.031, 0.007),
+                                   "water": (0.030, 0.004)},
+                 "narrowing_hz": (0.2, 0.3)}
 
 #**************#
 #   priors     #
 #**************#
 # what the tree draws (scan.defaults fmrs): each metabolite's fractional change at the plateau of
-# a stimulus, Koush et al.'s ranges over the 7 T visual and motor studies (stated for any
-# stimulus and field); the rise and decay time constants, stated ranges about Mangia et al.'s
-# lactate steady within the first minute and back to baseline over minutes after the stimulus;
-# the BOLD narrowing as a fraction of the lines' width (Zhu and Chen's NAA and creatine at 4 T,
-# the field dependence left out, stated) and the heights' rise beyond it, stated
-EFFECTS = dict(KOUSH_2022["range"])
-RISE_S, DECAY_S = (20.0, 60.0), (30.0, 180.0)
-BOLD_NARROWING, BOLD_AMPLITUDE = (0.017, 0.023), (0.0, 0.01)
-CITED = {"effect": "Koush et al. 2022, J Cereb Blood Flow Metab 42:911: the range over the 7 T "
-                   "visual and motor studies (Mangia 2007, Lin 2012, Bednarik 2015 among them)",
-         "time": "Mangia et al. 2007, J Cereb Blood Flow Metab 27:1055: lactate steady within "
-                 "the first minute, back after the stimulus; the ranges stated",
-         "bold": "Zhu and Chen 2001, Magn Reson Med 46:841: the line widths 1.7 to 2.3 percent "
-                 "narrower at 4 T; the heights' rise beyond it stated"}
+# a stimulus, the ranges Koush et al. review over the 7 T visual studies, Lin et al.'s
+# glutathione, glutamine and glycine beside them (stated for any stimulus and field); the rise
+# and decay time constants per metabolite, lactate's about its rise within the first minute and
+# its return over one to three (Mangia, Lin, Bednarik), glutamate's and glutathione's slower
+# courses, the others lactate's (stated); the BOLD narrowing in hertz per tesla (0.2 to 0.3 Hz
+# at 4 T, 0.4 to 0.5 at 7 T), its own course within tens of seconds (stated about Zhu and Chen's
+# Figure 4) and the heights' rise beyond the narrowing (Zhu and Chen's heights less widths)
+EFFECTS = {**KOUSH_2022["visual_7t"], "GSH": (0.07, 0.11), "Gln": (-0.08, -0.06),
+           "Gly": (-0.12, -0.11)}
+RISE_S = {"Lac": (20.0, 40.0), "Glu": (60.0, 120.0), "GSH": (60.0, 120.0)}
+DECAY_S = {"Lac": (40.0, 90.0), "Glu": (120.0, 300.0), "GSH": (120.0, 300.0)}
+RISE_OTHERS_S, DECAY_OTHERS_S = (20.0, 40.0), (40.0, 90.0)
+BOLD_HZ_PER_T, BOLD_S, BOLD_AMPLITUDE = (0.055, 0.075), (5.0, 15.0), (0.005, 0.010)
+CITED = {"effect": "Koush et al. 2022, J Cereb Blood Flow Metab 42:911 (the 7 T visual studies' "
+                   "ranges); Lin et al. 2012, J Cereb Blood Flow Metab 32:1484 (glutathione, "
+                   "glutamine, glycine)",
+         "time": "Mangia et al. 2007, Lin et al. 2012, Bednarik et al. 2015 (J Cereb Blood Flow "
+                 "Metab 27:1055, 32:1484, 35:601): lactate within the first minute and back over "
+                 "one to three, glutamate over minutes; the ranges stated",
+         "bold": "Zhu and Chen 2001, Magn Reson Med 46:841 (0.2 to 0.3 Hz at 4 T); Mangia 2007, "
+                 "Lin 2012, Bednarik 2015 (0.4 to 0.5 Hz at 7 T); the course and the heights' "
+                 "rise beyond the narrowing stated"}

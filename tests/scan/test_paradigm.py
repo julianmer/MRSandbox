@@ -61,10 +61,12 @@ class TestTaskRun:
         # downfield peaks under the bands), the levels alone moving: lactate a fifth up and
         # glutamate a twentieth at the plateau, reached within a transient; eight transients of
         # rest, then sixteen of task
-        params = QUIET | Params(fmrs=dict(effect=dict(Lac=0.2, Glu=0.05, GABA=0.0, Asp=0.0,
-                                                      Glc=0.0, NAA=0.0, Ins=0.0),
-                                          rise_s=0.1, decay_s=0.1, bold_narrowing=0.0,
-                                          bold_amplitude=0.0))
+        courses = ("Lac", "Glu", "GABA", "Asp", "Glc", "GSH", "Gln", "Gly", "NAA", "Ins")
+        params = QUIET | Params(fmrs=dict(effect=dict({name: 0.0 for name in courses},
+                                                      Lac=0.2, Glu=0.05),
+                                          rise_s={name: 0.1 for name in courses},
+                                          decay_s={name: 0.1 for name in courses},
+                                          bold_hz_per_t=0.0, bold_s=0.1, bold_amplitude=0.0))
         room = Multiplex(Brain.load("icbm152"), Scanner.preset("generic_3t"),
                          {"scan": Press(te1_s=0.011, te2_s=0.019, tr_s=1.0)}, params=params,
                          mm=NoMM(), lipids=NoLipids(), downfield=NoDownfield())
@@ -79,10 +81,11 @@ class TestTaskRun:
         data, plain, paradigm = run
         task = json.loads(data.header.extensions[0].get_content())["SimulationSchedule"]["task"]
         assert task["paradigm"] == paradigm.to_dict()
-        response = np.asarray(task["response"])
+        response = np.asarray(task["responses"]["Lac"])
         assert np.all(response[:8] == 0.0) and np.all(response[9:] > 0.99)
         assert np.allclose(task["courses"]["Lac"], 0.2 * response)
-        assert np.allclose(task["courses"]["Glu"], 0.05 * response)
+        assert np.allclose(task["courses"]["Glu"], 0.05 * np.asarray(task["responses"]["Glu"]))
+        assert np.asarray(task["bold"])[-1] > 0.99
         assert not any(task["bold_narrowing_hz"]) and not any(task["bold_amplitude"])
         assert json.loads(plain.header.extensions[0].get_content())["SimulationSchedule"]["task"] is None
 

@@ -273,13 +273,13 @@ class Multiplex:
                 step for fresh noise and a fresh course of the scanner's instabilities.
             paradigm: A scan.paradigm.Paradigm, when the run is functional: the levels of the
                 metabolites the truth's fmrs.effect names follow the task through the
-                paradigm's response (the drawn rise and decay), each at its drawn fractional
-                change at the plateau, and the BOLD effect rides the broadening track, the
-                lines narrowing by the drawn fraction of the NAA width and the heights rising
-                by the drawn fraction, both with the response. The courses are exact: the
-                plateau's levels are rendered through the same path and the difference scaled
-                by the response (the basis is linear in the levels). The header records the
-                paradigm, the response, every course and the BOLD track per transient.
+                paradigm's response, each with its own drawn rise and decay, at its drawn
+                fractional change at the plateau; the BOLD effect rides the broadening track
+                with its own fast course, the lines narrowing by the drawn hertz per tesla
+                and the heights rising by the drawn fraction. The courses are exact: each
+                metabolite's plateau is rendered through the same path and the difference
+                scaled by its response (the basis is linear in the levels). The header records
+                the paradigm, every response and course and the BOLD track per transient.
         """
         try:
             import augmentrum
@@ -343,29 +343,29 @@ class Multiplex:
             echo[name, place] = parts.pop("spurious", None)
             clean[name, place] = sum(parts.values())
             voxels[name, place] = voxel
-        # the task's courses: the response per transient, the metabolites' change at the
-        # plateau rendered as a second truth, and the BOLD narrowing and rise
-        response, course, effects, bold_hz, bold_rise = None, {}, {}, 0.0, 0.0
+        # the task's courses: each course metabolite's response per transient and its change
+        # at the plateau rendered on the one truth (its level set for the render and put back:
+        # the lines are the same, the weights read the levels), and the BOLD track
+        responses, course, bold, bold_hz, bold_rise = {}, {}, None, 0.0, 0.0
         if paradigm is not None:
-            response = paradigm.response(np.arange(n) * float(tr_s), float(truth.fmrs.rise_s),
-                                         float(truth.fmrs.decay_s))
+            times = np.arange(n) * float(tr_s)
             effects = {name: float(value) for name, value in truth.fmrs.effect.items()
                        if name in truth.conc and float(value) != 0.0}
-            # the plateau's levels set on the one truth for the render and put back (its
-            # lines are the same, the weights read the levels)
-            levels = {name: float(truth.conc[name]) for name in effects}
             for name, effect in effects.items():
-                dict.__setitem__(truth.conc, name, levels[name] * (1.0 + effect))
-            try:
-                for key, voxel in voxels.items():
-                    parts = voxel._component_fids(truth, npoints, dwell_s) if effects else {}
-                    parts.pop("spurious", None)
-                    course[key] = sum(parts.values()) - clean[key] if effects else 0.0
-            finally:
-                for name, level in levels.items():
+                responses[name] = paradigm.response(times, float(truth.fmrs.rise_s[name]),
+                                                    float(truth.fmrs.decay_s[name]))
+                level = float(truth.conc[name])
+                dict.__setitem__(truth.conc, name, level * (1.0 + effect))
+                try:
+                    for (condition, place), voxel in voxels.items():
+                        parts = voxel._component_fids(truth, npoints, dwell_s)
+                        parts.pop("spurious", None)
+                        course[name, condition, place] = (sum(parts.values())
+                                                          - clean[condition, place])
+                finally:
                     dict.__setitem__(truth.conc, name, level)
-            width = 1.0 / (np.pi * float(voxel.resolve(truth.t2["NAA"]))) + voxel.gauss_hz(truth)
-            bold_hz = float(truth.fmrs.bold_narrowing) * width
+            bold = paradigm.response(times, float(truth.fmrs.bold_s), float(truth.fmrs.bold_s))
+            bold_hz = float(truth.fmrs.bold_hz_per_t) * self.scanner.b0_t
             bold_rise = float(truth.fmrs.bold_amplitude)
         # which transients carry the exam's echo, at what size and phase (scan.defaults spurious)
         spur = truth.spurious
@@ -383,10 +383,11 @@ class Multiplex:
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
             fid = clean[name, places[k]]
-            if response is not None:
-                fid = fid + response[k] * course[name, places[k]]
-                modulation = modulation * (1.0 + bold_rise * response[k]) * np.exp(
-                    np.pi * bold_hz * response[k] * grid)
+            if bold is not None:
+                for metabolite, response in responses.items():
+                    fid = fid + response[k] * course[metabolite, name, places[k]]
+                modulation = modulation * (1.0 + bold_rise * bold[k]) * np.exp(
+                    np.pi * bold_hz * bold[k] * grid)
             if size[k] > 0.0:
                 # the rendered echo, scaled to this transient's size and turned to its phase
                 fid = fid + echo[name, places[k]] * (size[k] / spur.amplitude) * np.exp(
@@ -427,12 +428,15 @@ class Multiplex:
                           "phase_deg": [float(t) if c else None for t, c in zip(turn, carries)]},
              # a functional run: the task, how far the levels followed it, every course as the
              # fraction of the level per transient, and the BOLD track
-             "task": None if response is None else {
-                 "paradigm": paradigm.to_dict(), "response": [float(r) for r in response],
-                 "courses": {name: [float(effect * r) for r in response]
-                             for name, effect in effects.items()},
-                 "bold_narrowing_hz": [float(bold_hz * r) for r in response],
-                 "bold_amplitude": [float(bold_rise * r) for r in response]}},
+             "task": None if bold is None else {
+                 "paradigm": paradigm.to_dict(),
+                 "responses": {name: [float(r) for r in response]
+                               for name, response in responses.items()},
+                 "courses": {name: [float(effects[name] * r) for r in response]
+                             for name, response in responses.items()},
+                 "bold": [float(r) for r in bold],
+                 "bold_narrowing_hz": [float(bold_hz * r) for r in bold],
+                 "bold_amplitude": [float(bold_rise * r) for r in bold]}},
             "MRSandbox: per transient condition, the realized Augmentrum instability "
             "tracks, the spurious echo's size and phase (0 and None where it is absent), and "
             "a functional run's task, courses and BOLD track.",
