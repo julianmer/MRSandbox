@@ -119,6 +119,7 @@ GROUPS = {"conc": "Concentrations (mM)", "t1": "T1 of the metabolites (s)",
           "t2": "T2 of the metabolites (s)", "contrast": "Grey to white matter concentration ratio",
           "regions": "Regional levels over the tissue's (factors per tissue)",
           "texture": "Within-region texture of the levels",
+          "fmrs": "Functional run: the levels' change with a task, its timing, the BOLD effect",
           "diffusion": "Diffusion", "water": "Water", "lipids": "Lipids",
           "mm": "Macromolecules", "downfield": "Downfield peaks", "lineshape": "Line shape (Hz)",
           "noise": "Noise", "b1_scale": "B1 scale",
@@ -4008,6 +4009,39 @@ async def console(client: Client, loading):
                                                             "the water reference is an exam of "
                                                             "its own: before its card, or after it "
                                                             "(off)")
+                                                        # a functional run: the task in blocks
+                                                        ui.select(["none", "blocks"],
+                                                                  label="task paradigm",
+                                                                  on_change=changed("paradigm",
+                                                                                    "card")
+                                                                  ).bind_value(
+                                                            card, "paradigm").props(
+                                                            "dense outlined dark options-dense"
+                                                        ).classes("w-full").tooltip(
+                                                            "blocks: the task on for task seconds "
+                                                            "after every rest, cycles times; the "
+                                                            "levels the settings' fmrs group "
+                                                            "names follow it, and the BOLD effect "
+                                                            "narrows the lines; the header "
+                                                            "records every course per transient")
+                                                        with ui.row().classes(
+                                                                "w-full no-wrap").style(
+                                                                "gap: 4px").bind_visibility_from(
+                                                                card, "paradigm",
+                                                                backward=lambda name: (
+                                                                    name == "blocks")):
+                                                            for attribute, caption, step in (
+                                                                    ("rest_s", "rest (s)", 10.0),
+                                                                    ("task_s", "task (s)", 10.0),
+                                                                    ("cycles", "cycles", 1)):
+                                                                ui.number(caption, step=step,
+                                                                          min=step,
+                                                                          on_change=changed(
+                                                                              attribute, "card")
+                                                                          ).bind_value(
+                                                                    card, attribute).props(
+                                                                    "dense outlined dark"
+                                                                ).classes("w-full")
                                                     if tab == "Timing":
                                                         with ui.column().classes("w-full").style(
                                                                 "gap: 4px").bind_visibility_from(

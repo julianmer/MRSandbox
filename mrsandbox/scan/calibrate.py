@@ -1661,6 +1661,120 @@ class GIRFReading:
 
 
 #**************************************************************************************************#
+#                                         Class TaskReading                                        #
+#**************************************************************************************************#
+#                                                                                                  #
+# What a functional run's transients say of the levels' change with the task: band areas at task  #
+# over rest.                                                                                       #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class TaskReading:
+    """What a functional run's transients say of the levels' change with the task: the
+    transients combined and registered (`_registered`), the mean spectrum of the transients
+    at rest (before the task's response has begun) and at task (the response past a half),
+    each phased on NAA, and each band's real area above the line through its flanks (the
+    neighbours' tails) at task over rest less one, raw (`effects`) and over the creatine
+    band's (`over_tcr`, the amplitude's wander taken out); model free, so a band holds what
+    lies in it (glutamate's its glutamine).
+
+    Attributes:
+        effects, over_tcr: {band: fraction} as above.
+        transients, task_transients, rest_transients: How many the run holds and the blocks took.
+        tr_s: The time between transients.
+        header: What the file says of the scanner and the sequence.
+    """
+
+    effects: dict
+    over_tcr: dict
+    transients: int
+    task_transients: int
+    rest_transients: int
+    coils: int
+    tr_s: float
+    f0_mhz: float
+    header: dict
+
+    # the bands, ppm, and the metabolite each stands for; a flank this wide either side carries
+    # the line the area is read above
+    BANDS = {"Glu": (2.25, 2.45), "NAA": (1.95, 2.08), "Lac": (1.22, 1.42), "Ins": (3.48, 3.60),
+             "GABA": (1.85, 1.95), "tCr": (2.95, 3.10)}
+    FLANK_PPM = 0.08
+
+    #*****************#
+    #   from arrays   #
+    #*****************#
+    @classmethod
+    def from_arrays(cls, data, dwell_s, f0_mhz, tr_s, paradigm, header=None, rise_s=60.0,
+                    apodization_hz=3.0):
+        """`data` (npoints, coils, transients) raw FIDs of a functional run, `paradigm` the
+        scan.paradigm.Paradigm it was played to; the response the blocks are cut by rises
+        and decays with `rise_s`."""
+        x = np.asarray(data)
+        fids = _registered(_combined(x, dwell_s=dwell_s, f0_mhz=f0_mhz), dwell_s, f0_mhz)
+        n = fids.shape[0]
+        response = paradigm.response(np.arange(fids.shape[1]) * tr_s, rise_s, rise_s)
+        blocks = {"rest": response < 0.05, "task": response > 0.5}
+        sign, _, hz = _axis(fids.mean(axis=1), dwell_s, f0_mhz, WATER_PPM)
+        window = np.exp(-np.pi * apodization_hz * np.arange(n) * dwell_s)
+        ppm = WATER_PPM + sign * np.fft.fftshift(np.fft.fftfreq(16 * n, dwell_s)) / f0_mhz
+        areas = {}
+        for block, inside in blocks.items():
+            spectrum = np.fft.fftshift(np.fft.fft(fids[:, inside].mean(axis=1) * window, 16 * n))
+            naa = (ppm > cls.BANDS["NAA"][0]) & (ppm < cls.BANDS["NAA"][1])
+            real = (spectrum * np.exp(-1j * np.angle(spectrum[naa].sum()))).real
+            areas[block] = {}
+            for name, (lo, hi) in cls.BANDS.items():
+                inside = (ppm > lo) & (ppm < hi)
+                flanks = ((ppm > lo - cls.FLANK_PPM) & (ppm <= lo)) | ((ppm >= hi) & (ppm < hi + cls.FLANK_PPM))
+                line = np.polyval(np.polyfit(ppm[flanks], real[flanks], 1), ppm[inside])
+                areas[block][name] = float((real[inside] - line).sum())
+        effects = {name: areas["task"][name] / areas["rest"][name] - 1.0 for name in cls.BANDS}
+        return cls(effects=effects,
+                   over_tcr={name: (1.0 + effects[name]) / (1.0 + effects["tCr"]) - 1.0
+                             for name in cls.BANDS},
+                   transients=int(fids.shape[1]), task_transients=int(blocks["task"].sum()),
+                   rest_transients=int(blocks["rest"].sum()), coils=int(x.shape[1]),
+                   tr_s=float(tr_s), f0_mhz=float(f0_mhz), header=dict(header or {}))
+
+    #*************#
+    #   records   #
+    #*************#
+    def record_effect(self, name, voxel, dataset, presets=(), citation=None, url=None,
+                      stimulus=None, spread=0.03):
+        """The Calibration of fmrs.effect.<name>: the band's change over the creatine band's,
+        the prior `spread` either side (the band reading's own precision, stated); no
+        fallback, this stimulus's (`stimulus` says which)."""
+        value = self.over_tcr[name]
+        sequence = voxel.scan.sequence
+        return Calibration(
+            leaf=f"fmrs.effect.{name}", value=float(round(value, 4)),
+            prior=(round(value - spread, 4), round(value + spread, 4)),
+            measured={"statistic": f"the {name} band's real area at task over rest less one, "
+                                   "over the creatine band's (scan.calibrate.TaskReading)",
+                      "band_ppm": list(self.BANDS[name]), "raw": round(self.effects[name], 4),
+                      "over_tcr": round(value, 4), "stimulus": stimulus,
+                      "task_transients": self.task_transients,
+                      "rest_transients": self.rest_transients},
+            source={"dataset": dataset, "citation": citation, "url": url},
+            scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                     "model": self.header.get("ManufacturersModelName"),
+                     "software": self.header.get("SoftwareVersions"),
+                     "field_t": round(self.f0_mhz / 42.5774785, 2)},
+            coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+            sequence={"name": self.header.get("SequenceName") or type(sequence).__name__,
+                      "family": type(sequence).__name__, "te_s": self.header.get("EchoTime"),
+                      "tr_s": self.tr_s, "simulated_as": type(sequence).__name__},
+            acquisition={"transients": self.transients, "tr_s": self.tr_s},
+            voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                   "simulated_position_mm": tuple(voxel.position_mm)},
+            processing="the transients combined and registered, the rest and task blocks' mean "
+                       "spectra phased on NAA, the bands' real areas",
+            date=datetime.date.today().strftime("%d/%m/%y"), presets=tuple(presets),
+            fallback=False, note="one run; made by scan.calibrate")
+
+
+#**************************************************************************************************#
 #                                        Class WaterReading                                        #
 #**************************************************************************************************#
 #                                                                                                  #

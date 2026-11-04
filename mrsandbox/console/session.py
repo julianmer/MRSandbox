@@ -45,6 +45,7 @@ from mrsandbox.resources.icbm import NIHPD_BANDS, nihpd_band
 from mrsandbox.io import read_seq
 from mrsandbox.scan.calibrate import CovarianceReading
 from mrsandbox.scan.maps import MapReading
+from mrsandbox.scan.paradigm import Paradigm
 from mrsandbox.scan.run import MotionReading, PhysioReading
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.cohort import holding, package
@@ -493,6 +494,11 @@ class Protocol:
     mrsi_sampling: str = "full"
     mrsi_profile: str = "gaussian"
     mrsi_readout: str = "phase encoded"
+    # a functional run: a task in blocks after rests, or none (scan.paradigm)
+    paradigm: str = "none"
+    rest_s: float = 120.0
+    task_s: float = 120.0
+    cycles: int = 3
 
     @property
     def scan_time_s(self):
@@ -2994,6 +3000,9 @@ class Session:
                                     tr_s=card.tr_ms / 1000.0, seed=seed, turn_deg=exam.turn_deg,
                                     step=self.queue.index(exam) + 1 if exam in self.queue else 0,
                                     frequency_start_hz=started, **run,
+                                    paradigm=(Paradigm.blocks(card.rest_s, card.task_s,
+                                                              int(card.cycles))
+                                              if card.paradigm == "blocks" else None),
                                     npoints=card.npoints, dwell_s=1.0 / card.bandwidth_hz)
         self.display(exam)
         header = exam.data.hdr_ext.to_dict()
@@ -3001,6 +3010,8 @@ class Session:
                        for key in ("frequency_hz", "phase_deg", "amplitude")
                        if key in header.get("SimulationSchedule", {})}
         exam.echoes = header["SimulationSchedule"].get("spurious", {}).get("amplitude", [])
+        if header["SimulationSchedule"].get("task"):
+            exam.tracks["response"] = header["SimulationSchedule"]["task"]["response"]
         exam.truth = {name: float(value)
                       for name, value in header["SimulationGroundTruth"]["params"]["conc"].items()
                       if isinstance(value, (int, float))}

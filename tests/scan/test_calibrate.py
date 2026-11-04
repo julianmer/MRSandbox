@@ -55,6 +55,27 @@ class TestRawReadings:
         assert reading.leak_t2star_s < 0.7 * reading.water_t2star_s
         assert -0.06 < reading.eddy_transient_rad < -0.03
 
+    PAIN = "data/fMRSinPain/SUBJECTS/RAW/GLUPI_S01/raw_006.list"
+
+    def test_a_pain_run_reads_its_task_effects(self):
+        from pathlib import Path
+
+        from mrsandbox.io.philips import DataList
+        from mrsandbox.scan.calibrate import TaskReading
+        from mrsandbox.scan.paradigm import Paradigm
+
+        if not Path(self.PAIN).exists():
+            pytest.skip("the fMRS in pain runs are not placed")
+        # Archibald et al.'s heat from 9 min for 4.4 min of a 22 min run at TR 4 s: a few percent
+        # either way on every band, the creatine band the reference of itself
+        scan = DataList.load(self.PAIN)
+        reading = TaskReading.from_arrays(scan.vectors("STD", 0), 1.0 / 2000.0, 127.7, 4.0,
+                                          Paradigm(onsets_s=(540.0,), durations_s=(264.0,)))
+        assert reading.transients == 320 and 50 < reading.task_transients < 70
+        assert reading.rest_transients > 100
+        assert all(abs(reading.over_tcr[name]) < 0.25 for name in reading.BANDS)
+        assert reading.over_tcr["tCr"] == 0.0
+
 
 #**************************************************************************************************#
 #                                      Class TestNoiseReading                                      #

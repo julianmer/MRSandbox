@@ -21,6 +21,7 @@ import dataclasses
 
 from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
+from mrsandbox.database import fmrs as functional
 from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.transfer import CREATINE_METHYL_RATE_HZ, NO_TRANSFER, STANISZ_2005_3T
@@ -457,8 +458,23 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                          if name not in NO_TRANSFER else Fixed(0.0)),
                              cited=TRANSFER_CITED["none" if name in NO_TRANSFER else "creatine"])
               for name in ("Cr", "PCr", *NO_TRANSFER) if name in names}))
+    # fmrs: what a task does over a functional run (scan.paradigm, Multiplex.transients): each
+    # metabolite's fractional change at the stimulus's plateau (database.fmrs, the ranges over
+    # the 7 T visual and motor studies; a measured record of a dataset's runs beside it, scan.
+    # calibrate TaskReading), the rise and decay time constants and the BOLD effect on the lines
+    # (narrowing as a fraction of the width, a rise of the heights), stated ranges; a metabolite
+    # no study names stays put
+    effect = {name: _sourced(f"fmrs.effect.{name}", served, Uniform,
+                             literature=(Uniform(*functional.EFFECTS[name])
+                                         if name in functional.EFFECTS else None),
+                             cited=functional.CITED["effect"])
+              for name in names}
+    fmrs = Params(fmrs=dict(effect={name: leaf for name, leaf in effect.items() if leaf},
+                            rise_s=Uniform(*functional.RISE_S), decay_s=Uniform(*functional.DECAY_S),
+                            bold_narrowing=Uniform(*functional.BOLD_NARROWING),
+                            bold_amplitude=Uniform(*functional.BOLD_AMPLITUDE)))
     tree = (Params(conc=conc) | relaxation | contrast | regions | texture | diffusion
-            | background | imperfections | run | transfer)
+            | background | imperfections | run | transfer | fmrs)
     # a scanner's own record of any leaf of the tree is its own source (the operator's scan) or its
     # dataset source (a cohort subject's reading), chosen: a reading made on a given scan outranks
     # the pool; a record of the hardware outside the tree (the array's noise share) is the
