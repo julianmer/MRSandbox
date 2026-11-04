@@ -706,6 +706,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.1528,
+      "prior": [
+       0.1228,
+       0.1828
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.0607,
+       "over_tcr": 0.1528,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.0585,
+      "prior": [
+       0.0285,
+       0.0885
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.0261,
+       "over_tcr": 0.0585,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.0389,
+      "prior": [
+       0.0089,
+       0.0689
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0441,
+       "over_tcr": 0.0389,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.1344,
+      "prior": [
+       0.1044,
+       0.1644
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.0437,
+       "over_tcr": 0.1344,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.0348,
+      "prior": [
+       0.0048,
+       0.0648
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0479,
+       "over_tcr": 0.0348,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -1418,6 +1758,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": -0.4851,
+      "prior": [
+       -0.5151,
+       -0.4551
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": -0.5161,
+       "over_tcr": -0.4851,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.159,
+      "prior": [
+       0.129,
+       0.189
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0893,
+       "over_tcr": 0.159,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.0866,
+      "prior": [
+       0.0566,
+       0.1166
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": 0.0212,
+       "over_tcr": 0.0866,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.1754,
+      "prior": [
+       0.1454,
+       0.2054
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.1047,
+       "over_tcr": 0.1754,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.0421,
+      "prior": [
+       0.0121,
+       0.0721
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0205,
+       "over_tcr": 0.0421,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -2132,6 +2812,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 2.1947,
+      "prior": [
+       2.1647,
+       2.2247
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.772,
+       "over_tcr": 2.1947,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 1.158,
+      "prior": [
+       1.128,
+       1.188
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.197,
+       "over_tcr": 1.158,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.5746,
+      "prior": [
+       0.5446,
+       0.6046
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.1266,
+       "over_tcr": 0.5746,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.8634,
+      "prior": [
+       0.8334,
+       0.8934
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.0335,
+       "over_tcr": 0.8634,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.6591,
+      "prior": [
+       0.6291,
+       0.6891
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0798,
+       "over_tcr": 0.6591,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -2844,6 +3864,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": -0.1777,
+      "prior": [
+       -0.2077,
+       -0.1477
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": -0.1591,
+       "over_tcr": -0.1777,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.045,
+      "prior": [
+       0.015,
+       0.075
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0686,
+       "over_tcr": 0.045,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": -0.0264,
+      "prior": [
+       -0.0564,
+       0.0036
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0044,
+       "over_tcr": -0.0264,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": -0.004,
+      "prior": [
+       -0.034,
+       0.026
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.0184,
+       "over_tcr": -0.004,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.1532,
+      "prior": [
+       -0.1832,
+       -0.1232
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.1341,
+       "over_tcr": -0.1532,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -3558,6 +4918,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": -0.0399,
+      "prior": [
+       -0.0699,
+       -0.0099
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.0234,
+       "over_tcr": -0.0399,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.0042,
+      "prior": [
+       -0.0258,
+       0.0342
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0704,
+       "over_tcr": 0.0042,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": -0.0445,
+      "prior": [
+       -0.0745,
+       -0.0145
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": 0.0185,
+       "over_tcr": -0.0445,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": -0.1297,
+      "prior": [
+       -0.1597,
+       -0.0997
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.0723,
+       "over_tcr": -0.1297,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.0524,
+      "prior": [
+       -0.0824,
+       -0.0224
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": 0.0101,
+       "over_tcr": -0.0524,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -4270,6 +5970,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.2478,
+      "prior": [
+       0.2178,
+       0.2778
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.1406,
+       "over_tcr": 0.2478,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": -0.1512,
+      "prior": [
+       -0.1812,
+       -0.1212
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.2242,
+       "over_tcr": -0.1512,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.074,
+      "prior": [
+       0.044,
+       0.104
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0183,
+       "over_tcr": 0.074,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": -0.0318,
+      "prior": [
+       -0.0618,
+       -0.0018
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.115,
+       "over_tcr": -0.0318,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.0437,
+      "prior": [
+       0.0137,
+       0.0737
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.046,
+       "over_tcr": 0.0437,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -4984,6 +7024,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.2463,
+      "prior": [
+       0.2163,
+       0.2763
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.0425,
+       "over_tcr": 0.2463,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": -0.0122,
+      "prior": [
+       -0.0422,
+       0.0178
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.1737,
+       "over_tcr": -0.0122,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.1232,
+      "prior": [
+       0.0932,
+       0.1532
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0605,
+       "over_tcr": 0.1232,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.1601,
+      "prior": [
+       0.1301,
+       0.1901
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.0296,
+       "over_tcr": 0.1601,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.1338,
+      "prior": [
+       0.1038,
+       0.1638
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0516,
+       "over_tcr": 0.1338,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -5696,6 +8076,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.2962,
+      "prior": [
+       0.2662,
+       0.3262
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.3018,
+       "over_tcr": 0.2962,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.0128,
+      "prior": [
+       -0.0172,
+       0.0428
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0171,
+       "over_tcr": 0.0128,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.0431,
+      "prior": [
+       0.0131,
+       0.0731
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": 0.0476,
+       "over_tcr": 0.0431,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.1336,
+      "prior": [
+       0.1036,
+       0.1636
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.1385,
+       "over_tcr": 0.1336,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.0273,
+      "prior": [
+       -0.0573,
+       0.0027
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0231,
+       "over_tcr": -0.0273,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -6410,6 +9130,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": -0.0963,
+      "prior": [
+       -0.1263,
+       -0.0663
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": -0.0735,
+       "over_tcr": -0.0963,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.013,
+      "prior": [
+       -0.017,
+       0.043
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0385,
+       "over_tcr": 0.013,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": -0.0866,
+      "prior": [
+       -0.1166,
+       -0.0566
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0636,
+       "over_tcr": -0.0866,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": -0.0669,
+      "prior": [
+       -0.0969,
+       -0.0369
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.0434,
+       "over_tcr": -0.0669,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.1422,
+      "prior": [
+       -0.1722,
+       -0.1122
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.1206,
+       "over_tcr": -0.1422,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -7122,6 +10182,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.0763,
+      "prior": [
+       0.0463,
+       0.1063
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.0748,
+       "over_tcr": 0.0763,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.0563,
+      "prior": [
+       0.0263,
+       0.0863
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0549,
+       "over_tcr": 0.0563,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.0174,
+      "prior": [
+       -0.0126,
+       0.0474
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": 0.016,
+       "over_tcr": 0.0174,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": -0.0099,
+      "prior": [
+       -0.0399,
+       0.0201
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.0113,
+       "over_tcr": -0.0099,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.0305,
+      "prior": [
+       0.0005,
+       0.0605
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": 0.0291,
+       "over_tcr": 0.0305,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -7836,6 +11236,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.0189,
+      "prior": [
+       -0.0111,
+       0.0489
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": -0.077,
+       "over_tcr": 0.0189,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.0566,
+      "prior": [
+       0.0266,
+       0.0866
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.0428,
+       "over_tcr": 0.0566,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.068,
+      "prior": [
+       0.038,
+       0.098
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0324,
+       "over_tcr": 0.068,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.1605,
+      "prior": [
+       0.1305,
+       0.1905
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.0513,
+       "over_tcr": 0.1605,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": 0.0078,
+      "prior": [
+       -0.0222,
+       0.0378
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.087,
+       "over_tcr": 0.0078,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -8548,6 +12288,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.1274,
+      "prior": [
+       0.0974,
+       0.1574
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.1058,
+       "over_tcr": 0.1274,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": 0.0547,
+      "prior": [
+       0.0247,
+       0.0847
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": 0.0345,
+       "over_tcr": 0.0547,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": 0.003,
+      "prior": [
+       -0.027,
+       0.033
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0162,
+       "over_tcr": 0.003,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.0116,
+      "prior": [
+       -0.0184,
+       0.0416
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.0078,
+       "over_tcr": 0.0116,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.0273,
+      "prior": [
+       -0.0573,
+       0.0027
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.046,
+       "over_tcr": -0.0273,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
@@ -9262,6 +13342,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.0876,
+      "prior": [
+       0.0576,
+       0.1176
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.0912,
+       "over_tcr": 0.0876,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": -0.0355,
+      "prior": [
+       -0.0655,
+       -0.0055
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.0323,
+       "over_tcr": -0.0355,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": -0.04,
+      "prior": [
+       -0.07,
+       -0.01
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.0368,
+       "over_tcr": -0.04,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.0408,
+      "prior": [
+       0.0108,
+       0.0708
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.0443,
+       "over_tcr": 0.0408,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.0552,
+      "prior": [
+       -0.0852,
+       -0.0252
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0521,
+       "over_tcr": -0.0552,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -9975,6 +14395,346 @@
       "fallback": true,
       "note": "one run; made by scan.run",
       "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": -0.0903,
+      "prior": [
+       -0.1203,
+       -0.0603
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": -0.137,
+       "over_tcr": -0.0903,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": -0.1143,
+      "prior": [
+       -0.1443,
+       -0.0843
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.1598,
+       "over_tcr": -0.1143,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": -0.0988,
+      "prior": [
+       -0.1288,
+       -0.0688
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": -0.1451,
+       "over_tcr": -0.0988,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": -0.2026,
+      "prior": [
+       -0.2326,
+       -0.1726
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": -0.2436,
+       "over_tcr": -0.2026,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.0267,
+      "prior": [
+       -0.0567,
+       0.0033
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": -0.0767,
+       "over_tcr": -0.0267,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
      }
     ],
     "coils": null,
@@ -10687,6 +15447,346 @@
       "presets": [],
       "fallback": true,
       "note": "one run; made by scan.run",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Glu",
+      "value": 0.1782,
+      "prior": [
+       0.1482,
+       0.2082
+      ],
+      "measured": {
+       "statistic": "the Glu band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        2.25,
+        2.45
+       ],
+       "raw": 0.3275,
+       "over_tcr": 0.1782,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Lac",
+      "value": -0.1909,
+      "prior": [
+       -0.2209,
+       -0.1609
+      ],
+      "measured": {
+       "statistic": "the Lac band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.22,
+        1.42
+       ],
+       "raw": -0.0884,
+       "over_tcr": -0.1909,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.NAA",
+      "value": -0.0289,
+      "prior": [
+       -0.0589,
+       0.0011
+      ],
+      "measured": {
+       "statistic": "the NAA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.95,
+        2.08
+       ],
+       "raw": 0.0941,
+       "over_tcr": -0.0289,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.Ins",
+      "value": 0.0139,
+      "prior": [
+       -0.0161,
+       0.0439
+      ],
+      "measured": {
+       "statistic": "the Ins band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        3.48,
+        3.6
+       ],
+       "raw": 0.1423,
+       "over_tcr": 0.0139,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
+      "failed": ""
+     },
+     {
+      "leaf": "fmrs.effect.GABA",
+      "value": -0.0193,
+      "prior": [
+       -0.0493,
+       0.0107
+      ],
+      "measured": {
+       "statistic": "the GABA band's real area at task over rest less one, over the creatine band's (scan.calibrate.TaskReading)",
+       "band_ppm": [
+        1.85,
+        1.95
+       ],
+       "raw": 0.1049,
+       "over_tcr": -0.0193,
+       "stimulus": "heat pain",
+       "task_transients": 66,
+       "rest_transients": 210
+      },
+      "source": {
+       "dataset": "fMRS in pain, the functional runs",
+       "citation": "Archibald et al. 2020, Sci Rep 10:19218",
+       "url": "https://www.nitrc.org/projects/fmrs_2020"
+      },
+      "scanner": {
+       "vendor": "philips",
+       "model": "Achieva",
+       "software": null,
+       "field_t": 3.0
+      },
+      "coil": {
+       "channels": [
+        1
+       ],
+       "name": null
+      },
+      "sequence": {
+       "name": "PRESS",
+       "family": "Press",
+       "te_s": 0.022,
+       "tr_s": 4.0,
+       "simulated_as": "Press"
+      },
+      "acquisition": {
+       "transients": 320,
+       "tr_s": 4.0
+      },
+      "voxel": {
+       "size_mm": [
+        25.0,
+        30.0,
+        15.0
+       ],
+       "simulated_brain": "icbm152",
+       "simulated_position_mm": [
+        0.0,
+        35.0,
+        20.0
+       ]
+      },
+      "processing": "the transients combined and registered, the rest and task blocks' mean spectra phased on NAA, the bands' real areas",
+      "date": "03/11/26",
+      "carried_by": "scanner",
+      "presets": [],
+      "fallback": false,
+      "note": "one run; made by scan.calibrate",
       "failed": ""
      }
     ],
