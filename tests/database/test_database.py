@@ -301,7 +301,8 @@ class TestFieldPriors:
                                        "water.t2_s", "mm.level_mm", "mm.kappa", *(f"run.{key}" for key in (
                                            "drift_hz_per_min", "ar_sigma_hz", "resp_freq_hz",
                                            "resp_amp_hz", "phase_jitter_deg", "amp_jitter_frac",
-                                           "broaden_hz", "events_per_min", "motion_mm")),
+                                           "broaden_hz", "events_per_min", "motion_mm",
+                                           "cardiac_hz", "cardiac_amp_hz", "cardiac_csf_amp")),
                                        *transfer, *studied, *read}
         assert {path: leaf.chosen for path, leaf in tree.sources().items()
                 if not path.startswith("run.")} == {

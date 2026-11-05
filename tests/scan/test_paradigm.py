@@ -24,7 +24,8 @@ from mrsandbox.scan.calibrate import TaskReading
 from mrsandbox.scan.paradigm import Paradigm
 
 STILL = dict(drift_hz_per_min=0.0, ar_sigma_hz=0.0, resp_amp_hz=0.0, phase_jitter_deg=0.0,
-             amp_jitter_frac=0.0, broaden_hz=0.0, events_per_min=0.0)
+             amp_jitter_frac=0.0, broaden_hz=0.0, events_per_min=0.0, cardiac_amp_hz=0.0,
+             cardiac_csf_amp=0.0)
 QUIET = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
                                 eddy_transient_rad=0.0),

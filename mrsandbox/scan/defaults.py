@@ -55,6 +55,11 @@ RUN_CITED = {"drift": "Hui et al. 2021, NeuroImage 241:118430 (Big Drift): about
                        "frequency; the spreads stated",
              "events": "Rowland et al. 2017 and Hess et al. 2011: motion as sparse events; "
                        "the rate stated",
+             "heart": "a resting heart of 54 to 78 a minute, stated; the package's cohorts with "
+                      "a pulse trace (scan.run PhysioReading) beside it",
+             "pulsation": "the heart's field and signal modulation in a voxel: stated ranges "
+                          "(no published amplitude typed; readable at a known rate off a run "
+                          "sampled fast enough, scan.run RunReading cardiac_amp_hz)",
              "stated": "a stated range (Augmentrum's TransientSynthesizer default)"}
 TRANSFER_CITED = {"creatine": "MacMillan, Boesch, Kreis 2013, MRM 70:916: water to creatine "
                                 "methyl 0.39 and 0.30 per s in two human muscles at 3 T "
@@ -429,7 +434,16 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                             literature=Uniform(0.0, 2.0), cited=RUN_CITED["stated"]),
         events_per_min=_sourced("run.events_per_min", served, Uniform,
                                 literature=Uniform(0.1, 0.5), cited=RUN_CITED["events"]),
-        motion_mm=_sourced("run.motion_mm", served, Uniform) or Fixed(0.0)))
+        motion_mm=_sourced("run.motion_mm", served, Uniform) or Fixed(0.0),
+        # the heart (Multiplex.transients): its rate, the frequency's swing at that rate (the
+        # phase following it as the breathing's does) and the signal's swing per unit of the
+        # voxel's CSF (the pulsing fluid moving in and out), each at a phase of its own
+        cardiac_hz=_sourced("run.cardiac_hz", served, Uniform, literature=Uniform(0.9, 1.3),
+                            cited=RUN_CITED["heart"]),
+        cardiac_amp_hz=_sourced("run.cardiac_amp_hz", served, Uniform,
+                                literature=Uniform(0.02, 0.2), cited=RUN_CITED["pulsation"]),
+        cardiac_csf_amp=_sourced("run.cardiac_csf_amp", served, Uniform,
+                                 literature=Uniform(0.0, 0.05), cited=RUN_CITED["pulsation"])))
     ratios = {name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()}
     contrast = Params(contrast=ratios)
     # regions: each metabolite's level by brain region over its tissue level, from the regional

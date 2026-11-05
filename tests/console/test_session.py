@@ -439,7 +439,8 @@ class TestSession:
         # the drift alone, at a stated rate (a drawn one may lie near zero, as some measured runs
         # drift)
         session.overrides.update({"run.drift_hz_per_min": 0.4, "run.ar_sigma_hz": 0.0,
-                                  "run.resp_amp_hz": 0.0, "run.events_per_min": 0.0})
+                                  "run.resp_amp_hz": 0.0, "run.events_per_min": 0.0,
+                                  "run.cardiac_amp_hz": 0.0, "run.cardiac_csf_amp": 0.0})
         session.prescan = False
         first, second = (session.run(session.plan()).tracks["frequency_hz"] for _ in range(2))
         rate = session.drift_hz_per_min
@@ -467,7 +468,8 @@ class TestSession:
         # none (CALM), so a leak would read as the scanner's noise and width
         session.overrides.update({"run.drift_hz_per_min": 0.0, "run.ar_sigma_hz": 0.0,
                                   "run.resp_amp_hz": 0.0, "run.broaden_hz": 0.0,
-                                  "run.events_per_min": 0.0, "oov.fraction": 0.0})
+                                  "run.events_per_min": 0.0, "oov.fraction": 0.0,
+                                  "run.cardiac_amp_hz": 0.0, "run.cardiac_csf_amp": 0.0})
         session.protocol.water_reference = 2  # its water reference exam runs first
         # the file is in the standard's frame (the centre at 4.65 ppm), so the reading finds NAA
         # where a scanner's data has it; one subject's NAA level against the twin's median subject,
@@ -653,7 +655,8 @@ class TestSession:
         session.overrides.update({"run.drift_hz_per_min": 0.0, "run.ar_sigma_hz": 0.0,
                                   "run.resp_amp_hz": 0.0, "run.phase_jitter_deg": 0.0,
                                   "run.amp_jitter_frac": 0.0, "run.broaden_hz": 0.0,
-                                  "run.events_per_min": 0.0})
+                                  "run.events_per_min": 0.0, "run.cardiac_amp_hz": 0.0,
+                                  "run.cardiac_csf_amp": 0.0})
         # a spin echo without any filter or crusher, its refocusing pulse 40 degrees short: the 140
         # leaves a free induction decay of its own and unrefocused signal beside the echo
         echo = [("hard pulse", dict(flip_deg=90.0)), ("delay", dict(ms=15.0)),

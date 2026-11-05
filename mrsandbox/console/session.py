@@ -158,7 +158,8 @@ CALM = Params(spurious=dict(amplitude=0.0),
 # subject's (a body breathes and moves; a phantom does neither)
 RUN_OF = {"scanner": ("drift_hz_per_min", "ar_sigma_hz", "phase_jitter_deg", "amp_jitter_frac",
                       "broaden_hz"),
-          "subject": ("resp_freq_hz", "resp_amp_hz", "events_per_min", "motion_mm")}
+          "subject": ("resp_freq_hz", "resp_amp_hz", "events_per_min", "motion_mm", "cardiac_hz",
+                      "cardiac_amp_hz", "cardiac_csf_amp")}
 # the measured B0 field a subject lies in unless the operator chooses another
 # (phantom.FieldMap.PRESETS); a sphere of solution has none
 FIELDS = {"Brain, ICBM152 average, 2 mm": "bigbrain_mr",

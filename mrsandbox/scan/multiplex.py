@@ -220,8 +220,11 @@ class Multiplex:
         default. Its four per-transient tracks (frequency, phase, amplitude, extra
         Lorentzian broadening) multiply every transient's clean FID as Augmentrum's own
         train factor does, a exp(-pi L t) exp(i (2 pi f t + phi)), and receiver noise is
-        drawn per transient. The realized tracks are recorded in the header, so
-        alignment algorithms can be scored against the truth.
+        drawn per transient. The heart (run.cardiac_hz, cardiac_amp_hz, cardiac_csf_amp)
+        swings the frequency and, through the synthesizer's coupling, the phase at its rate,
+        which the TR aliases, and the amplitude by its fraction per unit of the voxel's CSF.
+        The realized tracks are recorded in the header, so alignment algorithms can be
+        scored against the truth.
 
         The spurious echo comes and goes over the run: the exam's echo (its timing,
         width, place and typical size are the geometry's, drawn once in the truth) is
@@ -240,7 +243,8 @@ class Multiplex:
             npoints, dwell_s: The readout grid.
             synthesis: Keyword arguments for Augmentrum's TransientSynthesizer (its
                 ranges, e.g. drift_hz_per_min=0.0 and events_per_min=0.0 for a still
-                scanner and subject); the transient count, TR, and seed are set here.
+                scanner and subject) and the heart's leaves (cardiac_hz, cardiac_amp_hz,
+                cardiac_csf_amp); the transient count, TR, and seed are set here.
             displacement_mm: Where the head is at every transient, (transients, 3) in
                 mm from its planned place, or None for a head that stays. The voxel
                 stays where the scanner put it, so a displaced transient is rendered
@@ -304,11 +308,29 @@ class Multiplex:
         if motion_mm is None and "run" in truth and float(truth["run"].get("motion_mm", 0.0)) > 0.0:
             motion_mm = (float(truth["run"]["motion_mm"]), float(truth["run"]["motion_mm"]))
         synth_seed = int(rng.integers(2 ** 31))
+        # the heart beside the breathing: the frequency swings at the subject's rate (which the
+        # TR aliases), the phase follows it as the synthesizer couples it to the frequency, and
+        # the signal swings with the voxel's CSF, each from a phase of its own
+        # (its leaves ride with the synthesis arguments, so a still recipe pins them too)
+        heart = {key: float(synthesis.pop(f"cardiac_{key}",
+                                          truth.get("run", {}).get(f"cardiac_{key}", 0.0)))
+                 for key in ("hz", "amp_hz", "csf_amp")}
         synth = TransientSynthesizer(n_transients=n, tr_s=float(tr_s), seed=synth_seed,
                                      **synthesis)
         # the realized tracks, which Augmentrum applies through the same factor
         freq_hz, phase_rad, amplitude, broaden_hz = synth.tracks(synth.rng.numpy_rng())
         freq_hz = freq_hz + float(frequency_start_hz)
+        if heart["amp_hz"] > 0.0 or heart["csf_amp"] > 0.0:
+            beats = 2.0 * np.pi * heart["hz"] * np.arange(n) * float(tr_s)
+            turns = np.random.default_rng([synth_seed, 3]).uniform(0.0, 2.0 * np.pi, 2)
+            swing = heart["amp_hz"] * np.cos(beats + turns[0])
+            freq_hz = freq_hz + swing
+            # the synthesizer draws its coupling inside its tracks: the middle of its range here
+            coupling = synth.phase_coupling_deg_per_hz
+            phase_rad = phase_rad + np.radians(float(np.mean(coupling))) * swing
+            csf = self.scans[schedule[0]].voxel(position_mm, size_mm).fractions.csf
+            amplitude = amplitude * (1.0 + heart["csf_amp"] * csf
+                                     * np.cos(beats + turns[1]))
 
         moved = (np.zeros((n, 3)) if displacement_mm is None
                  else np.asarray(displacement_mm, dtype=np.float64).reshape(n, 3).copy())
@@ -424,6 +446,11 @@ class Multiplex:
              "motion_mm": None if motion_mm is None else [float(x) for x in motion_mm],
              "rotation_deg": None if rotation_deg is None else turned.tolist(),
              "pivot_mm": [float(x) for x in pivot],
+             "cardiac": ({"rate_hz": heart["hz"], "amp_hz": heart.get("amp_hz", 0.0),
+                          "csf_amp": heart.get("csf_amp", 0.0),
+                          "phase_deg": [float(np.degrees(t)) for t in turns]}
+                         if heart.get("amp_hz", 0.0) > 0.0 or heart.get("csf_amp", 0.0) > 0.0
+                         else None),
              "spurious": {"amplitude": [float(x) for x in size],
                           "phase_deg": [float(t) if c else None for t, c in zip(turn, carries)]},
              # a functional run: the task, how far the levels followed it, every course as the
@@ -438,8 +465,9 @@ class Multiplex:
                  "bold_narrowing_hz": [float(bold_hz * r) for r in bold],
                  "bold_amplitude": [float(bold_rise * r) for r in bold]}},
             "MRSandbox: per transient condition, the realized Augmentrum instability "
-            "tracks, the spurious echo's size and phase (0 and None where it is absent), and "
-            "a functional run's task, courses and BOLD track.",
+            "tracks (the heart's swings inside them, its rate and amplitudes under cardiac), "
+            "the spurious echo's size and phase (0 and None where it is absent), and a "
+            "functional run's task, courses and BOLD track.",
         )
         hdr.set_user_def(
             "SimulationPhantom",

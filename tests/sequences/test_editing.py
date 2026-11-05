@@ -320,7 +320,7 @@ class TestTransients:
     # a still scanner and subject: every TransientSynthesizer range pinned to zero
     STILL = dict(drift_hz_per_min=0.0, ar_sigma_hz=0.0, resp_amp_hz=0.0,
                  phase_coupling_deg_per_hz=0.0, phase_jitter_deg=0.0, amp_jitter_frac=0.0,
-                 broaden_hz=0.0, events_per_min=0.0)
+                 broaden_hz=0.0, events_per_min=0.0, cardiac_amp_hz=0.0, cardiac_csf_amp=0.0)
 
     #*************#
     #   helpers   #

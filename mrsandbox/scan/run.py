@@ -421,6 +421,21 @@ class RunReading:
     def amp_jitter_frac(self):
         return float(self.amplitude.std() / self.amplitude.mean())
 
+    def cardiac_amp_hz(self, rate_hz, width_hz=0.02):
+        """The frequency track's amplitude at the heart's rate: sampled every TR the rate
+        aliases to its distance from the nearest multiple of 1 / TR, and a sine's amplitude
+        there is root two times the rms of the track's part within `width_hz` of it, the line
+        and the events taken out (an alias inside the breathing band carries the breathing
+        too, stated)."""
+        alias = abs(rate_hz - round(rate_hz * self.tr_s) / self.tr_s)
+        steady = self._steady(self.frequency_hz)
+        residual = steady - np.polyval(self._line(steady), self.times_s)
+        spectrum = np.fft.rfft(residual)
+        f = np.fft.rfftfreq(residual.size, self.tr_s)
+        pulse = np.fft.irfft(np.where(np.abs(f - alias) <= width_hz, spectrum, 0.0),
+                             residual.size)
+        return float(np.sqrt(2.0) * pulse.std())
+
     @property
     def events(self):
         """The transients where the frequency or the phase steps past six times its median
@@ -433,6 +448,26 @@ class RunReading:
     #*************#
     #   records   #
     #*************#
+    def record_cardiac(self, rate_hz, dataset, citation=None, url=None):
+        """The Calibration of run.cardiac_amp_hz at a heart rate read beside the run (a pulse
+        oximeter's, scan.run PhysioReading): the frequency track's amplitude at the rate's
+        alias, the prior a quarter either side."""
+        value = float(round(self.cardiac_amp_hz(rate_hz), 4))
+        return Calibration(leaf="run.cardiac_amp_hz", value=value,
+                           prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
+                           measured={"statistic": "the frequency track's amplitude at the heart "
+                                                  "rate's alias (scan.run.RunReading)",
+                                     "rate_hz": round(float(rate_hz), 4),
+                                     "alias_hz": round(abs(rate_hz - round(rate_hz * self.tr_s)
+                                                           / self.tr_s), 4),
+                                     "tr_s": self.tr_s, "transients": int(self.frequency_hz.size)},
+                           acquisition={"transients": int(self.frequency_hz.size),
+                                        "tr_s": self.tr_s}, voxel={},
+                           processing="the transients registered to their mean, the frequency "
+                                      "track's line and events taken out, its part within "
+                                      "0.02 Hz of the alias",
+                           **_conditions(self.header, dataset, citation, url, "a run"))
+
     def records(self, dataset, citation=None, url=None):
         """The Calibrations of the run's leaves this reading makes: drift, wander, breathing's
         amplitude, the phase and amplitude jitter, the events a minute; each the reading's
