@@ -307,20 +307,28 @@ class Voxel:
     #****************#
     #   broadening   #
     #****************#
-    def gauss_hz(self, truth):
+    def gauss_hz(self, truth, tissue=None):
         """The Gaussian broadening this voxel plays: the drawn lineshape.gauss_hz less, in
         quadrature, the width the scan's field map alone gives a line here after the shim.
         The width records and ranges are read against twins without a map, as the whole
         broadening beyond relaxation, so under a map the voxel plays only what the map does
-        not; a map wider than the draw leaves none."""
+        not; a map wider than the draw leaves none. `tissue` names one tissue's own: grey
+        and white part the voxel's by the drawn lineshape.contrast as the levels part by
+        theirs (an equal mix plays the draw, pure tissues the ratio), the CSF plays its
+        drawn fraction of it (lineshape.csf)."""
         gauss = float(self.resolve(truth.lineshape.gauss_hz))
-        if self.scan.field is None:
+        if self.scan.field is not None:
+            if "map width" not in self._kernels:
+                width = self.scan.field.linewidth(self.position_mm, self.size_mm,
+                                                  shim_at_mm=self.shim_at_mm, turn=self.turn)
+                self._kernels["map width"] = max(width - 1.0, 0.0)     # less the Lorentzian's
+            gauss = float(np.sqrt(max(gauss ** 2 - self._kernels["map width"] ** 2, 0.0)))
+        if tissue is None:
             return gauss
-        if "map width" not in self._kernels:
-            width = self.scan.field.linewidth(self.position_mm, self.size_mm,
-                                              shim_at_mm=self.shim_at_mm, turn=self.turn)
-            self._kernels["map width"] = max(width - 1.0, 0.0)     # less the Lorentzian's
-        return float(np.sqrt(max(gauss ** 2 - self._kernels["map width"] ** 2, 0.0)))
+        if tissue == "csf":
+            return gauss * float(truth.lineshape.get("csf", 1.0))
+        ratio = float(truth.lineshape.get("contrast", 1.0))
+        return gauss * (2.0 * ratio if tissue == "gm" else 2.0) / (1.0 + ratio)
 
     #*****************#
     #   realization   #
@@ -340,14 +348,24 @@ class Voxel:
         and echo attenuation stay consistent), and water and lipids carry theirs;
         renderings flatten all components into one pruned line list and render once.
         With `metabolites` False the metabolite parts are left out, for a caller that
-        forms them from a per-truth basis (`metabolite_basis`).
+        forms them from a per-truth basis (`metabolite_basis`). A metabolite's grey and
+        white lines (`_grouped`, apart where the tissues' widths part) are one component
+        here, their amplitudes added.
         """
-        return [part for parts in self._grouped(truth, metabolites).values() for part in parts]
+        flat = {}
+        for (name, _), parts in self._grouped(truth, metabolites).items():
+            if name == "metabolites" and name in flat:
+                flat[name] = [(f, a + b, lw, g) for (f, a, lw, g), (_, b, _, _)
+                              in zip(flat[name], parts)]
+            else:
+                flat.setdefault(name, []).extend(parts)
+        return [part for parts in flat.values() for part in parts]
 
     def _water_parts(self, truth, engine, sequence, f0_mhz, faded, source=None):
-        """The water's line parts at the offset the voxel is being played at (one per
-        tissue under a per-tissue draw, each at its own T2 and fading with its own
-        ADC), or None; from `source` (a phantom.WaterSource) in place of the scan's."""
+        """The water's line parts at the offset the voxel is being played at, each with
+        its tissue (one per tissue under a per-tissue draw, each at its own T2 and fading
+        with its own ADC; None for the voxel's), [(part, tissue)] or None; from `source`
+        (a phantom.WaterSource) in place of the scan's."""
         water = (source or self.scan.water).lines(engine, sequence, self, truth, f0_mhz)
         if water is None:
             return None
@@ -355,15 +373,18 @@ class Voxel:
         adc = truth.diffusion.water
         # the water line moves with the temperature (the sequence saw it there, `water_shift_hz`)
         shift = np.float32(self.water_shift_hz(truth))
-        return [(w_freqs - shift,
-                 w_amps * np.complex64(faded(getattr(adc, part) if part and isinstance(adc, Tissues)
-                                             else adc) * transferred),
-                 1.0 / (np.pi * t2_s), 0.0) for w_freqs, w_amps, t2_s, part in water]
+        return [((w_freqs - shift,
+                  w_amps * np.complex64(faded(getattr(adc, part) if part and isinstance(adc, Tissues)
+                                              else adc) * transferred),
+                  1.0 / (np.pi * t2_s), 0.0), part) for w_freqs, w_amps, t2_s, part in water]
 
     def _grouped(self, truth, metabolites=True):
-        """The parts of `components` grouped by source, {name: [parts]} in the order
+        """The parts of `components` grouped by source and by the Gaussian width their
+        Lorentzian lines render under, {(name, gauss_hz): [parts]} in the order
         metabolites, water, oov (the water the localization leaks), lipids, mm,
-        downfield; silent sources are left out."""
+        downfield: the metabolites and the water by tissue where the tissues' widths
+        part (`_metabolite_widths`), the rest at the voxel's; silent sources are left
+        out."""
         engine, sequence = self.scan.engine, self.design(truth)
         f0_mhz = self._f0_mhz()
         faded = self._diffusion_factor(truth)
@@ -371,24 +392,27 @@ class Voxel:
         # spin systems' exchangeable NH lines up there leave the render (see
         # phantom.downfield.DownfieldSource)
         cutoff = self.scan.downfield.replaces_above_ppm
-        groups = {}
+        groups, gauss_hz = {}, self.gauss_hz(truth)
         if metabolites:
             lines = self._metabolite_lines(truth)
-            weights = self.metabolite_weights(truth)
-            parts = []
-            for name, weight in zip(truth.conc, weights):
-                # a metabolite absent here keeps its place, with no lines
-                freqs, amps = lines.get(name, (np.zeros(0, np.float32), np.zeros(0, np.complex64)))
-                if cutoff is not None:
-                    amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
-                parts.append((freqs, amps * weight, 1.0 / (np.pi * self.resolve(truth.t2[name])),
-                              0.0))
-            groups["metabolites"] = parts
+            for tissue, width in self._metabolite_widths(truth).items():
+                weights = self.metabolite_weights(truth, tissue)
+                parts = []
+                for name, weight in zip(truth.conc, weights):
+                    # a metabolite absent here keeps its place, with no lines
+                    freqs, amps = lines.get(name, (np.zeros(0, np.float32),
+                                                   np.zeros(0, np.complex64)))
+                    if cutoff is not None:
+                        amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
+                    parts.append((freqs, amps * weight,
+                                  1.0 / (np.pi * self.resolve(truth.t2[name])), 0.0))
+                groups[("metabolites", width)] = parts
         water = self._water_parts(truth, engine, sequence, f0_mhz, faded)
         if water is not None:
-            groups["water"] = water
+            for part, tissue in water:
+                groups.setdefault(("water", self.gauss_hz(truth, tissue)), []).append(part)
             residual = sum(complex(np.sum(np.asarray(ops.convert_to_numpy(a))))
-                           for _, a, _, _ in water)
+                           for (_, a, _, _), _ in water)
             if truth.oov.fraction > 0.0 and residual != 0.0:
                 # the water outside the voxel that the localization leaks: one broad line at
                 # the water's frequency (its own offset), a fraction of the full water at
@@ -398,71 +422,85 @@ class Voxel:
                 from mrsandbox.phantom.macromolecules import _echo_time_s
                 from mrsandbox.phantom.water import WaterSource
 
-                freqs, amps = (np.asarray(ops.convert_to_numpy(v)) for v in water[0][:2])
+                freqs, amps = (np.asarray(ops.convert_to_numpy(v)) for v in water[0][0][:2])
                 at = (float(np.sum(freqs * np.abs(amps)) / np.sum(np.abs(amps)))
                       + float(truth.oov.offset_hz))
                 full = WaterSource.full_amplitude_mm(self) * np.exp(
                     -(_echo_time_s(sequence) or 0.0) / self.resolve(truth.water.t2_s))
                 amplitude = float(truth.oov.fraction) * full * np.exp(
                     1j * (np.angle(residual) + np.radians(float(truth.oov.phase_deg))))
-                groups["oov"] = [(np.array([at], np.float32), np.array([amplitude], np.complex64),
-                                  1.0 / (np.pi * float(truth.oov.t2star_s)), 0.0)]
+                groups[("oov", gauss_hz)] = [
+                    (np.array([at], np.float32), np.array([amplitude], np.complex64),
+                     1.0 / (np.pi * float(truth.oov.t2star_s)), 0.0)]
         lipid = self.scan.lipids.lines(engine, sequence, self, truth, f0_mhz)
         if lipid is not None:
             l_freqs, l_amps = lipid
-            groups["lipids"] = [(l_freqs, l_amps * np.complex64(faded(truth.diffusion.lipids)),
-                                 1.0 / (np.pi * truth.lipids.t2_s), 0.0)]
+            groups[("lipids", gauss_hz)] = [
+                (l_freqs, l_amps * np.complex64(faded(truth.diffusion.lipids)),
+                 1.0 / (np.pi * truth.lipids.t2_s), 0.0)]
         mm = self.scan.mm.lines(engine, sequence, self, truth, f0_mhz)
         if mm is not None:
             # real positive amplitudes render absorptive as they are; the engine's
             # receiver factor compensates density matrix phases the MM lines never had
             freqs, amps, gauss = mm
-            groups["mm"] = [(ops.convert_to_tensor(freqs),
-                             ops.convert_to_tensor(amps * faded(truth.diffusion.mm)),
-                             0.0, ops.convert_to_tensor(gauss))]
+            groups[("mm", gauss_hz)] = [(ops.convert_to_tensor(freqs),
+                                         ops.convert_to_tensor(amps * faded(truth.diffusion.mm)),
+                                         0.0, ops.convert_to_tensor(gauss))]
         df = self.scan.downfield.lines(engine, sequence, self, truth, f0_mhz)
         if df is not None:
             freqs, amps, gauss = df
-            groups["downfield"] = [(ops.convert_to_tensor(freqs), ops.convert_to_tensor(amps),
-                                    0.0, ops.convert_to_tensor(gauss))]
+            groups[("downfield", gauss_hz)] = [(ops.convert_to_tensor(freqs),
+                                                ops.convert_to_tensor(amps),
+                                                0.0, ops.convert_to_tensor(gauss))]
         return groups
 
     #*************#
     #   weights   #
     #*************#
-    def metabolite_weights(self, truth):
+    def metabolite_weights(self, truth, tissue=None):
         """The complex weight of every metabolite's unit lines in this voxel, in
         truth.conc order: the resolved concentration times the voxel's share of it
-        (`share`), times the diffusion attenuation of the local ADC under the drawn
-        diffusion model."""
+        (`share`, one tissue's with `tissue`), times the diffusion attenuation of the
+        local ADC under the drawn diffusion model."""
         faded = self._diffusion_factor(truth)
         sticks = truth.diffusion.model == "sticks"
         transferred = self.transfer(truth)
         weights = []
         for name, concentration in truth.conc.items():
-            weights.append(self.resolve(concentration) * self.share(truth, name)
+            weights.append(self.resolve(concentration) * self.share(truth, name, tissue)
                            * faded(truth.diffusion.adc[name], sticks)
                            * transferred.get(name, 1.0))
         return np.asarray(weights, dtype=np.complex64)
 
-    def share(self, truth, name):
+    def _metabolite_widths(self, truth):
+        """The Gaussian width the metabolite lines render under here, {tissue: Hz}: the grey
+        and the white lines apart where the voxel holds both and the drawn contrast parts
+        their widths, else one entry (None, every line) at the one width."""
+        widths = {tissue: self.gauss_hz(truth, tissue) for tissue in ("gm", "wm")
+                  if getattr(self.fractions, tissue) > 0.0}
+        if len(set(widths.values())) == 2:
+            return widths
+        return {None: next(iter(widths.values()), self.gauss_hz(truth))}
+
+    def share(self, truth, name, tissue=None):
         """How much of a metabolite's drawn concentration this voxel holds: its tissue split by
         the drawn GM to WM contrast r as gm 2r/(1+r) + wm 2/(1+r) (an equal-mix voxel carries
         exactly the drawn value, pure tissues the published contrast), each region's part
         scaled by the metabolite's factors there where the tree carries regions
         (database.regional) and the brain has them, times the within-region texture here
-        (`texture`)."""
+        (`texture`); `tissue` takes the grey or the white term alone."""
         r = truth.contrast[name]
         factors = truth.get("regions", {}).get(name)
         if factors and self._parts is None:
             self._parts = self.scan.brain.parts(self.position_mm, self.size_mm, self.turn)
         grain = self.texture(truth).get(name, 1.0)
-        if not factors or not self._parts:
-            return grain * (2.0 * r * self.fractions.gm + 2.0 * self.fractions.wm) / (1.0 + r)
         unit = Tissues(1.0, 1.0)
-        return grain * sum(2.0 * r * part.gm * factors.get(region, unit).gm
-                           + 2.0 * part.wm * factors.get(region, unit).wm
-                           for region, part in self._parts.items()) / (1.0 + r)
+        parts = self._parts if factors and self._parts else {None: self.fractions}
+        held = {"gm": sum(2.0 * r * part.gm * (factors or {}).get(region, unit).gm
+                          for region, part in parts.items()),
+                "wm": sum(2.0 * part.wm * (factors or {}).get(region, unit).wm
+                          for region, part in parts.items())}
+        return grain * (held[tissue] if tissue else sum(held.values())) / (1.0 + r)
 
     def texture(self, truth):
         """Each metabolite's within-region factor at this voxel's centre, {name: factor}: one
@@ -694,15 +732,16 @@ class Voxel:
         start_s = float(truth.acquisition.delay_s)
         grid = start_s + np.arange(npoints) * dwell_s
         # the microscopic field distribution: a Gaussian envelope on the spin-system
-        # components (the measured MM and downfield widths already carry theirs)
+        # components, each bucket of lines at its tissue's width (the measured MM and
+        # downfield widths already carry theirs)
         gauss_hz = self.gauss_hz(truth)
-        envelope = np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
-                          * grid * grid).astype(np.float32)
         def sources(basis):
             fids = {}
             if basis is not None:
-                fids["metabolites"] = (
-                    (self.metabolite_weights(truth) @ basis).astype(np.complex64) * envelope)
+                fids["metabolites"] = sum(
+                    (self.metabolite_weights(truth, tissue) @ basis).astype(np.complex64)
+                    * self._envelope(width, grid)
+                    for tissue, width in self._metabolite_widths(truth).items())
             held = {} if self._field_offset_hz else self._lines_cache(truth)
             ready = held.get(("metabolite fid", npoints, float(dwell_s), start_s))
             if ready is not None:               # rendered with the batch (`prepare`)
@@ -715,11 +754,12 @@ class Voxel:
                 grouped = {}
             else:
                 grouped = self._grouped(truth, metabolites=basis is None and ready is None)
-            for name, parts in grouped.items():
+            for (name, width), parts in grouped.items():
                 lorentzian, voigt = self._flat_lines(parts)
-                fid = np.zeros(npoints, dtype=np.complex64)
+                fid = fids.get(name, np.zeros(npoints, dtype=np.complex64))
                 if lorentzian is not None:
-                    fid = fid + self._render_lines(lorentzian, npoints, dwell_s, start_s) * envelope
+                    fid = fid + (self._render_lines(lorentzian, npoints, dwell_s, start_s)
+                                 * self._envelope(width, grid))
                 if voigt is not None:
                     fid = fid + self._render_lines(voigt, npoints, dwell_s, start_s)
                 fids[name] = fid
@@ -749,8 +789,8 @@ class Voxel:
                         shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz), turn=self.turn):
                     self._field_offset_hz = mean_hz
                     try:
-                        lorentzian, _ = self._flat_lines(self._water_parts(
-                            truth, engine, sequence, self._f0_mhz(), faded))
+                        lorentzian, _ = self._flat_lines([part for part, _ in self._water_parts(
+                            truth, engine, sequence, self._f0_mhz(), faded)])
                     finally:
                         self._field_offset_hz = 0.0
                     if lorentzian is not None:     # a train can take a group's water whole
@@ -818,6 +858,12 @@ class Voxel:
                 cached[1][key] = np.asarray(eddy.process_tensor(ones, sw_hz=sw_hz)[0][0])
             modulation = modulation * cached[1][key]
         return {name: (fid * modulation).astype(np.complex64) for name, fid in fids.items()}
+
+    @staticmethod
+    def _envelope(gauss_hz, t):
+        """The envelope a Gaussian line of FWHM `gauss_hz` puts on an FID over the times
+        `t`, exp(-(pi w)^2 t^2 / 4 ln 2), float32."""
+        return np.exp(-(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0)) * t * t).astype(np.float32)
 
     @staticmethod
     def _advance(freqs, lw_hz, start_s):
@@ -1345,8 +1391,9 @@ class Voxel:
                 continue
             # the draws' metabolite FIDs as `_grouped` and `_render_lines` would make them one
             # by one: each line's weight, the downfield cutoff, the draw's widths and receiver
-            # delay, the Gaussian envelope after; the draws whose lines were made (a profile
-            # draw on an ideal design renders alone)
+            # delay, the Gaussian envelope after, a row per tissue where the tissues' widths
+            # part; the draws whose lines were made (a profile draw on an ideal design renders
+            # alone)
             members = [member for member in members if member[1] in shared]
             if not members or not names:
                 continue
@@ -1361,12 +1408,17 @@ class Voxel:
                     else np.arange(f.size))
             pad = -(-keep.size // 512) * 512 - keep.size
             grid = np.arange(n) * dwell
-            for first in range(0, len(members), 32):
-                chunk = members[first:first + 32]
+            jobs = [(truth, key, tissue, width) for truth, key, _ in members
+                    for tissue, width in self._metabolite_widths(truth).items()]
+            for truth, _, _ in members:
+                self._lines_cache(truth).pop(("metabolite fid", n, float(dwell),
+                                              float(truth.acquisition.delay_s)), None)
+            for first in range(0, len(jobs), 32):
+                chunk = jobs[first:first + 32]
                 rows_amps = np.zeros((len(chunk), f.size), np.complex64)
                 rows_lw = np.ones((len(chunk), f.size), np.float32)
-                for row, (truth, key, _) in enumerate(chunk):
-                    weights = dict(zip(truth.conc, self.metabolite_weights(truth)))
+                for row, (truth, key, tissue, _) in enumerate(chunk):
+                    weights = dict(zip(truth.conc, self.metabolite_weights(truth, tissue)))
                     start_s, lines = float(truth.acquisition.delay_s), shared[key]
                     for i, name in enumerate(names):
                         part, lw = (slice(bounds[i], bounds[i + 1]),
@@ -1380,20 +1432,18 @@ class Voxel:
                     npoints=n, dwell_s=dwell,
                     lw_hz=np.pad(rows_lw[:, keep], ((0, 0), (0, pad)), constant_values=1.0))
                 fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
-                for row, (truth, _, _) in enumerate(chunk):
-                    start_s, gauss = float(truth.acquisition.delay_s), self.gauss_hz(truth)
-                    envelope = np.exp(-(np.pi * gauss) ** 2 / (4.0 * np.log(2.0))
-                                      * (start_s + grid) ** 2).astype(np.float32)
-                    self._lines_cache(truth)[("metabolite fid", n, float(dwell), start_s)] = (
-                        fids[row] * envelope)
+                for row, (truth, _, _, width) in enumerate(chunk):
+                    start_s = float(truth.acquisition.delay_s)
+                    held, at = self._lines_cache(truth), ("metabolite fid", n, float(dwell), start_s)
+                    held[at] = held.get(at, 0.0) + fids[row] * self._envelope(width, start_s + grid)
             # the other sources the same way: their parts per draw (the engine parts cached
             # above), the draws with one line list rendered as rows, Lorentzian lines through
             # the factorized graph, Voigt ones densely; a draw's `_rendered_fids` then takes
             # every source from the cache and skips its own grouping and renders
-            alike = {}
+            alike, made = {}, {}
             for truth, _, _ in members:
                 start_s = float(truth.acquisition.delay_s)
-                for name, parts in self._grouped(truth, metabolites=False).items():
+                for (name, width), parts in self._grouped(truth, metabolites=False).items():
                     freqs = np.concatenate([np.asarray(ops.convert_to_numpy(f))
                                             for f, _, _, _ in parts])
                     amps = np.concatenate([np.asarray(ops.convert_to_numpy(a))
@@ -1404,7 +1454,8 @@ class Voxel:
                                             * np.ones(f.shape[0], np.float32)
                                             for f, _, _, g in parts])
                     alike.setdefault((name, freqs.tobytes(), bool(gauss.any())),
-                                     (freqs, []))[1].append((truth, amps, lw, gauss, start_s))
+                                     (freqs, []))[1].append((truth, amps, lw, gauss, start_s,
+                                                             width))
             for (name, _, voigt), (f, draws) in alike.items():
                 for first in range(0, len(draws), 32):
                     chunk = draws[first:first + 32]
@@ -1413,13 +1464,13 @@ class Voxel:
                         # renders them (`_render_lines`)
                         fids = np.stack([self._render_lines(
                             (f, amps, lw, gauss if voigt else None), n, dwell, start_s)
-                            for _, amps, lw, gauss, start_s in chunk])
+                            for _, amps, lw, gauss, start_s, _ in chunk])
                     else:
                         pad = -(-f.size // (64 if voigt else 512)) * (64 if voigt else 512) - f.size
                         rows_amps, rows_lw = (np.zeros((len(chunk), f.size + pad), np.complex64),
                                               np.ones((len(chunk), f.size + pad), np.float32))
                         rows_gauss = np.zeros((len(chunk), f.size + pad), np.float32)
-                        for row, (truth, amps, lw, gauss, start_s) in enumerate(chunk):
+                        for row, (truth, amps, lw, gauss, start_s, _) in enumerate(chunk):
                             amps = amps * self._advance(f, lw, start_s)
                             if voigt:
                                 # a Gaussian line's cross term over the delay is a Lorentzian
@@ -1434,14 +1485,15 @@ class Voxel:
                             padded, ops.convert_to_tensor(rows_amps), npoints=n, dwell_s=dwell,
                             lw_hz=rows_lw, gauss_hz=rows_gauss if voigt else None)
                         fids = np.asarray(ops.convert_to_numpy(fids), dtype=np.complex64)
-                    for row, (truth, _, _, _, start_s) in enumerate(chunk):
-                        if not voigt:
-                            gauss_hz = self.gauss_hz(truth)
-                            fids[row] = fids[row] * np.exp(
-                                -(np.pi * gauss_hz) ** 2 / (4.0 * np.log(2.0))
-                                * (start_s + grid) ** 2).astype(np.float32)
-                        self._lines_cache(truth)[("fid", name, n, float(dwell), start_s)] = (
-                            fids[row])
+                    for row, (truth, _, _, _, start_s, width) in enumerate(chunk):
+                        fid = fids[row] if voigt else fids[row] * self._envelope(width,
+                                                                                 start_s + grid)
+                        at = (id(truth), ("fid", name, n, float(dwell), start_s))
+                        made[at] = (truth, made[at][1] + fid if at in made else fid)
+            for truth, key in made.values():
+                pass
+            for (_, key), (truth, fid) in made.items():
+                self._lines_cache(truth)[key] = fid
             for truth, _, _ in members:
                 self._lines_cache(truth)[("every source", n, float(dwell),
                                           float(truth.acquisition.delay_s))] = True

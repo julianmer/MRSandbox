@@ -470,6 +470,27 @@ STANISZ = {
 }
 
 #**********************#
+#   reversible decay   #
+#**********************#
+# Source: Ni, W., Christen, T., Zun, Z., Zaharchuk, G. Comparison of R2' measurement methods in
+#         the normal brain at 3 Tesla. Magnetic Resonance in Medicine 73 (2015) 1228-1236, the
+#         abstract's means over the four methods (asymmetric spin echo, GESFIDE, GESSE, separate
+#         R2 and R2* maps); its Table 4 quotes Sedlacik, J., Boelmans, K., Lobel, U., et al.
+#         Reversible, irreversible and effective transverse relaxation rates in normal aging
+#         brain at 3T. NeuroImage 84 (2014) 1032-1041, the frontal values at 30 years.
+# Data:   the reversible transverse rate R2' = R2* - R2 of the water in grey and white matter
+#         at 3 T, the field distribution below an imaging voxel: Ni's ten healthy young adults
+#         as the span of the methods' means, Sedlacik's 66 subjects (18 to 84 years) as the
+#         age regression at 30 years with its 95 percent interval. Grey over white runs from
+#         Sedlacik's 0.75 to GESSE's 1.17, the other methods between.
+# Units:  per second as (low, high); the contrast as a ratio.
+R2_PRIME_3T = {
+    "ni": {"gm": (2.7, 3.8), "wm": (2.3, 4.3)},
+    "sedlacik": {"gm": (6.6, 8.1), "wm": (8.8, 11.0)},
+    "contrast": (0.75, 1.17),   # grey over white, the two studies' extremes
+}
+
+#**********************#
 #   de graaf, rat      #
 #**********************#
 # Source: de Graaf, R. A., Brown, P. B., McIntyre, S., Nixon, T. W., Behar, K. L., Rothman,

@@ -295,7 +295,8 @@ class TestFieldPriors:
         studied = {f"fmrs.effect.{name}" for name in ("Lac", "Glu", "GABA", "Asp", "Glc", "GSH",
                                                       "Gln", "Gly")}
         read = {"fmrs.effect.NAA", "fmrs.effect.Ins"}
-        assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "noise.sigma",
+        assert set(tree.sources()) == {"conc.Cr", "lineshape.gauss_hz", "lineshape.contrast",
+                                       "lineshape.csf", "noise.sigma",
                                        "water.adjusted_residual", "acquisition.delay_s",
                                        "acquisition.eddy_transient_rad", "oov.fraction", "water.t1_s",
                                        "water.t2_s", "mm.level_mm", "mm.kappa", *(f"run.{key}" for key in (
@@ -306,7 +307,8 @@ class TestFieldPriors:
                                        *transfer, *studied, *read}
         assert {path: leaf.chosen for path, leaf in tree.sources().items()
                 if not path.startswith("run.")} == {
-            "conc.Cr": "literature", "lineshape.gauss_hz": "literature", "noise.sigma": "pooled",
+            "conc.Cr": "literature", "lineshape.gauss_hz": "literature",
+            "lineshape.contrast": "literature", "lineshape.csf": "literature", "noise.sigma": "pooled",
             "water.adjusted_residual": "pooled", "acquisition.delay_s": "pooled",
             "acquisition.eddy_transient_rad": "pooled", "oov.fraction": "pooled",
             "water.t1_s": "literature", "water.t2_s": "literature", "mm.level_mm": "literature", "mm.kappa": "literature",

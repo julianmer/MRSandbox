@@ -26,7 +26,8 @@ from mrsandbox.database.macromolecules import CONSENSUS_T1
 from mrsandbox.database.tissue import DEELCHAND_2018
 from mrsandbox.database.transfer import CREATINE_METHYL_RATE_HZ, NO_TRANSFER, STANISZ_2005_3T
 from mrsandbox.database.gudmundson import PooledValue
-from mrsandbox.database.relaxation import BOUDREAU, WATER, WATER_FIELDS, WATER_T2_3T
+from mrsandbox.database.relaxation import (BOUDREAU, R2_PRIME_3T, WATER, WATER_FIELDS,
+                                           WATER_T2_3T)
 from mrsandbox.hardware.scanners import Scanner
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.params import (Clipped, Empirical, Fixed, Mixture, Normal, Params, PerTissue, Priors,
@@ -271,10 +272,23 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #     16 to 19 at 7 T) on top of the Lorentzian 1 / (pi T2); susceptibility
         #     broadening scales with the field, so the range scales by B0 / 3 T. The
         #     width read on the package's cohorts stands beside it as its measured source.
+        #   contrast: the grey over white ratio of that width, parted as the levels are by
+        #     their contrast (an equal mix plays the draw, pure tissues the ratio): the
+        #     reversible water rate R2' per tissue at 3 T, the two studies' extremes
+        #     (database.relaxation R2_PRIME_3T); the readers' width stays the voxel's.
+        #   csf: the CSF water's width over the draw, a stated range: a fluid below the
+        #     map's cells has little structure to broaden it.
         lineshape=dict(gauss_hz=_sourced("lineshape.gauss_hz", served, Uniform,
                                          literature=Uniform(2.0 * tesla / 3.0, 6.0 * tesla / 3.0),
                                          cited="a stated range: the water linewidth grades of "
-                                               "Oz et al. 2021 over the Lorentzian part")),
+                                               "Oz et al. 2021 over the Lorentzian part"),
+                       contrast=_sourced("lineshape.contrast", served, Uniform,
+                                         literature=Uniform(*R2_PRIME_3T["contrast"]),
+                                         cited="the reversible water rate per tissue at 3 T: "
+                                               "Ni et al. 2015, Sedlacik et al. 2014"),
+                       csf=_sourced("lineshape.csf", served, Uniform, literature=Uniform(0.0, 0.5),
+                                    cited="a stated range: a fluid below the map's cells has "
+                                          "little structure to broaden it")),
     )
     # instrumental and physiological imperfections and artifact signals
     imperfections = Params(

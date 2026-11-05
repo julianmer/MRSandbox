@@ -652,7 +652,8 @@ class TestLineshape:
         from mrsandbox import NoDownfield, NoMM
 
         def fid(gauss_hz):
-            params = Params(**self.STILL, lineshape=dict(gauss_hz=gauss_hz))
+            # the tissues at one width: the envelope is the voxel's alone
+            params = Params(**self.STILL, lineshape=dict(gauss_hz=gauss_hz, contrast=1.0, csf=1.0))
             voxel = VirtualScan(scan.brain, scan.scanner, scan.sequence, params=params,
                                 mm=NoMM(), downfield=NoDownfield()).voxel(
                 position_mm=(10, -20, 5), size_mm=20)
@@ -690,6 +691,52 @@ class TestLineshape:
         assert 6.0 < width < 10.0
         assert voxel(field).gauss_hz(truth) == pytest.approx(np.sqrt(144.0 - width ** 2), abs=1e-6)
         assert voxel(FieldMap.from_map(3.0 * gradient, affine, shim="none")).gauss_hz(truth) == 0.0
+
+    #****************#
+    #   per tissue   #
+    #****************#
+    def test_the_tissues_part_the_broadening_by_the_drawn_contrast(self, scan):
+        # grey and white part the voxel's width by lineshape.contrast as the levels part by
+        # theirs, the CSF water plays its drawn fraction: a pure tissue plays its own width on
+        # every line, an equal mix reads as the draw
+        from mrsandbox import Brain, NoDownfield, NoLipids, NoMM, Unsuppressed
+
+        shape, affine = (8, 8, 8), np.eye(4)
+        affine[:3, 3] = -3.5
+        ones = np.ones(shape, np.float32)
+
+        def fid(gm, wm, csf, **lineshape):
+            # the water unsuppressed, a part per tissue (the suppressed residual is one line at
+            # the voxel's values); the lipids from outside keep the voxel's width: left out
+            brain = Brain.from_maps(gm=gm * ones, wm=wm * ones, csf=csf * ones, affine=affine)
+            params = Params(**self.STILL, lineshape={**dict(gauss_hz=4.0, contrast=1.5, csf=0.25),
+                                                    **lineshape})
+            voxel = VirtualScan(brain, scan.scanner, scan.sequence, params=params, mm=NoMM(),
+                                downfield=NoDownfield(), lipids=NoLipids(),
+                                water=Unsuppressed()).voxel(position_mm=(0.0, 0.0, 0.0),
+                                                            size_mm=2.0)
+            return voxel.fid(seed=7, npoints=512)[1]
+
+        t = np.arange(512) / 4000.0
+
+        def envelope(hz):
+            return np.exp(-(np.pi * hz) ** 2 / (4.0 * np.log(2.0)) * t * t)
+
+        for tissue, width in (("gm", 4.0 * 2.0 * 1.5 / 2.5), ("wm", 4.0 * 2.0 / 2.5),
+                              ("csf", 4.0 * 0.25)):
+            pure = {"gm": 0.0, "wm": 0.0, "csf": 0.0, tissue: 1.0}
+            sharp, broad = fid(**pure, gauss_hz=0.0), fid(**pure)
+            assert np.abs(sharp).max() > 0.0
+            np.testing.assert_allclose(broad, sharp * envelope(width),
+                                       atol=1e-5 * np.abs(sharp).max())
+        # the equal mix: the grey and the white envelopes together read as the draw's over the
+        # metabolite band within two percent of its tallest line, though not the same
+        mixed, drawn = fid(0.5, 0.5, 0.0), fid(0.5, 0.5, 0.0, contrast=1.0)
+        spectra = [np.abs(np.fft.fft(f, 8192)) for f in (mixed, drawn)]
+        hz = np.fft.fftfreq(8192, 1.0 / 4000.0) / (scan.scanner.b0_t * 42.577)
+        band = (hz > 0.5) & (hz < 4.0)
+        assert np.abs(spectra[0] - spectra[1])[band].max() < 0.02 * spectra[1][band].max()
+        assert np.abs(mixed - drawn).max() > 1e-4 * np.abs(drawn).max()
 
     #********************#
     #   eddy transient   #

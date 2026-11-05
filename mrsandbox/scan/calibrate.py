@@ -272,12 +272,12 @@ def _spectrum(fid, dwell_s, ppm_of, fill=4, apodization_hz=2.0):
 
 
 def _echo_top(parts, dwell_s):
-    """The echo top of water line parts [(freqs, amps, lw_hz, tissue)] as the twin's
-    FID would show it over points 2 to 8, where each part has decayed at its own width
-    (the lineshape the parts share cancels in a series' ratios)."""
+    """The echo top of water line parts [((freqs, amps, lw_hz, gauss_hz), tissue)] as the
+    twin's FID would show it over points 2 to 8, where each part has decayed at its own
+    width (the lineshape the parts share cancels in a series' ratios)."""
     t = np.arange(2, 8) * dwell_s
     return abs(sum(complex(np.sum(np.asarray(ops.convert_to_numpy(amps))))
-                   * float(np.mean(np.exp(-np.pi * lw * t))) for _, amps, lw, _ in parts))
+                   * float(np.mean(np.exp(-np.pi * lw * t))) for (_, amps, lw, _), _ in parts))
 
 
 def _shape(ppm, real, f0_mhz):

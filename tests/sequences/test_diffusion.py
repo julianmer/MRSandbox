@@ -174,7 +174,7 @@ class TestAttenuation:
         quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
                        acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0,
                                         delay_s=0.0, eddy_transient_rad=0.0),
-                       conc=conc, diffusion=dict(mm=0.0075),
+                       conc=conc, diffusion=dict(mm=0.0075), lineshape=dict(contrast=1.0, csf=1.0),
                        water=dict(t1_s=PerTissue(1.0, 1.0, 1.0), t2_s=PerTissue(0.08, 0.08, 0.08)))
         kw = dict(position_mm=(0.0, -20.0, 20.0), size_mm=20.0)
         pieces = (Scanner.preset("generic_3t"), pair)

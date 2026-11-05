@@ -89,8 +89,9 @@ class TestWater:
         from mrsandbox.params import PerTissue
 
         def water(t1):
+            # the tissues' widths held to the voxel's: the gate is the recovery's
             quiet = Params(acquisition=dict(shift_hz=0.0), spurious=dict(amplitude=0.0),
-                           water=dict(t1_s=t1, t2_s=0.1))
+                           water=dict(t1_s=t1, t2_s=0.1), lineshape=dict(contrast=1.0, csf=1.0))
             scan = VirtualScan(brain, Scanner.preset("generic_3t"),
                                Press(te1_s=0.011, te2_s=0.019, tr_s=1.0),
                                params=quiet, water=Unsuppressed())
@@ -138,7 +139,7 @@ class TestWater:
             truth = voxel.sample(seed=7)
             parts = voxel._water_parts(truth, scan.engine, voxel.design(truth), voxel._f0_mhz(),
                                        voxel._diffusion_factor(truth))
-            freqs, amps = (np.concatenate([ops.convert_to_numpy(part[k]) for part in parts])
+            freqs, amps = (np.concatenate([ops.convert_to_numpy(part[k]) for part, _ in parts])
                            for k in (0, 1))
             return abs(amps.sum()), float(freqs[np.abs(amps).argmax()]), voxel._f0_mhz()
 
