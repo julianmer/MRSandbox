@@ -274,23 +274,36 @@ class FieldMap:
         offsets, overlap = self._shimmed(position_mm, size_mm, shim, shim_at_mm, turn)
         if offsets.size == 0:
             return [(0.0, 1.0, np.ones_like(t, dtype=np.complex64))]
-        if spread_hz > 0.0:
-            nodes, node_weights = np.polynomial.hermite_e.hermegauss(32)
-            offsets = (offsets[:, None]
-                       + spread_hz / (2.0 * np.sqrt(2.0 * np.log(2.0))) * nodes[None, :]).ravel()
-            overlap = (overlap[:, None] * node_weights[None, :] / node_weights.sum()).ravel()
-        order = np.argsort(offsets)
-        offsets, overlap = offsets[order], overlap[order]
-        share = np.cumsum(overlap) / overlap.sum()
-        member = np.minimum((share * count).astype(int), count - 1)
+        # the spread as Gauss-Hermite nodes: every cell sits at each node with the node's share
+        nodes, shares = (np.polynomial.hermite_e.hermegauss(32) if spread_hz > 0.0
+                         else (np.zeros(1), np.ones(1)))
+        shifts, shares = spread_hz / (2.0 * np.sqrt(2.0 * np.log(2.0))) * nodes, shares / shares.sum()
+        # one fine weighted histogram along the offset axis (`bins` per group, the kernel's
+        # resolution), each bin's weight and first moment, in place of the sorted points: a
+        # fine map's cells at 32 nodes each are millions of points
+        total = bins * count
+        lo, hi = offsets.min() + shifts.min(), offsets.max() + shifts.max()
+        width = max((hi - lo) / total, 1e-12)
+        weight, moment = np.zeros(total), np.zeros(total)
+        for shift, share in zip(shifts, shares):
+            at = np.minimum(((offsets + shift - lo) / width).astype(int), total - 1)
+            weight += np.bincount(at, overlap * share, total)
+            moment += np.bincount(at, overlap * share * (offsets + shift), total)
+        # equal shares of the weight along the axis; a bin astride a boundary is split between
+        # its groups by the share on each side
+        share = np.cumsum(weight) / weight.sum()
+        start = share - weight / weight.sum()
         out = []
         for g in range(count):
-            inside = member == g
+            part = np.clip(np.minimum(share, (g + 1) / count) - np.maximum(start, g / count),
+                           0.0, None)
+            inside = part > 0.0
             if inside.any():
-                weight = overlap[inside].sum() / overlap.sum()
-                out.append((float(np.average(offsets[inside], weights=overlap[inside])),
-                            float(weight),
-                            self._dephasing(offsets[inside], overlap[inside], t, bins)))
+                w, centres = part[inside] * weight.sum(), moment[inside] / weight[inside]
+                kernel = ((w / w.sum())[:, None]
+                          * np.exp(2j * np.pi * centres[:, None] * t[None, :])).sum(axis=0)
+                out.append((float((w * centres).sum() / w.sum()), float(w.sum() / weight.sum()),
+                            kernel.astype(np.complex64)))
         return out
 
     @staticmethod

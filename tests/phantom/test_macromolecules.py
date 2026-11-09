@@ -243,6 +243,17 @@ class TestMeasured:
         ratio = measured[window].sum() / (parameterized - without)[window].sum()
         assert 0.5 < ratio < 2.0
 
+    def test_one_model_serves_every_draw_with_its_table_kept(self, spectra):
+        # the components' exponentials on a grid are kept on the model from one FID to the
+        # next, each draw paying its amplitudes alone: two levels through one model equal two
+        # fresh models
+        shared = MeasuredMM()
+        for level in (1.0, 2.5):
+            _, kept = spectra(level, mm=shared)
+            _, fresh = spectra(level, mm=MeasuredMM())
+            np.testing.assert_allclose(kept, fresh, atol=1e-6 * np.abs(fresh).max())
+        assert shared._table is not None
+
     def test_the_peak_anchor_is_its_record(self):
         from mrsandbox.scan.calibrations import MODELS
 

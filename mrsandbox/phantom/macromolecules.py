@@ -230,6 +230,7 @@ class MeasuredMM(MMSource):
         self._decomposed = None
         self._t2_map = None
         self._repetition = None
+        self._table = None
 
     #*********#
     #   fid   #
@@ -247,21 +248,25 @@ class MeasuredMM(MMSource):
         if sequence is not None:
             amps = amps * self._response(rates.imag / (2.0 * np.pi * f0_mhz), sequence, voxel,
                                          truth, f0_mhz)
-        # before the echo top a component rises into the echo: its width is its lines' spread,
-        # which the echo refocuses, so its decay is mirrored about t = 0
         t = np.asarray(t_s, dtype=np.float64)
-        rise = t < 0.0
-        signal = np.empty(t.size, dtype=np.complex128)
-        signal[rise] = amps @ np.exp((1j * rates.imag - rates.real)[:, None] * t[rise])
-        # from the echo top on the grid is uniform, so a component's exponential factorizes
-        # into its powers inside a block of 32 samples and a stride per block
-        after = t[~rise]
-        dt = (t[-1] - t[0]) / max(t.size - 1, 1)
-        q = np.arange(32) * dt
-        p = after[:1] + np.arange(-(-after.size // 32)) * 32 * dt
-        table = (np.exp(rates[:, None] * p)[:, :, None]
-                 * np.exp(rates[:, None] * q)[:, None, :]).reshape(rates.size, -1)
-        signal[~rise] = amps @ table[:, :after.size]
+        # the components' exponentials on this grid at this field do not depend on the draw:
+        # kept from one FID to the next, each draw pays its amplitudes' sum alone
+        key = (t.size, float(t[0]), float(t[-1]), f0_mhz)
+        if self._table is None or self._table[0] != key:
+            # before the echo top a component rises into the echo: its width is its lines'
+            # spread, which the echo refocuses, so its decay is mirrored about t = 0
+            rise = t < 0.0
+            before = np.exp((1j * rates.imag - rates.real)[:, None] * t[rise])
+            # from the echo top on the grid is uniform, so a component's exponential
+            # factorizes into its powers inside a block of 32 samples and a stride per block
+            after = t[~rise]
+            dt = (t[-1] - t[0]) / max(t.size - 1, 1)
+            q = np.arange(32) * dt
+            p = after[:1] + np.arange(-(-after.size // 32)) * 32 * dt
+            table = (np.exp(rates[:, None] * p)[:, :, None]
+                     * np.exp(rates[:, None] * q)[:, None, :]).reshape(rates.size, -1)
+            self._table = (key, np.concatenate([before, table[:, :after.size]], axis=1))
+        signal = amps @ self._table[1]
         scale = (truth.mm.level_mm * tissue * self.TOTAL_PROTON_AREAS * self.PEAK_ANCHOR
                  / np.conj(measured[0]))
         return (signal * scale).astype(np.complex64)

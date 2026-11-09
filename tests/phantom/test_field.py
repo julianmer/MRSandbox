@@ -306,6 +306,32 @@ class TestFieldGroups:
         np.testing.assert_allclose(sum(w * k for _, w, k in spread),
                                    field.kernel((0.0, 0.0, 0.0), 20.0, t) * envelope, atol=1e-3)
 
+    def test_groups_read_off_the_histogram_match_the_sorted_points(self):
+        # the groups come from one fine weighted histogram of the offsets; against the points
+        # themselves (every cell at every node, sorted, cut into equal shares) the means, the
+        # weights and the kernels agree
+        _, affine, _ = self.ramp(40.0)
+        field = FieldMap.from_map(np.random.default_rng(0).normal(0.0, 8.0, (40, 40, 40))
+                                  .astype(np.float32), affine, shim="none")
+        t = np.arange(512) / 4000.0
+        groups = field.groups((0.0, 0.0, 0.0), 20.0, t, 8, spread_hz=5.0)
+        offsets, overlap = field._shimmed((0.0, 0.0, 0.0), 20.0, "none")
+        nodes, shares = np.polynomial.hermite_e.hermegauss(32)
+        points = (offsets[:, None]
+                  + 5.0 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * nodes[None, :]).ravel()
+        weights = (overlap[:, None] * shares[None, :] / shares.sum()).ravel()
+        order = np.argsort(points)
+        points, weights = points[order], weights[order]
+        member = np.minimum((np.cumsum(weights) / weights.sum() * 8).astype(int), 7)
+        assert len(groups) == 8
+        for g, (mean, weight, kernel) in enumerate(groups):
+            inside = member == g
+            assert abs(mean - np.average(points[inside], weights=weights[inside])) < 0.05
+            assert abs(weight - weights[inside].sum() / weights.sum()) < 1e-3
+            exact = (weights[inside][:, None] / weights[inside].sum()
+                     * np.exp(2j * np.pi * points[inside][:, None] * t[None, :])).sum(axis=0)
+            np.testing.assert_allclose(kernel, exact, atol=2e-3)
+
     def test_a_shim_kept_while_the_head_moves_is_spoiled_by_the_move(self):
         # a linear field is shimmed away where the shim was fitted; the head moves 3 mm
         # along the ramp and the shim stays in the scanner: what is left is the ramp

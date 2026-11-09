@@ -130,6 +130,7 @@ class Engine:
         self._compiled = {}
         self._draws = {}
         self._renderers = {}
+        self._timings = {}
 
     #*************#
     #   context   #
@@ -676,6 +677,25 @@ class Engine:
             return tuple(Engine.tensors(value) for value in timings)
         return ops.convert_to_tensor(timings, dtype=precision.REAL)
 
+    def _timing_tensors(self, sequence):
+        """`tensors` of the sequence's timings, read anew each call (an event set by hand
+        replays its new physics) but converted once per value: a replay at the same
+        timings sends nothing to the device again."""
+        timings = sequence.timings()
+
+        def key(value):
+            if isinstance(value, tuple):
+                return tuple(key(v) for v in value)
+            return value if isinstance(value, (int, float)) else id(value)
+
+        found = self._timings.get(key(timings))
+        if found is None:
+            if len(self._timings) >= 64:
+                self._timings.clear()
+            # the timings are held with their tensors so an array's id stays its own
+            found = self._timings[key(timings)] = (timings, self.tensors(timings))
+        return found[1]
+
     #**************#
     #   compiled   #
     #**************#
@@ -718,7 +738,7 @@ class Engine:
         output to the elements that carry signal)."""
         fn, bounds = self.graph(sequence, groups, isochromats, pruned)
         # read anew each call: an event set by hand replays its new physics
-        timings = self.tensors(sequence.timings())
+        timings = self._timing_tensors(sequence)
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: fn(t1_s, t2_s, b1_scale, offset_hz, timings,
@@ -765,7 +785,7 @@ class Engine:
                 fn, bounds = self.graph(sequence, groups, chromats, pruned=True)
                 self._draws[key] = (Backend.vmap(fn, in_axes=(0, 0, 0, 0, None, None)), bounds)
         call, kept = self._draws[key]
-        timings = self.tensors(sequence.timings())
+        timings = self._timing_tensors(sequence)
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
         return (lambda t1_s, t2_s, b1_scale, offset_hz: call(t1_s, t2_s, b1_scale, offset_hz,
@@ -886,7 +906,7 @@ class Engine:
                                                  rows[:2] + specs[2:] + (held,)), None)
                 self._compiled[key] = (frame, lines, self._wrap_export(stored[0], mapped), kept)
         frame, lines, draws, kept = self._compiled[key]
-        timings = self.tensors(sequence.timings())
+        timings = self._timing_tensors(sequence)
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
         return (lambda b1_scale, offset_hz: frame(b1_scale, offset_hz, timings, shift),

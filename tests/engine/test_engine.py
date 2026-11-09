@@ -346,6 +346,21 @@ class TestGraph:
         assert np.abs(after - before).max() > 0.1
         np.testing.assert_allclose(after, self.eager(engine, echo, lac), atol=1e-5)
 
+    def test_the_same_timings_are_sent_to_the_device_once(self):
+        # a replay at the timings of the one before converts nothing again; a timing set by
+        # hand converts anew and plays
+        engine = Engine(3.0)
+        lac = SpinSystem.from_database("Lac")[0]
+        delay = Delay(0.005)
+        echo = Sequence(Pulse(90.0), CoherenceFilter(+1), delay, Pulse(180.0, phase_deg=90.0),
+                        CoherenceFilter(-1), delay)
+        first = self.replay(engine, echo, lac)
+        np.testing.assert_allclose(self.replay(engine, echo, lac), first)
+        assert len(engine._timings) == 1
+        delay.t_s = 0.072
+        self.replay(engine, echo, lac)
+        assert len(engine._timings) == 2
+
     #*********************#
     #   timing gradient   #
     #*********************#
