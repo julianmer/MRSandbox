@@ -49,3 +49,4 @@ class TestDatasets:
         saved = datasets.rebuild(tmp_path, names=["mine"], into=tmp_path / "built")
         assert saved == [tmp_path / "built" / "mine.json"] and (tmp_path / "mine").is_dir()
         assert Cohort.load(saved[0]).members[0].subject == "S1"
+

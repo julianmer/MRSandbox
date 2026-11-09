@@ -211,8 +211,6 @@ class COWS:
     # the voxels by region (the prefrontal files say PFL or PFC)
     PLACES = {"PF": (-1.0, 51.0, 18.0), "Occipital": (0.0, -75.0, 21.0),
               "Parietal": (0.0, 4.0, 50.0)}
-    # a file of the deposit cut short (four bytes under its siblings), which mapVBVD does not read
-    SHORT = ("sub-01_acq-06_svs_slaser_vapor7_metab_Occipital.dat",)
 
     #************#
     #   cohort   #
@@ -220,7 +218,8 @@ class COWS:
     @classmethod
     def cohort(cls, root):
         """The cows_prisma cohort from the dataset's local copy at `root`: every subject's
-        metabolite scans of every scheme and region, but a file cut short (SHORT)."""
+        metabolite scans of every scheme and region (the deposit's one file with a shifted
+        measurement table reads through io.siemens like the rest)."""
         root = pathlib.Path(root)
         return _cohort(
             "cows_prisma", "COWS, OpenNeuro ds006812, the metabolite scans of all subjects, "
@@ -230,8 +229,7 @@ class COWS:
             [(f"{f.split('/')[-4]} {f.split('_svs_slaser_')[1][:-4].replace('_metab_', ' ')}",
               next(region for region in cls.PLACES if region in f),
               (lambda f=f: read_twix(f, phs=1)), (lambda f=f: read_twix(f, phs=0)))
-             for f in _found(root / "sub-*" / "mrs" / "sourcedata" / "*_metab_*.dat")
-             if pathlib.Path(f).name not in cls.SHORT],
+             for f in _found(root / "sub-*" / "mrs" / "sourcedata" / "*_metab_*.dat")],
             participants.bids(root, health="healthy"), seeds=3)
 
 
