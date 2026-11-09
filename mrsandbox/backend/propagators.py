@@ -66,6 +66,21 @@ class Backend:
 
         return mapped
 
+    #**************#
+    #   is tracer   #
+    #**************#
+    @staticmethod
+    def is_tracer(x):
+        """True while `x` is being traced by a jax transformation (a jit, a vmap), False
+        for a concrete array on any backend."""
+        import keras
+
+        if keras.config.backend() != "jax":
+            return False
+        import jax
+
+        return isinstance(x, jax.core.Tracer)
+
     #********************#
     #   hermitian eigh   #
     #********************#

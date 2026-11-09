@@ -409,9 +409,18 @@ class Engine:
             full, bounds = self.graph(sequence, groups, isochromats)
             index, kept = self._signal_index(full, sequence, groups, isochromats, bounds)
 
+            at = np.asarray(ops.convert_to_numpy(index))
+
             def gathered(*args):
                 freqs, amps = full(*args)
-                return ops.take(freqs, index), ops.take(amps, index)
+                # under a transformation (the frequencies may still be concrete, the amplitudes
+                # never): gathered in the graph
+                if Backend.is_tracer(freqs) or Backend.is_tracer(amps):
+                    return ops.take(freqs, index), ops.take(amps, index)
+                # eager: the lines leave the device whole and are gathered on the host, so no
+                # gather of its own is compiled per output shape
+                return (np.asarray(ops.convert_to_numpy(freqs))[at],
+                        np.asarray(ops.convert_to_numpy(amps))[at])
 
             self._compiled[key] = (gathered, kept)
             return self._compiled[key]
