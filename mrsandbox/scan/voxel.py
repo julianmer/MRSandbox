@@ -1234,7 +1234,7 @@ class Voxel:
                         np.asarray(ops.convert_to_numpy(a)), kept)
 
             # the graphs side by side: a compilation and a replay run without holding python
-            with ThreadPoolExecutor(min(len(batches), os.cpu_count() or 1)) as pool:
+            with ThreadPoolExecutor(min(len(batches), self.scan.threads or os.cpu_count() or 1)) as pool:
                 done = list(pool.map(played, batches))
             # each system's kept elements (the graph pruned to what carries signal), by name
             parts = {}
@@ -1326,7 +1326,7 @@ class Voxel:
                         np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a in rows]),
                         kept)
 
-            with ThreadPoolExecutor(min(len(batches), os.cpu_count() or 1)) as pool:
+            with ThreadPoolExecutor(min(len(batches), self.scan.threads or os.cpu_count() or 1)) as pool:
                 done = list(pool.map(played, range(len(batches))))
             parts = {}
             for batch, (f, a, kept) in zip(batches, done):

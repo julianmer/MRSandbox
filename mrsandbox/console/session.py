@@ -607,6 +607,10 @@ class Exam:
 class Session:
     """What is in the scanner room and what was scanned, without any interface.
 
+    THREADS caps the metabolite graphs' pool in the console's exams (a first exam's
+    compiles saturate every core for the same wall; the machine stays usable at four);
+    the library's own scans run on every core.
+
     Attributes:
         scanner: Name of the scanner preset on the floor.
         coil: Name of the receive array (a key of COILS).
@@ -649,6 +653,8 @@ class Session:
         shim, shim_mm: The shim's order (phantom.FieldMap.SHIMS) and the edge of the shim box about
             the voxel's centre; None shims over the voxel itself.
     """
+
+    THREADS = 4
 
     # the receive arrays on the shelf: how each is made from its settings, and the settings it
     # starts with (mm)
@@ -2963,6 +2969,7 @@ class Session:
         # run records, its receiver and gradient response, the person and the population, and
         # the scanner's state of this exam pinned over the operator's settings
         shared = dict(records=records, params=self.params({**held, **state, **exam.overrides}),
+                      threads=self.THREADS,
                       girf=profile.girf, receiver=profile.receiver, **self.narrowing(),
                       # one engine per field and ensemble for every exam: its graphs are built
                       # once, not once an exam

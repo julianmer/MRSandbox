@@ -46,6 +46,8 @@ class VirtualScan:
         sequence: A sequences.Sequence.
         params: Params overriding the defaults, composed as defaults | params.
         database: Database instance; defaults to the packaged one.
+        threads: The metabolite graphs' thread pool at most this wide (a compiled
+            exam's graphs side by side); None is every core.
         spins: The spin table the metabolites play (Database.SPIN_SYSTEMS): one source
             name for all, or {metabolite: source} with the rest on "newest" (the newest
             publication per metabolite, the default).
@@ -124,8 +126,9 @@ class VirtualScan:
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
                  ph=None, field_groups=1, water_groups=1, noise_map=None,
                  noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, within=(),
-                 spins=None, temperature_spread=False):
+                 spins=None, temperature_spread=False, threads=None):
         self.brain = brain
+        self.threads = threads
         self.scanner = scanner
         self.sequence = sequence
         self.database = database if database is not None else Database()

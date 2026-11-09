@@ -188,6 +188,16 @@ class TestSession:
         assert sigma() == pytest.approx(record.value) and drawn != pytest.approx(record.value)
         assert session.queue[-1].room["hold_records"]
 
+    def test_the_console_caps_the_graph_pool_and_the_library_does_not(self):
+        # the console's scans carry Session.THREADS into the voxel's pool; a VirtualScan of
+        # the library runs on every core unless told otherwise
+        from mrsandbox import Brain, Press, Scanner, VirtualScan
+
+        assert Session.THREADS == 4
+        pieces = (Brain.load("icbm152"), Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        assert VirtualScan(*pieces).threads is None
+        assert VirtualScan(*pieces, threads=2).threads == 2
+
     def test_the_warm_up_builds_each_family_once(self, tmp_path):
         import jax
 
