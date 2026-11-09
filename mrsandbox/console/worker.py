@@ -27,8 +27,8 @@ import time
 # the page's process holds the pool here, and the worker process its one session, kept with the
 # graphs it has built from one task to the next
 WORKER = {}
-# the library's families the console warms at launch (`warm`), the default card's first: the
-# card's sequence and whether its pulses are played (HERCULES has no ideal design)
+# the library's families `mrsandbox-console --warm` builds (`warm`), the default card's first:
+# the card's sequence and whether its pulses are played (HERCULES has no ideal design)
 FAMILIES = (("PRESS", True), ("PRESS", False), ("STEAM", True), ("STEAM", False),
             ("sLASER", True), ("sLASER", False), ("MEGA-PRESS", True), ("MEGA-PRESS", False),
             ("HERMES GABA GSH", True), ("HERMES GABA GSH", False), ("HERCULES", True))
@@ -70,8 +70,8 @@ def working(nice=0):
 #   warm   #
 #**********#
 def warm(session, families=FAMILIES, said=lambda text: None):
-    """The library's designs' graphs built into this machine's cache, the default card's family
-    first: each family's card (the session's card otherwise, four transients so an edited
+    """The designs' graphs of `families` built into this machine's cache, the default card's
+    family first: each family's card (the session's card otherwise, four transients so an edited
     scheme has one each, no reference) is played once as a preview and thrown away, so its
     exports persist (Engine's, beside jax's cache); a family whose graphs this code built here
     before (a marker beside the exports,
@@ -111,13 +111,14 @@ def warm(session, families=FAMILIES, said=lambda text: None):
 def worked(state, task, *args):
     """In the worker process: the Session method `task` on `args` with the page's `state`
     (Session.remote), returning its result, the clock and the timings. With no state the
-    library's families are warmed (`warm`), the console's warm-up at launch: their graphs are
-    built while the operator plans."""
+    default card's family is warmed (`warm`), the console's warm-up at launch: its graphs are
+    built while the operator plans; the other families compile on their first exam or by
+    `mrsandbox-console --warm`."""
     from mrsandbox.console.session import Session
 
     session = WORKER.setdefault("session", Session())
     if state is None:
-        warm(session)
+        warm(session, families=((session.protocol.sequence, session.protocol.real),))
         return None
     vars(session).update(state)
     result = getattr(session, task)(*args)

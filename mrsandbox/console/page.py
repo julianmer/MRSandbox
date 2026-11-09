@@ -1095,9 +1095,9 @@ async def console(client: Client, loading):
             return "the simulation's graphs are compiled afresh each launch on this backend"
         held = sum(f.stat().st_size for f in folder.rglob("*") if f.is_file())
         return (f"the simulation's graphs persist in {folder} ({held / 1e9:.1f} GB), built once "
-                "per machine and code: after launch the console builds the library's designs' "
-                "graphs in the background, the default card's first, and mrsandbox-console --warm "
-                "builds them in the terminal; a launch after that waits seconds")
+                "per machine and code: after launch the console builds the default card's family "
+                "in the background, another family on its first exam, and mrsandbox-console --warm "
+                "builds the whole library in the terminal; an exam after that waits seconds")
 
     def guide():
         """How the console works, part by part, in a few plain sentences each."""
