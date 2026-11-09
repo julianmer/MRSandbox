@@ -393,10 +393,19 @@ class Voxel:
         # phantom.downfield.DownfieldSource)
         cutoff = self.scan.downfield.replaces_above_ppm
         groups, gauss_hz = {}, self.gauss_hz(truth)
+        # the metabolites' graphs replay in their pool while this thread prepares the
+        # other sources (the transfer, the water, the macromolecules: eager work of their
+        # own); the groups come out in the order metabolites, water, oov, lipids, mm,
+        # downfield as before
+        with ThreadPoolExecutor(1) as ahead:
+            lines = ahead.submit(self._metabolite_lines, truth) if metabolites else None
+            widths = ({tissue: (width, self.metabolite_weights(truth, tissue))
+                       for tissue, width in self._metabolite_widths(truth).items()}
+                      if metabolites else {})
+            rest = self._other_groups(truth, engine, sequence, f0_mhz, faded, gauss_hz)
+            lines = lines.result() if metabolites else {}
         if metabolites:
-            lines = self._metabolite_lines(truth)
-            for tissue, width in self._metabolite_widths(truth).items():
-                weights = self.metabolite_weights(truth, tissue)
+            for tissue, (width, weights) in widths.items():
                 parts = []
                 for name, weight in zip(truth.conc, weights):
                     # a metabolite absent here keeps its place, with no lines
@@ -407,6 +416,12 @@ class Voxel:
                     parts.append((freqs, amps * weight,
                                   1.0 / (np.pi * self.resolve(truth.t2[name])), 0.0))
                 groups[("metabolites", width)] = parts
+        groups.update(rest)
+        return groups
+
+    def _other_groups(self, truth, engine, sequence, f0_mhz, faded, gauss_hz):
+        """`_grouped`'s sources beside the metabolites, in their order."""
+        groups = {}
         water = self._water_parts(truth, engine, sequence, f0_mhz, faded)
         if water is not None:
             for part, tissue in water:
@@ -1203,7 +1218,8 @@ class Voxel:
             batches = {}
             for position, (_, system) in enumerate(systems):
                 batches.setdefault(engine.algebra(system) if heavy else None, []).append(position)
-            batches = list(batches.values())
+            # the biggest systems first: the longest graph sets the pool's wall
+            batches = sorted(batches.values(), key=lambda b: -max(systems[p][1].dim for p in b))
 
             def played(batch):
                 fn, kept = engine.compiled_batch(sequence, tuple((systems[p][1],) for p in batch),
@@ -1277,7 +1293,7 @@ class Voxel:
         batches = {}
         for position, (_, system) in enumerate(systems):
             batches.setdefault(engine.algebra(system), []).append(position)
-        batches = list(batches.values())
+        batches = sorted(batches.values(), key=lambda b: -max(systems[p][1].dim for p in b))
         by_transmit = {}
         for key, truth in fresh.items():
             _, _, _, t1, t2, transmit, offset_hz, *tail = key
