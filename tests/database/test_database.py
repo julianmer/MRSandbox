@@ -337,8 +337,8 @@ class TestFieldPriors:
     #********************#
     def test_the_eddy_transient_is_the_pooled_rows_spread_about_zero(self):
         # the phase transient at the FID's start: the package's rows of either sign pooled for the
-        # scanner, a Normal about zero with their 95th percentile as its spread; the failed readings
-        # (a half turn off) are not among them
+        # scanner, a Normal about zero with their 95th percentile as its spread, none past a
+        # quarter turn (a reading past it fails)
         import numpy as np
 
         from mrsandbox import Empirical
@@ -356,9 +356,6 @@ class TestFieldPriors:
                     and list(drawn.current.values) == record.measured["values"])
         assert all(abs(record.value) <= 0.5 * np.pi
                    for _, _, record in cohort.rows("acquisition.eddy_transient_rad"))
-        assert any(record.failed for c in cohort.package() for m in c.members
-                   for record in m.profile.records
-                   if record.leaf == "acquisition.eddy_transient_rad")
 
 
 #**************************************************************************************************#

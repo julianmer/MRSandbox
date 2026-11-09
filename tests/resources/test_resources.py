@@ -17,8 +17,10 @@
 #   imports   #
 #*************#
 import hashlib
+import os
 import pathlib
 import re
+import time
 import zipfile
 
 import pytest
@@ -90,6 +92,25 @@ class TestFetch:
         # second request must come from the cache, not the url
         source.unlink()
         assert Resources.path("test/payload") == path
+
+    #**********************#
+    #   checkout refresh   #
+    #**********************#
+    def test_a_newer_checkout_file_is_copied_again(self, local_resource, monkeypatch):
+        source, _ = local_resource
+        monkeypatch.setitem(Resources.REGISTRY, "test/payload", {
+            **Resources.REGISTRY["test/payload"], "md5": None,
+            "repo": os.path.relpath(source, ROOT)})
+        path = Resources.path("test/payload")
+        assert path.read_bytes() == b"mrsandbox test payload"
+        # the repository's file rebuilt after the copy: the next lookup takes it again
+        source.write_bytes(b"rebuilt")
+        os.utime(source, (time.time() + 60, time.time() + 60))
+        assert Resources.path("test/payload").read_bytes() == b"rebuilt"
+        # and keeps it while the copy is the newer one
+        source.write_bytes(b"older")
+        os.utime(source, (time.time() - 60, time.time() - 60))
+        assert Resources.path("test/payload").read_bytes() == b"rebuilt"
 
     #**********************#
     #   checksum failure   #

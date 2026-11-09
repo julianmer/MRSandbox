@@ -36,25 +36,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 13.71,
+      "value": 14.46,
       "prior": [
-       10.29,
-       17.14
+       10.85,
+       18.08
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.2,
-       "implied_value": 12.79,
+       "implied_value": 13.88,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 41.2,
-        "implied_value": 13.71
+        "implied_value": 14.46
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 4.44,
-        "water.adjusted_residual": 0.00844,
-        "acquisition.delay_s": -0.0002577
+        "lineshape.gauss_hz": 4.35,
+        "water.adjusted_residual": 0.004858,
+        "acquisition.delay_s": -0.0002472,
+        "acquisition.eddy_transient_rad": 0.0225
        }
       },
       "source": {
@@ -101,7 +102,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -110,15 +111,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.44,
+      "value": 4.35,
       "prior": [
-       3.33,
-       5.55
+       3.26,
+       5.44
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.76,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -162,7 +163,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -171,14 +172,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.00844,
+      "value": 0.004858,
       "prior": [
-       0.00633,
-       0.01055
+       0.003644,
+       0.006073
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.00844,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.004858,
        "over_dry_maximum": 0.705,
        "phase_deg": 36.6,
        "inverted": false
@@ -227,8 +228,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -237,16 +238,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0002577,
+      "value": -0.0002472,
       "prior": [
-       -0.0003222,
-       -0.0001933
+       -0.000309,
+       -0.0001854
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -257.7,
+       "delay_us": -247.2,
        "creatine_phase_deg": -8.9,
-       "intrinsic_phase_deg": 3.1,
+       "intrinsic_phase_deg": 2.7,
        "creatine_offset_hz": 130.3
       },
       "source": {
@@ -294,7 +295,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -361,7 +362,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -370,14 +371,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": -2.6346,
+      "value": 0.0225,
       "prior": [
-       -3.2933,
-       -1.976
+       0.0169,
+       0.0281
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": -2.6346
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0225
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -423,13 +424,13 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
       "note": "one acquisition; made by scan.calibrate",
-      "failed": "the phase 5 ms in (-2.63 rad) is past a quarter turn: the late model's own wrap"
+      "failed": ""
      },
      {
       "leaf": "run.drift_hz_per_min",
@@ -470,7 +471,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -516,7 +517,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -562,7 +563,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -608,7 +609,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -654,7 +655,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -700,7 +701,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -1088,26 +1089,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.11,
+      "value": 10.74,
       "prior": [
-       7.58,
-       12.64
+       8.06,
+       13.43
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.7,
-       "implied_value": 9.74,
+       "implied_value": 10.57,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 51.9,
-        "implied_value": 10.11
+        "median": 52.0,
+        "implied_value": 10.74
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 4.72,
-        "water.adjusted_residual": -0.002716,
-        "acquisition.delay_s": 5.85e-05,
-        "acquisition.eddy_transient_rad": -0.1524
+        "lineshape.gauss_hz": 4.66,
+        "water.adjusted_residual": -0.001562,
+        "acquisition.delay_s": 4.3e-05,
+        "acquisition.eddy_transient_rad": -0.1052
        }
       },
       "source": {
@@ -1154,7 +1155,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1163,15 +1164,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.72,
+      "value": 4.66,
       "prior": [
-       3.54,
-       5.9
+       3.5,
+       5.83
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 8.13,
-       "twin_without_broadening_hz": 3.58
+       "naa_fwhm_hz": 8.14,
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -1215,7 +1216,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1224,15 +1225,15 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.002716,
+      "value": -0.001562,
       "prior": [
-       -0.003395,
-       -0.002037
+       -0.001953,
+       -0.001172
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.002716,
-       "over_dry_maximum": 0.234,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.001562,
+       "over_dry_maximum": 0.231,
        "phase_deg": -149.1,
        "inverted": true
       },
@@ -1280,8 +1281,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1290,16 +1291,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 5.85e-05,
+      "value": 4.3e-05,
       "prior": [
-       4.39e-05,
-       7.32e-05
+       3.23e-05,
+       5.38e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 58.5,
+       "delay_us": 43.0,
        "creatine_phase_deg": -20.3,
-       "intrinsic_phase_deg": -23.1,
+       "intrinsic_phase_deg": -22.3,
        "creatine_offset_hz": 130.5
       },
       "source": {
@@ -1347,7 +1348,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -1414,7 +1415,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1423,14 +1424,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": -0.1524,
+      "value": -0.1052,
       "prior": [
-       -0.1905,
-       -0.1143
+       -0.1315,
+       -0.0789
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": -0.1524
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.1052
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -1476,8 +1477,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -1486,10 +1487,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.128581,
+      "value": -0.127071,
       "prior": [
-       -0.160726,
-       -0.096436
+       -0.158839,
+       -0.095303
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -1523,7 +1524,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1532,10 +1533,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 0.585503,
+      "value": 0.585523,
       "prior": [
-       0.439127,
-       0.731879
+       0.439142,
+       0.731904
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -1569,7 +1570,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1615,7 +1616,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -1624,10 +1625,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 7.137445,
+      "value": 9.300697,
       "prior": [
-       5.353084,
-       8.921806
+       6.975523,
+       11.625871
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -1661,7 +1662,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1670,10 +1671,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.235702,
+      "value": 0.235495,
       "prior": [
-       0.176777,
-       0.294627
+       0.176621,
+       0.294369
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -1707,7 +1708,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -1716,10 +1717,10 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.515625,
+      "value": 0.421875,
       "prior": [
-       0.386719,
-       0.644531
+       0.316406,
+       0.527344
       ],
       "measured": {
        "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
@@ -1753,7 +1754,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2141,26 +2142,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 11.08,
+      "value": 12.24,
       "prior": [
-       8.31,
-       13.85
+       9.18,
+       15.3
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.2,
-       "implied_value": 11.08,
+       "implied_value": 12.45,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 46.4,
-        "implied_value": 11.08
+        "implied_value": 12.24
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 4.45,
-        "water.adjusted_residual": 0.025587,
-        "acquisition.delay_s": 1e-06,
-        "acquisition.eddy_transient_rad": 0.4177
+        "lineshape.gauss_hz": 4.36,
+        "water.adjusted_residual": 0.015296,
+        "acquisition.delay_s": -8.1e-06,
+        "acquisition.eddy_transient_rad": 0.0464
        }
       },
       "source": {
@@ -2207,7 +2208,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2216,15 +2217,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.45,
+      "value": 4.36,
       "prior": [
-       3.34,
-       5.56
+       3.27,
+       5.45
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.77,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -2268,7 +2269,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2277,14 +2278,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.025587,
+      "value": 0.015296,
       "prior": [
-       0.019191,
-       0.031984
+       0.011472,
+       0.01912
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.025587,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.015296,
        "over_dry_maximum": 3.041,
        "phase_deg": -21.4,
        "inverted": false
@@ -2333,8 +2334,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2343,16 +2344,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 1e-06,
+      "value": -8.1e-06,
       "prior": [
-       7e-07,
-       1.2e-06
+       -1.02e-05,
+       -6.1e-06
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 1.0,
+       "delay_us": -8.1,
        "creatine_phase_deg": -3.0,
-       "intrinsic_phase_deg": -3.1,
+       "intrinsic_phase_deg": -2.7,
        "creatine_offset_hz": 130.1
       },
       "source": {
@@ -2400,7 +2401,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -2409,14 +2410,14 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.010159,
+      "value": 0.006073,
       "prior": [
-       0.007619,
-       0.012698
+       0.004555,
+       0.007591
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.010159,
+       "over_full": 0.006073,
        "water_t2star_ms": 40.4,
        "t2star_ms": 1.9,
        "offset_hz": 24.32,
@@ -2467,7 +2468,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2476,14 +2477,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.4177,
+      "value": 0.0464,
       "prior": [
-       0.3133,
-       0.5221
+       0.0348,
+       0.058
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.4177
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0464
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -2529,8 +2530,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -2576,7 +2577,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2622,7 +2623,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2668,7 +2669,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -2714,7 +2715,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2760,7 +2761,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -2806,7 +2807,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -3194,26 +3195,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 12.66,
+      "value": 13.46,
       "prior": [
-       9.5,
-       15.83
+       10.1,
+       16.83
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 15.5,
-       "implied_value": 10.53,
+       "implied_value": 11.48,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 45.1,
-        "implied_value": 12.66
+        "median": 45.2,
+        "implied_value": 13.46
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.52,
-        "water.adjusted_residual": -0.007811,
-        "acquisition.delay_s": -0.0003739,
-        "acquisition.eddy_transient_rad": 0.3707
+        "lineshape.gauss_hz": 3.44,
+        "water.adjusted_residual": -0.004338,
+        "acquisition.delay_s": -0.0003535,
+        "acquisition.eddy_transient_rad": 0.2067
        }
       },
       "source": {
@@ -3260,7 +3261,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3269,15 +3270,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.52,
+      "value": 3.44,
       "prior": [
-       2.64,
-       4.4
+       2.58,
+       4.3
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.6,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -3321,7 +3322,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3330,16 +3331,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.007811,
+      "value": -0.004338,
       "prior": [
-       -0.009763,
-       -0.005858
+       -0.005422,
+       -0.003253
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.007811,
-       "over_dry_maximum": 0.789,
-       "phase_deg": 146.4,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.004338,
+       "over_dry_maximum": 0.786,
+       "phase_deg": 149.8,
        "inverted": true
       },
       "source": {
@@ -3386,8 +3387,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3396,16 +3397,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0003739,
+      "value": -0.0003535,
       "prior": [
-       -0.0004674,
-       -0.0002804
+       -0.0004419,
+       -0.0002651
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -373.9,
+       "delay_us": -353.5,
        "creatine_phase_deg": -10.6,
-       "intrinsic_phase_deg": 6.9,
+       "intrinsic_phase_deg": 6.0,
        "creatine_offset_hz": 130.0
       },
       "source": {
@@ -3453,7 +3454,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -3520,7 +3521,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3529,14 +3530,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.3707,
+      "value": 0.2067,
       "prior": [
-       0.278,
-       0.4634
+       0.155,
+       0.2583
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.3707
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.2067
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -3582,8 +3583,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -3592,10 +3593,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.06185,
+      "value": -0.086904,
       "prior": [
-       -0.077313,
-       -0.046387
+       -0.10863,
+       -0.065178
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -3629,7 +3630,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3638,10 +3639,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 0.49897,
+      "value": 0.488655,
       "prior": [
-       0.374228,
-       0.623713
+       0.366491,
+       0.610819
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -3675,7 +3676,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3721,7 +3722,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -3730,10 +3731,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 3.041255,
+      "value": 3.065225,
       "prior": [
-       2.280941,
-       3.801569
+       2.298919,
+       3.831531
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -3767,7 +3768,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3776,10 +3777,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.046762,
+      "value": 0.046193,
       "prior": [
-       0.035071,
-       0.058452
+       0.034645,
+       0.057741
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -3813,7 +3814,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -3822,10 +3823,10 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.09375,
+      "value": 0.0,
       "prior": [
-       0.070312,
-       0.117188
+       0.0,
+       0.0
       ],
       "measured": {
        "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
@@ -3859,7 +3860,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4247,26 +4248,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 11.77,
+      "value": 12.54,
       "prior": [
-       8.83,
-       14.71
+       9.41,
+       15.68
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 11.1,
-       "implied_value": 11.03,
+       "median": 11.0,
+       "implied_value": 11.96,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 45.4,
-        "implied_value": 11.77
+        "median": 45.5,
+        "implied_value": 12.54
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 5.84,
-        "water.adjusted_residual": -0.001694,
-        "acquisition.delay_s": -9.36e-05,
-        "acquisition.eddy_transient_rad": -0.0697
+        "lineshape.gauss_hz": 5.8,
+        "water.adjusted_residual": -0.000875,
+        "acquisition.delay_s": -0.000157,
+        "acquisition.eddy_transient_rad": 0.1246
        }
       },
       "source": {
@@ -4313,7 +4314,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4322,15 +4323,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 5.84,
+      "value": 5.8,
       "prior": [
-       4.38,
-       7.3
+       4.35,
+       7.25
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 9.62,
-       "twin_without_broadening_hz": 3.58
+       "naa_fwhm_hz": 9.61,
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -4374,7 +4375,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4383,16 +4384,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.001694,
+      "value": -0.000875,
       "prior": [
-       -0.002117,
-       -0.00127
+       -0.001094,
+       -0.000657
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.001694,
-       "over_dry_maximum": 0.146,
-       "phase_deg": 169.7,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.000875,
+       "over_dry_maximum": 0.171,
+       "phase_deg": 170.7,
        "inverted": true
       },
       "source": {
@@ -4439,8 +4440,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4449,16 +4450,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -9.36e-05,
+      "value": -0.000157,
       "prior": [
-       -0.000117,
-       -7.02e-05
+       -0.0001962,
+       -0.0001177
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -93.6,
-       "creatine_phase_deg": -19.7,
-       "intrinsic_phase_deg": -15.3,
+       "delay_us": -157.0,
+       "creatine_phase_deg": -20.1,
+       "intrinsic_phase_deg": -12.7,
        "creatine_offset_hz": 130.9
       },
       "source": {
@@ -4506,7 +4507,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -4523,7 +4524,7 @@
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.0,
-       "water_t2star_ms": 35.4,
+       "water_t2star_ms": 31.6,
        "t2star_ms": 0.0,
        "offset_hz": 0.0,
        "phase_vs_residual_deg": 0.0
@@ -4573,7 +4574,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4582,14 +4583,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": -0.0697,
+      "value": 0.1246,
       "prior": [
-       -0.0871,
-       -0.0523
+       0.0934,
+       0.1557
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": -0.0697
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.1246
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -4635,8 +4636,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -4645,10 +4646,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.216623,
+      "value": 0.010444,
       "prior": [
-       0.162467,
-       0.270779
+       0.007833,
+       0.013055
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -4682,7 +4683,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4691,10 +4692,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 0.888978,
+      "value": 0.523039,
       "prior": [
-       0.666734,
-       1.111223
+       0.392279,
+       0.653799
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -4728,7 +4729,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4774,7 +4775,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -4783,10 +4784,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 15.797446,
+      "value": 8.651666,
       "prior": [
-       11.848085,
-       19.746808
+       6.48875,
+       10.814583
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -4820,7 +4821,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4829,10 +4830,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.184108,
+      "value": 0.176699,
       "prior": [
-       0.138081,
-       0.230135
+       0.132524,
+       0.220874
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -4866,7 +4867,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -4875,10 +4876,10 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 1.453125,
+      "value": 0.0,
       "prior": [
-       1.089844,
-       1.816406
+       0.0,
+       0.0
       ],
       "measured": {
        "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
@@ -4912,7 +4913,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -5300,26 +5301,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 13.7,
+      "value": 14.53,
       "prior": [
-       10.28,
-       17.13
+       10.9,
+       18.16
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.5,
-       "implied_value": 12.28,
+       "implied_value": 13.46,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 39.1,
-        "implied_value": 13.7
+        "implied_value": 14.53
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.65,
-        "water.adjusted_residual": -0.002917,
-        "acquisition.delay_s": 2.13e-05,
-        "acquisition.eddy_transient_rad": 0.2043
+        "lineshape.gauss_hz": 3.57,
+        "water.adjusted_residual": -0.001163,
+        "acquisition.delay_s": 2.92e-05,
+        "acquisition.eddy_transient_rad": 0.0926
        }
       },
       "source": {
@@ -5366,7 +5367,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5375,15 +5376,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.65,
+      "value": 3.57,
       "prior": [
-       2.74,
-       4.56
+       2.68,
+       4.46
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.75,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -5427,7 +5428,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5436,16 +5437,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.002917,
+      "value": -0.001163,
       "prior": [
-       -0.003646,
-       -0.002187
+       -0.001454,
+       -0.000872
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.002917,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.001163,
        "over_dry_maximum": 0.229,
-       "phase_deg": -176.8,
+       "phase_deg": -178.4,
        "inverted": true
       },
       "source": {
@@ -5492,8 +5493,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5502,16 +5503,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 2.13e-05,
+      "value": 2.92e-05,
       "prior": [
-       1.6e-05,
-       2.66e-05
+       2.19e-05,
+       3.66e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 21.3,
-       "creatine_phase_deg": -19.6,
-       "intrinsic_phase_deg": -20.6,
+       "delay_us": 29.2,
+       "creatine_phase_deg": -18.6,
+       "intrinsic_phase_deg": -20.0,
        "creatine_offset_hz": 130.4
       },
       "source": {
@@ -5559,7 +5560,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -5626,7 +5627,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5635,14 +5636,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.2043,
+      "value": 0.0926,
       "prior": [
-       0.1532,
-       0.2553
+       0.0694,
+       0.1157
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.2043
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0926
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -5688,8 +5689,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -5698,10 +5699,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.269931,
+      "value": 0.269924,
       "prior": [
-       0.202448,
-       0.337414
+       0.202443,
+       0.337405
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -5735,7 +5736,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5744,10 +5745,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.281427,
+      "value": 1.281411,
       "prior": [
-       0.96107,
-       1.601784
+       0.961058,
+       1.601764
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -5781,7 +5782,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5827,7 +5828,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -5836,10 +5837,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 13.259819,
+      "value": 13.404058,
       "prior": [
-       9.944864,
-       16.574774
+       10.053043,
+       16.755072
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -5873,7 +5874,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5882,10 +5883,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.12903,
+      "value": 0.129059,
       "prior": [
-       0.096773,
-       0.161288
+       0.096794,
+       0.161324
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -5919,7 +5920,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -5965,7 +5966,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -6353,26 +6354,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 12.63,
+      "value": 13.61,
       "prior": [
-       9.47,
-       15.79
+       10.21,
+       17.01
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 12.3,
-       "implied_value": 12.45,
+       "implied_value": 13.79,
        "naa_found_at_ppm": 1.975,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 44.1,
-        "implied_value": 12.63
+        "implied_value": 13.61
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.78,
-        "water.adjusted_residual": 0.012939,
-        "acquisition.delay_s": -0.0003427,
-        "acquisition.eddy_transient_rad": 0.5201
+        "lineshape.gauss_hz": 3.73,
+        "water.adjusted_residual": 0.007243,
+        "acquisition.delay_s": -0.0003533,
+        "acquisition.eddy_transient_rad": -0.0963
        }
       },
       "source": {
@@ -6419,7 +6420,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6428,15 +6429,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.78,
+      "value": 3.73,
       "prior": [
-       2.83,
-       4.72
+       2.8,
+       4.66
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.94,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -6480,7 +6481,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6489,14 +6490,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.012939,
+      "value": 0.007243,
       "prior": [
-       0.009704,
-       0.016174
+       0.005432,
+       0.009054
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.012939,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.007243,
        "over_dry_maximum": 0.947,
        "phase_deg": -2.2,
        "inverted": false
@@ -6545,8 +6546,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6555,16 +6556,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0003427,
+      "value": -0.0003533,
       "prior": [
-       -0.0004284,
-       -0.000257
+       -0.0004416,
+       -0.000265
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -342.7,
+       "delay_us": -353.3,
        "creatine_phase_deg": -8.2,
-       "intrinsic_phase_deg": 7.9,
+       "intrinsic_phase_deg": 8.4,
        "creatine_offset_hz": 130.2
       },
       "source": {
@@ -6612,7 +6613,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -6679,7 +6680,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6688,14 +6689,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.5201,
+      "value": -0.0963,
       "prior": [
-       0.3901,
-       0.6502
+       -0.1203,
+       -0.0722
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.5201
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.0963
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -6741,8 +6742,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -6788,7 +6789,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6834,7 +6835,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6880,7 +6881,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -6926,7 +6927,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -6972,7 +6973,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7018,7 +7019,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7406,26 +7407,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.53,
+      "value": 14.32,
       "prior": [
-       7.9,
-       13.16
+       10.74,
+       17.9
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 12.8,
-       "implied_value": 10.61,
+       "median": 12.9,
+       "implied_value": 14.15,
        "naa_found_at_ppm": 1.99,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 41.2,
-        "implied_value": 10.53
+        "median": 41.3,
+        "implied_value": 14.32
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.24,
-        "water.adjusted_residual": -0.002569,
-        "acquisition.delay_s": -4.31e-05,
-        "acquisition.eddy_transient_rad": -1.4851
+        "lineshape.gauss_hz": 3.16,
+        "water.adjusted_residual": -0.00207,
+        "acquisition.delay_s": -9.84e-05,
+        "acquisition.eddy_transient_rad": 0.0302
        }
       },
       "source": {
@@ -7472,7 +7473,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7481,15 +7482,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.24,
+      "value": 3.16,
       "prior": [
-       2.43,
-       4.05
+       2.37,
+       3.95
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 6.27,
-       "twin_without_broadening_hz": 3.58
+       "naa_fwhm_hz": 6.25,
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -7533,7 +7534,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7542,16 +7543,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.002569,
+      "value": -0.00207,
       "prior": [
-       -0.003211,
-       -0.001927
+       -0.002588,
+       -0.001553
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.002569,
-       "over_dry_maximum": 0.256,
-       "phase_deg": -136.4,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.00207,
+       "over_dry_maximum": 0.284,
+       "phase_deg": -143.8,
        "inverted": true
       },
       "source": {
@@ -7598,8 +7599,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7608,17 +7609,17 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -4.31e-05,
+      "value": -9.84e-05,
       "prior": [
-       -5.39e-05,
-       -3.23e-05
+       -0.000123,
+       -7.38e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -43.1,
-       "creatine_phase_deg": -12.0,
-       "intrinsic_phase_deg": -10.0,
-       "creatine_offset_hz": 129.9
+       "delay_us": -98.4,
+       "creatine_phase_deg": -12.5,
+       "intrinsic_phase_deg": -7.9,
+       "creatine_offset_hz": 130.0
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -7665,7 +7666,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -7732,7 +7733,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7741,14 +7742,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": -1.4851,
+      "value": 0.0302,
       "prior": [
-       -1.8564,
-       -1.1138
+       0.0226,
+       0.0377
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": -1.4851
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0302
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -7794,8 +7795,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -7804,10 +7805,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.016981,
+      "value": 0.000963,
       "prior": [
-       0.012736,
-       0.021226
+       0.000722,
+       0.001204
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -7841,7 +7842,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7850,10 +7851,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.094876,
+      "value": 0.894566,
       "prior": [
-       0.821157,
-       1.368595
+       0.670924,
+       1.118208
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -7887,7 +7888,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7933,7 +7934,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -7942,10 +7943,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 25.165638,
+      "value": 16.798637,
       "prior": [
-       18.874229,
-       31.457048
+       12.598978,
+       20.998296
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -7979,7 +7980,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -7988,10 +7989,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.331902,
+      "value": 0.310173,
       "prior": [
-       0.248926,
-       0.414877
+       0.23263,
+       0.387716
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -8025,7 +8026,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8071,7 +8072,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -8459,26 +8460,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 13.35,
+      "value": 14.09,
       "prior": [
-       10.01,
-       16.68
+       10.57,
+       17.62
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.8,
-       "implied_value": 12.81,
+       "implied_value": 13.98,
        "naa_found_at_ppm": 1.99,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 39.6,
-        "implied_value": 13.35
+        "implied_value": 14.09
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.76,
-        "water.adjusted_residual": 0.013044,
-        "acquisition.delay_s": 0.000112,
-        "acquisition.eddy_transient_rad": -0.0594
+        "lineshape.gauss_hz": 3.68,
+        "water.adjusted_residual": 0.007059,
+        "acquisition.delay_s": 0.0001096,
+        "acquisition.eddy_transient_rad": -0.007
        }
       },
       "source": {
@@ -8525,7 +8526,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8534,15 +8535,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.76,
+      "value": 3.68,
       "prior": [
-       2.82,
-       4.7
+       2.76,
+       4.6
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.9,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -8586,7 +8587,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8595,14 +8596,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.013044,
+      "value": 0.007059,
       "prior": [
-       0.009783,
-       0.016305
+       0.005294,
+       0.008824
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.013044,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.007059,
        "over_dry_maximum": 1.64,
        "phase_deg": 76.7,
        "inverted": false
@@ -8651,8 +8652,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8661,16 +8662,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 0.000112,
+      "value": 0.0001096,
       "prior": [
-       8.4e-05,
-       0.00014
+       8.22e-05,
+       0.0001369
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 112.0,
+       "delay_us": 109.6,
        "creatine_phase_deg": -4.8,
-       "intrinsic_phase_deg": -10.0,
+       "intrinsic_phase_deg": -9.9,
        "creatine_offset_hz": 129.8
       },
       "source": {
@@ -8718,7 +8719,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -8727,14 +8728,14 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.008893,
+      "value": 0.004813,
       "prior": [
-       0.00667,
-       0.011116
+       0.00361,
+       0.006016
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.008893,
+       "over_full": 0.004813,
        "water_t2star_ms": 50.0,
        "t2star_ms": 1.6,
        "offset_hz": -20.46,
@@ -8785,7 +8786,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8794,14 +8795,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": -0.0594,
+      "value": -0.007,
       "prior": [
-       -0.0743,
-       -0.0446
+       -0.0088,
+       -0.0053
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": -0.0594
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.007
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -8847,8 +8848,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -8894,7 +8895,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8940,7 +8941,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -8986,7 +8987,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9032,7 +9033,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9078,7 +9079,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9124,7 +9125,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -9512,26 +9513,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 13.01,
+      "value": 13.92,
       "prior": [
-       9.75,
-       16.26
+       10.44,
+       17.39
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.5,
-       "implied_value": 11.56,
+       "implied_value": 12.68,
        "naa_found_at_ppm": 2.005,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 43.2,
-        "implied_value": 13.01
+        "implied_value": 13.92
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.73,
-        "water.adjusted_residual": 0.013081,
-        "acquisition.delay_s": -0.0002217,
-        "acquisition.eddy_transient_rad": 0.2605
+        "lineshape.gauss_hz": 3.65,
+        "water.adjusted_residual": 0.008146,
+        "acquisition.delay_s": -0.0002345,
+        "acquisition.eddy_transient_rad": 0.0673
        }
       },
       "source": {
@@ -9578,7 +9579,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9587,15 +9588,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.73,
+      "value": 3.65,
       "prior": [
-       2.8,
-       4.66
+       2.74,
+       4.56
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 6.85,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -9639,7 +9640,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9648,14 +9649,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.013081,
+      "value": 0.008146,
       "prior": [
-       0.009811,
-       0.016351
+       0.006109,
+       0.010182
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.013081,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.008146,
        "over_dry_maximum": 1.349,
        "phase_deg": 43.1,
        "inverted": false
@@ -9704,8 +9705,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9714,16 +9715,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0002217,
+      "value": -0.0002345,
       "prior": [
-       -0.0002771,
-       -0.0001663
+       -0.0002931,
+       -0.0001759
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -221.7,
+       "delay_us": -234.5,
        "creatine_phase_deg": -1.0,
-       "intrinsic_phase_deg": 9.3,
+       "intrinsic_phase_deg": 9.9,
        "creatine_offset_hz": 129.7
       },
       "source": {
@@ -9771,7 +9772,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9780,14 +9781,14 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.003566,
+      "value": 0.002221,
       "prior": [
-       0.002675,
-       0.004458
+       0.001666,
+       0.002776
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.003566,
+       "over_full": 0.002221,
        "water_t2star_ms": 31.8,
        "t2star_ms": 6.9,
        "offset_hz": 1.03,
@@ -9838,7 +9839,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9847,14 +9848,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.2605,
+      "value": 0.0673,
       "prior": [
-       0.1954,
-       0.3257
+       0.0504,
+       0.0841
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.2605
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0673
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -9900,8 +9901,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -9947,7 +9948,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -9993,7 +9994,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10039,7 +10040,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -10085,7 +10086,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10131,7 +10132,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10177,7 +10178,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -10565,26 +10566,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 11.38,
+      "value": 12.23,
       "prior": [
-       8.53,
-       14.22
+       9.17,
+       15.29
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 15.4,
-       "implied_value": 9.64,
+       "implied_value": 10.62,
        "naa_found_at_ppm": 1.99,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 49.8,
-        "implied_value": 11.38
+        "implied_value": 12.23
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 4.13,
-        "water.adjusted_residual": 0.014098,
-        "acquisition.delay_s": -0.0003895,
-        "acquisition.eddy_transient_rad": 0.4608
+        "lineshape.gauss_hz": 4.08,
+        "water.adjusted_residual": 0.007136,
+        "acquisition.delay_s": -0.0003879,
+        "acquisition.eddy_transient_rad": 0.1605
        }
       },
       "source": {
@@ -10631,7 +10632,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10640,15 +10641,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.13,
+      "value": 4.08,
       "prior": [
-       3.1,
-       5.16
+       3.06,
+       5.1
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.38,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -10692,7 +10693,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10701,14 +10702,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.014098,
+      "value": 0.007136,
       "prior": [
-       0.010574,
-       0.017623
+       0.005352,
+       0.008921
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.014098,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.007136,
        "over_dry_maximum": 1.128,
        "phase_deg": -4.9,
        "inverted": false
@@ -10757,8 +10758,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10767,16 +10768,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0003895,
+      "value": -0.0003879,
       "prior": [
-       -0.0004869,
-       -0.0002921
+       -0.0004849,
+       -0.000291
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -389.5,
+       "delay_us": -387.9,
        "creatine_phase_deg": -9.1,
-       "intrinsic_phase_deg": 9.2,
+       "intrinsic_phase_deg": 9.1,
        "creatine_offset_hz": 130.2
       },
       "source": {
@@ -10824,7 +10825,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -10833,14 +10834,14 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.019259,
+      "value": 0.009748,
       "prior": [
-       0.014444,
-       0.024073
+       0.007311,
+       0.012186
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.019259,
+       "over_full": 0.009748,
        "water_t2star_ms": 31.7,
        "t2star_ms": 21.4,
        "offset_hz": 2.76,
@@ -10891,7 +10892,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -10900,14 +10901,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.4608,
+      "value": 0.1605,
       "prior": [
-       0.3456,
-       0.576
+       0.1203,
+       0.2006
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.4608
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.1605
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -10953,8 +10954,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -11000,7 +11001,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11046,7 +11047,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11092,7 +11093,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -11138,7 +11139,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11184,7 +11185,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11230,7 +11231,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -11618,26 +11619,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 10.92,
+      "value": 11.6,
       "prior": [
-       8.19,
-       13.65
+       8.7,
+       14.5
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 14.1,
-       "implied_value": 10.29,
+       "implied_value": 11.3,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 48.2,
-        "implied_value": 10.92
+        "implied_value": 11.6
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 4.02,
-        "water.adjusted_residual": 0.014966,
-        "acquisition.delay_s": 6.61e-05,
-        "acquisition.eddy_transient_rad": 0.1942
+        "lineshape.gauss_hz": 3.93,
+        "water.adjusted_residual": 0.008386,
+        "acquisition.delay_s": 4.53e-05,
+        "acquisition.eddy_transient_rad": 0.1335
        }
       },
       "source": {
@@ -11684,7 +11685,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11693,15 +11694,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 4.02,
+      "value": 3.93,
       "prior": [
-       3.01,
-       5.02
+       2.95,
+       4.91
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
        "naa_fwhm_hz": 7.22,
-       "twin_without_broadening_hz": 3.58
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -11745,7 +11746,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11754,14 +11755,14 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.014966,
+      "value": 0.008386,
       "prior": [
-       0.011224,
-       0.018707
+       0.00629,
+       0.010483
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.014966,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.008386,
        "over_dry_maximum": 1.694,
        "phase_deg": -31.8,
        "inverted": false
@@ -11810,8 +11811,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11820,16 +11821,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": 6.61e-05,
+      "value": 4.53e-05,
       "prior": [
-       4.96e-05,
-       8.26e-05
+       3.4e-05,
+       5.66e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": 66.1,
+       "delay_us": 45.3,
        "creatine_phase_deg": 1.2,
-       "intrinsic_phase_deg": -1.9,
+       "intrinsic_phase_deg": -1.0,
        "creatine_offset_hz": 129.6
       },
       "source": {
@@ -11877,7 +11878,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -11886,14 +11887,14 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.003445,
+      "value": 0.001931,
       "prior": [
-       0.002584,
-       0.004307
+       0.001448,
+       0.002413
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.003445,
+       "over_full": 0.001931,
        "water_t2star_ms": 43.2,
        "t2star_ms": 3.9,
        "offset_hz": 21.85,
@@ -11944,7 +11945,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -11953,14 +11954,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.1942,
+      "value": 0.1335,
       "prior": [
-       0.1456,
-       0.2427
+       0.1001,
+       0.1669
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.1942
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.1335
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -12006,8 +12007,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -12053,7 +12054,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12099,7 +12100,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12145,7 +12146,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -12191,7 +12192,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12237,7 +12238,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12283,7 +12284,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -12671,26 +12672,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 12.19,
+      "value": 13.74,
       "prior": [
-       9.14,
-       15.24
+       10.3,
+       17.17
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 13.0,
-       "implied_value": 11.43,
+       "implied_value": 12.93,
        "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
         "median": 44.6,
-        "implied_value": 12.19
+        "implied_value": 13.74
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.94,
-        "water.adjusted_residual": 0.008704,
-        "acquisition.delay_s": -0.0004204,
-        "acquisition.eddy_transient_rad": -0.5438
+        "lineshape.gauss_hz": 3.89,
+        "water.adjusted_residual": 0.004062,
+        "acquisition.delay_s": -0.0003997,
+        "acquisition.eddy_transient_rad": 0.0987
        }
       },
       "source": {
@@ -12737,7 +12738,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12746,15 +12747,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.94,
+      "value": 3.89,
       "prior": [
-       2.96,
-       4.92
+       2.92,
+       4.86
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 7.13,
-       "twin_without_broadening_hz": 3.58
+       "naa_fwhm_hz": 7.14,
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -12798,7 +12799,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12807,16 +12808,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": 0.008704,
+      "value": 0.004062,
       "prior": [
-       0.006528,
-       0.01088
+       0.003046,
+       0.005077
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.008704,
-       "over_dry_maximum": 0.752,
-       "phase_deg": -12.4,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.004062,
+       "over_dry_maximum": 0.744,
+       "phase_deg": -14.2,
        "inverted": false
       },
       "source": {
@@ -12863,8 +12864,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -12873,16 +12874,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0004204,
+      "value": -0.0003997,
       "prior": [
-       -0.0005255,
-       -0.0003153
+       -0.0004996,
+       -0.0002998
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -420.4,
-       "creatine_phase_deg": -12.7,
-       "intrinsic_phase_deg": 7.0,
+       "delay_us": -399.7,
+       "creatine_phase_deg": -11.9,
+       "intrinsic_phase_deg": 6.9,
        "creatine_offset_hz": 130.1
       },
       "source": {
@@ -12930,7 +12931,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -12939,18 +12940,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.011331,
+      "value": 0.004932,
       "prior": [
-       0.008498,
-       0.014164
+       0.003699,
+       0.006165
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.011331,
+       "over_full": 0.004932,
        "water_t2star_ms": 35.7,
-       "t2star_ms": 23.0,
-       "offset_hz": -1.98,
-       "phase_vs_residual_deg": 130.1
+       "t2star_ms": 21.8,
+       "offset_hz": -2.06,
+       "phase_vs_residual_deg": 124.7
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -12997,7 +12998,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13006,14 +13007,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": -0.5438,
+      "value": 0.0987,
       "prior": [
-       -0.6798,
-       -0.4079
+       0.074,
+       0.1234
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": -0.5438
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": 0.0987
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -13059,8 +13060,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -13069,10 +13070,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": 0.133259,
+      "value": -0.058336,
       "prior": [
-       0.099944,
-       0.166574
+       -0.07292,
+       -0.043752
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -13106,7 +13107,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13115,10 +13116,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.356318,
+      "value": 1.213945,
       "prior": [
-       1.017238,
-       1.695397
+       0.910459,
+       1.517431
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -13152,7 +13153,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13198,7 +13199,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -13207,10 +13208,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 16.259762,
+      "value": 15.598728,
       "prior": [
-       12.194821,
-       20.324702
+       11.699046,
+       19.49841
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -13244,7 +13245,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13253,10 +13254,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.256422,
+      "value": 0.253199,
       "prior": [
-       0.192317,
-       0.320527
+       0.189899,
+       0.316499
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -13290,7 +13291,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13299,10 +13300,10 @@
      },
      {
       "leaf": "run.events_per_min",
-      "value": 0.890625,
+      "value": 0.84375,
       "prior": [
-       0.667969,
-       1.113281
+       0.632812,
+       1.054688
       ],
       "measured": {
        "statistic": "steps of the frequency or the phase past six times the median step, a minute (scan.run.RunReading)",
@@ -13336,7 +13337,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -13724,26 +13725,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 13.52,
+      "value": 14.95,
       "prior": [
-       10.14,
-       16.9
+       11.22,
+       18.69
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
        "median": 11.7,
-       "implied_value": 13.15,
-       "naa_found_at_ppm": 1.975,
+       "implied_value": 14.42,
+       "naa_found_at_ppm": 1.982,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 41.3,
-        "implied_value": 13.52
+        "median": 40.4,
+        "implied_value": 14.95
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.85,
-        "water.adjusted_residual": -0.013603,
-        "acquisition.delay_s": -0.0001385,
-        "acquisition.eddy_transient_rad": 0.0919
+        "lineshape.gauss_hz": 3.8,
+        "water.adjusted_residual": -0.001971,
+        "acquisition.delay_s": -0.0003067,
+        "acquisition.eddy_transient_rad": -0.0165
        }
       },
       "source": {
@@ -13790,7 +13791,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13799,15 +13800,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.85,
+      "value": 3.8,
       "prior": [
-       2.89,
-       4.81
+       2.85,
+       4.75
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 7.01,
-       "twin_without_broadening_hz": 3.58
+       "naa_fwhm_hz": 7.02,
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -13851,7 +13852,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13860,16 +13861,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.013603,
+      "value": -0.001971,
       "prior": [
-       -0.017004,
-       -0.010202
+       -0.002464,
+       -0.001478
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.013603,
-       "over_dry_maximum": 0.976,
-       "phase_deg": -113.7,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.001971,
+       "over_dry_maximum": 0.23,
+       "phase_deg": -113.6,
        "inverted": true
       },
       "source": {
@@ -13916,8 +13917,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -13926,16 +13927,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0001385,
+      "value": -0.0003067,
       "prior": [
-       -0.0001731,
-       -0.0001038
+       -0.0003833,
+       -0.00023
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -138.5,
-       "creatine_phase_deg": -23.8,
-       "intrinsic_phase_deg": -17.3,
+       "delay_us": -306.7,
+       "creatine_phase_deg": -24.0,
+       "intrinsic_phase_deg": -9.5,
        "creatine_offset_hz": 130.7
       },
       "source": {
@@ -13983,7 +13984,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -13992,18 +13993,18 @@
      },
      {
       "leaf": "oov.fraction",
-      "value": 0.012296,
+      "value": 0.0,
       "prior": [
-       0.009222,
-       0.01537
+       0.0,
+       0.0
       ],
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
-       "over_full": 0.012296,
+       "over_full": 0.0,
        "water_t2star_ms": 33.6,
-       "t2star_ms": 0.6,
-       "offset_hz": -14.05,
-       "phase_vs_residual_deg": -75.5
+       "t2star_ms": 0.0,
+       "offset_hz": 0.0,
+       "phase_vs_residual_deg": 0.0
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -14050,7 +14051,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14059,14 +14060,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.0919,
+      "value": -0.0165,
       "prior": [
-       0.0689,
-       0.1149
+       -0.0206,
+       -0.0124
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.0919
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.0165
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -14112,8 +14113,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -14122,10 +14123,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.130239,
+      "value": -0.129863,
       "prior": [
-       -0.162799,
-       -0.097679
+       -0.162329,
+       -0.097397
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -14159,7 +14160,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14168,10 +14169,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.389801,
+      "value": 1.37586,
       "prior": [
-       1.042351,
-       1.737251
+       1.031895,
+       1.719825
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -14205,7 +14206,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14251,7 +14252,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -14260,10 +14261,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 4.616528,
+      "value": 4.462904,
       "prior": [
-       3.462396,
-       5.77066
+       3.347178,
+       5.57863
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -14297,7 +14298,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14306,10 +14307,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.266363,
+      "value": 0.266048,
       "prior": [
-       0.199772,
-       0.332954
+       0.199536,
+       0.33256
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -14343,7 +14344,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14389,7 +14390,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -14777,26 +14778,26 @@
     "records": [
      {
       "leaf": "noise.sigma",
-      "value": 12.63,
+      "value": 13.23,
       "prior": [
-       9.47,
-       15.79
+       9.92,
+       16.54
       ],
       "measured": {
        "statistic": "single-transient NAA SNR (scan.calibrate.NoiseReading)",
-       "median": 13.8,
-       "implied_value": 11.66,
+       "median": 13.5,
+       "implied_value": 12.93,
        "naa_found_at_ppm": 1.998,
        "apodized": {
         "statistic": "the same single-transient NAA SNR after a 10 Hz exponential apodization of data and simulation alike",
-        "median": 44.9,
-        "implied_value": 12.63
+        "median": 44.4,
+        "implied_value": 13.23
        },
        "twin_held_at": {
-        "lineshape.gauss_hz": 3.59,
-        "water.adjusted_residual": -0.007186,
-        "acquisition.delay_s": -0.0002515,
-        "acquisition.eddy_transient_rad": 0.2447
+        "lineshape.gauss_hz": 3.44,
+        "water.adjusted_residual": -0.006328,
+        "acquisition.delay_s": -9.52e-05,
+        "acquisition.eddy_transient_rad": -0.0502
        }
       },
       "source": {
@@ -14843,7 +14844,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, SNR per transient, median",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14852,15 +14853,15 @@
      },
      {
       "leaf": "lineshape.gauss_hz",
-      "value": 3.59,
+      "value": 3.44,
       "prior": [
-       2.69,
-       4.49
+       2.58,
+       4.3
       ],
       "measured": {
        "statistic": "full width at half maximum of the NAA singlet in the averaged, coil-combined spectrum under 2 Hz apodization, in Hz (scan.calibrate.SpectrumReading)",
-       "naa_fwhm_hz": 6.68,
-       "twin_without_broadening_hz": 3.58
+       "naa_fwhm_hz": 6.6,
+       "twin_without_broadening_hz": 3.65
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -14904,7 +14905,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the transients averaged as they are (a drifting scanner widens the line)",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14913,16 +14914,16 @@
      },
      {
       "leaf": "water.adjusted_residual",
-      "value": -0.007186,
+      "value": -0.006328,
       "prior": [
-       -0.008982,
-       -0.005389
+       -0.00791,
+       -0.004746
       ],
       "measured": {
-       "statistic": "residual water at t = 0 over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
-       "residual_over_full": 0.007186,
-       "over_dry_maximum": 0.562,
-       "phase_deg": -113.4,
+       "statistic": "residual water at t = 0 (the suppressed FID's broad exponentials within 0.4 ppm of the carrier and its narrow ones within 0.15 ppm) over the water reference's, signed by its phase against the metabolites (scan.calibrate.WaterReading)",
+       "residual_over_full": 0.006328,
+       "over_dry_maximum": 0.447,
+       "phase_deg": -118.9,
        "inverted": true
       },
       "source": {
@@ -14969,8 +14970,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier at t = 0 over the reference FID at t = 0",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the water exponentials (broad within 0.4 ppm of the carrier, narrow within 0.15 ppm) at t = 0 over the reference FID at t = 0",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -14979,16 +14980,16 @@
      },
      {
       "leaf": "acquisition.delay_s",
-      "value": -0.0002515,
+      "value": -9.52e-05,
       "prior": [
-       -0.0003144,
-       -0.0001886
+       -0.000119,
+       -7.14e-05
       ],
       "measured": {
        "statistic": "phase of creatine against NAA beyond the twin's intrinsic phase, over their frequency difference, as seconds (scan.calibrate.WaterReading)",
-       "delay_us": -251.5,
-       "creatine_phase_deg": -9.6,
-       "intrinsic_phase_deg": 2.2,
+       "delay_us": -95.2,
+       "creatine_phase_deg": -8.2,
+       "intrinsic_phase_deg": -3.7,
        "creatine_offset_hz": 129.9
       },
       "source": {
@@ -15036,7 +15037,7 @@
        ]
       },
       "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum fourfold zero filled, phases at the peaks' maxima",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -15053,7 +15054,7 @@
       "measured": {
        "statistic": "the broad exponentials of the suppressed mean FID within 0.4 ppm of the carrier (decaying faster than 0.7 of the reference's own T2*) at t = 0 over the reference's full water (scan.calibrate.WaterReading)",
        "over_full": 0.0,
-       "water_t2star_ms": 22.7,
+       "water_t2star_ms": 14.0,
        "t2star_ms": 0.0,
        "offset_hz": 0.0,
        "phase_vs_residual_deg": 0.0
@@ -15103,7 +15104,7 @@
        ]
       },
       "processing": "NIfTI-MRS, the suppressed file's noise-whitened SVD coil combination on both files, the exponentials within 0.4 ppm of the carrier split at 0.7 of the reference's amplitude-weighted T2*",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -15112,14 +15113,14 @@
      },
      {
       "leaf": "acquisition.eddy_transient_rad",
-      "value": 0.2447,
+      "value": -0.0502,
       "prior": [
-       0.1835,
-       0.3058
+       -0.0627,
+       -0.0376
       ],
       "measured": {
-       "statistic": "the water reference's phase 5 ms after its first sample against its components fitted on 60 to 250 ms and carried back (scan.calibrate.WaterReading)",
-       "at_5ms_rad": 0.2447
+       "statistic": "the water reference's phase 5 ms after its first sample beyond the line through its unwrapped phase over 20 to 60 ms, in the engine's convention (scan.calibrate.WaterReading)",
+       "at_5ms_rad": -0.0502
       },
       "source": {
        "dataset": "fMRS in pain, the functional runs (with their water reference)",
@@ -15165,8 +15166,8 @@
         20.0
        ]
       },
-      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; Hankel SVD on the late window, the model carried back to the start",
-      "date": "01/10/26",
+      "processing": "NIfTI-MRS, noise-whitened SVD coil combination, the reference's mean FID; its unwrapped phase against the line through 20 to 60 ms, the file's axis sign undone",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": false,
@@ -15175,10 +15176,10 @@
      },
      {
       "leaf": "run.drift_hz_per_min",
-      "value": -0.459613,
+      "value": -0.450608,
       "prior": [
-       -0.574516,
-       -0.34471
+       -0.56326,
+       -0.337956
       ],
       "measured": {
        "statistic": "the frequency track's slope, hertz a minute (scan.run.RunReading)",
@@ -15212,7 +15213,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -15221,10 +15222,10 @@
      },
      {
       "leaf": "run.ar_sigma_hz",
-      "value": 1.609559,
+      "value": 1.625313,
       "prior": [
-       1.207169,
-       2.011949
+       1.218985,
+       2.031641
       ],
       "measured": {
        "statistic": "the frequency track's spread without its line and its breathing band (scan.run.RunReading)",
@@ -15258,7 +15259,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -15304,7 +15305,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,
@@ -15313,10 +15314,10 @@
      },
      {
       "leaf": "run.phase_jitter_deg",
-      "value": 10.845494,
+      "value": 11.340843,
       "prior": [
-       8.13412,
-       13.556868
+       8.505632,
+       14.176054
       ],
       "measured": {
        "statistic": "the phase track's spread about its line (scan.run.RunReading)",
@@ -15350,7 +15351,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -15359,10 +15360,10 @@
      },
      {
       "leaf": "run.amp_jitter_frac",
-      "value": 0.49445,
+      "value": 0.486307,
       "prior": [
-       0.370837,
-       0.618062
+       0.36473,
+       0.607884
       ],
       "measured": {
        "statistic": "the amplitude track's spread over its mean (scan.run.RunReading)",
@@ -15396,7 +15397,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "scanner",
       "presets": [],
       "fallback": true,
@@ -15442,7 +15443,7 @@
       },
       "voxel": {},
       "processing": "the coils combined as the readings are; the peak of each transient's cross spectrum with the mean",
-      "date": "01/10/26",
+      "date": "09/11/26",
       "carried_by": "subject",
       "presets": [],
       "fallback": true,

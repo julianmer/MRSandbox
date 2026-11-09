@@ -120,13 +120,16 @@ class Resources:
             raise KeyError(f"unknown resource {name!r}; known: "
                            f"{', '.join(sorted(cls.REGISTRY))}") from None
         local = cls.cache_dir() / entry["filename"]
-        if not local.exists():
+        checkout = pathlib.Path(__file__).parents[2] / entry.get("repo", "")
+        kept = "repo" in entry and checkout.is_file()
+        # a source checkout's copy is taken again when the repository's file is newer (a
+        # cohort rebuilt)
+        if not local.exists() or (kept and checkout.stat().st_mtime > local.stat().st_mtime):
             if "url" not in entry:
                 raise FileNotFoundError(f"{name} is not redistributed: download it from "
                                         f"{entry['page']} and place it at {local}")
-            checkout = pathlib.Path(__file__).parents[2] / entry.get("repo", "")
-            source = checkout.as_uri() if "repo" in entry and checkout.is_file() else entry["url"]
-            cls._fetch(source, local, entry["md5"], entry.get("member"))
+            cls._fetch(checkout.as_uri() if kept else entry["url"], local, entry["md5"],
+                       entry.get("member"))
         return local
 
     @classmethod
