@@ -234,9 +234,11 @@ class VirtualScan:
         from its own frame to the world's: phantom.turning) and get its acquisition handle.
 
         With `compiled`, metabolite lines run through jitted per-system functions cached
-        on the scan: the first draw compiles, every further draw replays. Worth it for
-        many draws from one scan (the training mode turns it on); a one-shot look is
-        faster plain. `box_center_mm` makes the voxel a cell of the box a localized
+        on the scan: the first draw compiles, every further draw replays; the probes
+        follow (the transfer's pulses, the water's rows and the macromolecules'
+        steady state replay as batches). Worth it for many draws from one scan (the
+        training mode and the console turn it on); a one-shot look is faster plain.
+        `box_center_mm` makes the voxel a cell of the box a localized
         design selects about that centre (an MRSI lattice places its cells so);
         `shim_at_mm` keeps the shim fitted for that place (a head that moved since).
         """

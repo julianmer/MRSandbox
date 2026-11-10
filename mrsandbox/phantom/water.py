@@ -82,8 +82,9 @@ class WaterSource(abc.ABC):
         composition, maps read over its box); `t1_s` and `t2_s` play one tissue's own
         instead. The sequence runs at the voxel's offset plus the water's temperature
         shift (scan.voxel water_shift_hz), so a train sees the warm water where it is.
-        A draw's rows (`relaxations`) are replayed as one batch on the first ask
-        (`prepare`) and read from the cache after."""
+        A compiled voxel's draw has its rows (`relaxations`) replayed as one batch on the
+        first ask (`prepare`) and read from the cache after; a one-off voxel replays the
+        row alone."""
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
         t2_s = voxel.resolve(truth.water.t2_s) if t2_s is None else t2_s
         offset_hz = voxel.offset_hz(truth) + voxel.water_shift_hz(truth)
@@ -92,6 +93,8 @@ class WaterSource(abc.ABC):
             held = getattr(self, "_lines", {}).get(id(truth))
             if held is not None and held[0] is truth and key in held[1]:
                 return held[1][key]
+            if not voxel.compiled:
+                break
             self.prepare(engine, sequence, voxel, [truth], f0_mhz)
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in

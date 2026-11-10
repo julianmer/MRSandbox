@@ -566,7 +566,7 @@ class Voxel:
             float(self.resolve(truth.water.t1_s)), rates,
             {name: float(self.resolve(truth.t1[name])) for name in rates},
             b1_scale=round(float(np.mean(self.b1_scale(truth))) / 0.02) * 0.02,
-            kept=self.scan._transfer)
+            kept=self.scan._transfer, compiled=self.compiled)
 
     #***********#
     #   basis   #
@@ -792,7 +792,7 @@ class Voxel:
             groups = [] if self.scan.water_groups <= 1 else list(self.scan.field.groups(
                 self.position_mm, self.size_mm, grid, self.scan.water_groups,
                 shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz), turn=self.turn))
-            if groups:
+            if groups and self.compiled:
                 # the water's rows at the voxel's and at every group's offset in one replay
                 self.scan.water.prepare(self.scan.engine, self.design(truth), self, [truth],
                                         self._f0_mhz(), [0.0, *(mean for mean, _, _ in groups)])

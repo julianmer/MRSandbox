@@ -88,10 +88,13 @@ class Transfer:
     #*************#
     #   factors   #
     #*************#
-    def factors(self, engine, sequence, water, water_t1_s, rates, t1_s, b1_scale=1.0, kept=None):
+    def factors(self, engine, sequence, water, water_t1_s, rates, t1_s, b1_scale=1.0, kept=None,
+                compiled=True):
         """{metabolite: factor} for `rates` ({name: k_m in 1/s}) with their T1s (`t1_s`), and
-        "water": the water's factor; `water` is the water's spin system, `engine` plays it.
-        `kept`, a dict, holds the pulses' responses between calls on one design."""
+        "water": the water's factor; `water` is the water's spin system, `engine` plays it,
+        through its compiled graphs (`compiled`, where the design replays) or eagerly (a
+        one-off voxel, no compile). `kept`, a dict, holds the pulses' responses between calls
+        on one design."""
         kept = {} if kept is None else kept
         events = list(sequence.events)
         saturating = {k for k, event in enumerate(events[:-1])
@@ -110,12 +113,14 @@ class Transfer:
                     fresh.setdefault(key, event)
                 pulses[k] = key
         if fresh:
-            # the compiled graphs with one isochromat (a slab pulse plays at the voxel's
-            # centre), the water unrelaxed through (a relaxation of 1e9 s is one in float32),
-            # every probe dispatched before any is read: one wait for the lot
+            # one isochromat (a slab pulse plays at the voxel's centre), the water unrelaxed
+            # through (the compiled graph's relaxation of 1e9 s is one in float32), every
+            # probe dispatched before any is read: one wait for the lot
             read = Pulse(90.0)
             args = tuple(ops.convert_to_tensor(np.float32(v)) for v in (1e9, 1e9, b1_scale, 0.0))
-            played = lambda design: engine.compiled(design, water, isochromats=1)(*args)[1]
+            played = lambda design: (
+                engine.compiled(design, water, isochromats=1)(*args)[1] if compiled
+                else engine.lines(design, water, b1_scale=b1_scale, isochromats=1)[1])
             alone = played(Sequence(read))
             after = {key: played(Sequence(event, CoherenceFilter(0), read))
                      for key, event in fresh.items()}

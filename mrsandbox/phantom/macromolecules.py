@@ -305,8 +305,10 @@ class MeasuredMM(MMSource):
         compiled graph, TR being a timing), and the ratio of its detected amplitudes
         is the factor. The probe sits on the carrier and the frame offset moves it to
         each component's position (offset - ppm f0, as a shifted spin sees the pulses
-        and the delays), so one graph serves every component. Cached per truth and per
-        engine, sequence, and transmit frame, like CoupledMM's lines."""
+        and the delays), so one graph serves every component: on a compiled voxel the
+        components are the draws of one replay (Engine.replay_draws), on a one-off voxel
+        each replays the plain graph. Cached per truth and per engine, sequence, and
+        transmit frame, like CoupledMM's lines."""
         from mrsandbox.sequences.events import Sequence
 
         engine = voxel.scan.engine
@@ -320,16 +322,21 @@ class MeasuredMM(MMSource):
             probe = SpinSystem(name="MM", nucleus="1H", shifts_ppm=(0.0,), j_hz=((0.0,),),
                                scale=1.0, gamma_mhz_t=f0_mhz / engine.b0_t)
             positions = np.asarray([groups[0][0] for _, groups, _, _ in CoupledMM.SYSTEMS])
-            # every component one draw of the probe's graph: two replays serve them all
-            t1, t2, b1, offset = (
-                ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
-                    [[truth.mm.t1[name]] for name, _, _, _ in CoupledMM.SYSTEMS],
+            rows = ([[truth.mm.t1[name]] for name, _, _, _ in CoupledMM.SYSTEMS],
                     [[truth.mm.t2[name]] for name, _, _, _ in CoupledMM.SYSTEMS],
-                    [b1_scale] * len(positions), offset_hz - positions * f0_mhz))
-            at_tr, at_infinity = (
-                np.asarray(ops.convert_to_numpy(engine.replay_draws(design, ((probe,),))[0](
-                    t1, t2, b1, offset)[1])).sum(axis=1)
-                for design in (sequence, relaxed))
+                    [b1_scale] * len(positions), offset_hz - positions * f0_mhz)
+            if voxel.compiled:
+                t1, t2, b1, offset = (ops.convert_to_tensor(np.asarray(v, dtype=np.float32))
+                                      for v in rows)
+                at_tr, at_infinity = (
+                    np.asarray(ops.convert_to_numpy(engine.replay_draws(design, ((probe,),))[0](
+                        t1, t2, b1, offset)[1])).sum(axis=1)
+                    for design in (sequence, relaxed))
+            else:
+                at_tr, at_infinity = (np.asarray([
+                    complex(ops.convert_to_numpy(ops.sum(engine.compiled(design, probe)(
+                        *(ops.convert_to_tensor(np.float32(v)) for v in draw))[1])))
+                    for draw in zip(*rows)]) for design in (sequence, relaxed))
             order = np.argsort(positions)
             cached[1][key] = (positions[order], (at_tr / at_infinity)[order])
         return cached[1][key]

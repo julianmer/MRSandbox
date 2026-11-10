@@ -348,7 +348,7 @@ class TestMeasured:
         brain = Brain.load("icbm152")
         scan = VirtualScan(brain, Scanner.preset("generic_3t"), PulseAcquire(tr_s=0.3),
                            mm=MeasuredMM())
-        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0, compiled=True)
         truth = voxel.sample(seed=7)
         engine, f0_mhz = scan.engine, 42.5774785 * scan.scanner.b0_t
         positions, factors = scan.mm._repetition_factors(scan.sequence, voxel, truth, f0_mhz)

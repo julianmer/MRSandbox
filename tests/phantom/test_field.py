@@ -391,7 +391,7 @@ class TestFieldGroups:
         scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
                            Press(te1_s=0.011, te2_s=0.019), water=Unsuppressed(),
                            lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), water_groups=8)
-        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0, compiled=True)
         truth = voxel.sample(seed=3)
         engine, f0_mhz, water = scan.engine, 42.5774785 * scan.scanner.b0_t, scan.water
         water.prepare(engine, scan.sequence, voxel, [truth], f0_mhz, [0.0, 5.0, -5.0])
