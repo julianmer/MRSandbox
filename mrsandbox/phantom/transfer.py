@@ -98,7 +98,7 @@ class Transfer:
                       if isinstance(event, (Pulse, SelectivePulse, ShapedPulse))
                       and isinstance(events[k + 1], CoherenceFilter)
                       and events[k + 1].orders == (0,)}
-        pulses = {}
+        pulses, fresh = {}, {}
         for k, event in enumerate(events):
             if isinstance(event, (Pulse, SelectivePulse, ShapedPulse)):
                 # the pulse itself (a design induced anew per draw, scan.eddy, plays the same
@@ -107,8 +107,23 @@ class Transfer:
                                                 for name in event.free if name != "induced"),
                        b1_scale, self.t2_s)
                 if key not in kept:
-                    kept[key] = self._pulse(engine, event, water, b1_scale)
-                pulses[k] = kept[key]
+                    fresh.setdefault(key, event)
+                pulses[k] = key
+        if fresh:
+            # the compiled graphs with one isochromat (a slab pulse plays at the voxel's
+            # centre), the water unrelaxed through (a relaxation of 1e9 s is one in float32),
+            # every probe dispatched before any is read: one wait for the lot
+            read = Pulse(90.0)
+            args = tuple(ops.convert_to_tensor(np.float32(v)) for v in (1e9, 1e9, b1_scale, 0.0))
+            played = lambda design: engine.compiled(design, water, isochromats=1)(*args)[1]
+            alone = played(Sequence(read))
+            after = {key: played(Sequence(event, CoherenceFilter(0), read))
+                     for key, event in fresh.items()}
+            alone = np.asarray(ops.convert_to_numpy(alone))
+            for key, event in fresh.items():
+                kept[key] = self._pulse(engine, event, water, b1_scale, alone,
+                                        np.asarray(ops.convert_to_numpy(after[key])))
+        pulses = {k: kept[key] for k, key in pulses.items()}
         names = list(rates)
         rate = np.array([float(rates[name]) for name in names])
         r1 = np.array([1.0 / float(t1_s[name]) for name in names])
@@ -176,16 +191,10 @@ class Transfer:
     #***********#
     #   pulse   #
     #***********#
-    def _pulse(self, engine, event, water, b1_scale):
+    def _pulse(self, engine, event, water, b1_scale, alone, after):
         """(the water's longitudinal share after the pulse at the voxel's centre, the bound
-        pool's, the pulse's length)."""
-        read = Pulse(90.0)
-        # the compiled graphs, one isochromat (a slab pulse plays at the voxel's centre),
-        # the water unrelaxed (a relaxation of 1e9 s is one in float32)
-        args = tuple(ops.convert_to_tensor(np.float32(v)) for v in (1e9, 1e9, b1_scale, 0.0))
-        alone, after = (
-            np.asarray(ops.convert_to_numpy(engine.compiled(design, water, isochromats=1)(*args)[1]))
-            for design in (Sequence(read), Sequence(event, CoherenceFilter(0), read)))
+        pool's, the pulse's length), from the water's lines read after a 90 alone (`alone`)
+        and after the pulse, a filter on order zero and the 90 (`after`)."""
         line = np.argmax(np.abs(alone))
         water_left = float(np.real(after[line] / alone[line]))
         if not isinstance(event, ShapedPulse):

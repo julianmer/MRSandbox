@@ -84,7 +84,11 @@ class TestTransfer:
             else:
                 after = ops.convert_to_numpy(engine.lines(played, water, b1_scale=0.9)[1])
             eager = float(np.real(np.asarray(after)[line] / alone[line]))
-            assert abs(model._pulse(engine, event, water, 0.9)[0] - eager) < 1e-5
+            kept = {}
+            model.factors(engine, played, water, 1.6, {"Cr": 0.0}, {"Cr": 1.3}, b1_scale=0.9,
+                          kept=kept)
+            probed = next(value for key, value in kept.items() if key[0] == event.structure())
+            assert abs(probed[0] - eager) < 1e-5
 
     #***********#
     #   voxel   #
