@@ -380,6 +380,38 @@ class TestFieldGroups:
         np.testing.assert_allclose(alone, whole, atol=1e-4 * np.abs(whole).max())
         assert np.abs(mean).max() < 1e-3 * np.abs(alone).max()
 
+    def test_the_waters_rows_at_every_group_offset_come_from_one_replay(self):
+        # prepare fills every (relaxation, field offset) row of a draw in one replay, each row
+        # the lone compiled replay's lines, and the water asked at a group's offset reads its row
+        from keras import ops
+
+        from mrsandbox import NoDownfield, NoLipids, NoMM, Unsuppressed
+        from mrsandbox.phantom.water import WaterSource
+
+        scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                           Press(te1_s=0.011, te2_s=0.019), water=Unsuppressed(),
+                           lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield(), water_groups=8)
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        truth = voxel.sample(seed=3)
+        engine, f0_mhz, water = scan.engine, 42.5774785 * scan.scanner.b0_t, scan.water
+        water.prepare(engine, scan.sequence, voxel, [truth], f0_mhz, [0.0, 5.0, -5.0])
+        rows = water._lines[id(truth)][1]
+        assert len(rows) == 3 * len(water.relaxations(voxel, truth)) > 3
+        lone = engine.compiled(scan.sequence, WaterSource.system(f0_mhz / engine.b0_t),
+                               shift_mm=voxel.shift_mm)
+        for (_, _, t1_s, t2_s, _, offset_hz), (_, amps) in rows.items():
+            _, alone = lone(*(ops.convert_to_tensor(np.float32(v)) for v in
+                              (t1_s, t2_s, voxel.b1_input(truth), offset_hz)))
+            alone = np.asarray(ops.convert_to_numpy(alone))
+            np.testing.assert_allclose(amps.sum(), alone.sum(), rtol=1e-5,
+                                       atol=1e-6 * np.abs(alone).max())
+        voxel._field_offset_hz = 5.0
+        try:
+            assert water.lines(engine, scan.sequence, voxel, truth, f0_mhz)
+        finally:
+            voxel._field_offset_hz = 0.0
+        assert len(rows) == 3 * len(water.relaxations(voxel, truth))  # nothing replayed anew
+
     @pytest.mark.render
     def test_the_water_plays_its_microscopic_spread_through_the_train(self):
         # the microscopic field (lineshape.gauss_hz) is a spread of frequencies and a train

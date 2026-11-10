@@ -789,8 +789,15 @@ class Voxel:
             fids = sources(basis)
         elif self.scan.field_groups == 1:
             kernel = self._field_kernel(npoints, dwell_s, start_s)
+            groups = [] if self.scan.water_groups <= 1 else list(self.scan.field.groups(
+                self.position_mm, self.size_mm, grid, self.scan.water_groups,
+                shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz), turn=self.turn))
+            if groups:
+                # the water's rows at the voxel's and at every group's offset in one replay
+                self.scan.water.prepare(self.scan.engine, self.design(truth), self, [truth],
+                                        self._f0_mhz(), [0.0, *(mean for mean, _, _ in groups)])
             fids = {name: fid * kernel for name, fid in sources(basis).items()}
-            if "water" in fids and self.scan.water_groups > 1:
+            if "water" in fids and groups:
                 # the water alone at every field group's own offset under its own dephasing
                 # (VirtualScan water_groups): a suppression pulse misses the water where the
                 # field is off its band, which the voxel's mean cannot show. The microscopic
@@ -799,9 +806,7 @@ class Voxel:
                 engine, sequence, faded = (self.scan.engine, self.design(truth),
                                            self._diffusion_factor(truth))
                 water = np.zeros(npoints, dtype=np.complex64)
-                for mean_hz, weight, part_kernel in self.scan.field.groups(
-                        self.position_mm, self.size_mm, grid, self.scan.water_groups,
-                        shim_at_mm=self.shim_at_mm, spread_hz=float(gauss_hz), turn=self.turn):
+                for mean_hz, weight, part_kernel in groups:
                     self._field_offset_hz = mean_hz
                     try:
                         lorentzian, _ = self._flat_lines([part for part, _ in self._water_parts(

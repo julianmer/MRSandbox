@@ -82,42 +82,57 @@ class WaterSource(abc.ABC):
         composition, maps read over its box); `t1_s` and `t2_s` play one tissue's own
         instead. The sequence runs at the voxel's offset plus the water's temperature
         shift (scan.voxel water_shift_hz), so a train sees the warm water where it is.
-        A draw `prepare` replayed with its batch is read from the cache."""
+        A draw's rows (`relaxations`) are replayed as one batch on the first ask
+        (`prepare`) and read from the cache after."""
         t1_s = voxel.resolve(truth.water.t1_s) if t1_s is None else t1_s
         t2_s = voxel.resolve(truth.water.t2_s) if t2_s is None else t2_s
-        held = getattr(self, "_lines", {}).get(id(truth))
         offset_hz = voxel.offset_hz(truth) + voxel.water_shift_hz(truth)
         key = (engine, sequence, float(t1_s), float(t2_s), voxel.frame(truth)[3], offset_hz)
-        if held is not None and held[0] is truth and key in held[1]:
-            return held[1][key]
+        for _ in range(2):
+            held = getattr(self, "_lines", {}).get(id(truth))
+            if held is not None and held[0] is truth and key in held[1]:
+                return held[1][key]
+            self.prepare(engine, sequence, voxel, [truth], f0_mhz)
         fn = engine.compiled(sequence, self.system(f0_mhz / engine.b0_t), shift_mm=voxel.shift_mm)
         return fn(*(ops.convert_to_tensor(np.float32(v)) for v in
                     (t1_s, t2_s, voxel.b1_input(truth), offset_hz)))
 
+    #*****************#
+    #   relaxations   #
+    #*****************#
+    def relaxations(self, voxel, truth):
+        """The (t1_s, t2_s) pairs this source plays one draw's water at: the voxel's
+        resolved pair."""
+        return [(float(voxel.resolve(truth.water.t1_s)), float(voxel.resolve(truth.water.t2_s)))]
+
     #*************#
     #   prepare   #
     #*************#
-    def prepare(self, engine, sequence, voxel, truths, f0_mhz):
+    def prepare(self, engine, sequence, voxel, truths, f0_mhz, field_hz=(0.0,)):
         """The water lines of many draws in one replay mapped over the draws
-        (Engine.replay_draws), at each draw's mean relaxation, left for `_engine_lines`
-        as numpy rows (one transfer for the batch, and the voxel's arithmetic on them
-        stays on the host); a draw with a transmit profile keeps its own replay, a
-        tissue's own T1 too."""
+        (Engine.replay_draws), every draw's relaxation pairs (`relaxations`) at every
+        field offset of `field_hz` (the voxel's field groups, Voxel._field_offset_hz) a
+        row, left for `_engine_lines` as numpy rows (one transfer for the batch, and the
+        voxel's arithmetic on them stays on the host); a draw with a transmit profile
+        keeps its own replay."""
         held = self.__dict__.setdefault("_lines", {})
         members = []
         for truth in truths:
             if voxel.b1_profile(truth) is not None:
                 continue
-            key = (engine, sequence, float(voxel.resolve(truth.water.t1_s)),
-                   float(voxel.resolve(truth.water.t2_s)), voxel.frame(truth)[3],
-                   voxel.offset_hz(truth) + voxel.water_shift_hz(truth))
             entry = held.get(id(truth))
             if entry is None or entry[0] is not truth:
                 if len(held) >= 256:
                     held.pop(next(iter(held)))
                 entry = held[id(truth)] = (truth, {})
-            if key not in entry[1]:
-                members.append((truth, key, entry[1]))
+            # the offset summed as `_engine_lines` sums it, so the keys are the same floats
+            offset_hz, warm = voxel.offset_hz(truth), voxel.water_shift_hz(truth)
+            for t1_s, t2_s in self.relaxations(voxel, truth):
+                for field in field_hz:
+                    key = (engine, sequence, t1_s, t2_s, voxel.frame(truth)[3],
+                           (offset_hz - field) + warm)
+                    if key not in entry[1]:
+                        members.append((truth, key, entry[1]))
         if not members:
             return
         replay, _ = engine.replay_draws(sequence, ((self.system(f0_mhz / engine.b0_t),),),
@@ -125,7 +140,8 @@ class WaterSource(abc.ABC):
         t1, t2, b1, offset = (
             ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
                 [[key[2]] for _, key, _ in members], [[key[3]] for _, key, _ in members],
-                [key[4] for _, key, _ in members], [key[5] for _, key, _ in members]))
+                [voxel.b1_input(truth) for truth, _, _ in members],
+                [key[5] for _, key, _ in members]))
         freqs, amps = (np.asarray(ops.convert_to_numpy(value))
                        for value in replay(t1, t2, b1, offset))
         for row, (_, key, cache) in enumerate(members):
@@ -147,6 +163,9 @@ class NoWater(WaterSource):
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
         return None
+
+    def relaxations(self, voxel, truth):
+        return []
 
 
 #**************************************************************************************************#
@@ -172,24 +191,34 @@ class Unsuppressed(WaterSource):
     #   lines   #
     #***********#
     def lines(self, engine, sequence, voxel, truth, f0_mhz):
-        t1_s, t2_s = truth.water.t1_s, truth.water.t2_s
-        if not isinstance(t1_s, Tissues):
+        if not isinstance(truth.water.t1_s, Tissues):
             freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz)
-            return [(freqs, amps * complex(self.full_amplitude_mm(voxel)), voxel.resolve(t2_s),
-                     None)]
-        fractions, content = voxel.fractions, voxel.scan.brain.water_content
+            return [(freqs, amps * complex(self.full_amplitude_mm(voxel)),
+                     voxel.resolve(truth.water.t2_s), None)]
         parts = []
-        for name in ("gm", "wm", "csf"):
-            share = getattr(fractions, name) * content[name]
-            if share <= 0.0:
-                continue
-            own_t2 = getattr(t2_s, name) if isinstance(t2_s, Tissues) else voxel.resolve(t2_s)
+        for name, share, t1_s, t2_s in self._tissues(voxel, truth):
             freqs, amps = self._engine_lines(engine, sequence, voxel, truth, f0_mhz,
-                                             t1_s=getattr(t1_s, name), t2_s=own_t2)
+                                             t1_s=t1_s, t2_s=t2_s)
             parts.append((freqs,
                           amps * complex(tissue.MRSI_CHALLENGE["water_molarity_mm"] * share),
-                          own_t2, name))
+                          t2_s, name))
         return parts or None
+
+    def relaxations(self, voxel, truth):
+        if not isinstance(truth.water.t1_s, Tissues):
+            return super().relaxations(voxel, truth)
+        return [(t1_s, t2_s) for _, _, t1_s, t2_s in self._tissues(voxel, truth)]
+
+    @staticmethod
+    def _tissues(voxel, truth):
+        """[(tissue, its water's share of the voxel, t1_s, t2_s)] over the tissues present,
+        under a per-tissue T1 (the T2 its own or the voxel's)."""
+        t1_s, t2_s = truth.water.t1_s, truth.water.t2_s
+        fractions, content = voxel.fractions, voxel.scan.brain.water_content
+        return [(name, share, float(getattr(t1_s, name)),
+                 float(getattr(t2_s, name) if isinstance(t2_s, Tissues) else voxel.resolve(t2_s)))
+                for name in ("gm", "wm", "csf")
+                if (share := getattr(fractions, name) * content[name]) > 0.0]
 
 
 #**************************************************************************************************#
