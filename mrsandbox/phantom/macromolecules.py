@@ -319,18 +319,19 @@ class MeasuredMM(MMSource):
             relaxed = Sequence(*sequence.events, tr_s=1000.0, cycles=sequence.cycles)
             probe = SpinSystem(name="MM", nucleus="1H", shifts_ppm=(0.0,), j_hz=((0.0,),),
                                scale=1.0, gamma_mhz_t=f0_mhz / engine.b0_t)
-            positions, factors = [], []
-            for name, groups, _, _ in CoupledMM.SYSTEMS:
-                args = tuple(ops.convert_to_tensor(np.float32(v)) for v in
-                             (truth.mm.t1[name], truth.mm.t2[name], b1_scale,
-                              offset_hz - groups[0][0] * f0_mhz))
-                _, at_tr = engine.compiled(sequence, probe)(*args)
-                _, at_infinity = engine.compiled(relaxed, probe)(*args)
-                positions.append(groups[0][0])
-                factors.append(complex(ops.convert_to_numpy(ops.sum(at_tr)))
-                               / complex(ops.convert_to_numpy(ops.sum(at_infinity))))
+            positions = np.asarray([groups[0][0] for _, groups, _, _ in CoupledMM.SYSTEMS])
+            # every component one draw of the probe's graph: two replays serve them all
+            t1, t2, b1, offset = (
+                ops.convert_to_tensor(np.asarray(values, dtype=np.float32)) for values in (
+                    [[truth.mm.t1[name]] for name, _, _, _ in CoupledMM.SYSTEMS],
+                    [[truth.mm.t2[name]] for name, _, _, _ in CoupledMM.SYSTEMS],
+                    [b1_scale] * len(positions), offset_hz - positions * f0_mhz))
+            at_tr, at_infinity = (
+                np.asarray(ops.convert_to_numpy(engine.replay_draws(design, ((probe,),))[0](
+                    t1, t2, b1, offset)[1])).sum(axis=1)
+                for design in (sequence, relaxed))
             order = np.argsort(positions)
-            cached[1][key] = (np.asarray(positions)[order], np.asarray(factors)[order])
+            cached[1][key] = (positions[order], (at_tr / at_infinity)[order])
         return cached[1][key]
 
     #*************#

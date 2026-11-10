@@ -180,14 +180,12 @@ class Transfer:
         """(the water's longitudinal share after the pulse at the voxel's centre, the bound
         pool's, the pulse's length)."""
         read = Pulse(90.0)
-        _, alone = engine.lines(Sequence(read), water, b1_scale=b1_scale)
-        played = Sequence(event, CoherenceFilter(0), read)
-        if isinstance(event, ShapedPulse) and event.gradient_hz_per_mm:
-            _, after = engine.profile(played, water, event.gradient_axis, [0.0], b1_scale)
-            after = after[0]
-        else:
-            _, after = engine.lines(played, water, b1_scale=b1_scale)
-        alone, after = (np.asarray(ops.convert_to_numpy(v)) for v in (alone, after))
+        # the compiled graphs, one isochromat (a slab pulse plays at the voxel's centre),
+        # the water unrelaxed (a relaxation of 1e9 s is one in float32)
+        args = tuple(ops.convert_to_tensor(np.float32(v)) for v in (1e9, 1e9, b1_scale, 0.0))
+        alone, after = (
+            np.asarray(ops.convert_to_numpy(engine.compiled(design, water, isochromats=1)(*args)[1]))
+            for design in (Sequence(read), Sequence(event, CoherenceFilter(0), read)))
         line = np.argmax(np.abs(alone))
         water_left = float(np.real(after[line] / alone[line]))
         if not isinstance(event, ShapedPulse):

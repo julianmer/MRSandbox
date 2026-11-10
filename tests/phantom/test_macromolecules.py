@@ -339,6 +339,31 @@ class TestMeasured:
             expected = 1.0 - np.exp(-0.3 / truth.mm.t1[name])  # the pulse-acquire law
             assert abs(ratio - expected) < 0.03 * expected, (name, ratio, expected)
 
+    def test_the_components_factors_replay_as_one_batch(self):
+        # the batched probe equals every component replayed on its own
+        from keras import ops
+
+        from mrsandbox import PulseAcquire, Sequence, SpinSystem
+
+        brain = Brain.load("icbm152")
+        scan = VirtualScan(brain, Scanner.preset("generic_3t"), PulseAcquire(tr_s=0.3),
+                           mm=MeasuredMM())
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        truth = voxel.sample(seed=7)
+        engine, f0_mhz = scan.engine, 42.5774785 * scan.scanner.b0_t
+        positions, factors = scan.mm._repetition_factors(scan.sequence, voxel, truth, f0_mhz)
+        relaxed = Sequence(*scan.sequence.events, tr_s=1000.0, cycles=scan.sequence.cycles)
+        probe = SpinSystem(name="MM", nucleus="1H", shifts_ppm=(0.0,), j_hz=((0.0,),),
+                           scale=1.0, gamma_mhz_t=f0_mhz / engine.b0_t)
+        for name, groups, _, _ in CoupledMM.SYSTEMS:
+            args = tuple(ops.convert_to_tensor(np.float32(v)) for v in
+                         (truth.mm.t1[name], truth.mm.t2[name], voxel.b1_input(truth),
+                          voxel.offset_hz(truth) - groups[0][0] * f0_mhz))
+            at_tr, at_infinity = (complex(ops.convert_to_numpy(ops.sum(
+                engine.compiled(design, probe)(*args)[1]))) for design in (scan.sequence, relaxed))
+            k = int(np.flatnonzero(positions == groups[0][0])[0])
+            assert abs(factors[k] - at_tr / at_infinity) < 1e-5
+
 
 #**************************************************************************************************#
 #                                         Class TestCoupled                                        #

@@ -361,6 +361,18 @@ class TestGraph:
         self.replay(engine, echo, lac)
         assert len(engine._timings) == 2
 
+    def test_a_shaped_designs_timings_are_sent_once_too(self):
+        # the envelope's distinct values are held per envelope object, so a replay finds the
+        # tensor the one before sent
+        from mrsandbox.sequences.library import LocalizedPress
+
+        engine = Engine(3.0)
+        lac = SpinSystem.from_database("Lac")[0]
+        design = LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ, tr_s=1.5)
+        first = self.replay(engine, design, lac)
+        np.testing.assert_allclose(self.replay(engine, design, lac), first)
+        assert len(engine._timings) == 1
+
     #*********************#
     #   timing gradient   #
     #*********************#

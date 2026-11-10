@@ -90,9 +90,10 @@ class Event(abc.ABC):
     #   structure, timings   #
     #************************#
     def structure(self):
-        """The hashable key of everything but the timings."""
+        """The hashable key of everything but the timings (a held value, named with a
+        leading underscore, is neither)."""
         fixed = tuple((name, _hashable(value)) for name, value in sorted(vars(self).items())
-                      if name not in self.free or value is None)
+                      if (name not in self.free or value is None) and not name.startswith("_"))
         return (type(self).__name__, fixed)
 
     def timings(self):
@@ -597,8 +598,12 @@ class ShapedPulse(Event):
         if repeats is None:
             return values
         at = [name for name in self.free if getattr(self, name) is not None].index("envelope")
-        distinct = ops.take(self.envelope, np.unique(repeats, return_index=True)[1], axis=0)
-        return values[:at] + (distinct,) + values[at + 1:]
+        # the distinct values held per envelope object: a replay finds the same tensor
+        held = getattr(self, "_distinct", None)
+        if held is None or held[0] is not self.envelope:
+            distinct = ops.take(self.envelope, np.unique(repeats, return_index=True)[1], axis=0)
+            held = self._distinct = (self.envelope, distinct)
+        return values[:at] + (held[1],) + values[at + 1:]
 
     def bound(self, values):
         repeats = self._repeats()

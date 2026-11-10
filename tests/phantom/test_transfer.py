@@ -17,10 +17,13 @@
 #   imports   #
 #*************#
 import numpy as np
+from keras import ops
 
-from mrsandbox import Brain, Engine, Params, Press, Scanner, VirtualScan
+from mrsandbox import (Brain, Engine, LocalizedPress, Params, Press, Pulse, Scanner, Sequence,
+                       ShapedPulse, VirtualScan)
 from mrsandbox.phantom.transfer import Transfer, superlorentzian
 from mrsandbox.phantom.water import WaterSource
+from mrsandbox.sequences.events import CoherenceFilter
 from mrsandbox.sequences.library import Vapor
 
 GAMMA = 42.5774785
@@ -58,6 +61,30 @@ class TestTransfer:
         trained = model.factors(engine, Vapor() + press, water, 1.6, rates, t1)
         assert trained["Cr"] == 1.0 and 1.0 > trained["PCr"] > trained["NAA"] > 0.6
         assert trained["water"] == 1.0
+
+    #***********#
+    #   probe   #
+    #***********#
+    def test_the_compiled_probe_plays_what_the_engine_plays(self):
+        # a pulse's compiled replay with one isochromat equals the eager play at the centre,
+        # a slab pulse and a train pulse alike
+        engine, water = Engine(3.0), WaterSource.system(gamma_mhz_t=GAMMA)
+        design = (Vapor(real=True)
+                  + LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=GAMMA * 3.0))
+        model, read = Transfer(0.05, 40.0), Pulse(90.0)
+        shaped = [e for e in design.events if isinstance(e, ShapedPulse)]
+        slab = next(e for e in shaped if e.gradient_hz_per_mm)
+        train = next(e for e in shaped if not e.gradient_hz_per_mm)
+        alone = np.asarray(ops.convert_to_numpy(engine.lines(Sequence(read), water, b1_scale=0.9)[1]))
+        line = np.argmax(np.abs(alone))
+        for event in (slab, train):
+            played = Sequence(event, CoherenceFilter(0), read)
+            if event.gradient_hz_per_mm:
+                after = engine.profile(played, water, event.gradient_axis, [0.0], 0.9)[1][0]
+            else:
+                after = ops.convert_to_numpy(engine.lines(played, water, b1_scale=0.9)[1])
+            eager = float(np.real(np.asarray(after)[line] / alone[line]))
+            assert abs(model._pulse(engine, event, water, 0.9)[0] - eager) < 1e-5
 
     #***********#
     #   voxel   #
