@@ -37,9 +37,9 @@ from mrsandbox.console.app import (BAD, COPPER, DIM, GLOW, GOOD, GROUND, INK, LI
                                    PANEL, SAND)
 from mrsandbox.io.folder import reads
 from mrsandbox.hardware.arrays import PRESETS as ARRAY_PRESETS
-from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, EDITING, FIELDS, FIXED,
-                                       GEARS, IDEALS, LENT, MAKERS, MRSI, OVERLAYS, PLACE, PLACES,
-                                       PROCESS,
+from mrsandbox.console.session import (ALIGN, ASSUMED, BLOCKS, COMBINE, ECHOES, EDITING, FIELDS,
+                                       FIXED, GEARS, IDEALS, LENT, MAKERS, MRSI, OVERLAYS, PLACE,
+                                       PLACES, PROCESS,
                                        REAL, RUN, RUN_OF, SCANNERS, TARGETS, adjusted, named,
                                        SEQUENCES, SUPPRESSION, TEMPLATES, Session)
 from mrsandbox.hardware.scanners import PRESETS
@@ -2493,6 +2493,17 @@ async def console(client: Client, loading):
                          "free evolution and the RF at fourth order: cheaper, at an error that "
                          "falls sixteenfold per doubling of the sub-steps; a change compiles the "
                          "designs again").classes(
+                    "label").style("text-transform: none; letter-spacing: 0")
+            with ui.row().classes("w-full items-center no-wrap"):
+                ui.select(list(ECHOES), label="spurious echoes", value=session.echoes,
+                          on_change=lambda e: (setattr(session, "echoes", e.value),
+                                               draw())).props(
+                    "dense outlined dark").style("width: 230px")
+                ui.label("drawn: a bump at the drawn time, place, size and phase of the raw runs; "
+                         "pathways: the scalp beyond the voxel's face played through the design "
+                         "with crushers for its filters, the echo at its pathway's own time and "
+                         "the physics' size; two replays of a hundred field offsets an exam, "
+                         "minutes on a laptop CPU, seconds on a GPU").classes(
                     "label").style("text-transform: none; letter-spacing: 0")
             for name, leaves in IDEALS.items():
                 with ui.row().classes("w-full items-center no-wrap"):

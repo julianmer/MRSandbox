@@ -22,6 +22,7 @@ from mrsandbox.phantom.downfield import NoDownfield, ParameterizedDownfield
 from mrsandbox.phantom.lipids import NoLipids, Skull
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM, NoMM
 from mrsandbox.phantom.solution import Phantom
+from mrsandbox.phantom.spurious import ParametricEcho
 from mrsandbox.phantom.water import Suppressed
 from mrsandbox.scan.defaults import default_params
 from mrsandbox.scan.voxel import Voxel
@@ -87,6 +88,9 @@ class VirtualScan:
             in vitro.
         downfield: A phantom.DownfieldSource; defaults to the nine-peak
             parameterization, presaturated along with the default suppressed water.
+        spurious: A phantom.SpuriousSource; defaults to the drawn echo of the measured
+            form (ParametricEcho); PathwayEcho plays it from the scalp's coherence
+            pathways through the design's crushers.
         girf: A resources.GIRF, the scanner's measured gradient impulse response;
             every readout then carries the fields the design's own gradients induce
             through it (scan.eddy) in place of the drawn exponential terms of the
@@ -126,7 +130,7 @@ class VirtualScan:
                  girf=None, receiver=None, isochromats=32, engine=None, temperature_c=None,
                  ph=None, field_groups=1, water_groups=1, noise_map=None,
                  noise_reference_mm=(0.0, -45.0, 35.0), records=(), subject=None, within=(),
-                 spins=None, temperature_spread=False, threads=None):
+                 spins=None, temperature_spread=False, threads=None, spurious=None):
         self.brain = brain
         self.threads = threads
         self.scanner = scanner
@@ -141,6 +145,7 @@ class VirtualScan:
                    else CoupledMM() if hasattr(sequence, "edit_ppm") else MeasuredMM())
         self.downfield = (downfield if downfield is not None
                           else NoDownfield() if in_vitro else ParameterizedDownfield())
+        self.spurious = spurious if spurious is not None else ParametricEcho()
         self.coils = coils
         self.field = field
         self.field_groups = int(field_groups)

@@ -1198,10 +1198,10 @@ class Sequence:
         are None, the design played as a whole (`unfolded`). Returns (the indices held
         back, {projection index: its slab events})."""
         events = self.events
-        if not any(isinstance(event, Projection) for event in events):
-            return set(), {}
         if self.whole:
             return set(), None
+        if not any(isinstance(event, Projection) for event in events):
+            return set(), {}
         first = next(k for k, event in enumerate(events) if isinstance(event, Projection))
         slabs = [k for k in range(first - 1)
                  if isinstance(events[k], ShapedPulse) and events[k].gradient_hz_per_mm

@@ -39,6 +39,7 @@ from mrsandbox.params.values import Tissues, reading
 from mrsandbox.phantom import Brain, FieldMap, Phantom, Volume
 from mrsandbox.phantom.volume import turning
 from mrsandbox.phantom.macromolecules import CoupledMM, MeasuredMM
+from mrsandbox.phantom.spurious import ParametricEcho, PathwayEcho
 from mrsandbox.phantom.water import Unsuppressed, WaterSource
 from mrsandbox.resources import Resources
 from mrsandbox.resources.icbm import NIHPD_BANDS, nihpd_band
@@ -204,6 +205,10 @@ SUPPRESSION = {"VAPOR": Vapor, "WET": Wet, "CHESS": Chess, "CHESS, Siemens svs_s
 # residual fraction (water.residual_fraction, 0.01 to 0.3 percent), fast, and the same whatever the
 # card plays.
 ASSUMED = "assumed residual"
+# how the spurious echo comes about: drawn in the measured form (its time, place, size and phase
+# the priors'), or played from the scalp beyond the voxel's face through the design's crushers,
+# so its time is the pathway's and its size the physics' (phantom.spurious)
+ECHOES = {"drawn": ParametricEcho, "pathways": PathwayEcho}
 # the branches of the parameter tree that are the scanner's state of one exam, drawn anew for every
 # exam (Session.run)
 STATE = ("acquisition", "spurious", "b1_scale", "water.adjusted_residual")
@@ -690,7 +695,8 @@ class Session:
 
     # what of the session is the room an exam is planned in and runs in
     ROOM = ("scanner", "field_t", "calibration", "coil", "subject", "person", "seed", "member_name",
-            "field", "transmit", "shim", "shim_mm", "hold_records", "isochromats", "split")
+            "field", "transmit", "shim", "shim_mm", "hold_records", "isochromats", "split",
+            "echoes")
 
     #**********#
     #   init   #
@@ -746,6 +752,9 @@ class Session:
         # the shaped pulses' steps: None each by its exact exponential, an integer the split step
         # in that many sub-steps (Engine's split), faster at the error Backend.split_step states
         self.split = None
+        # the spurious echo: drawn in the measured form, or played from the scalp's coherence
+        # pathways through the design's crushers (phantom.spurious, ECHOES)
+        self.echoes = "drawn"
         self.unfitted = ""
         self.protocol = Protocol()
         self.queue = []
@@ -2969,7 +2978,7 @@ class Session:
         # run records, its receiver and gradient response, the person and the population, and
         # the scanner's state of this exam pinned over the operator's settings
         shared = dict(records=records, params=self.params({**held, **state, **exam.overrides}),
-                      threads=self.THREADS,
+                      threads=self.THREADS, spurious=ECHOES[self.echoes](),
                       girf=profile.girf, receiver=profile.receiver, **self.narrowing(),
                       # one engine per field and ensemble for every exam: its graphs are built
                       # once, not once an exam

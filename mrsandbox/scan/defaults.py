@@ -359,8 +359,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         #   the crusher gates in tests/sequences). The form is the AGNOSTIC OOV
         #   synthesis (Gudmundson et al. 2023, Imaging Neuroscience, imag_a_00025):
         #   a Gaussian envelope echo a exp(-W (t - tau)^2) exp(i (2 pi f t + phi)),
-        #   rendered by Augmentrum's SpuriousEchoes (scan.Voxel), its amplitude
-        #   relative to the maximum of the voxel's FID without its water. The ranges
+        #   rendered by Augmentrum's SpuriousEchoes (phantom.spurious ParametricEcho;
+        #   PathwayEcho plays the echo from the scalp's coherence pathways instead,
+        #   amplitude then only switching it off), its amplitude relative to the
+        #   maximum of the voxel's FID without its water. The ranges
         #   are read off raw data with the transients apart (Big GABA PRESS and COWS
         #   sLASER runs; an echo is a late bump of the residual that the average does
         #   not carry). A run's echo keeps its timing and place, so tau, width and

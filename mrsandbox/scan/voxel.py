@@ -727,10 +727,8 @@ class Voxel:
         Line lists small enough not to be worth a dispatch render on the host in
         float64 (exact), the rest through the engine's jitted graphs.
 
-        The spurious echo is the drawn AGNOSTIC-form echo (amplitude relative to the
-        FID maximum, centre, Gaussian width, position, phase) rendered by Augmentrum's
-        localized echo with its Gaussian envelope exp(-(t - t_echo)^2 / (2 T2^2)),
-        so T2 = 1 / sqrt(2 W). The eddy phase is Augmentrum's synthetic trajectory
+        The spurious echo is the scan's spurious source's (phantom.spurious: the drawn
+        AGNOSTIC-form echo, or the one played from the scalp's pathways). The eddy phase is Augmentrum's synthetic trajectory
         (low-pass filtered Gaussian phase noise, its linear trend removed) with the
         drawn standard deviation, cut-off, and seed, so it regenerates from the truth;
         its phasor depends on the truth alone and is cached per truth; it regenerates on
@@ -738,11 +736,11 @@ class Voxel:
         npoints or dwell (stated).
         """
         try:
-            from augmentrum.augmentation import EddyCurrent, SpuriousEchoes
+            from augmentrum.augmentation import EddyCurrent
         except ImportError as error:
-            raise ImportError("acquisitions need Augmentrum for the spurious echo and eddy "
-                              "phase (the mrsandbox[augment] extra; see pyproject.toml "
-                              "for the install recipe)") from error
+            raise ImportError("acquisitions need Augmentrum for the eddy phase (the "
+                              "mrsandbox[augment] extra; see pyproject.toml for the install "
+                              "recipe)") from error
         # the receiver delay: every sample sits start_s after the readout's start
         start_s = float(truth.acquisition.delay_s)
         grid = start_s + np.arange(npoints) * dwell_s
@@ -835,23 +833,14 @@ class Voxel:
         kernel = self._gradient_kernel(truth, npoints, dwell_s, start_s)
         if kernel is not None:
             fids = {name: fid * kernel for name, fid in fids.items()}
-        spur, acquisition = truth.spurious, truth.acquisition
+        acquisition = truth.acquisition
         sw_hz = 1.0 / dwell_s
-        if spur.amplitude > 0.0:
-            # the out-of-voxel echo enters before the receiver-side modulation like
-            # any received signal
-            echo = SpuriousEchoes(mode="echo", echoes=[dict(
-                alpha=spur.amplitude, t_echo=spur.tau_s - start_s,
-                T2=1.0 / np.sqrt(2.0 * spur.width_s2), freq_hz=spur.ppm * self._f0_mhz(),
-                phase_deg=spur.phase_deg + 360.0 * spur.ppm * self._f0_mhz() * start_s,
-                gaussian_env=True)])
-            # relative to the voxel's signal WITHOUT its water: signal from outside the voxel
-            # does not grow with the water a suppression train leaves inside it (the source's
-            # own FIDs carry next to none)
-            total = sum((fid for name, fid in fids.items() if name != "water"),
-                        np.zeros(npoints, dtype=np.complex64))
-            fids["spurious"] = (np.asarray(echo.process_tensor(total[None, :], sw_hz=sw_hz)[0][0])
-                                - total)
+        # the out-of-voxel echo enters before the receiver-side modulation like any received
+        # signal (phantom.spurious: drawn in the measured form, or played from the scalp's
+        # pathways)
+        echo = self.scan.spurious.fid(self, truth, fids, npoints, dwell_s, start_s)
+        if echo is not None:
+            fids["spurious"] = echo
         modulation = np.exp(1j * (2.0 * np.pi * self.offset_hz(truth) * grid
                                   + np.radians(acquisition.phase_deg)))
         if acquisition.eddy_transient_rad:

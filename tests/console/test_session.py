@@ -388,6 +388,16 @@ class TestSession:
         assert session._bodies[key] is engine and engine._compiled
         assert np.array_equal(np.asarray(kept.data[:]), np.asarray(first.data[:]))
 
+    def test_the_echo_setting_reaches_the_exam(self):
+        # the scan switches panel chooses how the spurious echo comes about: the exam's room
+        # records the choice and the scan is built with that source (ECHOES)
+        session = Session(ICBM)
+        session.protocol.water_reference = 0
+        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 1, 512
+        session.echoes = "pathways"
+        exam = session.run(session.plan(queued=False), seed=3)
+        assert exam.room["echoes"] == "pathways"
+
     def test_the_worker_plays_an_exam_as_the_page_does(self, monkeypatch):
         # Session.remote sends the page's state and the exam to the worker process and takes the
         # exam, the clock and the timings back; a stand-in pool pickles both ways as a process
