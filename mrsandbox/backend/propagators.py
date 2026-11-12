@@ -140,7 +140,7 @@ class Backend:
         above 2^(SQUARINGS + 1) (a step of hundreds of radians) exceed the budget; no
         pulse step comes near it. Every squaring doubles the float32 rounding, so the
         window is as wide as the polynomial allows."""
-        dt_t = ops.cast(ops.convert_to_tensor(dt), precision.REAL)
+        dt_t = ops.convert_to_tensor(dt, dtype=precision.REAL)
         if ops.ndim(dt_t) > 0:
             dt_t = ops.reshape(dt_t, tuple(dt_t.shape) + (1, 1))
         a = (nops.complex_from(ops.zeros_like(nops.real(h)),
@@ -194,7 +194,7 @@ class Backend:
         basis^H basis would shrink a state by a part in 1e7, the same way at every step;
         its signs, with their inverse the transpose over 2^r, are exact. A basis with
         another spin keeps its own adjoint."""
-        dt = ops.cast(ops.convert_to_tensor(dt), precision.REAL)
+        dt = ops.convert_to_tensor(dt, dtype=precision.REAL)
         basis = np.asarray(ops.convert_to_numpy(basis), dtype=np.complex128)
         r = round(-2.0 * math.log2(np.abs(basis).max()))
         signs = np.rint(basis * 2.0 ** (r / 2.0))

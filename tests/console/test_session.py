@@ -198,7 +198,9 @@ class TestSession:
         assert VirtualScan(*pieces).threads is None
         assert VirtualScan(*pieces, threads=2).threads == 2
 
-    def test_the_warm_up_builds_each_family_once(self, tmp_path):
+    def test_the_warm_up_builds_each_family_once(self, tmp_path, backend):
+        if backend != "jax":
+            pytest.skip("the warm-up fills jax's compilation cache")
         import jax
 
         from mrsandbox.console.worker import warm
