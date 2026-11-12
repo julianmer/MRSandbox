@@ -121,9 +121,22 @@ One line per folder; the docstrings hold the rest.
 * `sequences/` builds sequences as event lists: PRESS, STEAM, semi-LASER, MEGA-PRESS, HERMES, HERCULES, water suppression, ideal or with the localization and the pulses played.
 * `spins/` and `engine/` hold the spin systems and run the density matrix, plain or as one compiled graph per design.
 * `scan/` composes it all: `VirtualScan`, `Voxel`, `MRSI`, `Multiplex`, the training `Generator`, the `ScannerProfile`, the calibration records, and the readers that make a record from raw data.
-* `io/` reads and writes Pulseq, and reads Philips (data/list, sdat/spar, lab/raw) and Varian files.
+* `io/` reads and writes Pulseq, reads FSL-MRS sequence descriptions and Siemens sequence simulations (the DSV files of IDEA's simulator) into playable sequences, and reads Philips (data/list, sdat/spar, lab/raw), Siemens (TWIX) and Varian files.
 * `console/` is the virtual scanner console.
 * `backend/` contains the propagator mathematics; `tests/` mirrors the package and asserts the physics.
+
+## New in 0.2
+
+* Functional MRS: a `Paradigm` of task blocks moves the metabolite levels and narrows the lines with the BOLD effect over a run.
+* The heartbeat plays in the field and the signal of every transient, beside breathing and drift.
+* Each tissue has its own microscopic lineshape, and the brain regions hold their published metabolite levels with soft borders.
+* Spurious echoes come from the coherence pathways of the lipid layer the voxel touches (`PathwayEcho`).
+* Diffusion follows the sequence's own gradient moments, in fibres of a drawn radius.
+* Siemens sequence simulations (the DSV files of IDEA's simulator) play as the scanner's own sequence (`read_dsv`).
+* A warm exam is about three times faster: pulses propagate at half the cost, metabolites of one size share a compiled graph, and `Engine(split=...)` trades the exact pulse step for a fourth-order split.
+* The console opens at once as a window of its own and compiles its sequences in a worker.
+
+These additions are gated by tests against theory and the literature. They are not yet held against measured cohorts the way the results under Validation are.
 
 ## Validation
 

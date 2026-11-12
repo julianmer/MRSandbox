@@ -83,7 +83,7 @@ def __dir__():
     return sorted(set(globals()) | set(__all__))
 
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 
 #***************#
