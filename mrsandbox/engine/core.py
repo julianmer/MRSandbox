@@ -222,8 +222,10 @@ class Engine:
 
         Every used axis gets the exact uniform grid over its largest extent, so all
         per-axis dephasing laws hold exactly; with several axes the later grids are
-        reordered by deterministic coprime strides (successive golden-ratio fractions of
-        the count, nudged to the nearest coprime), which decorrelates the axes so
+        reordered by deterministic coprime strides (fractions of the count nudged to the
+        nearest coprime: the golden ratio's for a second axis, the plastic number's pair
+        for a second and third, whose golden counterparts sum to one and would mirror the
+        third axis on the second), which decorrelates the axes so
         cross-axis moments dephase instead of spuriously refocusing, while each axis's
         own marginal stays the exact uniform grid. Cross-axis combinations are thereby
         sampled along a torus line, a stated approximation; raise `isochromats` for
@@ -239,8 +241,9 @@ class Engine:
             full = np.meshgrid(*(grid * extents[axis] for axis in axes), indexing="ij")
             return {axis: values.ravel().astype(precision.REAL) for axis, values in zip(axes, full)}
         positions = {}
+        fraction = 0.6180339887 if len(extents) < 3 else 0.7548776662
         for order, axis in enumerate(sorted(extents)):
-            target = max(1, int(round(isochromats * 0.6180339887 ** order)))
+            target = max(1, int(round(isochromats * fraction ** order)))
             nearby = (target + sign * offset for offset in range(isochromats) for sign in (1, -1))
             stride = 1 if order == 0 else next(
                 (c for c in nearby if 1 <= c < isochromats and math.gcd(c, isochromats) == 1), 1)

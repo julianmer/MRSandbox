@@ -765,3 +765,29 @@ class TestPrecision:
             LocalizedPress(te1_s=0.011, te2_s=0.019, f0_mhz=F0_MHZ), *self.lactate())
         assert played["isochromats"] > 1e-3 and played["float64"] < 1e-4
         assert 0.0 < played["steps"] < 1.0
+
+
+#**************************************************************************************************#
+#                                        Class TestEnsemble                                        #
+#**************************************************************************************************#
+class TestEnsemble:
+
+    #****************#
+    #   three axes   #
+    #****************#
+    def test_three_axes_fill_the_volume(self):
+        # kicks on three axes without a projection: the ensemble's share inside a centred box
+        # is the box's share of the volume (the golden strides put the third axis on the
+        # second's mirror, a plane), and two axes keep their golden stride
+        from mrsandbox.sequences.events import Gradient
+
+        kicks = [Gradient(0.1, 30.0, axis=axis) for axis in "xyz"]
+        for isochromats in (1024, 4096):
+            positions = Engine(3.0).positions(Sequence(*kicks), isochromats)
+            points = np.stack([positions[axis] for axis in "xyz"])
+            assert len(np.unique(points[1] + points[2])) > isochromats // 8
+            for half in (6.0, 10.0):
+                share = (np.abs(points) < half).all(axis=0).mean()
+                assert abs(share / (2.0 * half / 30.0) ** 3 - 1.0) < 0.08
+        pair = Engine(3.0).positions(Sequence(*kicks[:2]), 64)
+        assert np.allclose(pair["y"], pair["x"][(np.arange(64) * 41) % 64])
