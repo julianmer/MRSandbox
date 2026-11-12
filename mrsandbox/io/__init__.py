@@ -19,4 +19,5 @@ from mrsandbox.io.philips import DataList, LabRaw, SdatSpar
 from mrsandbox.io.folder import Found, convert, pairs, survey
 from mrsandbox.io.fsl import FslSequence, read_fsl_sequence, write_fsl_basis
 from mrsandbox.io.pulseq import PulseqSequence, read_seq, read_seq_all, write_seq
+from mrsandbox.io.siemens import SiemensSequence, read_dsv
 from mrsandbox.io.varian import VarianFid
