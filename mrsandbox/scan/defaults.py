@@ -408,9 +408,15 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     #     Arrhenius line through Holz, Heil and Sacco 2000 (PCCP 2:4740: 2.895 at
     #     35 C, 3.222 at 40 C), which the crushers of an editing design fade as the
     #     water references of Big GABA's Philips series fade.
+    #   radius_um: the fibres' radius across which a metabolite is restricted
+    #     (sequences.diffusion attenuation, the consensus minimal model in full): 0
+    #     plays the sticks the consensus recommends where the acquisition cannot
+    #     resolve a radius (every standard design, b below 0.2 ms/um^2); the
+    #     consensus simulates its model over 0.25 to 2 um (its Table 5), the
+    #     range a dMRS design would draw from.
     #   mm: the consensus's own range. lipids: stated.
     diffusion = Params(diffusion=dict(
-        model="sticks",
+        model="sticks", radius_um=0.0,
         adc={name: PerTissue(gm=0.10 * _adc_ratio(name), wm=0.15 * _adc_ratio(name),
                              csf=0.10 * _adc_ratio(name)) for name in names},
         water=PerTissue(gm=0.75, wm=0.75, csf=3.0),

@@ -20,13 +20,13 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
-import scipy.special
 from keras import ops
 
 from mrsandbox.database.tissue import CADY_1995
 from mrsandbox.params import Params, Tissues
 from mrsandbox.phantom.volume import Volume
 from mrsandbox.scan.calibrations import calibrations
+from mrsandbox.sequences.diffusion import attenuation
 from mrsandbox.sequences.events import ShapedPulse
 
 
@@ -629,12 +629,15 @@ class Voxel:
         The Gaussian form exp(-b ADC) is every component's default. With `sticks`
         the component is an intracellular metabolite in the consensus minimal model
         (Ligneul et al. 2024, MRM 91:860, section 5.1: randomly oriented infinitely
-        long cylinders of zero radius, the sticks whose powder average is
-        S = sqrt(pi / (4 b D)) erf(sqrt(b D)) with D the intracellular diffusivity along
-        the fibre), so the decay is non-monoexponential above b of 3 to 5 ms/um^2 as
-        measured. The leaf stays the low-b ADC, which is D / 3 for uniformly oriented
+        long cylinders, sequences.diffusion `attenuation`), played under the design's
+        own kicks: along the fibre free with the diffusivity D (a single-direction b
+        gives the sticks' sqrt(pi / (4 b D)) erf(sqrt(b D)), non-monoexponential above
+        b of 3 to 5 ms/um^2 as measured; crushers on three axes nearly exp(-b D / 3)),
+        across it restricted by the drawn radius (diffusion.radius_um; zero is the
+        sticks). The leaf stays the low-b ADC, which is D / 3 for uniformly oriented
         sticks (the consensus's own identity), so the ADC tables and every b = 0 or
-        low-b result keep their meaning and D = 3 ADC.
+        low-b result keep their meaning and D = 3 ADC; a radius adds the restricted
+        decay across the fibres on top (stated).
         """
         b = self.scan.b_value_ms_um2
 
@@ -644,7 +647,8 @@ class Voxel:
             x = b * self.resolve(adc)
             if not sticks or x <= 0.0:
                 return float(np.exp(-x))
-            return float(np.sqrt(np.pi / (12.0 * x)) * scipy.special.erf(np.sqrt(3.0 * x)))
+            return attenuation(self.scan.sequence, 3.0 * self.resolve(adc),
+                               self.resolve(truth.diffusion.radius_um))
 
         return faded
 

@@ -24,7 +24,7 @@ import pytest
 from mrsandbox import (Brain, CoherenceFilter, Delay, Gradient, LocalizedMegaPress, NoLipids,
                        NoMM, NoWater, Params, PerTissue, Press, Pulse, Scanner, Sequence,
                        Unsuppressed, VirtualScan)
-from mrsandbox.sequences.diffusion import b_value_ms_um2
+from mrsandbox.sequences.diffusion import ROOTS, attenuation, b_matrix_ms_um2, b_value_ms_um2
 
 K, DELTA = 40.0, 0.05  # cycles per mm, seconds
 EXPECTED = (2.0 * math.pi * K * 1e3) ** 2 * DELTA * 1e-9  # the analytic kick-pair b
@@ -102,6 +102,107 @@ class TestBValue:
         assert without < 1e-3 * pairs  # the refocusing crushers stay unplayed
 
 
+    #******************#
+    #   the b-matrix   #
+    #******************#
+    def test_the_b_matrix_carries_the_cross_terms_and_its_trace_is_b(self):
+        # kicks on x and y helical over the same interval correlate: B_xy = (2 pi)^2 kx ky t;
+        # the trace is the b-value the package always had
+        crossed = Sequence(Pulse(90.0), CoherenceFilter(-1), Gradient(K, axis="x"),
+                           Gradient(2.0 * K, axis="y"), Delay(DELTA), Gradient(-K, axis="x"),
+                           Gradient(-2.0 * K, axis="y"), Delay(0.005))
+        matrix = b_matrix_ms_um2(crossed)
+        assert abs(matrix[0, 1] - 2.0 * EXPECTED) < 1e-9 * EXPECTED
+        assert abs(matrix[0, 0] - EXPECTED) < 1e-9 * EXPECTED
+        assert abs(matrix[1, 1] - 4.0 * EXPECTED) < 1e-9 * EXPECTED
+        assert matrix[2, 2] == 0.0 and matrix[0, 2] == 0.0
+        assert abs(np.trace(matrix) - b_value_ms_um2(crossed)) < 1e-12
+
+
+#**************************************************************************************************#
+#                                        Class TestCylinders                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# The powder average of randomly oriented cylinders under a design's kicks: the sticks' closed     #
+# form along one direction, exp(-b D / 3) under three axes in turn, the cylinder's form factor at  #
+# long times, van Gelderen's pulses in their zero-duration limit.                                  #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestCylinders:
+
+    D, R = 0.45, 1.5  # um^2/ms, um
+
+    @staticmethod
+    def pair(q_per_mm, delta_s, axis="x"):
+        return Sequence(Pulse(90.0), CoherenceFilter(-1), Gradient(q_per_mm, axis=axis),
+                        Delay(delta_s), Gradient(-q_per_mm, axis=axis), Delay(0.005))
+
+    #*************#
+    #   sticks   #
+    #*************#
+    def test_one_direction_gives_the_sticks_closed_form(self):
+        design = self.pair(K, DELTA)
+        b = b_value_ms_um2(design)
+        closed = math.sqrt(math.pi / (4.0 * b * self.D)) * math.erf(math.sqrt(b * self.D))
+        assert abs(attenuation(design, self.D) - closed) < 1e-4 * closed
+
+    def test_three_axes_in_turn_give_the_gaussian_third(self):
+        # a pair on each axis over its own interval: an isotropic b-matrix, under which every
+        # stick sees b D / 3 whatever its direction
+        events = [Pulse(90.0), CoherenceFilter(-1)]
+        for axis in "xyz":
+            events += [Gradient(K, axis=axis), Delay(DELTA), Gradient(-K, axis=axis)]
+        design = Sequence(*events, Delay(0.005))
+        b = b_value_ms_um2(design)
+        assert abs(b - 3.0 * EXPECTED) < 1e-9 * EXPECTED
+        assert abs(attenuation(design, self.D) - math.exp(-b * self.D / 3.0)) < 1e-6
+
+    #*******************#
+    #   the cylinder   #
+    #*******************#
+    def test_the_mode_sum_is_the_cylinders_eighth(self):
+        assert abs(np.sum(1.0 / (ROOTS ** 2 * (ROOTS ** 2 - 1.0))) - 0.125) < 1e-6
+
+    def test_a_long_pair_leaves_the_form_factor_across_the_fibre(self):
+        # a weak pair far apart (the diffusion length past the radius): along the fibre the free
+        # decay exp(-b D cos^2), across it exp(-(2 pi q)^2 R^2 / 4 sin^2), averaged over the sphere
+        q, delta_s = 5.0, 1.0
+        design = self.pair(q, delta_s)
+        b = b_value_ms_um2(design)
+        theta = (np.arange(4000) + 0.5) / 4000 * math.pi
+        expected = np.sum(np.sin(theta) * np.exp(
+            -b * self.D * np.cos(theta) ** 2
+            - (2.0 * math.pi * q * 1e-3) ** 2 * self.R ** 2 / 4.0 * np.sin(theta) ** 2)
+        ) / np.sum(np.sin(theta))
+        assert abs(attenuation(design, self.D, self.R) - expected) < 1e-4 * expected
+
+    def test_the_kicks_are_van_gelderens_pulses_at_zero_duration(self):
+        # van Gelderen et al. 1994 across a cylinder for a pulsed pair (delta, Delta) with the
+        # pulses a ten-thousandth of their spacing (the finite pulses differ at that order),
+        # powder averaged with the free decay along the fibre, against the kicks the same
+        # spacing apart
+        q_per_um, big_delta_ms = 0.04, 50.0
+        delta_ms = 1e-4 * big_delta_ms
+        alpha = ROOTS / self.R
+        x = self.D * alpha ** 2
+        theta = (np.arange(4000) + 0.5) / 4000 * math.pi
+        design = self.pair(q_per_um * 1e3, big_delta_ms * 1e-3)
+        b = b_value_ms_um2(design)
+        across = []
+        for s in np.sin(theta):
+            gamma_g = 2.0 * math.pi * q_per_um * s / delta_ms
+            terms = (2.0 * x * delta_ms - 2.0 + 2.0 * np.exp(-x * delta_ms)
+                     + 2.0 * np.exp(-x * big_delta_ms) - np.exp(-x * (big_delta_ms - delta_ms))
+                     - np.exp(-x * (big_delta_ms + delta_ms)))
+            across.append(np.exp(-2.0 * gamma_g ** 2 * np.sum(
+                terms / (self.D ** 2 * alpha ** 6 * (alpha ** 2 * self.R ** 2 - 1.0)))))
+        expected = np.sum(np.sin(theta) * np.asarray(across)
+                          * np.exp(-b * self.D * np.cos(theta) ** 2)) / np.sum(np.sin(theta))
+        assert abs(attenuation(design, self.D, self.R) - expected) < 1e-4 * expected
+        # and the sticks are the cylinders at no radius
+        assert abs(attenuation(design, self.D, 0.0) - attenuation(design, self.D)) < 1e-12
+
+
 #**************************************************************************************************#
 #                                       Class TestAttenuation                                      #
 #**************************************************************************************************#
@@ -150,6 +251,16 @@ class TestAttenuation:
             _, attenuated = modelled.spectrum(seed=7, npoints=2048)
             ratio = np.abs(np.asarray(attenuated)).max() / np.abs(np.asarray(reference)).max()
             assert abs(ratio - law) < 1e-3 * law
+        # a drawn radius restricts across the fibres on top: the rendered decay is the
+        # cylinders' under the design's own kicks, below the sticks'
+        radius = 1.5
+        restricted = VirtualScan(brain, *pieces,
+                                 params=quiet | Params(diffusion=dict(radius_um=radius)),
+                                 **sources).voxel(**kw)
+        _, attenuated = restricted.spectrum(seed=7, npoints=2048)
+        ratio = np.abs(np.asarray(attenuated)).max() / np.abs(np.asarray(reference)).max()
+        law = attenuation(weighted, 3.0 * adc, radius)
+        assert abs(ratio - law) < 1e-3 * law and law < sticks
         # the sticks decay is weaker than the Gaussian one at this b and the two
         # agree to first order at low b (the ADC is the same low-b slope)
         assert sticks > math.exp(-x)
