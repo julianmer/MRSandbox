@@ -123,7 +123,9 @@ class Priors:
         mean of the grey and white references times the drawn concentration, that of an equal
         mix, so its parts carry the contrast `r` back out. The newest study gives a region where
         several do (database.regional STUDIES); a value with a spread above its mean is left
-        out; a region no study gives stays at 1.
+        out; a region no study gives stays at 1. A study without a reference of its own counts
+        relative to its `anchor` row, times the level the referenced studies give that row's
+        region: it comes after them, and gives what they give at the anchor.
 
         Args:
             metabolites: The package's names to cover.
@@ -135,16 +137,22 @@ class Priors:
         from mrsandbox.phantom.regions import LOBES
 
         found = {}
-        for study in regional.STUDIES:
+        for study in sorted(regional.STUDIES, key=lambda study: "anchor" in study):
             values = study["values"]
             for row, (regions, tissue) in study["stands_for"].items():
                 for paper, (mean, sd) in values[row].items():
                     if paper not in study["quantified"] or sd > mean:
                         continue
-                    reference = np.mean([np.mean([values[r][paper][0] for r in rows])
-                                         for t, rows in study["reference"].items()
-                                         if tissue in (t, None)])
                     for name, region in itertools.product(regional.NAMES[paper], regions):
+                        if "anchor" in study:
+                            anchor, at = study["anchor"]
+                            if (name, at) not in found:
+                                continue
+                            reference = values[anchor][paper][0] / found[(name, at)][None]
+                        else:
+                            reference = np.mean([np.mean([values[r][paper][0] for r in rows])
+                                                 for t, rows in study["reference"].items()
+                                                 if tissue in (t, None)])
                         found.setdefault((name, region), {}).setdefault(tissue, mean / reference)
         leaves = {}
         for (name, region), by in found.items():

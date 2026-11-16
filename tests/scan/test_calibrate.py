@@ -18,9 +18,9 @@ import numpy as np
 import pytest
 
 from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
-from mrsandbox.scan.calibrate import (CovarianceReading, GIRFReading, MacromoleculeReading,
-                                      MetaboliteSeriesReading, NoiseReading, RelaxationReading,
-                                      SpectrumReading, WaterSeriesReading)
+from mrsandbox.scan.calibrate import (CovarianceReading, DiffusionSeriesReading, GIRFReading,
+                                      MacromoleculeReading, MetaboliteSeriesReading, NoiseReading,
+                                      RelaxationReading, SpectrumReading, WaterSeriesReading)
 from mrsandbox.scan.voxel import noise_scale
 
 
@@ -627,6 +627,68 @@ class TestMetaboliteSeriesReading:
             runs, {0.035: refs[0.035], 0.068: 0.3 * refs[0.035], 0.08: 0.1 * refs[0.035]},
             dwell_s, f0_mhz, header)
         assert "scale" in scaled.water.failed
+
+
+#**************************************************************************************************#
+#                                 Class TestDiffusionSeriesReading                                 #
+#**************************************************************************************************#
+class TestDiffusionSeriesReading:
+
+    def test_the_twins_own_series_gives_back_its_adc(self):
+        from mrsandbox import DiffusionGradient, Multiplex, Steam
+        from mrsandbox.params.values import Tissues
+
+        n, dwell_s = 1024, 1.0 / 3000.0
+        # the gradient response still too: the pair's eddy currents are the run's, not the ADC's
+        calm = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                      acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                       eddy_transient_rad=0.0), oov=dict(fraction=0.0),
+                      gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
+                                     linear_short=0.0, linear_long=0.0))
+        series = {b: Steam(0.045, 0.060, tr_s=5.0, diffusion=DiffusionGradient.weighting(
+            b, 0.015, 0.0825) if b else None) for b in (0.0, 1.0, 2.0, 4.0)}
+        pieces = (Brain.load("icbm152"), Scanner.preset("generic_3t"), series)
+        kw = dict(position_mm=(0.0, -20.0, 20.0), size_mm=20.0)
+        twin = Multiplex(*pieces, params=calm)
+        voxels = {b: twin.scans[b].voxel(**kw) for b in series}
+        truth = voxels[0.0].sample(0)
+        rng = np.random.default_rng(0)
+
+        def data(truth):
+            # a scanner's carrier sits on water; the package's FIDs are referenced to 0 ppm
+            runs = {}
+            for b, voxel in voxels.items():
+                fid = np.asarray(voxel._clean_fid(truth, n, dwell_s)[1]) * np.exp(
+                    -2j * np.pi * 4.65 * voxel._f0_mhz() * np.arange(n) * dwell_s)
+                runs[b] = (fid + 2e-4 * np.abs(fid).max() * (
+                    rng.standard_normal(n) + 1j * rng.standard_normal(n)))[:, None, None]
+            return runs
+
+        f0_mhz, header = voxels[0.0]._f0_mhz(), {"Manufacturer": "generic"}
+        reading = DiffusionSeriesReading.from_arrays(data(truth), dwell_s, f0_mhz, header)
+        assert reading.b_ms_um2 == (0.0, 1.0, 2.0, 4.0)
+        assert all(reading.ratios[name][0] == 1.0 and reading.ratios[name][-1] < 0.8
+                   for name in ("NAA", "Cr"))
+        # the draw the data were made with is read back, creatine and phosphocreatine together
+        adc = reading.adc_um2_ms(voxels, seeds=1)
+        assert set(adc) == {"NAA", "Cr", "PCr"}
+        for leaf in adc:
+            assert adc[leaf].wm == pytest.approx(truth.diffusion.adc[leaf].wm, rel=0.03)
+        # a subject whose NAA diffuses half again as fast reads so, the rest of the twin held
+        faster = voxels[0.0].sample(0)
+        dict.__setitem__(faster.diffusion.adc, "NAA",
+                         Tissues(*(1.5 * value for value in truth.diffusion.adc["NAA"])))
+        quick = DiffusionSeriesReading.from_arrays(data(faster), dwell_s, f0_mhz,
+                                                   header).adc_um2_ms(voxels, seeds=1)
+        assert quick["NAA"].wm == pytest.approx(1.5 * truth.diffusion.adc["NAA"].wm, rel=0.1)
+        assert quick["Cr"].wm == pytest.approx(truth.diffusion.adc["Cr"].wm, rel=0.1)
+        records = reading.records(voxels, "the twin", seeds=1)
+        assert [r.leaf for r in records] == [
+            f"diffusion.adc.{leaf}.{tissue}" for leaf in ("NAA", "Cr", "PCr")
+            for tissue in ("gm", "wm")]
+        assert records[1].value == pytest.approx(adc["NAA"].wm, abs=1e-4)
+        assert records[0].carried_by == "subject" and not records[0].failed
+        assert records[0].measured["b_ms_um2"] == (0.0, 1.0, 2.0, 4.0)
 
 
 #**************************************************************************************************#

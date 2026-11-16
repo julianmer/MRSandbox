@@ -69,3 +69,47 @@ DEELCHAND_2018 = {
     "members": {"tNAA": ("NAA", "NAAG"), "tCr": ("Cr", "PCr"), "tCho": ("GPC", "PCho", "Cho"),
                 "Glu": ("Glu",), "mIns": ("Ins",)},
 }
+
+#********************#
+#   water kurtosis   #
+#********************#
+# Source: Latt, J., Nilsson, M., Wirestam, R., Stahlberg, F., Karlsson, N., Johansson, M.,
+#         Sundgren, P. C., van Westen, D. Regional values of diffusional kurtosis estimates in
+#         the healthy brain. Journal of Magnetic Resonance Imaging 37 (2013) 610-618, doi
+#         10.1002/jmri.23857, Table 1: 36 volunteers of 19 to 64 years at 3 T, 26 structures.
+# Units:  (mean, sd between subjects): the mean kurtosis (no unit) and the mean diffusivity in
+#         um^2/ms.
+# Notes:  the table's radial values, anisotropy and age correlations are not typed. "pooled" is
+#         the text's average of the mean kurtosis over all white and all grey structures at 20
+#         and at 60 years (the grey ones are the deep nuclei: the table has no cortex).
+LATT_2013 = {
+    "regions": {
+        "External capsule": {"mk": (0.81, 0.05), "md": (0.9, 0.05)},
+        "ALIC": {"mk": (1.04, 0.1), "md": (0.87, 0.05)},
+        "PLIC": {"mk": (1.23, 0.09), "md": (0.89, 0.09)},
+        "CC, body": {"mk": (1.17, 0.07), "md": (0.92, 0.07)},
+        "CC, genu": {"mk": (1.06, 0.11), "md": (0.93, 0.06)},
+        "CC, splenium": {"mk": (1.32, 0.09), "md": (0.89, 0.09)},
+        "Centrum semiovale": {"mk": (1.09, 0.04), "md": (0.8, 0.04)},
+        "Cingulate, body": {"mk": (1.07, 0.07), "md": (0.86, 0.07)},
+        "Cingulate, temporal": {"mk": (0.85, 0.08), "md": (0.92, 0.12)},
+        "Corona radiata": {"mk": (1.09, 0.04), "md": (0.84, 0.05)},
+        "CST, cerebral crus": {"mk": (1.23, 0.07), "md": (0.88, 0.08)},
+        "IFO, anterior basal": {"mk": (0.86, 0.07), "md": (0.89, 0.05)},
+        "ILF, posterior": {"mk": (0.96, 0.06), "md": (0.9, 0.06)},
+        "SLF, posterior": {"mk": (1.11, 0.04), "md": (0.83, 0.04)},
+        "Frontal sWM": {"mk": (0.94, 0.05), "md": (0.91, 0.05)},
+        "Parietal sWM": {"mk": (1.0, 0.05), "md": (0.86, 0.06)},
+        "Temporal sWM": {"mk": (0.96, 0.07), "md": (0.88, 0.08)},
+        "Caudate head": {"mk": (0.61, 0.08), "md": (0.87, 0.05)},
+        "Globus pallidus": {"mk": (1.06, 0.08), "md": (0.86, 0.08)},
+        "Putamen": {"mk": (0.67, 0.08), "md": (0.79, 0.03)},
+        "Thalamus": {"mk": (0.86, 0.07), "md": (0.87, 0.1)},
+        "IC, gradient 1": {"mk": (0.89, 0.1), "md": (0.85, 0.06)},
+        "IC, gradient 2": {"mk": (1.05, 0.12), "md": (0.9, 0.07)},
+        "IC, gradient 3": {"mk": (1.1, 0.1), "md": (0.92, 0.09)},
+        "IC, gradient 4": {"mk": (1.21, 0.09), "md": (0.91, 0.12)},
+        "IC, gradient 5": {"mk": (1.21, 0.11), "md": (0.87, 0.08)},
+    },
+    "pooled": {"wm": (1.08, 1.02), "gm": (0.83, 0.76)},
+}

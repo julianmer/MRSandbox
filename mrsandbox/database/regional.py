@@ -9,8 +9,9 @@
 # Purpose: Metabolite concentrations by brain region, one dict per source, the values as published #
 #          under the papers' own region and metabolite names, with the citation beside each. Each  #
 #          source says which of the package's regions (phantom.regions) its rows stand for and in  #
-#          which tissue (None for a nucleus, all of it), its reference rows and the metabolites it #
-#          quantifies; how the regions become factors is code (params.Priors.regional).            #
+#          which tissue (None for a nucleus, all of it), its reference rows (or the row and region #
+#          it is anchored on, where it has none) and the metabolites it quantifies; how the        #
+#          regions become factors is code (params.Priors.regional).                                #
 #                                                                                                  #
 ####################################################################################################
 
@@ -189,6 +190,56 @@ HANGEL_2021 = {
     "quantified": ("tCho", "tCr", "Glu", "mIns", "NAA"),
 }
 
+#********************#
+#   deelchand 2015   #
+#********************#
+# Source: Deelchand, D. K., Adanyeguh, I. M., Emir, U. E., Nguyen, T.-M., Valabregue, R., Henry,
+#         P.-G., Mochel, F., Oz, G. Two-site reproducibility of cerebellar and brainstem
+#         neurochemical profiles with short-echo, single-voxel MRS at 3T. Magnetic Resonance in
+#         Medicine 73 (2015) 1718-1725, doi 10.1002/mrm.25295, Table 2: semi-LASER (TE 28 ms, TR
+#         5 s) on two Siemens Tim Trio scanners, the vermis (10 x 25 x 25 mm) in 24 and 33 and the
+#         pons (16 mm cube) in 16 and 23 healthy volunteers at CMRR and ICM, LCModel with water
+#         scaling.
+# Units:  (mean, sd between subjects) in umol per g.
+# Notes:  the table's cells left empty in the pons (Tau, Gln, Lac, GABA) are not typed. The
+#         pons stands for the brainstem, from the site with more subjects. The study has no
+#         cortex of its own, so it has no reference: its pons counts relative to its vermis
+#         (`anchor`), and the vermis's level comes from the studies that have both; `quantified`
+#         names the pons's rows whose vermis another study gives.
+DEELCHAND_2015 = {
+    "values": {
+        "Vermis, CMRR": {
+            "tCr": (10.1, 0.7), "tNAA": (9.1, 0.5), "NAA": (8.6, 0.5), "Ins": (7.1, 0.6),
+            "tCho": (2.5, 0.2), "Glu": (7.2, 0.9), "Glc+Tau": (4.5, 0.5), "GSH": (1.6, 0.3),
+            "sIns": (0.5, 0.2), "Tau": (2.4, 0.4), "Glc": (2.1, 0.6), "Gln": (2.5, 0.6),
+            "Asc": (2.0, 0.5), "Lac": (1.0, 0.3), "Asp": (2.3, 0.4), "GABA": (1.8, 0.5),
+            "NAAG": (0.6, 0.1)
+        },
+        "Vermis, ICM": {
+            "tCr": (9.9, 1.1), "tNAA": (8.9, 0.5), "NAA": (8.2, 0.5), "Ins": (7.2, 0.6),
+            "tCho": (2.5, 0.1), "Glu": (7.3, 0.7), "Glc+Tau": (4.8, 0.8), "GSH": (1.7, 0.3),
+            "sIns": (0.4, 0.2), "Tau": (2.5, 0.4), "Glc": (2.4, 0.7), "Gln": (2.5, 0.6),
+            "Asc": (1.8, 0.4), "Lac": (0.8, 0.4), "Asp": (2.2, 0.5), "GABA": (1.7, 0.6),
+            "NAAG": (0.7, 0.2)
+        },
+        "Pons, CMRR": {
+            "tCr": (5.1, 0.3), "tNAA": (10.3, 0.5), "NAA": (8.4, 0.6), "Ins": (6.4, 0.6),
+            "tCho": (2.7, 0.3), "Glu": (4.4, 0.9), "Glc+Tau": (1.9, 0.5), "GSH": (0.9, 0.2),
+            "sIns": (0.5, 0.2), "Glc": (1.5, 0.5), "Asc": (2.0, 0.5), "Asp": (2.1, 0.4),
+            "NAAG": (1.9, 0.4)
+        },
+        "Pons, ICM": {
+            "tCr": (5.1, 0.6), "tNAA": (10.3, 0.6), "NAA": (8.6, 0.7), "Ins": (6.5, 0.6),
+            "tCho": (2.7, 0.3), "Glu": (4.5, 0.7), "Glc+Tau": (2.3, 0.6), "GSH": (1.0, 0.2),
+            "sIns": (0.5, 0.2), "Glc": (1.6, 0.6), "Asc": (1.7, 0.3), "Asp": (2.2, 0.5),
+            "NAAG": (1.9, 0.4)
+        },
+    },
+    "stands_for": {"Pons, ICM": (("brainstem",), None)},
+    "anchor": ("Vermis, ICM", "vermis"),
+    "quantified": ("tCr", "NAA", "Ins", "tCho", "Glu", "NAAG"),
+}
+
 #******************#
 #   pouwels 1998   #
 #******************#
@@ -268,7 +319,7 @@ POUWELS_1998 = {
 #   sources   #
 #*************#
 # newest first: where several give a region, the newest holds it
-STUDIES = (WRIGHT_2024, HANGEL_2021, POUWELS_1998)
+STUDIES = (WRIGHT_2024, HANGEL_2021, DEELCHAND_2015, POUWELS_1998)
 
 # the papers' metabolite names as the package's: a total lends its pattern to its constituents
 NAMES = {"NAA": ("NAA",), "NAAG": ("NAAG",), "tCr": ("Cr", "PCr"), "tCho": ("GPC", "PCho"),

@@ -23,7 +23,7 @@ from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database import fmrs as functional
 from mrsandbox.database.macromolecules import CONSENSUS_T1
-from mrsandbox.database.tissue import DEELCHAND_2018
+from mrsandbox.database.tissue import DEELCHAND_2018, LATT_2013
 from mrsandbox.database.transfer import CREATINE_METHYL_RATE_HZ, NO_TRANSFER, STANISZ_2005_3T
 from mrsandbox.database.gudmundson import PooledValue
 from mrsandbox.database.relaxation import (BOUDREAU, R2_PRIME_3T, WATER, WATER_FIELDS,
@@ -408,6 +408,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     #     Arrhenius line through Holz, Heil and Sacco 2000 (PCCP 2:4740: 2.895 at
     #     35 C, 3.222 at 40 C), which the crushers of an editing design fade as the
     #     water references of Big GABA's Philips series fade.
+    #   water_kurtosis: the tissue water's departure from one exponential above b of
+    #     1 ms/um^2 (the voxel's decay law takes it): the mean kurtosis pooled over the
+    #     white and over the grey structures of Latt et al. 2013 (database.tissue
+    #     LATT_2013), midway between their 20 and 60 years; free water has none.
     #   radius_um: the fibres' radius across which a metabolite is restricted
     #     (sequences.diffusion attenuation, the consensus minimal model in full): 0
     #     plays the sticks the consensus recommends where the acquisition cannot
@@ -420,6 +424,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
         adc={name: PerTissue(gm=0.10 * _adc_ratio(name), wm=0.15 * _adc_ratio(name),
                              csf=0.10 * _adc_ratio(name)) for name in names},
         water=PerTissue(gm=0.75, wm=0.75, csf=3.0),
+        water_kurtosis=PerTissue(gm=sum(LATT_2013["pooled"]["gm"]) / 2.0,
+                                 wm=sum(LATT_2013["pooled"]["wm"]) / 2.0, csf=0.0),
         mm=(0.005, 0.01),
         lipids=0.0))
     # contrast: the GM to WM concentration ratio per metabolite, typed from the

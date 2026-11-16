@@ -193,6 +193,8 @@ IDEALS = {
     "eddy currents": {"acquisition.eddy_std_rad": 0.0, "acquisition.eddy_transient_rad": 0.0},
     # the levels even within a region (scan.voxel texture)
     "regional texture": {"texture.sd": 0.0},
+    # the tissue water fading as one exponential over b
+    "water's diffusion kurtosis": {"diffusion.water_kurtosis": 0.0},
     "spurious echoes": {"spurious.amplitude": 0.0},
     # no bound pool: the saturation pulses take nothing through it (phantom.transfer)
     "magnetization transfer": {"mt.pool_fraction": 0.0},

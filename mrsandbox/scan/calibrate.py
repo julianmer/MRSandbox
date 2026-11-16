@@ -9,8 +9,9 @@
 # Purpose: A scanner's own data in, a calibration record out: the single-transient NAA signal to   #
 #          noise ratio off raw data and the noise level of the virtual scan that reproduces it,    #
 #          the noise covariance of a receive array's channels, the tissue water's T2 off a series  #
-#          of water references over the echo time, and the macromolecules' level off the 0.9 ppm   #
-#          peak of a short-echo run (scan.calibrations).                                           #
+#          of water references over the echo time, a metabolite's diffusivity off a series over    #
+#          the b-value, and the macromolecules' level off the 0.9 ppm peak of a short-echo run     #
+#          (scan.calibrations).                                                                    #
 #                                                                                                  #
 ####################################################################################################
 
@@ -1094,6 +1095,209 @@ class MetaboliteSeriesReading:
                     date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
                     presets=tuple(presets), failed=failed,
                     note="one subject's series; made by scan.calibrate"))
+        return tuple(found)
+
+
+#**************************************************************************************************#
+#                                   Class DiffusionSeriesReading                                   #
+#**************************************************************************************************#
+#                                                                                                  #
+# A metabolite's diffusivity read off its area over a series of b-values, through the twin.        #
+#                                                                                                  #
+#**************************************************************************************************#
+@dataclasses.dataclass(frozen=True)
+class DiffusionSeriesReading:
+    """A metabolite's diffusivity read off its area in water-suppressed runs over the
+    b-value, through the twin.
+
+    Each run's transients are registered and averaged, and the line's area
+    (MetaboliteSeriesReading's lines: NAA's methyl, and creatine's at 3.03 ppm,
+    creatine's and phosphocreatine's together) is taken over that of the run at the
+    lowest b; the runs are one acquisition, so one scale. The area is the band's over
+    the straight line through its two ends: the residual water fades ten times faster
+    than a metabolite, and its tail under a level taken elsewhere would fall with it.
+    The ratios still fall with more than the line's own diffusion: the macromolecules
+    under it fade at their own rate, and the decay law is the twin's drawn model under
+    the designs' own gradients. A diffusion pair leaves eddy currents that phase the
+    readout and thin a band's area; a water reference per run, played with the same
+    gradients, takes them off the data. So the ADC is
+    the value at which the twin's ratios, the same statistic through the same designs,
+    fall as the data's (`adc_um2_ms`): the factor on the drawn ADC of every tissue
+    fitted on the logarithms, the median over draws. Directions are runs of their own:
+    the twin's fibres are a uniform powder, so the fit takes their mean. The twin's
+    gradient response is to be held still (the gradients leaves at zero): the eddy
+    currents of a diffusion pair phase and dephase the lines too, and are the run's own,
+    not the ADC's. The reading refuses where no ADC within BOUNDS of the drawn makes the
+    twin fall as the data.
+
+    Args:
+        b_ms_um2: The b-values in ms per um^2, ascending.
+        ratios: {line: the area at each b over that at the first}.
+    """
+
+    LINES = MetaboliteSeriesReading.LINES
+    BOUNDS = (0.3, 3.0)
+
+    b_ms_um2: tuple
+    ratios: dict
+    transients: tuple
+    npoints: int
+    coils: int
+    dwell_s: float
+    f0_mhz: float
+    header: dict
+
+    #*******************#
+    #   from a series   #
+    #*******************#
+    @classmethod
+    def from_arrays(cls, series, dwell_s, f0_mhz, header=None, references=None):
+        """Read {b in ms per um^2: (npoints, coils, transients)} suppressed runs of one
+        voxel, with `references` each run turned by its own water reference's phase
+        course, {b: (npoints, coils, transients)} played with the same gradients."""
+        b = tuple(sorted(series))
+        first = np.asarray(series[b[0]])
+        areas = []
+        for at in b:
+            run = _combined(series[at], like=first, dwell_s=dwell_s, f0_mhz=f0_mhz)
+            if references is not None:
+                # the water's phase over the readout is the field the gradients left (Klose
+                # 1990, Magn Reson Med 14:26): the transients summed from their own starts, the
+                # phase held where the water has fallen under a twentieth of its top
+                water = _combined(references[at], dwell_s=dwell_s, f0_mhz=f0_mhz)
+                water = (water * np.exp(-1j * np.angle(water[0]))).sum(axis=1)
+                phase = np.unwrap(np.angle(water))
+                last = np.flatnonzero(np.abs(water) > 0.05 * np.abs(water).max())[-1]
+                phase[last:] = phase[last]
+                run = run * np.exp(-1j * phase)[:, None]
+            areas.append(cls._areas(_registered(run, dwell_s, f0_mhz).mean(axis=1), dwell_s,
+                                    f0_mhz))
+        return cls(b_ms_um2=b,
+                   ratios={name: tuple(float(found[name] / areas[0][name]) for found in areas)
+                           for name in cls.LINES},
+                   transients=tuple(int(np.asarray(series[at]).shape[2]) for at in b),
+                   npoints=int(first.shape[0]), coils=int(first.shape[1]), dwell_s=float(dwell_s),
+                   f0_mhz=float(f0_mhz), header=dict(header or {}))
+
+    @classmethod
+    def _areas(cls, fid, dwell_s, f0_mhz):
+        """{line: its band's area over the straight line through the band's ends (the
+        mean of three points at each)} of one FID whose carrier sits on the water."""
+        ppm, real = _spectrum(fid, dwell_s, lambda hz: WATER_PPM + hz / f0_mhz)
+        found = {}
+        for name, (_, (low, high)) in cls.LINES.items():
+            band = real[(ppm > low) & (ppm < high)]
+            line = np.linspace(band[:3].mean(), band[-3:].mean(), band.size)
+            found[name] = float((band - line).sum() * (ppm[1] - ppm[0]))
+        return found
+
+    #**************#
+    #   the twin   #
+    #**************#
+    def factors(self, voxels, seeds=3):
+        """Per draw the factor on each line's drawn ADC at which the twin's ratios fall as
+        the data's: {b: scan.Voxel} of the suppressed twin at the data's voxel, one design
+        per b-value; returns ({line: [factor per seed]}, {leaf: [drawn ADC per seed, a
+        Tissues]})."""
+        if tuple(sorted(voxels)) != self.b_ms_um2:
+            raise ValueError(f"the twin's b-values {sorted(voxels)} are not the series' "
+                             f"{self.b_ms_um2}")
+        ordered = [voxels[b] for b in self.b_ms_um2]
+        n, dwell_s = self.npoints, self.dwell_s
+        turn = np.exp(-2j * np.pi * WATER_PPM * ordered[0]._f0_mhz() * np.arange(n) * dwell_s)
+        found = {name: [] for name in self.LINES}
+        drawn = {leaf: [] for leaves, _ in self.LINES.values() for leaf in leaves}
+        for seed in range(seeds):
+            truth = ordered[0].sample(seed)
+            for name, (leaves, _) in self.LINES.items():
+                own = {leaf: truth.diffusion.adc[leaf] for leaf in leaves}
+
+                def misfit(factor):
+                    for leaf, adc in own.items():
+                        dict.__setitem__(truth.diffusion.adc, leaf,
+                                         Tissues(*(factor * value for value in adc)))
+                    areas = [self._areas(
+                        np.asarray(voxel._clean_fid(truth, n, dwell_s)[1]) * turn, dwell_s,
+                        voxel._f0_mhz())[name] for voxel in ordered]
+                    twin = np.log(np.array(areas))
+                    return float(np.sum((twin[1:] - twin[0] - np.log(self.ratios[name][1:])) ** 2))
+
+                factor = scipy.optimize.minimize_scalar(misfit, bounds=self.BOUNDS,
+                                                        method="bounded").x
+                for leaf, adc in own.items():
+                    dict.__setitem__(truth.diffusion.adc, leaf, adc)
+                    drawn[leaf].append(adc)
+                found[name].append(float(factor))
+        return found, drawn
+
+    def adc_um2_ms(self, voxels, seeds=3):
+        """{leaf: the ADC as a Tissues record, um^2 per ms} of diffusion.adc.NAA, .Cr and
+        .PCr: per draw the drawn ADC times the fitted factor, the median over `seeds`."""
+        factors, drawn = self.factors(voxels, seeds)
+        return {leaf: Tissues(*(float(v) for v in np.median(
+                    [[f * value for value in adc] for f, adc in zip(factors[name], drawn[leaf])],
+                    axis=0)))
+                for name, (leaves, _) in self.LINES.items() for leaf in leaves}
+
+    #*************#
+    #   records   #
+    #*************#
+    def records(self, voxels, dataset, presets=(), citation=None, url=None, seeds=3):
+        """The Calibrations of diffusion.adc.NAA, .Cr and .PCr in grey and white matter, the
+        twin's reading of this series, the prior a quarter either side; carried by the
+        subject; failed by the stated rule."""
+        factors, drawn = self.factors(voxels, seeds)
+        voxel = voxels[self.b_ms_um2[0]]
+        designs = sorted({type(v.scan.sequence).__name__ for v in voxels.values()})
+        low, high = self.BOUNDS
+        at_bound = [name for name, values in factors.items()
+                    if not low * 1.01 < float(np.median(values)) < high / 1.01]
+        failed = "" if not at_bound else (
+            f"no ADC between {low} and {high} of the drawn makes the twin's "
+            f"{' and '.join(at_bound)} fall as the data's: not diffusion")
+        found = []
+        for name, (leaves, _) in self.LINES.items():
+            for leaf in leaves:
+                adc = np.median([[f * value for value in tissues]
+                                 for f, tissues in zip(factors[name], drawn[leaf])], axis=0)
+                for tissue, value in (("gm", float(adc[0])), ("wm", float(adc[1]))):
+                    found.append(Calibration(
+                        leaf=f"diffusion.adc.{leaf}.{tissue}", value=float(round(value, 4)),
+                        prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
+                        measured={"statistic": f"the {name} area at each b over that at the "
+                                               "lowest; the ADC at which the twin's ratios fall "
+                                               "as the data's, the drawn tissues scaled together "
+                                               "(scan.calibrate.DiffusionSeriesReading)",
+                                  "b_ms_um2": tuple(round(b, 4) for b in self.b_ms_um2),
+                                  "ratios": tuple(round(r, 4) for r in self.ratios[name]),
+                                  "factor": round(float(np.median(factors[name])), 3),
+                                  "model": str(voxel.scan.params.diffusion.model)},
+                        source={"dataset": dataset, "citation": citation, "url": url},
+                        scanner={"vendor": str(self.header.get("Manufacturer", "")).lower()
+                                 or None,
+                                 "model": self.header.get("ManufacturersModelName"),
+                                 "software": self.header.get("SoftwareVersions"),
+                                 "field_t": round(self.f0_mhz / 42.5774785, 2)},
+                        coil={"channels": (self.coils,),
+                              "name": self.header.get("ReceiveCoilName")},
+                        sequence={"name": self.header.get("SequenceName") or "/".join(designs),
+                                  "family": "/".join(designs),
+                                  "te_s": self.header.get("EchoTime"),
+                                  "tr_s": self.header.get("RepetitionTime"),
+                                  "simulated_as": "/".join(designs)},
+                        acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
+                                     "transients": self.transients, "water_suppressed": True},
+                        voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                               "simulated_position_mm": tuple(voxel.position_mm),
+                               "fractions": tuple(round(float(f), 3) for f in voxel.fractions)},
+                        processing="each run's transients registered and averaged, the spectrum "
+                                   "phased on NAA, 2 Hz apodization, fourfold zero filled, the "
+                                   "band's area over the line through its ends, over the lowest "
+                                   "b's; the twin's clean spectrum read the same way through the "
+                                   "same designs at the voxel's own tissue fractions",
+                        date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
+                        presets=tuple(presets), failed=failed,
+                        note="one subject's series; made by scan.calibrate"))
         return tuple(found)
 
 

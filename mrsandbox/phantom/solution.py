@@ -215,7 +215,9 @@ class Phantom(Brain):
             t1={name: leaf(per("t1_s", name), self.T1_S) for name in names},
             t2={name: leaf(per("t2_s", name), self.T2_S) for name in names},
             contrast={name: 1.0 for name in names},
-            diffusion=dict(adc={name: adc[name] if name in adc else adc.NAA for name in names}),
+            # a solution's water diffuses freely: no kurtosis
+            diffusion=dict(adc={name: adc[name] if name in adc else adc.NAA for name in names},
+                           water_kurtosis=0.0),
             water=dict(t1_s=leaf(lambda h: h.water_t1_s, None),
                        t2_s=leaf(lambda h: h.water_t2_s, None)),
             lineshape=dict(gauss_hz=0.0),

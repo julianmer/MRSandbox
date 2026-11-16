@@ -380,10 +380,22 @@ class TestAttenuation:
         csf_only, _ = peak(PerTissue(0.0, 0.0, 3.0))
         law = (share["gm"] + share["wm"] + share["csf"] * math.exp(-b * 3.0)) / sum(share.values())
         assert abs(csf_only / still - law) < 1e-3 * law
+        # the tissues' water takes the kurtosis term too (Latt et al.'s pooled 0.795 and 1.05),
+        # the free CSF none
         drawn, voxel = peak(VirtualScan.default_params().diffusion.water)
-        adc = voxel.sample(seed=7).diffusion.water
-        law = sum(share[t] * math.exp(-b * getattr(adc, t)) for t in share) / sum(share.values())
+        truth = voxel.sample(seed=7).diffusion
+        adc, k = truth.water, truth.water_kurtosis
+        assert (k.gm, k.wm, k.csf) == pytest.approx((0.795, 1.05, 0.0))
+        law = sum(share[t] * math.exp(-b * getattr(adc, t) + (b * getattr(adc, t)) ** 2
+                                      * getattr(k, t) / 6.0) for t in share) / sum(share.values())
         assert abs(drawn / still - law) < 1e-3 * law
+        # past its turn at b ADC = 3 / K the expansion is held: white matter keeps exp(-1.5 / K)
+        fade = voxel._diffusion_factor(voxel.sample(seed=7))
+        held = VirtualScan(brain, Scanner.preset("generic_3t"), Sequence(
+            Pulse(90.0), CoherenceFilter(-1, 3.0 * K), Delay(DELTA), CoherenceFilter(-1, -3.0 * K),
+            Delay(0.005)), **sources).voxel(**kw)._diffusion_factor(voxel.sample(seed=7))
+        assert fade(0.75, kurtosis=0.0) == pytest.approx(math.exp(-b * 0.75))
+        assert held(0.75, kurtosis=1.05) == pytest.approx(math.exp(-1.5 / 1.05))
 
     #*************************#
     #   per metabolite adcs   #

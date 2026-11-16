@@ -370,12 +370,12 @@ class Voxel:
         if water is None:
             return None
         transferred = self.transfer(truth).get("water", 1.0)
-        adc = truth.diffusion.water
         # the water line moves with the temperature (the sequence saw it there, `water_shift_hz`)
         shift = np.float32(self.water_shift_hz(truth))
+        of = lambda leaf, part: getattr(leaf, part) if part and isinstance(leaf, Tissues) else leaf
         return [((w_freqs - shift,
-                  w_amps * np.complex64(faded(getattr(adc, part) if part and isinstance(adc, Tissues)
-                                              else adc) * transferred),
+                  w_amps * np.complex64(faded(of(truth.diffusion.water, part), kurtosis=of(
+                      truth.diffusion.water_kurtosis, part)) * transferred),
                   1.0 / (np.pi * t2_s), 0.0), part) for w_freqs, w_amps, t2_s, part in water]
 
     def _grouped(self, truth, metabolites=True):
@@ -637,14 +637,21 @@ class Voxel:
         sticks). The leaf stays the low-b ADC, which is D / 3 for uniformly oriented
         sticks (the consensus's own identity), so the ADC tables and every b = 0 or
         low-b result keep their meaning and D = 3 ADC; a radius adds the restricted
-        decay across the fibres on top (stated).
+        decay across the fibres on top (stated). With a `kurtosis` K the Gaussian form
+        takes the next term of its cumulant expansion, exp(-b ADC + (b ADC)^2 K / 6)
+        (Jensen et al. 2005, Magn Reson Med 53:1432), which is the tissue water's above
+        b of 1 ms/um^2; the expansion turns at b ADC = 3 / K and is held there (stated).
         """
         b = self.scan.b_value_ms_um2
 
-        def faded(adc, sticks=False):
+        def faded(adc, sticks=False, kurtosis=0.0):
             if b == 0.0:
                 return 1.0
             x = b * self.resolve(adc)
+            k = self.resolve(kurtosis)
+            if k > 0.0 and not sticks:
+                x = min(x, 3.0 / k)
+                return float(np.exp(-x + x * x * k / 6.0))
             if not sticks or x <= 0.0:
                 return float(np.exp(-x))
             return attenuation(self.scan.sequence, 3.0 * self.resolve(adc),

@@ -81,6 +81,21 @@ class TestRegions:
         assert brain.regions is None and brain.parts((0.0, 0.0, 0.0), 4.0) == {}
         assert halves().parts((500.0, 0.0, 0.0), 4.0) == {}
 
+    #*******************#
+    #   the brainstem   #
+    #*******************#
+    def test_the_brainstem_is_the_pons_over_the_vermis_times_the_vermis(self):
+        # Deelchand et al. give a pons and a vermis and no cortex: the pons's total creatine over
+        # their vermis's, times Pouwels and Frahm's vermis over the mean of their lobes
+        from mrsandbox.params import Priors
+
+        names = ("Cr", "GSH")
+        levels = Priors.regional(names, dict.fromkeys(names, 1.0))
+        lobes = (np.mean([6.4, 6.5, 6.9]) + np.mean([5.7, 5.7, 5.5])) / 2.0
+        assert levels.Cr["brainstem"].gm.value == pytest.approx(5.1 / 9.9 * 9.0 / lobes)
+        # a metabolite whose vermis no study gives stays at its tissue's level
+        assert "GSH" not in levels or "brainstem" not in levels.GSH
+
     #*************#
     #   atlases   #
     #*************#
