@@ -127,6 +127,7 @@ class TestApp:
                 user.find(marker="protocol STEAM").click()
                 await user.should_see("b-value (ms/µm²)")
                 await user.should_see("diffusion gradient (ms)")
+                await user.should_see("b-value series")
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
                 # real pulses are the default: the displaced voxels in words

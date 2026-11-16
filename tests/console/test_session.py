@@ -584,6 +584,30 @@ class TestSession:
         faded = voxel._diffusion_factor(truth)(truth.diffusion.adc["NAA"], True)
         assert abs(faded - closed) < 1e-4 * closed and 0.6 < faded < 0.7
 
+    def test_a_series_of_b_values_is_one_exam_of_a_sub_experiment_each(self):
+        # the card's series: every b-value a sub-experiment in turn over the averages, the card's
+        # own design the strongest (what the scanner has to play), the water reference the same
+        # series, and NAA's line lower at every further b-value
+        from mrsandbox.sequences.diffusion import b_value_ms_um2
+
+        session = Session(ICBM)
+        card = session.protocol
+        card.sequence, card.real, card.te_ms, card.tm_ms = "STEAM", False, 40.0, 50.0
+        card.b_series, card.averages, card.npoints = "0, 1.5, 3", 6, 1024
+        session.overrides["noise.sigma"] = 0.0
+        own = b_value_ms_um2(session.sequence(dataclasses.replace(card, b_series="")))
+        assert abs(b_value_ms_um2(session.sequence()) - own - 3.0) < 2e-3
+        exam = session.plan()
+        reference, exam = session.queue
+        assert list(exam.conditions) == list(reference.conditions) == ["b 0", "b 1.5", "b 3"]
+        assert all(abs(b_value_ms_um2(design) - own - b) < 2e-3
+                   for design, b in zip(exam.conditions.values(), (0.0, 1.5, 3.0)))
+        session.run(exam, seed=5)
+        assert exam.schedule == ["b 0", "b 1.5", "b 3"] * 2
+        naa = (exam.ppm > 1.9) & (exam.ppm < 2.1)
+        tops = [exam.spectra[name][naa].max() for name in exam.conditions]
+        assert tops[0] > 1.2 * tops[1] > 1.2 * tops[2] > 0.0
+
     def test_an_own_design_of_two_sub_acquisitions_is_multiplexed_as_its_weights_say(self):
         from mrsandbox.console.session import BLOCKS, TEMPLATES
 

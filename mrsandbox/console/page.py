@@ -4127,6 +4127,20 @@ async def console(client: Client, loading):
                                                                     card, attribute).props(
                                                                     "dense outlined dark").classes(
                                                                     "w-full").tooltip(tip)
+                                                            ui.input(
+                                                                "b-value series",
+                                                                placeholder="0, 1, 2, 4",
+                                                                on_change=changed(
+                                                                    "b_series", "card")
+                                                            ).bind_value(card, "b_series").props(
+                                                                "dense outlined dark stack-label"
+                                                            ).classes(
+                                                                "w-full").tooltip(
+                                                                "b-values in ms/µm², separated "
+                                                                "by commas, "
+                                                                "played in turn over the "
+                                                                "averages; empty plays the one "
+                                                                "b-value above")
                                                     for attribute, caption, step in fields:
                                                         ui.number(
                                                             caption, value=getattr(card, attribute),

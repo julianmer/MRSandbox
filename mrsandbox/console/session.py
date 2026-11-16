@@ -21,6 +21,7 @@ import dataclasses
 import functools
 import json
 import pathlib
+import re
 import time
 
 import numpy as np
@@ -101,10 +102,11 @@ PLACE = (0.0, -45.0, 35.0)
 #   weighting   #
 #***************#
 def weighting(card):
-    """A STEAM card's diffusion pair, at the start of both echo halves: none at b = 0."""
+    """A STEAM card's diffusion pair, at the start of both echo halves: none at b = 0; of a
+    series the strongest, the one the scanner has to play."""
+    b = max(card.b_values)
     return DiffusionGradient.weighting(
-        card.b_ms_um2, card.delta_ms / 1000.0,
-        (card.te_ms / 2.0 + card.tm_ms) / 1000.0) if card.b_ms_um2 else None
+        b, card.delta_ms / 1000.0, (card.te_ms / 2.0 + card.tm_ms) / 1000.0) if b else None
 
 
 #***************#
@@ -512,9 +514,11 @@ class Protocol:
     edit_on_ppm: float = 1.88
     edit_off_ppm: float = 7.5
     # STEAM's mixing time, and its diffusion pair: the b-value (none at 0) and the duration of each
-    # gradient, the two half an echo time and the mixing time apart
+    # gradient, the two half an echo time and the mixing time apart; a series of b-values, typed
+    # with commas, plays every one in turn over the averages
     tm_ms: float = 10.0
     b_ms_um2: float = 0.0
+    b_series: str = ""
     delta_ms: float = 15.0
     # a spectroscopic image's encoding (scan.mrsi): how finely the subject is rendered under each
     # cell (1: ideal boxes, no bleed between cells), the k-space weighting and coverage, the slab's
@@ -529,6 +533,12 @@ class Protocol:
     rest_s: float = 120.0
     task_s: float = 120.0
     cycles: int = 3
+
+    @property
+    def b_values(self):
+        """The b-values the card plays, ms/um^2: its series, or its one b-value."""
+        return (tuple(float(b) for b in re.findall(r"\d+\.?\d*", self.b_series))
+                or (self.b_ms_um2,))
 
     @property
     def scan_time_s(self):
@@ -2325,6 +2335,14 @@ class Session:
             conditions = {name: prelude + design for name, design in conditions.items()}
         return conditions
 
+    def series(self, card):
+        """The sub-experiments of a STEAM card with a series of b-values, {"b <value>": design},
+        one per b-value; empty for any other card."""
+        if card.sequence != "STEAM" or len(card.b_values) < 2:
+            return {}
+        return {f"b {b:g}": self.sequence(dataclasses.replace(card, b_ms_um2=b, b_series=""))
+                for b in card.b_values}
+
     def diagram(self, sequence=None, readout_ms=12.0, preludes=None):
         """A design as a pulse sequence diagram, times in ms: {"rf": [(t, height)] a trace
         of the shaped pulses' envelopes (a real envelope keeps its lobes' signs), "bars":
@@ -2777,6 +2795,10 @@ class Session:
                                    for name, design in exam.conditions.items()}
             exam.combinations = self.combinations()
             exam.shown = next(iter(exam.combinations))
+        elif series := self.series(card):
+            # every b-value a sub-experiment of its own, the first the one shown
+            exam.conditions, exam.shown = series, next(iter(series))
+            exam.combinations = {exam.shown: {exam.shown: 1.0}}
         else:
             exam.conditions, exam.combinations = {"scan": exam.sequence}, {"scan": {"scan": 1.0}}
         if instead_of is not None:
@@ -2791,7 +2813,7 @@ class Session:
                 unsuppressed = (self.editing(bare) if card.sequence in EDITING else
                                 {name: self.own(card.tr_ms / 1000.0, name) for name in self.designs}
                                 if card.sequence == "Custom" and len(self.designs) > 1
-                                else {"scan": self.sequence(bare)})
+                                else self.series(bare) or {"scan": self.sequence(bare)})
                 # a reference of several conditions plays each of them at least once
                 bare = dataclasses.replace(bare, averages=max(bare.averages, len(unsuppressed)))
                 self.queue.append(dataclasses.replace(
