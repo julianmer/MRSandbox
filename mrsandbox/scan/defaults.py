@@ -23,7 +23,7 @@ from mrsandbox.database import Database, concentrations
 from mrsandbox.database.downfield import OZDEMIR
 from mrsandbox.database import fmrs as functional
 from mrsandbox.database.macromolecules import CONSENSUS_T1
-from mrsandbox.database.tissue import DEELCHAND_2018, LATT_2013
+from mrsandbox.database.tissue import DEELCHAND_2018, LATT_2013, LUNDELL_2021
 from mrsandbox.database.transfer import CREATINE_METHYL_RATE_HZ, NO_TRANSFER, STANISZ_2005_3T
 from mrsandbox.database.gudmundson import PooledValue
 from mrsandbox.database.relaxation import (BOUDREAU, R2_PRIME_3T, WATER, WATER_FIELDS,
@@ -393,13 +393,12 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     #     carry, stated), whose powder average is non-monoexponential above b of
     #     3 to 5 ms/um^2 as measured; "gaussian" is the monoexponential exp(-b ADC)
     #     representation. Water, lipids, and the macromolecules stay Gaussian.
-    #   adc: metabolites follow the human long-diffusion-time summary the
-    #     consensus defers to (Valette et al. 2018, Front Neurosci 12:2: about
-    #     0.10 in grey and 0.15 in white matter, weighted per voxel); under the
-    #     sticks model this low-b ADC is D_intra / 3 (consensus section 5.1), so
-    #     the intracellular diffusivity is 3 ADC, 0.3 to 0.45 um^2/ms, inside the
-    #     0.2 to 0.5 range the consensus simulates. The five major metabolites
-    #     scale both tissues by their measured ADC over the five's mean (Deelchand
+    #   adc: under the sticks model the low-b ADC is D_intra / 3 (consensus
+    #     section 5.1), and NAA's is its stick diffusivity measured in human
+    #     parietal white matter over three (Lundell et al. 2021, database.tissue
+    #     LUNDELL_2021: 0.58, an ADC of 0.193 um^2/ms); grey matter and the CSF take
+    #     the same (stated: no grey matter measurement is typed). The five major
+    #     metabolites scale by their measured ADC over the five's mean (Deelchand
     #     et al. 2018, database.tissue DEELCHAND_2018: Glu fastest at 1.17, mIns
     #     slowest at 0.86); the tissue contrast per metabolite is not measured, so
     #     one ratio serves grey and white matter, and the others stay at 1 (stated).
@@ -419,10 +418,11 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
     #     consensus simulates its model over 0.25 to 2 um (its Table 5), the
     #     range a dMRS design would draw from.
     #   mm: the consensus's own range. lipids: stated.
+    sticks_adc = LUNDELL_2021["stick"]["PWM"]["d_l"][0] / 3.0
     diffusion = Params(diffusion=dict(
         model="sticks", radius_um=0.0,
-        adc={name: PerTissue(gm=0.10 * _adc_ratio(name), wm=0.15 * _adc_ratio(name),
-                             csf=0.10 * _adc_ratio(name)) for name in names},
+        adc={name: PerTissue(*3 * (sticks_adc * _adc_ratio(name) / _adc_ratio("NAA"),))
+             for name in names},
         water=PerTissue(gm=0.75, wm=0.75, csf=3.0),
         water_kurtosis=PerTissue(gm=sum(LATT_2013["pooled"]["gm"]) / 2.0,
                                  wm=sum(LATT_2013["pooled"]["wm"]) / 2.0, csf=0.0),

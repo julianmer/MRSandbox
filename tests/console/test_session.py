@@ -582,7 +582,7 @@ class TestSession:
         x = 3.0 * voxel.resolve(truth.diffusion.adc["NAA"]) * voxel.scan.b_value_ms_um2
         closed = math.sqrt(math.pi / (4.0 * x)) * math.erf(math.sqrt(x))
         faded = voxel._diffusion_factor(truth)(truth.diffusion.adc["NAA"], True)
-        assert abs(faded - closed) < 1e-4 * closed and 0.7 < faded < 0.8
+        assert abs(faded - closed) < 1e-4 * closed and 0.6 < faded < 0.7
 
     def test_an_own_design_of_two_sub_acquisitions_is_multiplexed_as_its_weights_say(self):
         from mrsandbox.console.session import BLOCKS, TEMPLATES

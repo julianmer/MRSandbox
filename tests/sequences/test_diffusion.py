@@ -401,10 +401,12 @@ class TestAttenuation:
     #   per metabolite adcs   #
     #*************************#
     def test_the_major_metabolites_carry_their_measured_adc_ratios(self):
-        # Deelchand et al. 2018: tNAA 0.13, tCr 0.13, tCho 0.12, Glu 0.15, mIns 0.11
-        # over their mean 0.128 scale the tissue ADCs; a metabolite without a row keeps them
+        # NAA's is Lundell et al. 2021's stick diffusivity in parietal white matter over three,
+        # in every tissue; Deelchand et al. 2018's tNAA 0.13, tCr 0.13, tCho 0.12, Glu 0.15, mIns
+        # 0.11 scale the others to it; a metabolite without a row sits at the five's mean, 0.128
         adc = VirtualScan.default_params().sample(0).diffusion.adc
-        assert abs(adc["GABA"].gm - 0.10) < 1e-12 and abs(adc["GABA"].wm - 0.15) < 1e-12
+        assert adc["NAA"].wm == pytest.approx(0.58 / 3.0) and adc["NAA"].gm == adc["NAA"].wm
+        assert adc["GABA"].wm == pytest.approx(0.58 / 3.0 * 0.128 / 0.13)
         assert abs(adc["Glu"].gm / adc["Ins"].gm - 0.15 / 0.11) < 1e-9
         assert adc["NAA"].wm == adc["NAAG"].wm == adc["PCr"].wm
-        assert abs(adc["GPC"].wm - 0.15 * 0.12 / 0.128) < 1e-9
+        assert adc["GPC"].wm == pytest.approx(0.58 / 3.0 * 0.12 / 0.13)
