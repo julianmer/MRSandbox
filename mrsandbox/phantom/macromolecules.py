@@ -218,6 +218,8 @@ class MeasuredMM(MMSource):
     # nothing of a metabolite-nulled brain resonates outside BAND_PPM, so a component there is the
     # measurement's noise or its band's edge
     ORDER = 64
+    # the decompositions made so far, {(class, centre): (rates, amplitudes)}
+    DECOMPOSED = {}
     WIDEST_HZ = 300.0
     BAND_PPM = (-1.0, 10.0)
 
@@ -227,7 +229,6 @@ class MeasuredMM(MMSource):
     def __init__(self, center_ppm=4.7):
         self.center_ppm = center_ppm
         self._measured = None
-        self._decomposed = None
         self._t2_map = None
         self._repetition = None
         self._table = None
@@ -360,10 +361,12 @@ class MeasuredMM(MMSource):
         """The measured FID as damped complex exponentials in the file's own frame, (rates
         per second, complex amplitudes at t = 0), decomposed once: HSVD (Barkhuijsen et al.
         1987, J Magn Reson 73:553) of order ORDER over the whole FID, the components broader
-        than WIDEST_HZ or outside BAND_PPM dropped and the others' amplitudes fitted again.
+            than WIDEST_HZ or outside BAND_PPM dropped and the others' amplitudes fitted again.
         The file holds its first point halved, as an FFT wants it, so the point is doubled
-        before."""
-        if self._decomposed is None:
+        before. Every source of one kind and centre shares the decomposition (DECOMPOSED):
+        a loop that makes scan after scan pays for it once."""
+        key = (type(self), self.center_ppm)
+        if key not in self.DECOMPOSED:
             measured, sw_hz, sfrq_mhz = self._load()
             fid = measured.astype(np.complex128)
             fid[0] *= 2.0
@@ -378,8 +381,8 @@ class MeasuredMM(MMSource):
                           & (ppm > self.BAND_PPM[0]) & (ppm < self.BAND_PPM[1])]
             amps = np.linalg.lstsq(np.exp(np.outer(np.arange(fid.size) / sw_hz, rates)), fid,
                                    rcond=None)[0]
-            self._decomposed = (rates, amps)
-        return self._decomposed
+            self.DECOMPOSED[key] = (rates, amps)
+        return self.DECOMPOSED[key]
 
 
 #**************************************************************************************************#

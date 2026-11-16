@@ -206,6 +206,15 @@ class TestMeasured:
         _, without = spectra(level, mm=NoMM())
         return ppm, with_mm - without
 
+    #***********************#
+    #   one decomposition   #
+    #***********************#
+    def test_scans_made_one_after_another_decompose_the_shape_once(self):
+        # a loop's every new scan makes its own source: they share the one decomposition
+        first, second = MeasuredMM()._components(), MeasuredMM()._components()
+        assert first is second and len(first[0]) > 10
+        assert MeasuredMM(center_ppm=4.65)._components() is not first
+
     #*******************#
     #   peak fidelity   #
     #*******************#
