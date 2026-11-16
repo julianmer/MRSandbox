@@ -70,6 +70,26 @@ DEELCHAND_2018 = {
                 "Glu": ("Glu",), "mIns": ("Ins",)},
 }
 
+#*****************************#
+#   the sticks' diffusivity   #
+#*****************************#
+# Source: Lundell, H., Ingo, C., Dyrby, T. B., Ronen, I. Cytosolic diffusivity and microscopic
+#         anisotropy of N-acetyl aspartate in human white matter with diffusion-weighted MRS at
+#         7 T. NMR in Biomedicine 34 (2021) e4304, doi 10.1002/nbm.4304, Table 1: ten healthy
+#         participants, powder-averaged DW-sLASER in the corpus callosum (CC) and the parietal
+#         white matter (PWM), b up to 9.4 and 14.5 ms/um^2, gradients 59 and 65 ms apart.
+# Units:  (mean, sd) in um^2/ms; the microscopic anisotropy has none.
+# Notes:  tNAA. "tensor" is the paper's fit with a longitudinal and a transverse diffusivity,
+#         "stick" the one with the transverse at zero (randomly oriented sticks, the model the
+#         voxel's "sticks" plays); the table's p-values are not typed.
+LUNDELL_2021 = {
+    "tensor": {"CC": {"d_l": (0.51, 0.1), "d_t": (0.024, 0.01), "md": (0.19, 0.04),
+                      "ufa": (0.94, 0.05)},
+               "PWM": {"d_l": (0.50, 0.07), "d_t": (0.011, 0.01), "md": (0.17, 0.02),
+                       "ufa": (0.98, 0.03)}},
+    "stick": {"CC": {"d_l": (0.65, 0.1)}, "PWM": {"d_l": (0.58, 0.08)}},
+}
+
 #********************#
 #   water kurtosis   #
 #********************#
