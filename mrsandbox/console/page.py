@@ -59,7 +59,8 @@ CHOICES = {"shape": ["sinc", "gaussian", "hermite", "slr"], "slice_axis": ["none
 # units
 BLOCK_ICONS = {FIXED: "push_pin", "hard pulse": "bolt", "adiabatic pulse": "all_inclusive",
                "own pulse": "gesture", "shaped pulse": "waves", "delay": "hourglass_empty",
-               "crusher": "signal_cellular_alt", "coherence filter": "filter_alt",
+               "crusher": "signal_cellular_alt", "diffusion gradient": "blur_on",
+               "coherence filter": "filter_alt",
                "water suppression": "water_drop"}
 BLOCK_NOTES = {
     FIXED: "A block of the card's own sequence, as the card plays it. A pulse keeps the card's "
@@ -78,6 +79,9 @@ BLOCK_NOTES = {
              "pulse and crushed, as in STEAM's mixing time.",
     "crusher": "A gradient pulse that dephases what is transverse. A pair about a 180 keeps the "
                "echo and spoils the rest.",
+    "diffusion gradient": "A gradient pulse of a duration that weights by diffusion, in a pair "
+                          "the kept pathway rephases. The spins are left to the coherence "
+                          "filters; the pair counts toward the b-value with its duration.",
     "coherence filter": "An ideal crusher. It keeps the one coherence order given and removes "
                         "every other, without time; the dephasing it stands for counts toward "
                         "the diffusion weighting.",
@@ -4093,6 +4097,36 @@ async def console(client: Client, loading):
                                                                     card, attribute).props(
                                                                     "dense outlined dark").classes(
                                                                     "w-full")
+                                                    if tab == "Timing":
+                                                        # STEAM's mixing time and diffusion pair
+                                                        with ui.column().classes("w-full").style(
+                                                                "gap: 4px").bind_visibility_from(
+                                                                card, "sequence",
+                                                                backward=lambda name: (
+                                                                    name == "STEAM")):
+                                                            for attribute, caption, step, tip in (
+                                                                    ("tm_ms", "TM (ms)", 5.0,
+                                                                     "the mixing time"),
+                                                                    ("b_ms_um2",
+                                                                     "b-value (ms/µm²)", 0.5,
+                                                                     "diffusion weighting by a "
+                                                                     "gradient at the start of "
+                                                                     "both echo halves, TE / 2 + "
+                                                                     "TM apart; 0 plays none"),
+                                                                    ("delta_ms",
+                                                                     "diffusion gradient (ms)",
+                                                                     1.0,
+                                                                     "how long each diffusion "
+                                                                     "gradient lasts; TE / 2 "
+                                                                     "must hold it")):
+                                                                ui.number(caption, step=step,
+                                                                          min=0.0,
+                                                                          on_change=changed(
+                                                                              attribute, "card")
+                                                                          ).bind_value(
+                                                                    card, attribute).props(
+                                                                    "dense outlined dark").classes(
+                                                                    "w-full").tooltip(tip)
                                                     for attribute, caption, step in fields:
                                                         ui.number(
                                                             caption, value=getattr(card, attribute),

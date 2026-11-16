@@ -553,6 +553,37 @@ class TestSession:
         moments = [settings["cycles_per_mm"] for kind, settings in blocks if kind == "coherence filter"]
         assert sorted(moments)[0] == -9.7 and sorted(moments)[-1] == 9.7 and moments.count(0.0) == 5
 
+    def test_the_steam_card_weights_by_diffusion_with_a_pair_of_a_duration(self):
+        # the card's b-value on the ideal and the played design, the gradient the room's scanner
+        # lacks said, the pair a block of the designer, and NAA faded as the sticks' powder
+        # average says of the b-value
+        import math
+
+        from mrsandbox.sequences.diffusion import b_value_ms_um2
+
+        session = Session(ICBM)
+        card = session.protocol
+        card.sequence, card.te_ms, card.tm_ms = "STEAM", 40.0, 50.0
+        for real in (True, False):
+            card.real, card.b_ms_um2 = real, 0.0
+            own = b_value_ms_um2(session.sequence())
+            card.b_ms_um2 = 3.0
+            assert abs(b_value_ms_um2(session.sequence()) - own - 3.0) < 2e-3
+        assert session.sequence().violations(session.profile().scanner)[0].startswith(
+            "diffusion gradient 53.5 mT/m")
+        blocks = [settings for kind, settings in Session._blocks(session.sequence().events)
+                  if kind == "diffusion gradient"]
+        assert len(blocks) == 2 and blocks[0] == {"axis": "z", "duration_ms": 15.0,
+                                                  "cycles_per_mm": blocks[1]["cycles_per_mm"]}
+        # on the ideal card the pair is the one direction, so the twin's NAA fades by the sticks'
+        # closed form at D = 3 ADC
+        voxel = session.twin().voxel(position_mm=session.position_mm, size_mm=20.0)
+        truth = voxel.sample(seed=5)
+        x = 3.0 * voxel.resolve(truth.diffusion.adc["NAA"]) * voxel.scan.b_value_ms_um2
+        closed = math.sqrt(math.pi / (4.0 * x)) * math.erf(math.sqrt(x))
+        faded = voxel._diffusion_factor(truth)(truth.diffusion.adc["NAA"], True)
+        assert abs(faded - closed) < 1e-4 * closed and 0.7 < faded < 0.8
+
     def test_an_own_design_of_two_sub_acquisitions_is_multiplexed_as_its_weights_say(self):
         from mrsandbox.console.session import BLOCKS, TEMPLATES
 

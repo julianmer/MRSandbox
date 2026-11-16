@@ -18,7 +18,8 @@
 #*************#
 import numpy as np
 
-from mrsandbox.sequences.events import Delay, Gradient, ShapedPulse, trapezoid
+from mrsandbox.sequences.events import (Delay, DiffusionGradient, Gradient, ShapedPulse,
+                                        trapezoid)
 
 
 #*****************#
@@ -49,7 +50,8 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
     Placement, all stated: every Gradient kick plays as the shortest trapezoid of its
     moment under the scanner's gradient and slew limits, in the delay next to it
     (starting where the kick sits when a delay follows, ending there when a pulse
-    follows, so a crusher pair straddles its refocusing pulse); a ShapedPulse's slice
+    follows, so a crusher pair straddles its refocusing pulse); a DiffusionGradient is
+    the trapezoid of its moment and duration from where it stands; a ShapedPulse's slice
     gradient is flat for the pulse (or follows its gradient_shape) with its ramps
     just before and after (borrowed from the surrounding delays); ideal pulses and
     coherence filters take no time and play no gradient; the readout, from
@@ -75,6 +77,11 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
             following = next((e for e in events[k + 1:] if not isinstance(e, Gradient)), None)
             start = now if isinstance(following, Delay) else now - (2.0 * ramp + flat)
             play(event.axis, start, amplitude, ramp, flat)
+        elif isinstance(event, DiffusionGradient):
+            amplitude = (float(event.moment_per_mm) * 1e3 / (gamma_mhz_t * 1e6)
+                         / float(event.duration_s))  # T/m
+            ramp = abs(amplitude) / max_slew
+            play(event.axis, now, amplitude, ramp, float(event.duration_s) - ramp)
         elif isinstance(event, ShapedPulse):
             if event.gradient_hz_per_mm:
                 amplitude = float(event.gradient_hz_per_mm) / (gamma_mhz_t * 1e3)  # T/m

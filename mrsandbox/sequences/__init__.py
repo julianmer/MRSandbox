@@ -15,8 +15,9 @@
 #   imports   #
 #*************#
 from mrsandbox.sequences.cycling import Cycled
-from mrsandbox.sequences.events import (CoherenceFilter, Delay, Event, Gradient, InducedKick,
-                                        Projection, Pulse, SelectivePulse, Sequence, ShapedPulse)
+from mrsandbox.sequences.events import (CoherenceFilter, Delay, DiffusionGradient, Event, Gradient,
+                                        InducedKick, Projection, Pulse, SelectivePulse, Sequence,
+                                        ShapedPulse)
 from mrsandbox.sequences.library import (Chess, Cows, HadamardEditing, Hercules, Hermes,
                                          LocalizedMegaPress, LocalizedMegaSemiLaser, LocalizedPress,
                                          LocalizedSemiLaser, LocalizedSteam, MegaPress,

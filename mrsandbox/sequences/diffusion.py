@@ -23,12 +23,16 @@ import math
 import numpy as np
 import scipy.special
 
-from mrsandbox.sequences.events import CoherenceFilter, Delay, Gradient, Pulse, ShapedPulse
+from mrsandbox.sequences.events import (CoherenceFilter, Delay, DiffusionGradient, Gradient, Pulse,
+                                        ShapedPulse)
 
 # the roots of J1' (the cylinder's radial modes) and the directions the powder average sums
 # over, a Fibonacci sphere (stated: smooth on the sphere to a part in ten thousand)
 ROOTS = scipy.special.jnp_zeros(1, 24)
 DIRECTIONS = 1024
+# the kicks a pulsed gradient of a duration is spread into: the helix's ramp as a staircase,
+# which overstates the delta / 3 of the b-value by one part in 2 STEPS^2
+STEPS = 16
 
 
 #***********#
@@ -48,8 +52,11 @@ def kicks(sequence):
     stimulated echo does. A filter standing for a crusher (its crusher_per_mm) kicks on
     the order it retains, along z (stated: the filter names no axis), so a pair around a
     pulse of length tau weights by (2 pi m)^2 tau and rephases. Gradient events are
-    instantaneous kicks, the zero-duration limit of the Stejskal-Tanner delta/3 term;
-    in-pulse slice gradients are not counted (stated).
+    instantaneous kicks, the zero-duration limit of the Stejskal-Tanner delta/3 term; a
+    DiffusionGradient is a rectangular pulse of its duration from where it stands,
+    spread into STEPS equal kicks at the midpoints of as many intervals, so the kicks
+    come back in the order of their times; in-pulse slice gradients are not counted
+    (stated).
     """
     order, now, found = 1, 0.0, []
     for event in sequence.events:
@@ -61,6 +68,11 @@ def kicks(sequence):
             kick = [0.0, 0.0, 0.0]
             kick["xyz".index(event.axis)] = order * float(event.moment_per_mm)
             found.append((now, tuple(kick)))
+        elif isinstance(event, DiffusionGradient):
+            kick = [0.0, 0.0, 0.0]
+            kick["xyz".index(event.axis)] = order * float(event.moment_per_mm) / STEPS
+            found.extend((now + (step + 0.5) * float(event.duration_s) / STEPS, tuple(kick))
+                         for step in range(STEPS))
         elif isinstance(event, Delay):
             now += float(event.t_s)
         elif isinstance(event, ShapedPulse):
@@ -70,7 +82,7 @@ def kicks(sequence):
         elif isinstance(event, Pulse):
             if float(event.flip_deg) >= 135.0:
                 order = -order
-    return now, found
+    return now, sorted(found, key=lambda kick: kick[0])
 
 
 #**************#
@@ -140,5 +152,6 @@ def attenuation(sequence, d_um2_ms, radius_um=0.0):
         alpha = ROOTS / radius_um
         weights = 1.0 / (alpha ** 2 * (ROOTS ** 2 - 1.0))
         decay = np.exp(-d_um2_ms * alpha[:, None, None] ** 2 * gaps[None, :, :])
-        along = along + (2.0 * math.pi) ** 2 * np.einsum("m,dij,mij->d", weights, pairs, decay)
+        along = along + (2.0 * math.pi) ** 2 * np.einsum(
+            "dij,ij->d", pairs, np.einsum("m,mij->ij", weights, decay))
     return float(np.mean(np.exp(-along)))

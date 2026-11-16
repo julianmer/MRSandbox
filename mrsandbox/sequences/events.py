@@ -931,6 +931,60 @@ class Gradient(Event):
 
 
 #**************************************************************************************************#
+#                                      Class DiffusionGradient                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# A pulsed diffusion gradient of a stated duration: the diffusion walk's, nothing to the spins.    #
+#                                                                                                  #
+#**************************************************************************************************#
+class DiffusionGradient(Event):
+    """A pulsed diffusion gradient of a stated duration: the diffusion walk's, nothing
+    to the spins.
+
+    A diffusion pair rephases exactly on the pathway the design detects and crushes
+    every other one, which the design's coherence filters already say, so the event
+    leaves the density matrix as it is and one compiled graph replays at every
+    b-value. The diffusion walk (sequences.diffusion) plays it as a rectangular pulse
+    from where it stands, through the delay that follows: the helix ramps over the
+    duration, which gives the b-value its delta / 3 and the restricted decay its
+    finite pulses.
+
+    Args:
+        moment_per_mm: Gradient moment q in cycles per millimetre (gamma times area).
+        duration_s: The pulse's duration delta in seconds.
+        axis: The gradient axis, "x", "y", or "z".
+    """
+
+    free = ("moment_per_mm", "duration_s")
+
+    #**********#
+    #   init   #
+    #**********#
+    def __init__(self, moment_per_mm, duration_s, axis="z"):
+        if axis not in ("x", "y", "z"):
+            raise ValueError(f"unknown gradient axis {axis!r}; known: x, y, z")
+        self.moment_per_mm = moment_per_mm
+        self.duration_s = duration_s
+        self.axis = axis
+
+    #***************#
+    #   weighting   #
+    #***************#
+    @classmethod
+    def weighting(cls, b_ms_um2, duration_s, separation_s, axis="z"):
+        """The gradient of a pair `separation_s` apart that weights by b in ms per um^2:
+        b = (2 pi q)^2 (Delta - delta / 3) (Stejskal and Tanner 1965, J Chem Phys 42:288)."""
+        q_per_um = math.sqrt(b_ms_um2 / ((separation_s - duration_s / 3.0) * 1e3)) / (2.0 * math.pi)
+        return cls(q_per_um * 1e3, duration_s, axis=axis)
+
+    #***********#
+    #   apply   #
+    #***********#
+    def apply(self, rho, ctx):
+        return rho
+
+
+#**************************************************************************************************#
 #                                         Class InducedKick                                        #
 #**************************************************************************************************#
 #                                                                                                  #
@@ -1306,6 +1360,13 @@ class Sequence:
                 _, ramp, flat = trapezoid(float(event.moment_per_mm) * 1e3 / (gamma_mhz_t * 1e6),
                                           scanner.max_grad_mt_m * 1e-3, scanner.max_slew_t_m_s)
                 owed += 2.0 * ramp + flat
+            elif isinstance(event, DiffusionGradient):
+                amplitude = (float(event.moment_per_mm) / (gamma_mhz_t * 1e3)
+                             / float(event.duration_s)) * 1e3  # mT/m
+                if amplitude > scanner.max_grad_mt_m:
+                    reasons.append(f"diffusion gradient {amplitude:.1f} mT/m exceeds the "
+                                   f"scanner's {scanner.max_grad_mt_m:.1f} mT/m")
+                owed += float(event.duration_s) + 2.0 * amplitude * 1e-3 / scanner.max_slew_t_m_s
         if owed > 1e-9:
             reasons.append(f"the delays are {owed * 1e3:.3f} ms too short to absorb the pulse "
                            f"and gradient durations")

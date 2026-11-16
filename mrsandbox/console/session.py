@@ -51,7 +51,8 @@ from mrsandbox.scan.run import MotionReading, PhysioReading
 from mrsandbox.scan.calibrations import calibrations
 from mrsandbox.scan.cohort import holding, package
 from mrsandbox.scan import Multiplex, ScannerProfile, VirtualScan
-from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay, Gradient,
+from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay,
+                                 DiffusionGradient, Gradient,
                                  Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
                                  LocalizedSemiLaser, LocalizedSteam, MegaPress,
                                  OuterVolumeSuppression, Press, SelectivePulse,
@@ -97,6 +98,16 @@ PLACES = {"Head, QSM challenge, 0.64 mm": (0.0, -35.0, 20.0)}
 PLACE = (0.0, -45.0, 35.0)
 
 #***************#
+#   weighting   #
+#***************#
+def weighting(card):
+    """A STEAM card's diffusion pair, at the start of both echo halves: none at b = 0."""
+    return DiffusionGradient.weighting(
+        card.b_ms_um2, card.delta_ms / 1000.0,
+        (card.te_ms / 2.0 + card.tm_ms) / 1000.0) if card.b_ms_um2 else None
+
+
+#***************#
 #   sequences   #
 #***************#
 # the single-voxel cards: a name and how a card's timings, the spectrometer frequency, and the
@@ -104,17 +115,19 @@ PLACE = (0.0, -45.0, 35.0)
 # ones play their slice-selective pulses under gradients, so the voxel has a profile and every
 # shift its own displaced voxel (SHIFTED).
 SEQUENCES = {
-    "PRESS": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: Press(
+    "PRESS": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: Press(
         te1_s=min(0.011, te_s / 2.0), te2_s=te_s - min(0.011, te_s / 2.0), tr_s=tr_s),
-    "STEAM": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: Steam(te_s=te_s, tm_s=0.010, tr_s=tr_s),
-    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: SemiLaser(te_s=te_s, tr_s=tr_s),
-    "PRESS, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: LocalizedPress(
+    "STEAM": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: Steam(
+        te_s=te_s, tm_s=card.tm_ms / 1000.0, tr_s=tr_s, diffusion=weighting(card)),
+    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: SemiLaser(te_s=te_s, tr_s=tr_s),
+    "PRESS, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: LocalizedPress(
         min(0.014 * fit.grow[180], te_s / 2.0), te_s - min(0.014 * fit.grow[180], te_s / 2.0),
         f0_mhz, size_mm=size_mm, tr_s=tr_s, axes=axes,
         excitation_s=0.0026 * fit.grow[90], refocusing_s=0.0065 * fit.grow[180]),
-    "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: fit(LocalizedSteam)(
-        te_s, 0.010, f0_mhz, size_mm=size_mm, tr_s=tr_s),
-    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes: fit(LocalizedSemiLaser)(
+    "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: fit(LocalizedSteam)(
+        te_s, card.tm_ms / 1000.0, f0_mhz, size_mm=size_mm, tr_s=tr_s,
+        diffusion=weighting(card)),
+    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: fit(LocalizedSemiLaser)(
         te_s, f0_mhz, size_mm=size_mm, tr_s=tr_s),
 }
 # a card's design with its pulses real (Protocol.real): shaped pulses under gradients, played in
@@ -310,6 +323,10 @@ BLOCKS = {
                                recover=b.get("recovery", "counted") == "counted"),)),
     "crusher": (dict(axis="x", cycles_per_mm=0.15),
                 lambda b: (Gradient(b["cycles_per_mm"], 20.0, axis=b["axis"]),)),
+    "diffusion gradient": (dict(axis="z", cycles_per_mm=40.0, duration_ms=15.0),
+                           lambda b: (DiffusionGradient(b["cycles_per_mm"],
+                                                        b["duration_ms"] / 1000.0,
+                                                        axis=b["axis"]),)),
     "coherence filter": (dict(order=-1, cycles_per_mm=0.0),
                          lambda b: (CoherenceFilter(int(b["order"]), b.get("cycles_per_mm", 0.0)),)),
     "water suppression": (dict(scheme="COWS(7;236)", pulses="played"),
@@ -492,6 +509,11 @@ class Protocol:
     axes: str = "xyz"
     edit_on_ppm: float = 1.88
     edit_off_ppm: float = 7.5
+    # STEAM's mixing time, and its diffusion pair: the b-value (none at 0) and the duration of each
+    # gradient, the two half an echo time and the mixing time apart
+    tm_ms: float = 10.0
+    b_ms_um2: float = 0.0
+    delta_ms: float = 15.0
     # a spectroscopic image's encoding (scan.mrsi): how finely the subject is rendered under each
     # cell (1: ideal boxes, no bleed between cells), the k-space weighting and coverage, the slab's
     # profile, and the readout
@@ -1987,7 +2009,7 @@ class Session:
             return next(iter(self.editing(card).values()))
         if card.sequence == MRSI:
             return SEQUENCES["PRESS"](card.te_ms / 1000.0, card.tr_ms / 1000.0, None, None, None,
-                                      None)
+                                      None, card)
         scanner = self.profile().scanner
         # what the design depends on
         key = (dataclasses.astuple(card), self.condition, repr(self.designs), scanner.b0_t,
@@ -2003,7 +2025,7 @@ class Session:
         else:
             design = self.turned(self.fitted(lambda fit: SEQUENCES[card.sequence](
                 card.te_ms / 1000.0, card.tr_ms / 1000.0, 42.5774785 * scanner.b0_t,
-                self.edges(card.axes), fit, "xyz")), card.axes)
+                self.edges(card.axes), fit, "xyz", card)), card.axes)
         for prelude in reversed(self.preludes(card).values()):
             design = prelude + design
         return design
@@ -2169,6 +2191,10 @@ class Session:
             elif isinstance(event, Gradient) and float(event.extent_mm) == 20.0:
                 design.append(("crusher", dict(axis=event.axis,
                                                cycles_per_mm=float(event.moment_per_mm))))
+            elif isinstance(event, DiffusionGradient):
+                design.append(("diffusion gradient", dict(
+                    axis=event.axis, cycles_per_mm=float(event.moment_per_mm),
+                    duration_ms=1000.0 * float(event.duration_s))))
             else:
                 knobs = {}
                 if isinstance(event, Gradient):

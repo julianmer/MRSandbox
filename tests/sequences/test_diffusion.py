@@ -8,8 +8,9 @@
 #                                                                                                  #
 # Purpose: Diffusion gate: the b-value built from the sequence's own gradient events matches the   #
 #          analytic law, stored helices keep attenuating through a mixing time, axes add           #
-#          independently, the filters standing for crushers weight as the crushers would, and      #
-#          exp(-b ADC) reaches the rendered voxel exactly, each water part with its tissue's ADC.  #
+#          independently, the filters standing for crushers weight as the crushers would, a pair   #
+#          with a duration weights and restricts as its finite pulses do, and exp(-b ADC) reaches  #
+#          the rendered voxel exactly, each water part with its tissue's ADC.                      #
 #                                                                                                  #
 ####################################################################################################
 
@@ -21,9 +22,12 @@ import math
 import numpy as np
 import pytest
 
-from mrsandbox import (Brain, CoherenceFilter, Delay, Gradient, LocalizedMegaPress, NoLipids,
-                       NoMM, NoWater, Params, PerTissue, Press, Pulse, Scanner, Sequence,
-                       Unsuppressed, VirtualScan)
+from keras import ops
+
+from mrsandbox import (Brain, CoherenceFilter, Delay, DiffusionGradient, Engine, Gradient,
+                       LocalizedMegaPress, LocalizedSteam, NoLipids, NoMM, NoWater, Params,
+                       PerTissue, Press, Pulse, Scanner, Sequence, SpinSystem, Steam, Unsuppressed,
+                       VirtualScan)
 from mrsandbox.sequences.diffusion import ROOTS, attenuation, b_matrix_ms_um2, b_value_ms_um2
 
 K, DELTA = 40.0, 0.05  # cycles per mm, seconds
@@ -201,6 +205,78 @@ class TestCylinders:
         assert abs(attenuation(design, self.D, self.R) - expected) < 1e-4 * expected
         # and the sticks are the cylinders at no radius
         assert abs(attenuation(design, self.D, 0.0) - attenuation(design, self.D)) < 1e-12
+
+
+#**************************************************************************************************#
+#                                       Class TestPulsedPair                                       #
+#**************************************************************************************************#
+#                                                                                                  #
+# A diffusion pair with a duration in STEAM: the Stejskal-Tanner b-value on the ideal and the      #
+# played design, van Gelderen's finite pulses across a fibre, the gradient the scanner must play,  #
+# and the spins as without it.                                                                     #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestPulsedPair:
+
+    TE, TM, DELTA_S, D = 0.040, 0.050, 0.015, 0.35  # s, s, s, um^2/ms
+
+    #*****************#
+    #   the b-value   #
+    #*****************#
+    def test_the_pair_weights_by_stejskal_and_tanners_b(self):
+        for b in (1.0, 5.0, 25.0):
+            pair = DiffusionGradient.weighting(b, self.DELTA_S, self.TE / 2.0 + self.TM)
+            assert abs(b_value_ms_um2(Steam(self.TE, self.TM, diffusion=pair)) - b) < 5e-4 * b
+            # the played design adds what its own pathway already carried
+            own = b_value_ms_um2(LocalizedSteam(self.TE, self.TM, 123.2))
+            played = b_value_ms_um2(LocalizedSteam(self.TE, self.TM, 123.2, diffusion=pair))
+            assert abs(played - own - b) < 5e-4 * b
+
+    #***********************#
+    #   the finite pulses   #
+    #***********************#
+    def test_the_pulses_restrict_as_van_gelderens_across_a_fibre(self):
+        # van Gelderen et al. 1994 for the pair's own delta and Delta, powder averaged with the
+        # free decay along the fibre: kicks of no duration miss it by a fifth at 2 um
+        b, big_delta_ms, delta_ms = 25.0, (self.TE / 2.0 + self.TM) * 1e3, self.DELTA_S * 1e3
+        pair = DiffusionGradient.weighting(b, self.DELTA_S, self.TE / 2.0 + self.TM)
+        cos = 1.0 - 2.0 * (np.arange(20000) + 0.5) / 20000
+        for radius in (0.25, 1.0, 2.0):
+            x = self.D * (ROOTS / radius) ** 2
+            terms = (2.0 * x * delta_ms - 2.0 + 2.0 * np.exp(-x * delta_ms)
+                     + 2.0 * np.exp(-x * big_delta_ms) - np.exp(-x * (big_delta_ms - delta_ms))
+                     - np.exp(-x * (big_delta_ms + delta_ms)))
+            across = 2.0 * (2.0 * math.pi * pair.moment_per_mm * 1e-3 / delta_ms) ** 2 * np.sum(
+                terms / (self.D ** 2 * (ROOTS / radius) ** 6 * (ROOTS ** 2 - 1.0)))
+            expected = np.mean(np.exp(-b * self.D * cos ** 2 - across * (1.0 - cos ** 2)))
+            got = attenuation(Steam(self.TE, self.TM, diffusion=pair), self.D, radius)
+            assert abs(got - expected) < 3e-3 * expected
+
+    #******************#
+    #   the hardware   #
+    #******************#
+    def test_the_scanner_must_have_the_gradient_and_the_time(self):
+        scanner = Scanner.preset("siemens_prisma_3t")
+        pair = DiffusionGradient.weighting(5.0, self.DELTA_S, self.TE / 2.0 + self.TM)
+        assert not Steam(self.TE, self.TM, diffusion=pair).violations(scanner)
+        strong = DiffusionGradient.weighting(25.0, self.DELTA_S, self.TE / 2.0 + self.TM)
+        assert Steam(self.TE, self.TM, diffusion=strong).violations(scanner)[0].startswith(
+            "diffusion gradient 154.5 mT/m")
+        long = DiffusionGradient.weighting(5.0, 0.030, self.TE / 2.0 + self.TM)
+        assert "too short" in Steam(self.TE, self.TM, diffusion=long).violations(scanner)[-1]
+
+    #***************#
+    #   the spins   #
+    #***************#
+    def test_the_spins_play_as_without_the_pair_on_one_graph(self):
+        (lactate,) = SpinSystem.from_database("Lac")
+        engine = Engine(3.0)
+        weak, strong = (Steam(self.TE, self.TM, diffusion=DiffusionGradient.weighting(
+            b, self.DELTA_S, self.TE / 2.0 + self.TM)) for b in (1.0, 5.0))
+        assert weak.structure() == strong.structure()
+        plain, weighted = (ops.convert_to_numpy(engine.lines(design, lactate)[1])
+                           for design in (Steam(self.TE, self.TM), strong))
+        np.testing.assert_allclose(weighted, plain, atol=1e-6)
 
 
 #**************************************************************************************************#

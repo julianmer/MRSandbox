@@ -123,6 +123,12 @@ class TestApp:
                            for e in user.find(kind=ui.select).elements)
                 user.find("New scan").click()
                 await user.should_see("Single voxel")
+                # STEAM's card carries its mixing time and its diffusion pair
+                user.find(marker="protocol STEAM").click()
+                await user.should_see("b-value (ms/µm²)")
+                await user.should_see("diffusion gradient (ms)")
+                user.find("New scan").click()
+                await user.should_see("Single voxel")
                 # real pulses are the default: the displaced voxels in words
                 user.find(marker="protocol PRESS").click()
                 await user.should_see("water -")  # the displaced voxels in mm

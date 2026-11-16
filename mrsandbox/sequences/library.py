@@ -111,27 +111,31 @@ class Steam(Sequence):
         te_s: Echo time in seconds.
         tm_s: Mixing time in seconds.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+        diffusion: A DiffusionGradient played at the start of both echo halves, te_s / 2
+            + tm_s apart, where the stimulated echo's orders +1 and -1 rephase it.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, tm_s, tr_s=None, crushers=None):
+    def __init__(self, te_s, tm_s, tr_s=None, crushers=None, diffusion=None):
         self.te_s = te_s
         self.tm_s = tm_s
         last = Pulse(90.0, phase_deg=180.0)  # the echo upright, in phase with a plain excitation
+        weighting = () if diffusion is None else (diffusion,)
         if crushers is None:
-            events = (Pulse(90.0), CoherenceFilter(+1), Delay(te_s / 2.0), CoherenceFilter(+1),
-                      Pulse(90.0), CoherenceFilter(0), Delay(tm_s, recover=False), last,
-                      CoherenceFilter(-1), Delay(te_s / 2.0))
+            events = (Pulse(90.0), CoherenceFilter(+1), *weighting, Delay(te_s / 2.0),
+                      CoherenceFilter(+1), Pulse(90.0), CoherenceFilter(0),
+                      Delay(tm_s, recover=False), last, CoherenceFilter(-1), *weighting,
+                      Delay(te_s / 2.0))
         else:
             # `crushers` plays the scheme in the filters' place (see Press): the same kick in both
             # echo halves, which the stimulated echo's orders +1 and -1 undo, and a spoiler in the
             # mixing time, which the stored order 0 does not feel; moments in cycles per
             # millimetre over the 20 mm ensemble, (echo halves, mixing time)
             half, mixing = Gradient(crushers[0], 20.0), Gradient(crushers[1], 20.0)
-            events = (Pulse(90.0), half, Delay(te_s / 2.0), Pulse(90.0), mixing, Delay(tm_s),
-                      last, half, Delay(te_s / 2.0))
+            events = (Pulse(90.0), half, *weighting, Delay(te_s / 2.0), Pulse(90.0), mixing,
+                      Delay(tm_s), last, half, *weighting, Delay(te_s / 2.0))
         super().__init__(*events, tr_s=tr_s)
 
 
@@ -492,6 +496,8 @@ class LocalizedSteam(Sequence):
         reference_ppm: The shift the three slabs are centred for; others displace.
         span: The ensemble's extent per axis in voxel edges.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+        diffusion: A DiffusionGradient played at the start of both echo halves, te_s / 2
+            + tm_s apart, where the stimulated echo's orders +1 and -1 rephase it.
     """
 
     PULSE_S, PULSE_TBW, REPHASE = 0.0026, 6.0, 0.52
@@ -499,7 +505,8 @@ class LocalizedSteam(Sequence):
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, tm_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None):
+    def __init__(self, te_s, tm_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None,
+                 diffusion=None):
         self.te_s = te_s
         self.tm_s = tm_s
         edges = voxel_edges(size_mm)
@@ -516,11 +523,13 @@ class LocalizedSteam(Sequence):
         (first, after_x), (second, before_y), (third, after_z) = (
             slab("x", edges[0], 0.0), slab("y", edges[1], 0.0, recover=False),
             slab("z", edges[2], 180.0, recover=False))
+        weighting = () if diffusion is None else (diffusion,)
         super().__init__(
-            first, after_x, CoherenceFilter(+1), Projection(span), Delay(te_s / 2.0 - t),
+            first, after_x, CoherenceFilter(+1), Projection(span), *weighting,
+            Delay(te_s / 2.0 - t),
             CoherenceFilter(+1), before_y, second, CoherenceFilter(0), Projection(span),
             Delay(tm_s - t, recover=False),
-            CoherenceFilter(0), third, after_z, CoherenceFilter(-1), Projection(span),
+            CoherenceFilter(0), third, after_z, CoherenceFilter(-1), Projection(span), *weighting,
             Delay(te_s / 2.0 - t / 2.0),
             tr_s=tr_s,
         )
