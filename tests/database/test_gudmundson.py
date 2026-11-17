@@ -97,6 +97,31 @@ class TestPooling:
         assert db.pooled_t2("Cr").n_studies >= 50  # via Cre and moiety variants
         assert db.pooled_t2("Ser") is None  # honestly absent, fallback applies upstream
 
+    #*************#
+    #   tissues   #
+    #*************#
+    def test_the_t2_prior_parts_the_tissues_as_their_rows_do(self):
+        from mrsandbox import PerTissue, Priors
+
+        db = Gudmundson()
+        # at 3 T both tissues have rows: each tissue's leaf is its own pooled mean, white
+        # matter's NAA the longer as most studies with both find
+        leaf = Priors.gudmundson_t2(("NAA",), tesla=3.0).NAA
+        assert isinstance(leaf, PerTissue)
+        for tissue in ("GM", "WM"):
+            own = db.pooled_t2("NAA", tesla=3.0, tissues=(tissue,)).mean_s
+            assert getattr(leaf, tissue.lower()).mean == pytest.approx(own)
+        assert leaf.wm.mean > leaf.gm.mean
+        # at 9.4 T no white matter row: the field's pool times the ratio at the closest field
+        # with white matter rows (7 T)
+        assert 9.4 not in db.t2_fields("NAA", tissues=("WM",))
+        leaf = Priors.gudmundson_t2(("NAA",), tesla=9.4).NAA
+        ratio = (db.pooled_t2("NAA", tesla=7.0, tissues=("WM",)).mean_s
+                 / db.pooled_t2("NAA", tesla=7.0).mean_s)
+        assert leaf.wm.mean == pytest.approx(ratio * db.pooled_t2("NAA", tesla=9.4).mean_s)
+        # no row anywhere: the stated fallback, one value for every tissue
+        assert Priors.gudmundson_t2(("Ser",), tesla=3.0).Ser.value == pytest.approx(0.160)
+
 
 #**************************************************************************************************#
 #                                      Class TestDiseasePriors                                     #

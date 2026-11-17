@@ -988,7 +988,7 @@ class MetaboliteSeriesReading:
                 voxel._diffusion_factor(truth), source=Unsuppressed()), dwell_s)
                 for voxel in ordered])
             for name, (leaves, _) in self.LINES.items():
-                own = {leaf: float(ordered[0].resolve(truth.t2[leaf])) for leaf in leaves}
+                own = {leaf: ordered[0].t2(truth, leaf) for leaf in leaves}
 
                 def misfit(factor):
                     areas = [self._areas(self._swapped(voxel, truth, own, factor, n, dwell_s)

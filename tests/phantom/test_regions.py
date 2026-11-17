@@ -90,9 +90,9 @@ class TestRegions:
         from mrsandbox.params import Priors
 
         names = ("Cr", "GSH")
-        levels = Priors.regional(names, dict.fromkeys(names, 1.0))
+        levels = Priors.regional(names)
         lobes = (np.mean([6.4, 6.5, 6.9]) + np.mean([5.7, 5.7, 5.5])) / 2.0
-        assert levels.Cr["brainstem"].gm.value == pytest.approx(5.1 / 9.9 * 9.0 / lobes)
+        assert levels.Cr["brainstem"].value == pytest.approx(5.1 / 9.9 * 9.0 / lobes)
         # a metabolite whose vermis no study gives stays at its tissue's level
         assert "GSH" not in levels or "brainstem" not in levels.GSH
 

@@ -268,7 +268,7 @@ class Voxel:
         transmit = (self.b1_scale(truth) if profile is None
                     else (self.b1_scale(truth), profile.tobytes()))
         return (names, tuple(float(self.resolve(truth.t1[name])) for name in names),
-                tuple(float(self.resolve(truth.t2[name])) for name in names),
+                tuple(self.t2(truth, name) for name in names),
                 transmit, self.offset_hz(truth))
 
     #***********#
@@ -350,7 +350,8 @@ class Voxel:
         With `metabolites` False the metabolite parts are left out, for a caller that
         forms them from a per-truth basis (`metabolite_basis`). A metabolite's grey and
         white lines (`_grouped`, apart where the tissues' widths part) are one component
-        here, their amplitudes added.
+        here, their amplitudes added at the grey lines' T2; tissues at one width keep a
+        component each.
         """
         flat = {}
         for (name, _), parts in self._grouped(truth, metabolites).items():
@@ -413,9 +414,10 @@ class Voxel:
                                                    np.zeros(0, np.complex64)))
                     if cutoff is not None:
                         amps = np.where(freqs > cutoff * f0_mhz, np.complex64(0.0), amps)
-                    parts.append((freqs, amps * weight,
-                                  1.0 / (np.pi * self.resolve(truth.t2[name])), 0.0))
-                groups[("metabolites", width)] = parts
+                    lw_hz, echo = self._decay(truth, name, tissue)
+                    parts.append((freqs, amps * (weight * echo), lw_hz, 0.0))
+                # tissues at one width (their T2s apart) share the group
+                groups.setdefault(("metabolites", width), []).extend(parts)
         groups.update(rest)
         return groups
 
@@ -488,14 +490,41 @@ class Voxel:
         return np.asarray(weights, dtype=np.complex64)
 
     def _metabolite_widths(self, truth):
-        """The Gaussian width the metabolite lines render under here, {tissue: Hz}: the grey
-        and the white lines apart where the voxel holds both and the drawn contrast parts
-        their widths, else one entry (None, every line) at the one width."""
+        """The Gaussian width the metabolite lines render under here, {tissue: Hz}: the tissue
+        the voxel holds alone, or the grey and the white lines apart where it holds both and
+        the drawn contrast parts their widths or a metabolite's T2, else one entry (None,
+        every line) at the one width."""
         widths = {tissue: self.gauss_hz(truth, tissue) for tissue in ("gm", "wm")
                   if getattr(self.fractions, tissue) > 0.0}
-        if len(set(widths.values())) == 2:
+        if len(widths) == 1 or len(set(widths.values())) == 2 or any(
+                isinstance(t2, Tissues) and t2.gm != t2.wm for t2 in truth.t2.values()):
             return widths
         return {None: next(iter(widths.values()), self.gauss_hz(truth))}
+
+    def t2(self, truth, name, tissue=None):
+        """A metabolite's T2 here in seconds: a per-tissue draw's in `tissue`, or without one
+        the T2 its lines replay under, the mean of the grey and the white matter's (one for
+        every voxel, so a lattice shares its replays; the render gives each tissue's part its
+        own decay, `_decay`); a draw without tissues serves every tissue."""
+        value = truth.t2[name]
+        if not isinstance(value, Tissues):
+            return float(self.resolve(value))
+        return float(getattr(value, tissue) if tissue else (value.gm + value.wm) / 2.0)
+
+    def _decay(self, truth, name, tissue):
+        """A metabolite's Lorentzian width in Hz in `tissue` (None: at the replay's T2) and the
+        factor taking its lines' echo from the replay's T2 to that tissue's: the decay over the
+        design's transverse time at the tissue's rate against the replay's, exact where every
+        coherence the echo carries relaxes at the one rate (PRESS), close where shaped pulses
+        or STEAM's mixing time hold others for a while."""
+        own = self.t2(truth, name, tissue)
+        if tissue is None or not isinstance(truth.t2[name], Tissues):
+            return 1.0 / (np.pi * own), 1.0
+        from mrsandbox.phantom.macromolecules import _echo_time_s
+
+        transverse = _echo_time_s(self.design(truth)) or 0.0
+        return (1.0 / (np.pi * own),
+                float(np.exp(-transverse * (1.0 / own - 1.0 / self.t2(truth, name)))))
 
     def share(self, truth, name, tissue=None):
         """How much of a metabolite's drawn concentration this voxel holds: its tissue split by
@@ -511,10 +540,14 @@ class Voxel:
         grain = self.texture(truth).get(name, 1.0)
         unit = Tissues(1.0, 1.0)
         parts = self._parts if factors and self._parts else {None: self.fractions}
-        held = {"gm": sum(2.0 * r * part.gm * (factors or {}).get(region, unit).gm
-                          for region, part in parts.items()),
-                "wm": sum(2.0 * part.wm * (factors or {}).get(region, unit).wm
-                          for region, part in parts.items())}
+        held = {"gm": 0.0, "wm": 0.0}
+        for region, part in parts.items():
+            factor = (factors or {}).get(region, unit)
+            if not isinstance(factor, Tissues):
+                # a nucleus's one level, parted so its tissues carry the drawn contrast back out
+                factor = Tissues(factor * (1.0 + r) / (2.0 * r), factor * (1.0 + r) / 2.0)
+            held["gm"] += 2.0 * r * part.gm * factor.gm
+            held["wm"] += 2.0 * part.wm * factor.wm
         return grain * (held[tissue] if tissue else sum(held.values())) / (1.0 + r)
 
     def texture(self, truth):
@@ -571,17 +604,21 @@ class Voxel:
     #***********#
     #   basis   #
     #***********#
-    def metabolite_basis(self, truth, npoints, dwell_s):
+    def metabolite_basis(self, truth, npoints, dwell_s, tissue=None):
         """The unit FIDs of every metabolite on a time grid, (K, npoints) complex64 in
-        truth.conc order: each metabolite's lines at its resolved linewidth with the
-        downfield cutoff applied, rendered in one call (Engine.render_fids) and cached
-        per truth on the scan under this voxel's resolved frame, so a lattice of voxels
-        sharing one truth renders the metabolites once and forms every cell as
-        `metabolite_weights` @ basis. The frame is `frame(truth)` plus the grid."""
+        truth.conc order: each metabolite's lines at its resolved linewidth (in `tissue`
+        where its T2 is drawn per tissue, `_decay`) with the downfield cutoff applied,
+        rendered in one call (Engine.render_fids) and cached per truth on the scan under
+        this voxel's resolved frame, so a lattice of voxels sharing one truth renders the
+        metabolites once and forms every cell as `metabolite_weights` @ basis. The frame is
+        `frame(truth)` plus the grid and the tissue."""
         lines = self._metabolite_lines(truth)
         names = tuple(truth.conc)
+        if not any(isinstance(truth.t2[name], Tissues) for name in names):
+            tissue = None
         start_s = float(truth.acquisition.delay_s)
-        frame = self.frame(truth) + (npoints, float(dwell_s), start_s) + self._design_key(truth)
+        frame = (self.frame(truth) + (npoints, float(dwell_s), start_s, tissue)
+                 + self._design_key(truth))
         cached = self.scan._basis
         if cached is None or cached[0] is not truth:
             cached = self.scan._basis = (truth, {})
@@ -589,7 +626,6 @@ class Voxel:
             return cached[1][frame]
         cutoff = self.scan.downfield.replaces_above_ppm
         f0_mhz = self._f0_mhz()
-        t2 = dict(zip(frame[0], frame[2]))
         freqs, amps, lw, rows = [], [], [], []
         for k, name in enumerate(names):
             if name not in lines:              # absent: its row stays zero
@@ -598,12 +634,13 @@ class Voxel:
             if cutoff is not None:
                 a = np.where(f > cutoff * f0_mhz, np.complex64(0.0), a)
             keep = np.abs(a) > 1e-7 * np.abs(a).max() if a.size else np.zeros(0, bool)
+            lw_hz, echo = self._decay(truth, name, tissue)
             freqs.append(f[keep])
-            amps.append(a[keep])
-            lw.append(np.full(int(keep.sum()), t2[name], dtype=np.float32))
+            amps.append(a[keep] * echo)
+            lw.append(np.full(int(keep.sum()), lw_hz, dtype=np.float32))
             rows.append(np.full(int(keep.sum()), k, dtype=np.int64))
         freqs, amps, rows = np.concatenate(freqs), np.concatenate(amps), np.concatenate(rows)
-        lw = 1.0 / (np.pi * np.concatenate(lw))
+        lw = np.concatenate(lw)
         amps = amps * self._advance(freqs, lw, start_s)
         # one amplitude row per metabolite over the shared line list, padded to a
         # stable bucket so the jitted graph keeps its shapes across draws
@@ -763,8 +800,10 @@ class Voxel:
             fids = {}
             if basis is not None:
                 fids["metabolites"] = sum(
-                    (self.metabolite_weights(truth, tissue) @ basis).astype(np.complex64)
-                    * self._envelope(width, grid)
+                    (self.metabolite_weights(truth, tissue)
+                     @ (basis if tissue is None
+                        else self.metabolite_basis(truth, npoints, dwell_s, tissue))
+                     ).astype(np.complex64) * self._envelope(width, grid)
                     for tissue, width in self._metabolite_widths(truth).items())
             held = {} if self._field_offset_hz else self._lines_cache(truth)
             ready = held.get(("metabolite fid", npoints, float(dwell_s), start_s))
@@ -1393,7 +1432,7 @@ class Voxel:
                         for values in (
                             [[self.resolve(truth.t1[name]) for name in names]
                              for truth in plain.values()],
-                            [[self.resolve(truth.t2[name]) for name in names]
+                            [[self.t2(truth, name) for name in names]
                              for truth in plain.values()],
                             [self.b1_scale(truth) for truth in plain.values()],
                             [self.offset_hz(truth) for truth in plain.values()]))
@@ -1442,10 +1481,10 @@ class Voxel:
                     weights = dict(zip(truth.conc, self.metabolite_weights(truth, tissue)))
                     start_s, lines = float(truth.acquisition.delay_s), shared[key]
                     for i, name in enumerate(names):
-                        part, lw = (slice(bounds[i], bounds[i + 1]),
-                                    1.0 / (np.pi * self.resolve(truth.t2[name])))
+                        part, (lw, echo) = (slice(bounds[i], bounds[i + 1]),
+                                            self._decay(truth, name, tissue))
                         rows_lw[row, part] = lw
-                        rows_amps[row, part] = (lines[name][1] * weights[name]
+                        rows_amps[row, part] = (lines[name][1] * (weights[name] * echo)
                                                 * self._advance(f[part], lw, start_s))
                 _, fids = self.scan.engine.render_fids(
                     ops.convert_to_tensor(np.pad(f[keep], (0, pad))),

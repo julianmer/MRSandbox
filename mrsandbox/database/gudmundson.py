@@ -118,11 +118,13 @@ class Gudmundson:
     #*************#
     #   pooling   #
     #*************#
-    def pooled_t2(self, metabolite, tesla=3, groups=("Healthy", "Control"), subject="Human"):
+    def pooled_t2(self, metabolite, tesla=3, groups=("Healthy", "Control"), subject="Human",
+                  tissues=None):
         """DerSimonian and Laird random-effects pool of the T2 rows, in seconds.
 
         Rows are gathered under the metabolite's same-molecule aliases, filtered to the
-        cohorts, field, and subject given. Study variances use the standard error
+        cohorts, field, and subject given, and to the database's Tissue labels ("GM", "WM",
+        "Mix", "Unknown") where `tissues` names some. Study variances use the standard error
         (StdDev over sqrt(N_Total)) where the reference carries N, else the StdDev
         itself. The returned sd is the between-study spread (sqrt of tau squared, or the
         plain spread of study means when tau vanishes), the honest width for a prior.
@@ -130,10 +132,7 @@ class Gudmundson:
         Returns:
             PooledValue(mean_s, sd_s, n_studies), or None when no rows match.
         """
-        names = self.T2_ALIASES.get(metabolite, (metabolite,))
-        rows = [row for name in names for row in self.t2(name, tesla=tesla)
-                if row.get("Group") in groups and row.get("Subject") == subject
-                and row.get("T2") and row.get("StdDev")]
+        rows = self._t2_rows(metabolite, tesla, groups, subject, tissues)
         if not rows:
             return None
         y = [float(row["T2"]) / 1000.0 for row in rows]
@@ -144,6 +143,20 @@ class Gudmundson:
             se = sd / math.sqrt(float(n)) if n not in (None, "") else sd
             v.append(max(se, 1e-4) ** 2)
         return PooledValue.from_studies(y, v)
+
+    def t2_fields(self, metabolite, groups=("Healthy", "Control"), subject="Human",
+                  tissues=None):
+        """The fields in tesla at which pooled_t2 finds rows of the metabolite, ascending."""
+        return sorted({float(row["Tesla"])
+                       for row in self._t2_rows(metabolite, None, groups, subject, tissues)})
+
+    def _t2_rows(self, metabolite, tesla, groups, subject, tissues):
+        """The T2 rows pooled_t2 pools."""
+        names = self.T2_ALIASES.get(metabolite, (metabolite,))
+        return [row for name in names for row in self.t2(name, tesla=tesla)
+                if row.get("Group") in groups and row.get("Subject") == subject
+                and row.get("T2") and row.get("StdDev")
+                and (tissues is None or row.get("Tissue") in tissues)]
 
     def pooled_concentration(self, metabolite, groups=("Healthy", "Control"), tesla=None,
                              subject="Human"):

@@ -20,8 +20,8 @@ import numpy as np
 import pytest
 from keras import ops
 
-from mrsandbox import (Brain, Engine, Fixed, Normal, Params, Press, Scanner, Uniform,
-                       VirtualScan)
+from mrsandbox import (Brain, Engine, Fixed, Normal, Params, PerTissue, Press, Scanner,
+                       Uniform, VirtualScan)
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
 pytestmark = pytest.mark.render
@@ -60,8 +60,8 @@ class TestVirtualScan:
         assert scan.params.conc.NAA == Uniform(7.5, 12.0)
         assert scan.params.conc.Glu == Uniform(6.0, 12.5)
         assert scan.params.conc.Cho == scan.params.conc.Val == scan.params.conc.ATP == Fixed(0.0)
-        assert isinstance(scan.params.t2.NAA, Normal)  # pooled from Gudmundson
-        assert 0.2 < scan.params.t2.NAA.mean < 0.35
+        assert isinstance(scan.params.t2.NAA, PerTissue)  # pooled from Gudmundson per tissue
+        assert 0.2 < scan.params.t2.NAA.gm.mean < scan.params.t2.NAA.wm.mean < 0.35
         assert scan.params.t2.Ser == Fixed(0.160)  # no rows: the stated fallback
         assert isinstance(scan.params.t1.NAA, Normal)  # pooled from the typed literature
         assert 1.3 < scan.params.t1.NAA.mean < 1.5
@@ -165,17 +165,20 @@ class TestVirtualScan:
     #********************#
     #   gm wm contrast   #
     #********************#
-    def test_concentrations_split_by_the_challenge_contrast(self, scan):
-        from mrsandbox import Brain
+    def test_concentrations_split_by_the_pooled_contrast(self, scan):
+        from mrsandbox import Brain, Empirical
+        from mrsandbox.database.concentrations import TISSUE_STUDIES
 
         shape = (8, 8, 8)
         affine = np.eye(4)
         affine[:3, 3] = -3.5
         zeros = np.zeros(shape, dtype=np.float32)
+        # one T2 for both tissues, so the amplitudes carry the levels alone
+        still = Params(t2={name: 0.2 for name in VirtualScan.default_params().conc})
 
         def amplitudes(gm, wm):
             brain = Brain.from_maps(gm=gm, wm=wm, csf=zeros, affine=affine)
-            source = VirtualScan(brain, scan.scanner, scan.sequence)
+            source = VirtualScan(brain, scan.scanner, scan.sequence, params=still)
             voxel = source.voxel(position_mm=(0.0, 0.0, 0.0), size_mm=4.0)
             truth = voxel.sample(seed=7)
             parts = voxel.components(truth)
@@ -186,11 +189,17 @@ class TestVirtualScan:
         truth, in_gm = amplitudes(ones, zeros)
         _, in_wm = amplitudes(zeros, ones)
         _, mixed = amplitudes(ones * 0.5, ones * 0.5)
-        # pure tissues realize exactly the drawn ratio, published as 10.98/7.49 mM
-        assert abs(truth.contrast.NAA - 10.98 / 7.49) < 1e-12
+        # NAA's contrast a population of the studies' ratios, the draw inside their range, and
+        # pure tissues realize exactly the drawn ratio
+        ratios = [v[0] / v[1] if isinstance(v, tuple) else v
+                  for study in TISSUE_STUDIES for name, v in study["values"].items()
+                  if name == "NAA"]
+        assert scan.params.contrast.NAA == Empirical(ratios) and len(ratios) >= 8
+        assert min(ratios) <= truth.contrast.NAA <= max(ratios)
         assert abs(in_gm["NAA"] / in_wm["NAA"] - truth.contrast.NAA) < 1e-4
-        assert abs(in_gm["NAAG"] / in_wm["NAAG"] - 1.40 / 2.60) < 1e-4  # WM-dominant
-        assert abs(in_gm["Ser"] / in_wm["Ser"] - 1.0) < 1e-4  # no table row: flat
+        assert abs(in_gm["NAAG"] / in_wm["NAAG"] - 0.47) < 1e-4  # one study, WM-dominant
+        assert abs(in_gm["Asp"] / in_wm["Asp"] - 3.70 / 2.07) < 1e-4  # the challenge's row
+        assert abs(in_gm["Ser"] / in_wm["Ser"] - 1.0) < 1e-4  # no study, no row: flat
         # an equal mix keeps exactly the drawn value, the mean of the pure tissues
         for name in ("NAA", "Ser", "GABA"):
             assert abs(mixed[name] - (in_gm[name] + in_wm[name]) / 2.0) < 1e-4 * mixed[name]
@@ -737,6 +746,47 @@ class TestLineshape:
         band = (hz > 0.5) & (hz < 4.0)
         assert np.abs(spectra[0] - spectra[1])[band].max() < 0.02 * spectra[1][band].max()
         assert np.abs(mixed - drawn).max() > 1e-4 * np.abs(drawn).max()
+
+    #*******************#
+    #   t2 per tissue   #
+    #*******************#
+    def test_each_tissue_plays_its_own_t2_from_one_replay(self, scan):
+        # a voxel of grey and white matter replays its lines once, under the T2 its share of
+        # each tissue weighs, and gives each tissue's part its own decay: on PRESS, what that
+        # tissue's own replay gives; a pure tissue renders under its own T2
+        from mrsandbox import Tissues
+
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        assert voxel.fractions.gm > 0.1 and voxel.fractions.wm > 0.1
+        truth = voxel.sample(seed=7)
+        own = {"NAA": Tissues(0.20, 0.30), "Ins": Tissues(0.16, 0.09)}
+        for name, value in own.items():
+            dict.__setitem__(truth.t2, name, value)
+        replay, t = voxel._metabolite_lines(truth), np.arange(512) / 4000.0
+
+        def fid(lines, lw_hz, echo=1.0):
+            freqs, amps = lines
+            return (np.exp(2j * np.pi * np.outer(t, freqs)) @ (amps * echo)
+                    * np.exp(-np.pi * lw_hz * t))
+
+        assert set(voxel._metabolite_widths(truth)) == {"gm", "wm"}
+        for name, value in own.items():
+            assert min(value) < voxel.t2(truth, name) < max(value)
+            for tissue in ("gm", "wm"):
+                lw_hz, echo = voxel._decay(truth, name, tissue)
+                dict.__setitem__(truth.t2, name, getattr(value, tissue))
+                exact = fid(voxel._metabolite_lines(truth)[name], 1.0 / (np.pi * truth.t2[name]))
+                dict.__setitem__(truth.t2, name, value)
+                np.testing.assert_allclose(fid(replay[name], lw_hz, echo), exact,
+                                           atol=1e-5 * np.abs(exact).max())
+        affine, ones = np.eye(4), np.ones((8, 8, 8), np.float32)
+        affine[:3, 3] = -3.5
+        white = VirtualScan(Brain.from_maps(gm=0.0 * ones, wm=ones, csf=0.0 * ones, affine=affine),
+                            scan.scanner, scan.sequence).voxel(position_mm=(0.0, 0.0, 0.0),
+                                                               size_mm=2.0)
+        assert set(white._metabolite_widths(truth)) == {"wm"}
+        assert white._decay(truth, "Ins", "wm") == (1.0 / (np.pi * 0.09), pytest.approx(
+            np.exp(-0.030 * (1.0 / 0.09 - 1.0 / 0.125))))
 
     #********************#
     #   eddy transient   #

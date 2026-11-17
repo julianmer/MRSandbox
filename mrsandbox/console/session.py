@@ -1100,7 +1100,8 @@ class Session:
             def pair(names, group, scale=1.0, split=lambda name, value: value):
                 """The draw's value and the population's for a leaf (the sum over `names`), the
                 draw's alone where the population has no middle."""
-                own = sum(split(name, float(voxel.resolve(drawn[group][name]))) for name in names)
+                own = sum(split(name, voxel.t2(drawn, name) if group == "t2"
+                                else float(voxel.resolve(drawn[group][name]))) for name in names)
                 typical = [_typical(scan.params[group][name]) for name in names]
                 if any(value is None for value in typical):
                     return scale * own
@@ -1147,7 +1148,7 @@ class Session:
             # the width a singlet will have: its natural Lorentzian 1 / (pi T2), and as Gaussian
             # parts the microscopic broadening drawn for this scanner and the field's spread over
             # the voxel after the shim (Olivero's Voigt width)
-            natural = 1.0 / (np.pi * float(voxel.resolve(drawn["t2"]["NAA"])))
+            natural = 1.0 / (np.pi * voxel.t2(drawn, "NAA"))
             spread = np.hypot(voxel.gauss_hz(drawn),
                               max((field.get("line width from B0 (Hz)") or 1.0) - 1.0, 0.0))
             field["line width of NAA (Hz)"] = float(
@@ -2729,9 +2730,8 @@ class Session:
                                              "Gln", "GABA", "GSH", "Lac")
                                 if name in drawn["conc"]
                                 and isinstance(drawn["conc"][name], (int, float))},
-                            "T2 (ms)": {name: 1000.0 * float(drawn["t2"][name])
-                                        for name in ("NAA", "Cr", "PCho") if name in drawn["t2"]
-                                        and isinstance(drawn["t2"][name], (int, float))},
+                            "T2 (ms)": {name: 1000.0 * voxel.t2(drawn, name)
+                                        for name in ("NAA", "Cr", "PCho") if name in drawn["t2"]},
                             "line broadening (Hz)": float(drawn["lineshape"]["gauss_hz"]),
                             "noise level": float(drawn["noise"]["sigma"])},
                 "linewidth_hz": self.linewidth(), "lipid_mm": self.lipid_mm(),

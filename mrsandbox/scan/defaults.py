@@ -92,14 +92,6 @@ def _adc_ratio(name):
     return 1.0
 
 
-#********************#
-#   gm to wm ratio   #
-#********************#
-# constituents inherit their compound total's ratio, the documented approximation
-_TISSUE_ROW = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
-               "GPC": "tCho", "PCho": "tCho"}
-
-
 #***********************#
 #   default catalogue   #
 #***********************#
@@ -428,14 +420,13 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                  wm=sum(LATT_2013["pooled"]["wm"]) / 2.0, csf=0.0),
         mm=(0.005, 0.01),
         lipids=0.0))
-    # contrast: the GM to WM concentration ratio per metabolite, typed from the
-    # challenge Table 1 per-tissue values (database.concentrations MRSI_CHALLENGE;
-    # compound totals lend their ratio to their constituents, metabolites without a
-    # row stay at 1.0, both stated). The render splits the drawn concentration as
-    # gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn value
-    # and pure tissues realize the published contrast.
-    rows = {name: concentrations.MRSI_CHALLENGE.get(_TISSUE_ROW.get(name, name), (1.0, 1.0))
-            for name in names}
+    # contrast: the GM to WM concentration ratio per metabolite, pooled over the studies that
+    # measure it in pure tissue (database.concentrations TISSUE_STUDIES, Priors.tissue_contrast:
+    # the studies' ratios as a population, each study one voice), the MRSI challenge's table
+    # where no study measures it, 1.0 without a row there. The render splits the drawn
+    # concentration as gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn
+    # value and pure tissues realize the drawn contrast.
+    contrast = Params(contrast=Priors.tissue_contrast(names))
     # run: what happens over the transients of a run (Augmentrum's TransientSynthesizer plays
     #   them, scan.Multiplex): the scanner's frequency drift (Hui et al. 2021: about 0.3 Hz a
     #   minute at 3 T, either sign), its slow wander (an AR process, a stated spread), the
@@ -472,12 +463,10 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                 literature=Uniform(0.02, 0.2), cited=RUN_CITED["pulsation"]),
         cardiac_csf_amp=_sourced("run.cardiac_csf_amp", served, Uniform,
                                  literature=Uniform(0.0, 0.05), cited=RUN_CITED["pulsation"])))
-    ratios = {name: gm / wm if gm > 0.0 and wm > 0.0 else 1.0 for name, (gm, wm) in rows.items()}
-    contrast = Params(contrast=ratios)
     # regions: each metabolite's level by brain region over its tissue level, from the regional
     # studies (database.regional, params.Priors.regional); a brain without regions, or a region
     # no study gives, follows the tissue alone
-    regions = Params(regions=Priors.regional(names, ratios))
+    regions = Params(regions=Priors.regional(names))
     # texture: how each metabolite's level varies within a region, a smooth random field over the
     # brain read at the voxel (scan.voxel texture): its spread as a fraction of the level and its
     # scale are stated ranges (the regional studies' spreads are between subjects, not within a

@@ -22,7 +22,15 @@ import numpy as np
 from mrsandbox.database import Database, concentrations, regional
 from mrsandbox.database.gudmundson import Gudmundson
 from mrsandbox.params.trees import Params
-from mrsandbox.params.values import Fixed, Normal, PerTissue, Uniform
+from mrsandbox.params.values import Empirical, Fixed, Normal, PerTissue, Uniform
+
+#********************#
+#   challenge rows   #
+#********************#
+# the MRSI challenge's rows for the package's names: constituents inherit their compound total's
+# ratio, the documented approximation
+CHALLENGE_ROWS = {"Ins": "mIns", "sIns": "sIno", "Cr": "tCr", "PCr": "tCr",
+                  "GPC": "tCho", "PCho": "tCho"}
 
 
 #**************************************************************************************************#
@@ -59,17 +67,20 @@ class Priors:
     #*******************#
     @staticmethod
     def gudmundson_t2(metabolites, fallback_s=0.160, tesla=3):
-        """Per-metabolite T2 priors pooled from the Gudmundson database, in seconds.
+        """Per-metabolite T2 priors pooled from the Gudmundson database per tissue, in seconds.
 
-        Metabolites with pooled rows at `tesla` get Normal(mean, between-study spread);
-        without rows at that field they take the 3 T pool (stated), and without any
-        rows the Fixed stated assumption. Requires the externals/mrs-database
+        A metabolite's rows of every tissue at `tesla` are pooled, Normal(mean, between-study
+        spread), without rows at that field the 3 T pool (stated); each tissue's leaf is that
+        pool times the tissue's own over every tissue's at the field closest to `tesla` with
+        rows of that tissue (the field itself where it has them, so there the tissue's own
+        pooled mean), PerTissue(gm, wm); a tissue without rows at any field takes the pool.
+        Without any rows, the Fixed stated assumption. Requires the externals/mrs-database
         submodule; without it, everything falls back.
 
         Args:
             metabolites: Names to include.
             fallback_s: T2 for metabolites without pooled data.
-            tesla: Nominal field filter.
+            tesla: Nominal field.
 
         Returns:
             Params mapping each metabolite to its T2 leaf.
@@ -80,7 +91,17 @@ class Priors:
             pooled = source.pooled_t2(name, tesla=tesla) if source else None
             if pooled is None and source is not None and tesla != 3:
                 pooled = source.pooled_t2(name, tesla=3)
-            leaves[name] = Normal(pooled.mean_s, pooled.sd_s) if pooled else Fixed(fallback_s)
+            if pooled is None:
+                leaves[name] = Fixed(fallback_s)
+                continue
+            tissues = {}
+            for tissue in ("GM", "WM"):
+                own = source.t2_fields(name, tissues=(tissue,))
+                at = min(own, key=lambda f: abs(f - tesla)) if own else None
+                ratio = (source.pooled_t2(name, tesla=at, tissues=(tissue,)).mean_s
+                         / source.pooled_t2(name, tesla=at).mean_s) if own else 1.0
+                tissues[tissue.lower()] = Normal(ratio * pooled.mean_s, ratio * pooled.sd_s)
+            leaves[name] = PerTissue(**tissues)
         return Params(leaves)
 
     #*******************************#
@@ -107,21 +128,55 @@ class Priors:
                 leaves[name] = Normal(pooled.mean_s, pooled.sd_s)
         return Params(leaves)
 
+    #*********************#
+    #   tissue contrast   #
+    #*********************#
+    @staticmethod
+    def tissue_contrast(metabolites):
+        """Each metabolite's grey over white matter level, pooled over the studies that measure
+        it in pure tissue (database.concentrations TISSUE_STUDIES): the studies' ratios as an
+        Empirical population, each study one voice (a subject draws near one study's ratio,
+        inside their range; its median the typical ratio), a total's ratio lent to its parts.
+        A metabolite no study measures takes the MRSI challenge's per-tissue table (a fixed
+        ratio), and one without a row there 1.
+
+        Args:
+            metabolites: The package's names to cover.
+
+        Returns:
+            Params mapping each metabolite to its contrast leaf.
+        """
+        measured = {}
+        for study in concentrations.TISSUE_STUDIES:
+            for paper, value in study["values"].items():
+                for name in regional.NAMES[paper]:
+                    measured.setdefault(name, []).append(
+                        value[0] / value[1] if isinstance(value, tuple) else value)
+        leaves = {}
+        for name in metabolites:
+            if name in measured:
+                leaves[name] = Empirical(measured[name])
+                continue
+            gm, wm = concentrations.MRSI_CHALLENGE.get(CHALLENGE_ROWS.get(name, name), (1.0, 1.0))
+            leaves[name] = Fixed(gm / wm if gm > 0.0 and wm > 0.0 else 1.0)
+        return Params(leaves)
+
     #**************#
     #   regional   #
     #**************#
     @staticmethod
-    def regional(metabolites, contrast):
+    def regional(metabolites):
         """Each metabolite's level by brain region (phantom.regions) as factors over the drawn
-        grey and white matter concentrations, {metabolite: {region: PerTissue}}.
+        grey and white matter concentrations, {metabolite: {region: PerTissue or factor}}.
 
         A study's value counts relative to its own reference (its whole cortex and white
         matter, or the mean of its lobes), so studies with their own units and referencing give
         the pattern alone, and the package's GM to WM contrast keeps setting the tissues' levels.
         A lobe takes a factor per tissue, against the reference in that tissue. A nucleus holds
-        one concentration whatever the tissue maps call its cells (stated): its value over the
-        mean of the grey and white references times the drawn concentration, that of an equal
-        mix, so its parts carry the contrast `r` back out. The newest study gives a region where
+        one concentration whatever the tissue maps call its cells (stated): one factor, its value
+        over the mean of the grey and white references, times the drawn concentration (that of an
+        equal mix; the voxel parts it so its tissues carry the drawn contrast back out, Voxel
+        share). The newest study gives a region where
         several do (database.regional STUDIES); a value with a spread above its mean is left
         out; a region no study gives stays at 1. A study without a reference of its own counts
         relative to its `anchor` row, times the level the referenced studies give that row's
@@ -129,10 +184,9 @@ class Priors:
 
         Args:
             metabolites: The package's names to cover.
-            contrast: {name: GM to WM ratio r}, the tree's contrast values.
 
         Returns:
-            Params of the covered metabolites, each {region: PerTissue(gm, wm)}.
+            Params of the covered metabolites, each {region: PerTissue(gm, wm) or a factor}.
         """
         from mrsandbox.phantom.regions import LOBES
 
@@ -158,12 +212,9 @@ class Priors:
         for (name, region), by in found.items():
             if name not in metabolites:
                 continue
-            r = contrast[name]
-            if region in LOBES:
-                gm, wm = by.get("gm", 1.0), by.get("wm", 1.0)
-            else:
-                gm, wm = by[None] * (1.0 + r) / (2.0 * r), by[None] * (1.0 + r) / 2.0
-            leaves.setdefault(name, {})[region] = PerTissue(gm=gm, wm=wm)
+            leaves.setdefault(name, {})[region] = (
+                PerTissue(gm=by.get("gm", 1.0), wm=by.get("wm", 1.0)) if region in LOBES
+                else by[None])
         return Params(leaves)
 
     #*******************#

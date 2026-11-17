@@ -145,7 +145,8 @@ class TestInSequenceRelaxation:
             ppm, spec = voxel.spectrum(seed=7, npoints=8192)
             ppm, spec = np.asarray(ops.convert_to_numpy(ppm)), ops.convert_to_numpy(spec)
             heights.append(float(spec.real[np.argmin(np.abs(ppm - 2.008))]))
-        expected = math.exp(-0.03 / truth.t2.NAA)  # the drawn Gudmundson-pooled NAA T2
+        # the drawn Gudmundson-pooled NAA T2s, the tissues' mean the voxel replays under
+        expected = math.exp(-0.03 / voxel.t2(truth, "NAA"))
         assert abs(heights[1] / heights[0] - expected) < 1e-2
 
 

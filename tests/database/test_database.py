@@ -187,7 +187,8 @@ class TestFieldPriors:
         from mrsandbox.scan.defaults import default_params
 
         p3, p7 = default_params(b0_t=3.0), default_params(b0_t=7.0)
-        assert p7.t2.NAA.mean < p3.t2.NAA.mean  # the Gudmundson 7 T pool: shorter T2
+        # the Gudmundson 7 T pool: shorter T2s in both tissues
+        assert p7.t2.NAA.gm.mean < p3.t2.NAA.gm.mean and p7.t2.NAA.wm.mean < p3.t2.NAA.wm.mean
         assert p7.t1.NAA.mean > p3.t1.NAA.mean  # Xin 2013: longer T1
         assert abs(p7.t1.Tau.mean - 2.11) < 0.05  # Xin: 2.09 WM and 2.15 GM pooled
         assert p7.water.t1_s.gm.value.mean == 2.00 and p7.water.t1_s.wm.value.mean == 1.55
@@ -228,7 +229,7 @@ class TestFieldPriors:
         assert p4.water.t2_s.gm.value.mean == 0.0805 and p4.water.t2_s.wm.value.mean == 0.061
         assert p4.t1.NAA == p3.t1.NAA  # no 4 T metabolite T1 table: the 3 T pool
         assert p15.t2.Gln == p3.t2.Gln  # no 1.5 T rows for Gln: the 3 T pool
-        assert p15.t2.NAA.mean != p3.t2.NAA.mean  # NAA has 1.5 T rows of its own
+        assert p15.t2.NAA.gm.mean != p3.t2.NAA.gm.mean  # NAA has 1.5 T rows of its own
         assert p15.mm.t1.mm091.value == 0.220 and p15.mm.t1.mm121.value == 0.200  # Kreis 2005
 
     #********************#

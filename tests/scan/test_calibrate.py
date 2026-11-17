@@ -580,6 +580,9 @@ class TestMetaboliteSeriesReading:
                           water=Unsuppressed(), mm=NoMM(), lipids=NoLipids())
         voxels = {te: twin.scans[te].voxel(**kw) for te in series}
         truth = voxels[0.035].sample(0)
+        # the twin's own T2s, one per metabolite (a grey and white mix reads as one decay)
+        for name in ("NAA", "Cr", "PCr"):
+            dict.__setitem__(truth.t2, name, voxels[0.035].t2(truth, name))
         rng = np.random.default_rng(0)
 
         def raw(fid, sigma):
@@ -606,17 +609,17 @@ class TestMetaboliteSeriesReading:
         # the draw the data were made with is read back, creatine and phosphocreatine together
         t2 = reading.t2_s(voxels, seeds=1)
         assert set(t2) == {"NAA", "Cr", "PCr"}
-        assert t2["NAA"] == pytest.approx(float(truth.t2.NAA), rel=0.03)
-        assert t2["Cr"] == pytest.approx(float(truth.t2.Cr), rel=0.03)
-        assert t2["PCr"] / t2["Cr"] == pytest.approx(float(truth.t2.PCr) / float(truth.t2.Cr),
-                                                     rel=1e-6)
+        drawn = {name: voxels[0.035].t2(truth, name) for name in ("NAA", "Cr", "PCr")}
+        assert t2["NAA"] == pytest.approx(drawn["NAA"], rel=0.03)
+        assert t2["Cr"] == pytest.approx(drawn["Cr"], rel=0.03)
+        assert t2["PCr"] / t2["Cr"] == pytest.approx(drawn["PCr"] / drawn["Cr"], rel=1e-6)
         # a subject whose NAA relaxes at half the drawn T2 reads half, the rest of the twin held
-        shorter = Multiplex(*pieces, params=calm | Params(t2=dict(NAA=0.5 * float(truth.t2.NAA))))
+        shorter = Multiplex(*pieces, params=calm | Params(t2=dict(NAA=0.5 * drawn["NAA"])))
         halved = MetaboliteSeriesReading.from_arrays(
             *data(shorter, shorter.scans[0.035].voxel(**kw).sample(0)), dwell_s, f0_mhz,
             header).t2_s(voxels, seeds=1)
-        assert halved["NAA"] == pytest.approx(0.5 * float(truth.t2.NAA), rel=0.1)
-        assert halved["Cr"] == pytest.approx(float(truth.t2.Cr), rel=0.1)
+        assert halved["NAA"] == pytest.approx(0.5 * drawn["NAA"], rel=0.1)
+        assert halved["Cr"] == pytest.approx(drawn["Cr"], rel=0.1)
         records = reading.records(voxels, "the twin", seeds=1)
         assert [r.leaf for r in records] == ["t2.NAA", "t2.Cr", "t2.PCr"]
         assert records[0].value == pytest.approx(t2["NAA"], abs=1e-4)

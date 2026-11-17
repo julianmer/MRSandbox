@@ -766,8 +766,9 @@ class TestBasis:
                     _, formed = voxel._clean_fid(truth, 256, 1.0 / 4000.0, basis=basis)
                     assert basis.shape == (len(truth.conc), 256)
                     np.testing.assert_allclose(formed, plain, atol=1e-4 * np.abs(plain).max())
-            # one basis per truth: the cache serves every cell of the lattice
-            assert len(scan._basis[1]) == 1
+            # one basis per truth, and one per tissue where the T2s part by tissue: the cache
+            # serves every cell of the lattice
+            assert len(scan._basis[1]) == 3
 
     def test_basis_frame_follows_a_per_tissue_t1(self):
         # cells of equal T2 but different resolved T1 (a per-tissue leaf, b1 off
