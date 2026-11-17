@@ -1134,10 +1134,11 @@ class Hercules(HadamardEditing):
 #**************************************************************************************************#
 class SemiLaser(Sequence):
     """Semi-LASER: a 90 excitation refocused by two pairs of adiabatic full passage
-    pulses (hyperbolic secant), the consensus-recommended localization. Paired AFPs
-    cancel each other's nonlinear phase, and because adiabatic inversion is insensitive
-    to the transmit field, the refocusing chain keeps its efficiency where PRESS loses
-    it; only the excitation retains B1 dependence.
+    pulses, the consensus-recommended localization, its slabs not played (the
+    LocalizedSemiLaser plays them): what the voxel's centre sees. Paired AFPs cancel each
+    other's nonlinear phase, and above its adiabatic threshold an adiabatic inversion is
+    insensitive to the transmit field, so the refocusing chain keeps its efficiency where
+    PRESS loses it; the excitation is an ideal 90.
 
     CPMG-style spacing, the pulses counted into the echo time: with tau an eighth of what
     te_s leaves beside the four pulses, tau either side of the chain and 2 tau between the
@@ -1150,26 +1151,29 @@ class SemiLaser(Sequence):
         afp_peak_hz: Peak RF amplitude; must sit above the adiabatic threshold.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
 
-    The defaults (6 ms, 1.5 kHz, 1000 Hz or 23.5 uT) stay within the 20 to 25 uT a 3 T
-    body coil delivers (Deelchand et al. 2021, NMR Biomed 34:e4218) and keep the echo
-    down to 70 percent of the nominal B1; the plain hyperbolic secant pays for that
-    with its bandwidth (the gradient-modulated pulses of that paper reach 10 kHz at
-    15 uT).
+    The pulses are the across-vendor semi-LASER's (Deelchand et al. 2021, NMR Biomed
+    34:e4218), the LocalizedSemiLaser's: GOIA-WURST(16,4) of 4.5 ms and 10 kHz at 15 uT,
+    the RF a body coil delivers, its band centred where that protocol sets the
+    transmitter for every metabolite acquisition, 2.67 ppm, so its band holds the
+    spectrum at any field. Its 15 uT is the design's limit: below the nominal transmit
+    field the passage loses its adiabaticity sooner than a stronger pulse's would.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, afp_duration_s=0.006, afp_bandwidth_hz=1500.0, afp_peak_hz=1000.0,
-                 tr_s=None, crushers=None):
+    def __init__(self, te_s, afp_duration_s=LocalizedSemiLaser.AFP_S,
+                 afp_bandwidth_hz=LocalizedSemiLaser.AFP_BANDWIDTH_HZ,
+                 afp_peak_hz=LocalizedSemiLaser.AFP_PEAK_HZ, tr_s=None, crushers=None):
         self.te_s = te_s
         self.afp_duration_s = afp_duration_s
         self.afp_bandwidth_hz = afp_bandwidth_hz
         self.afp_peak_hz = afp_peak_hz
 
-        # one pulse object played four times: its propagator is computed once per run
-        afp = ShapedPulse.hyperbolic_secant(afp_duration_s, afp_bandwidth_hz, afp_peak_hz,
-                                            offset_ppm=4.65, recover=False)
+        # one pulse object played four times: its propagator is computed once per run; 128
+        # steps as the LocalizedSemiLaser's
+        afp = ShapedPulse.goia_wurst(afp_duration_s, afp_bandwidth_hz, afp_peak_hz, steps=128,
+                                     offset_ppm=2.67, recover=False)
         tau = (te_s - 4.0 * afp_duration_s) / 8.0
         if tau < 0.0:
             raise ValueError(f"te_s {te_s} is too short for four {afp_duration_s * 1e3:.1f} ms "

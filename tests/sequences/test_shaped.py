@@ -543,7 +543,7 @@ class TestAdiabatic:
     def test_the_semi_laser_echo_time_counts_its_pulses(self):
         # the events of a 30 ms semi-LASER last 30 ms, its four adiabatic pulses included,
         # and a weakly coupled doublet has evolved for that long: each line by pi J TE
-        # (41.6 degrees at 7.7 Hz), not by the 24 ms of pulses more (74.8)
+        # (41.6 degrees at 7.7 Hz), not by the 18 ms of pulses more (66.5)
         from mrsandbox import SemiLaser
         from mrsandbox.sequences.events import Delay
 
@@ -557,7 +557,7 @@ class TestAdiabatic:
         strong = (f / (3.0 * GAMMA) < 1.2) & (np.abs(a) > 0.2 * np.abs(a).max())
         assert np.all(np.abs(np.abs(np.degrees(np.angle(a[strong]))) - 41.6) < 8.0)
         with pytest.raises(ValueError):
-            SemiLaser(te_s=0.020)
+            SemiLaser(te_s=0.017)
 
     def test_semi_laser_keeps_the_echo_where_press_loses_it(self, engine):
         from mrsandbox import Press, SemiLaser
@@ -569,6 +569,21 @@ class TestAdiabatic:
             _, a = engine.lines(sequence, water, b1_scale=b1)
             return float(np.abs(ops.convert_to_numpy(a)).sum()) / full
 
+        # the across-vendor pulses' 15 uT sit at their adiabatic threshold: above the nominal
+        # transmit field the passages hold, below it they fall as PRESS's refocusing does
         press, slaser = Press(te1_s=0.015, te2_s=0.015), SemiLaser(te_s=0.030)
-        assert kept(slaser, 0.7) > 0.85  # at the excitation-only bound sin(63 degrees)
-        assert kept(press, 0.7) < 0.65   # PRESS refocusing collapses
+        assert kept(slaser, 1.3) > 0.85
+        assert kept(press, 1.3) < 0.65   # PRESS refocusing collapses
+        assert kept(slaser, 0.7) < 0.7
+
+    def test_the_semi_laser_band_holds_the_spectrum_at_seven_tesla(self):
+        # the 10 kHz band centred at 2.67 ppm refocuses NAA's singlet at 7 T as at 3 T (a
+        # 1.5 kHz band on the water ends near 2.1 ppm at 7 T and lost it)
+        from mrsandbox import SemiLaser
+
+        naa = SpinSystem.from_database("NAA")[0]
+        for field in (3.0, 7.0):
+            engine = Engine(field)
+            full = total_amplitude(engine, Sequence(Pulse(90.0)), naa)
+            _, a = engine.lines(SemiLaser(te_s=0.035), naa)
+            assert float(np.abs(ops.convert_to_numpy(a)).sum()) > 0.9 * full
