@@ -164,7 +164,8 @@ class VirtualScan:
         defaults = default_params(self.database, b0_t=self.engine.b0_t, scanner=scanner,
                                   records=self.records,
                                   channels=None if coils is None else len(coils),
-                                  subject=subject, within=self.within)
+                                  subject=subject, within=self.within,
+                                  edited=hasattr(sequence, "edit_ppm"))
         self.params = (defaults
                        | (brain.params(defaults) if in_vitro else Params())
                        | Params(water=dict(temperature_c=Normal(

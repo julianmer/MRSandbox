@@ -452,3 +452,43 @@ class TestShifts:
         moved = fever.systems("Lac")[0].shifts_ppm[0] - body.systems("Lac")[0].shifts_ppm[0]
         assert (abs(moved - Database().shift_change("Lac", 4.0974, 40.0, 6.8)) < 1e-12
                 and moved != 0.0)
+
+
+#**************************************************************************************************#
+#                                     Class TestTissueContrast                                     #
+#**************************************************************************************************#
+#                                                                                                  #
+# The grey over white matter levels: every study in the package's unit, closest to the scan.       #
+#                                                                                                  #
+#**************************************************************************************************#
+class TestTissueContrast:
+
+    #*************#
+    #   studies   #
+    #*************#
+    def test_the_studies_convert_to_a_litre_of_tissue_and_follow_the_scan(self):
+        from mrsandbox import Empirical, Priors
+        from mrsandbox.database.concentrations import TISSUE_STUDIES
+
+        water = {"gm": 0.8, "wm": 0.7}
+        named = {study["cited"].split(",")[0] + str(study["field_t"]): study
+                 for study in TISSUE_STUDIES}
+        tal, gasparovic = named["Tal3.0"], named["Gasparovic3.0"]
+        assert tal["referencing"] == "tissue" and gasparovic["referencing"] == "water"
+        # a study per tissue water takes the tissues' water contents, one per litre of tissue
+        # goes in as printed, and a study whose referencing is unknown stays out
+        naa = Priors.tissue_contrast(("NAA",), tesla=3.0, water=water).NAA
+        expected = [(v[0] / v[1] if isinstance(v, tuple) else v)
+                    * (8.0 / 7.0 if study["referencing"] == "water" else 1.0)
+                    for study in TISSUE_STUDIES if study["referencing"] and study["field_t"] == 3.0
+                    for name, v in study["values"].items() if name == "NAA"]
+        assert isinstance(naa, Empirical) and naa.values == pytest.approx(expected)
+        assert len(expected) == 5 and 8.5 / 7.7 in naa.values
+        # an editing design takes the editing studies, a plain one the others
+        edited = Priors.tissue_contrast(("GABA",), tesla=3.0, edited=True, water=water).GABA
+        plain = Priors.tissue_contrast(("GABA",), tesla=3.0, water=water).GABA
+        assert edited.values == pytest.approx((2.87 / 0.33 * 8.0 / 7.0,))
+        assert plain.values == pytest.approx((7.5 * 8.0 / 7.0,))
+        # the field closest to the scan's among a metabolite's studies: Banerjee's 7 T inositol
+        assert Priors.tissue_contrast(("Ins",), tesla=7.0, water=water).Ins.values == pytest.approx(
+            (6.9 / 1.6,))

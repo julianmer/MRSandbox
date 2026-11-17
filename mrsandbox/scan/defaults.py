@@ -96,7 +96,7 @@ def _adc_ratio(name):
 #   default catalogue   #
 #***********************#
 def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=None,
-                   subject=None, within=()):
+                   subject=None, within=(), edited=False):
     """Concentration priors and pooled literature relaxation for every metabolite that
     has both a spin system and a de Graaf range. Total choline is covered by GPC and
     PCho, its two constituents, so there is no separate Cho entry.
@@ -121,6 +121,8 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
             pooled): "age_y", "sex", "health"; None is a healthy adult.
         within: The population the readings are pooled over: cohort names and (cohort,
             subject) pairs (scan.cohort pooled); empty is every row.
+        edited: Whether the scan's design edits: the leaves measured per acquisition take the
+            editing studies where there are any (the tissue contrast).
     """
     db = database if database is not None else Database()
     tesla = min(FIELDS_T, key=lambda f: abs(f - float(b0_t)))
@@ -420,13 +422,14 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                  wm=sum(LATT_2013["pooled"]["wm"]) / 2.0, csf=0.0),
         mm=(0.005, 0.01),
         lipids=0.0))
-    # contrast: the GM to WM concentration ratio per metabolite, pooled over the studies that
-    # measure it in pure tissue (database.concentrations TISSUE_STUDIES, Priors.tissue_contrast:
-    # the studies' ratios as a population, each study one voice), the MRSI challenge's table
-    # where no study measures it, 1.0 without a row there. The render splits the drawn
+    # contrast: the GM to WM concentration ratio per metabolite, from the studies that measure
+    # it in pure tissue, closest to the scan's acquisition (database.concentrations
+    # TISSUE_STUDIES, Priors.tissue_contrast: each in mmol per litre of tissue, the scan's kind
+    # and the closest field, their ratios a population, each study one voice), the MRSI
+    # challenge's table where no study measures it, 1.0 without a row there. The render splits the drawn
     # concentration as gm 2r/(1+r) + wm 2/(1+r), so an equal-mix voxel keeps exactly the drawn
     # value and pure tissues realize the drawn contrast.
-    contrast = Params(contrast=Priors.tissue_contrast(names))
+    contrast = Params(contrast=Priors.tissue_contrast(names, tesla=tesla, edited=edited))
     # run: what happens over the transients of a run (Augmentrum's TransientSynthesizer plays
     #   them, scan.Multiplex): the scanner's frequency drift (Hui et al. 2021: about 0.3 Hz a
     #   minute at 3 T, either sign), its slow wander (an AR process, a stated spread), the

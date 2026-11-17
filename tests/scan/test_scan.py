@@ -167,7 +167,6 @@ class TestVirtualScan:
     #********************#
     def test_concentrations_split_by_the_pooled_contrast(self, scan):
         from mrsandbox import Brain, Empirical
-        from mrsandbox.database.concentrations import TISSUE_STUDIES
 
         shape = (8, 8, 8)
         affine = np.eye(4)
@@ -189,16 +188,14 @@ class TestVirtualScan:
         truth, in_gm = amplitudes(ones, zeros)
         _, in_wm = amplitudes(zeros, ones)
         _, mixed = amplitudes(ones * 0.5, ones * 0.5)
-        # NAA's contrast a population of the studies' ratios, the draw inside their range, and
-        # pure tissues realize exactly the drawn ratio
-        ratios = [v[0] / v[1] if isinstance(v, tuple) else v
-                  for study in TISSUE_STUDIES for name, v in study["values"].items()
-                  if name == "NAA"]
-        assert scan.params.contrast.NAA == Empirical(ratios) and len(ratios) >= 8
+        # NAA's contrast a population of the 3 T studies' ratios, the draw inside their range,
+        # and pure tissues realize exactly the drawn ratio
+        ratios = scan.params.contrast.NAA.values
+        assert isinstance(scan.params.contrast.NAA, Empirical) and len(ratios) == 5
         assert min(ratios) <= truth.contrast.NAA <= max(ratios)
         assert abs(in_gm["NAA"] / in_wm["NAA"] - truth.contrast.NAA) < 1e-4
-        assert abs(in_gm["NAAG"] / in_wm["NAAG"] - 0.47) < 1e-4  # one study, WM-dominant
-        assert abs(in_gm["Asp"] / in_wm["Asp"] - 3.70 / 2.07) < 1e-4  # the challenge's row
+        assert abs(in_gm["NAAG"] / in_wm["NAAG"] - 1.40 / 2.60) < 1e-4  # the challenge's row
+        assert abs(in_gm["Asp"] / in_wm["Asp"] - 3.70 / 2.07) < 1e-4  # no study measures it
         assert abs(in_gm["Ser"] / in_wm["Ser"] - 1.0) < 1e-4  # no study, no row: flat
         # an equal mix keeps exactly the drawn value, the mean of the pure tissues
         for name in ("NAA", "Ser", "GABA"):

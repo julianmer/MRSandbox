@@ -95,12 +95,12 @@ class Priors:
                 leaves[name] = Fixed(fallback_s)
                 continue
             tissues = {}
-            for tissue in ("GM", "WM"):
-                own = source.t2_fields(name, tissues=(tissue,))
+            for label in ("GM", "WM"):
+                own = source.t2_fields(name, tissues=(label,))
                 at = min(own, key=lambda f: abs(f - tesla)) if own else None
-                ratio = (source.pooled_t2(name, tesla=at, tissues=(tissue,)).mean_s
+                ratio = (source.pooled_t2(name, tesla=at, tissues=(label,)).mean_s
                          / source.pooled_t2(name, tesla=at).mean_s) if own else 1.0
-                tissues[tissue.lower()] = Normal(ratio * pooled.mean_s, ratio * pooled.sd_s)
+                tissues[label.lower()] = Normal(ratio * pooled.mean_s, ratio * pooled.sd_s)
             leaves[name] = PerTissue(**tissues)
         return Params(leaves)
 
@@ -132,30 +132,46 @@ class Priors:
     #   tissue contrast   #
     #*********************#
     @staticmethod
-    def tissue_contrast(metabolites):
-        """Each metabolite's grey over white matter level, pooled over the studies that measure
-        it in pure tissue (database.concentrations TISSUE_STUDIES): the studies' ratios as an
-        Empirical population, each study one voice (a subject draws near one study's ratio,
-        inside their range; its median the typical ratio), a total's ratio lent to its parts.
-        A metabolite no study measures takes the MRSI challenge's per-tissue table (a fixed
-        ratio), and one without a row there 1.
+    def tissue_contrast(metabolites, tesla=3.0, edited=False, water=None):
+        """Each metabolite's grey over white matter level from the studies that measure it in
+        pure tissue (database.concentrations TISSUE_STUDIES), closest to the scan's acquisition:
+        every study's ratio in the package's unit, mmol per litre of tissue (one per tissue
+        water times the tissues' water contents `water`, {"gm": ..., "wm": ...}; a study whose
+        referencing is unknown stays out); of a metabolite's studies, those of the scan's kind
+        (edited or not, where any is), and of those the ones at the field closest to `tesla`;
+        their ratios an Empirical population, each study one voice (a subject draws near one
+        study's ratio, inside their range; its median the typical ratio), a total's ratio lent
+        to its parts. A metabolite no study measures takes the MRSI challenge's per-tissue table
+        (a fixed ratio), and one without a row there 1.
 
         Args:
             metabolites: The package's names to cover.
+            tesla: The scan's field.
+            edited: Whether the scan edits (an editing design).
+            water: The tissues' water contents; the package's brain's by default.
 
         Returns:
             Params mapping each metabolite to its contrast leaf.
         """
+        from mrsandbox.database import tissue as tables
+
+        water = water if water is not None else tables.MRSI_CHALLENGE["water_content"]
         measured = {}
         for study in concentrations.TISSUE_STUDIES:
+            if study["referencing"] is None:
+                continue
+            scale = water["gm"] / water["wm"] if study["referencing"] == "water" else 1.0
             for paper, value in study["values"].items():
+                ratio = scale * (value[0] / value[1] if isinstance(value, tuple) else value)
                 for name in regional.NAMES[paper]:
-                    measured.setdefault(name, []).append(
-                        value[0] / value[1] if isinstance(value, tuple) else value)
+                    measured.setdefault(name, []).append((study, ratio))
         leaves = {}
         for name in metabolites:
-            if name in measured:
-                leaves[name] = Empirical(measured[name])
+            rows = measured.get(name, [])
+            rows = [row for row in rows if row[0]["edited"] == edited] or rows
+            if rows:
+                at = min({study["field_t"] for study, _ in rows}, key=lambda f: abs(f - tesla))
+                leaves[name] = Empirical([ratio for study, ratio in rows if study["field_t"] == at])
                 continue
             gm, wm = concentrations.MRSI_CHALLENGE.get(CHALLENGE_ROWS.get(name, name), (1.0, 1.0))
             leaves[name] = Fixed(gm / wm if gm > 0.0 and wm > 0.0 else 1.0)
