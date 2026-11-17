@@ -1231,9 +1231,12 @@ class Voxel:
         many draws at one frame (a closed loop over concentrations and noise, which
         never enter the lines), simulate the metabolites once, and every draw applies
         only its own weights. Compiled, all systems replay in one jitted graph
-        (Engine.compiled_batch), so a draw costs one dispatch and one transfer, or,
-        where shaped pulses play on an ensemble, in one graph per operator algebra
-        (Engine.algebra); plain, each metabolite runs through Engine.lines.
+        (Engine.compiled_batch), so a draw costs one dispatch and one transfer, or, where
+        shaped pulses play on an ensemble, in one graph per operator algebra
+        (Engine.algebra), split at the transmit frame where no pulse carries an induced
+        track (`_framed_lines`: the pulses held on the engine, so a draw whose pulses are
+        exactly the last ones replays the state pass alone); plain, each metabolite runs
+        through Engine.lines.
         """
         frame = self.frame(truth)
         names, t1, t2, _, offset_hz = frame
@@ -1251,14 +1254,21 @@ class Voxel:
         # a design played as a whole (a tilted slab) runs plain, its ensemble in chunks: a
         # graph would hold every chunk at once
         if self.compiled and not sequence.unfolded:
+            engine = self.scan.engine
+            heavy = engine.positions(sequence) and any(
+                isinstance(event, ShapedPulse) for event in sequence.events)
+            # pulses free of an induced track can repeat from one design to the next (another
+            # echo time or TR): split, their frame held; under a gradient response every such
+            # action induces other tracks, and the whole graph is the cheaper miss
+            if heavy and all(event.induced is None for event in sequence.events
+                             if isinstance(event, ShapedPulse)):
+                self._framed_lines(sequence, names, temperature_c, {key: truth})
+                return self.scan._frame_lines[key]
             # one graph for all systems, or, where shaped pulses play on an isochromat
             # ensemble, one per operator algebra (a graph holds its intermediates, and
             # the step propagators of an ensemble of every system at once outgrow
             # memory); each graph plays its systems as one batch
-            engine = self.scan.engine
             systems = [(i, system) for i, group in enumerate(groups) for system in group]
-            heavy = engine.positions(sequence) and any(
-                isinstance(event, ShapedPulse) for event in sequence.events)
             batches = {}
             for position, (_, system) in enumerate(systems):
                 batches.setdefault(engine.algebra(system) if heavy else None, []).append(position)
@@ -1328,9 +1338,8 @@ class Voxel:
         truth at it}) under a played design on an ensemble, into the scan's lines by
         frame: one graph per operator algebra split at the transmit frame
         (Engine.framed, its systems as one batch), the pulses of each transmit frame
-        once, held on the scan (the latest transmit frame alone, a closed loop's), the
-        frames' relaxation mapped over them; the graphs side by side in a thread pool
-        as `_metabolite_lines` runs them."""
+        once, held on the engine by their own values (Engine.framed), the frames'
+        relaxation mapped over them; the graphs side by side in a thread pool."""
         engine = self.scan.engine
         groups = tuple(self.scan.systems(name, temperature_c) for name in names)
         systems = [(i, system) for i, group in enumerate(groups) for system in group]
@@ -1343,12 +1352,7 @@ class Voxel:
             _, _, _, t1, t2, transmit, offset_hz, *tail = key
             by_transmit.setdefault((transmit, offset_hz, tuple(tail)),
                                    (self.b1_input(truth), []))[1].append((key, t1, t2))
-        held = self.scan._propagators
-        for (transmit, offset_hz, tail), (b1, frames) in by_transmit.items():
-            at = (temperature_c, id(design), transmit, offset_hz) + tail
-            if at not in held:
-                held.clear()
-                held[at] = [None] * len(batches)
+        for (_, offset_hz, _), (b1, frames) in by_transmit.items():
             b1, offset = (ops.convert_to_tensor(np.asarray(b1, dtype=np.float32)),
                           ops.convert_to_tensor(np.float32(offset_hz)))
             t1 = np.asarray([t1 for _, t1, _ in frames], dtype=np.float32)
@@ -1358,14 +1362,13 @@ class Voxel:
                 batch = batches[b]
                 frame, _, draws, kept = engine.framed(
                     design, tuple((systems[p][1],) for p in batch), shift_mm=self.shift_mm)
-                if held[at][b] is None:
-                    held[at][b] = frame(b1, offset)
+                held = frame(b1, offset)
                 columns = [systems[p][0] for p in batch]
                 # eight draws at a time: a mapped pass holds every draw's state over the
                 # ensemble, and more gain nothing
                 rows = [draws(ops.convert_to_tensor(t1[first:first + 8, columns]),
                               ops.convert_to_tensor(t2[first:first + 8, columns]), b1, offset,
-                              held[at][b]) for first in range(0, len(frames), 8)]
+                              held) for first in range(0, len(frames), 8)]
                 return (np.concatenate([np.asarray(ops.convert_to_numpy(f)) for f, _ in rows]),
                         np.concatenate([np.asarray(ops.convert_to_numpy(a)) for _, a in rows]),
                         kept)

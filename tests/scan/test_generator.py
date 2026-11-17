@@ -155,8 +155,8 @@ class TestGenerator:
     #*********************#
     def test_a_played_batch_shares_each_transmit_frame(self, scan):
         # under shaped pulses on an ensemble the batch's lines come from the graphs split at the
-        # transmit frame (Engine.framed): the pulses of a frame once on the scan, the draws'
-        # relaxation mapped over them; every draw's FID is the one its own full replay renders
+        # transmit frame (Engine.framed): the pulses of a frame once on the engine, the draws'
+        # relaxation mapped over them; every draw's FID is the one its own plain replay renders
         design = Sequence(
             ShapedPulse.sinc(90.0, 0.002, offset_ppm=3.0, steps=32, gradient_hz_per_mm=150.0,
                              gradient_axis="z", extent_mm=40.0),
@@ -166,18 +166,50 @@ class TestGenerator:
         source = VirtualScan(scan.brain, scan.scanner, design, params=fixed, isochromats=16)
         gen = source.generator(**VOXEL, batch_size=4, seed=11, npoints=256)
         x, _ = gen[2]
-        (pulses,) = source._propagators.values()
         # a pulse frame per operator algebra among the metabolites present (those at 0 mM are
-        # not simulated), their systems batched
+        # not simulated), their systems batched; the engine keeps each graph's latest two frames
+        # (the draws' frequency offsets part them)
         present = [name for name in source.params.conc if source.params.conc[name] != Fixed(0.0)]
         algebras = {Engine.algebra(s) for name in present for s in source.systems(name)}
-        assert len(pulses) == len(algebras) < len(present) and all(p is not None for p in pulses)
+        held = source.engine._frames.values()
+        assert len(held) == len(algebras) < len(present) and all(0 < len(f) <= 2 for f in held)
         assert len(source._frame_lines) == 4  # the relaxation still draws per sample
-        source._frame_lines.clear()  # the lone replays run the full graphs
-        alone = source.voxel(compiled=True, **VOXEL)
+        alone = source.voxel(compiled=False, **VOXEL)  # the plain path, each system replayed
         for i in range(4):
             rng = np.random.default_rng(np.random.SeedSequence([gen.root, 2, i]))
             truth = source.params.sample(rng)
             _, fid = alone._render(truth, rng, 256, gen.dwell_s)
             assert np.abs(x[i, 0] + 1j * x[i, 1] - fid).max() < 1e-5 * np.abs(fid).max()
+
+    def test_a_lone_draw_replays_held_pulses_only_where_they_are_exactly_the_same(self, scan):
+        # an agent's next design on the same engine, no gradient response drawn: a later delay
+        # leaves the pulses as they were, so their frames are reused (one per algebra still);
+        # another pulse offset is new pulses, played again; each draw's lines are its own plain
+        # replay's
+        def design(delay_s, offset_ppm=3.0):
+            return Sequence(
+                ShapedPulse.sinc(90.0, 0.002, offset_ppm=offset_ppm, steps=32,
+                                 gradient_hz_per_mm=150.0, gradient_axis="z", extent_mm=40.0),
+                Gradient(-0.5 * 150.0 * 0.002, 40.0, axis="z"), CoherenceFilter(-1),
+                Projection(2.0), Delay(delay_s))
+
+        fixed = Params(b1_scale=1.0, acquisition=dict(shift_hz=0.0),
+                       gradients=dict(b0_short_hz_per_mt_m=0.0, b0_long_hz_per_mt_m=0.0,
+                                      linear_short=0.0, linear_long=0.0))
+        engine = Engine(scan.scanner.b0_t, isochromats=16)
+        truth = None
+        for delay_s, offset_ppm, frames in ((0.004, 3.0, 1), (0.009, 3.0, 1), (0.009, 3.2, 2)):
+            source = VirtualScan(scan.brain, scan.scanner, design(delay_s, offset_ppm),
+                                 params=fixed, engine=engine)
+            voxel = source.voxel(compiled=True, **VOXEL)
+            truth = truth or voxel.sample(5)
+            lines = voxel._metabolite_lines(truth)
+            assert all(len(held) == frames for held in engine._frames.values())
+            plain = source.voxel(compiled=False, **VOXEL)
+            source._frame_lines.clear()
+            t = np.arange(256) / 4000.0
+            for name, (f, a) in plain._metabolite_lines(truth).items():
+                held, own = (np.exp(2j * np.pi * np.outer(t, freqs)) @ amps
+                             for freqs, amps in (lines[name], (f, a)))
+                assert np.abs(held - own).max() < 1e-5 * max(np.abs(own).max(), 1e-12)
 

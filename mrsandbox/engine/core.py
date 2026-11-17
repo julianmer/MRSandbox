@@ -128,6 +128,8 @@ class Engine:
         self.isochromats = isochromats
         self.split = split
         self._compiled = {}
+        # the pulses Engine.framed played, by graph: its latest two frames by what decides them
+        self._frames = {}
         self._draws = {}
         self._renderers = {}
         self._timings = {}
@@ -820,7 +822,12 @@ class Engine:
         the kept lines the full graph's; the functions read the design's timings at
         each call like `compiled_batch`. Where graphs persist as exports (`graph`),
         `frame` and `draws` keep their own (the draws axis a symbolic dimension), so a
-        later session plays a batch untraced; `lines` stays a live jit."""
+        later session plays a batch untraced; `lines` stays a live jit. `frame` holds what
+        it played on the engine, the graph's latest two frames, each by everything that
+        decides it (the pulses' own values: their waveforms, timings and induced tracks; the
+        transmit scale, the offset, the voxel's shift), so any design of the structure whose
+        pulses are exactly these (another echo time or TR under one gradient response, a
+        repeat, another scan of a room) replays the state pass alone."""
         from nifti_mrs_plus.backend import jit
 
         from mrsandbox.sequences.events import ShapedPulse
@@ -921,7 +928,21 @@ class Engine:
         timings = self._timing_tensors(sequence)
         shift = ops.convert_to_tensor(np.asarray(
             [float((shift_mm or {}).get(axis, 0.0)) for axis in "xyz"], dtype=precision.REAL))
-        return (lambda b1_scale, offset_hz: frame(b1_scale, offset_hz, timings, shift),
+        played = {id(event): event for event in sequence.events if isinstance(event, ShapedPulse)}
+        pulses = tuple(np.asarray(ops.convert_to_numpy(value)).tobytes()
+                       for event in played.values() for value in event.timings())
+
+        def held(b1_scale, offset_hz):
+            at = (pulses, np.asarray(ops.convert_to_numpy(b1_scale)).tobytes(),
+                  float(offset_hz), np.asarray(ops.convert_to_numpy(shift)).tobytes())
+            frames = self._frames.setdefault(key, {})
+            if at not in frames:
+                if len(frames) >= 2:
+                    frames.pop(next(iter(frames)))
+                frames[at] = frame(b1_scale, offset_hz, timings, shift)
+            return frames[at]
+
+        return (held,
                 lambda t1_s, t2_s, b1_scale, offset_hz, held: lines(
                     t1_s, t2_s, b1_scale, offset_hz, timings, shift, held),
                 lambda t1_s, t2_s, b1_scale, offset_hz, held: draws(
