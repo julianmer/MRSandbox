@@ -34,13 +34,26 @@ MRSI_CHALLENGE = {
 #         doi 10.3389/fneur.2019.01333, Table 1: long-TR multi-echo gradient echo at 3 T, 21
 #         healthy adults, the CSF taken as pure water.
 # Units:  water content as a fraction of pure water's per tissue: (mean, sd between subjects).
-# Notes:  the newest in vivo measurement readable here (Shah et al. 2022, NeuroImage 252:119014,
-#         the water content atlas, is newer: its tissue values were not readable); the MRSI
-#         challenge's table above is the synthetic dataset's own choice.
+# Notes:  the MRSI challenge's table above is the synthetic dataset's own choice.
 OROS_PEUSQUENS_2019 = {"gm": (0.837, 0.012), "wm": (0.691, 0.017), "csf": (1.0, 0.0)}
 
-# the tissues' water content the package's brains carry: the newest measurement
-WATER_CONTENT = {tissue: mean for tissue, (mean, _) in OROS_PEUSQUENS_2019.items()}
+#***************#
+#   shah 2022   #
+#***************#
+# Source: Shah, N. J., Abbas, Z., Ridder, D., Zimmermann, M., Oros-Peusquens, A.-M. A novel
+#         MRI-based quantitative water content atlas of the human brain. NeuroImage 252 (2022)
+#         119014, doi 10.1016/j.neuroimage.2022.119014, section 3.1: 20 healthy adults at 3 T,
+#         the entire WM and GM of each method's maps (method A an intermediate-TR two-point
+#         method, method B a long-TR single scan).
+# Units:  water content as a fraction of pure water's per tissue: (mean, the width of the
+#         tissue's voxel distribution, not a spread between subjects).
+SHAH_2022 = {"method_a": {"gm": (0.813, 0.059), "wm": (0.714, 0.044)},
+             "method_b": {"gm": (0.815, 0.055), "wm": (0.708, 0.044)}}
+
+# the tissues' water content the package's brains carry: the newest measurement, the mean of its
+# two methods (they agree within 0.5 percent, the paper's own words), the CSF pure water
+WATER_CONTENT = {**{tissue: (SHAH_2022["method_a"][tissue][0] + SHAH_2022["method_b"][tissue][0])
+                    / 2.0 for tissue in ("gm", "wm")}, "csf": 1.0}
 
 #***********************#
 #   water thermometry   #

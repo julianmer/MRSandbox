@@ -497,8 +497,9 @@ class TestTissueContrast:
         from mrsandbox import Brain, Priors
         from mrsandbox.database.tissue import OROS_PEUSQUENS_2019
 
-        assert Brain.water_content == {"gm": 0.837, "wm": 0.691, "csf": 1.0}
+        # the newest measurement, Shah et al. 2022's atlas, the mean of its two methods
+        assert Brain.water_content == pytest.approx({"gm": 0.814, "wm": 0.711, "csf": 1.0})
         assert OROS_PEUSQUENS_2019["gm"] == (0.837, 0.012)
         # Gasparovic's per tissue water at the measured contents, Tal's per litre as printed
         naa = Priors.tissue_contrast(("NAA",), tesla=3.0).NAA.values
-        assert 19.54 / 14.23 * 0.837 / 0.691 == pytest.approx(sorted(naa)[-2]) and 8.5 / 7.7 in naa
+        assert 19.54 / 14.23 * 0.814 / 0.711 == pytest.approx(sorted(naa)[-2]) and 8.5 / 7.7 in naa
