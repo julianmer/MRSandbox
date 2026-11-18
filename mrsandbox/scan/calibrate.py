@@ -30,7 +30,7 @@ from mrsandbox.hardware.receiver import Receiver
 from mrsandbox.params.values import Tissues
 from mrsandbox.phantom.macromolecules import _echo_time_s
 from mrsandbox.phantom.solution import Phantom
-from mrsandbox.scan.calibrations import Calibration
+from mrsandbox.scan.calibrations import TWIN_VERSION, Calibration
 from mrsandbox.scan.voxel import noise_scale
 
 # what a NIfTI-MRS header says of the scanner, coil, and sequence
@@ -467,7 +467,7 @@ class NoiseReading:
                       "naa_found_at_ppm": round(self.naa_ppm, 3),
                       "apodized": {"statistic": APODIZED, "median": round(self.snr_apodized, 1),
                                    "implied_value": round(apodized, 2)},
-                      "twin_held_at": dict(held or {})},
+                      "twin_held_at": dict(held or {}), "twin": TWIN_VERSION},
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),
@@ -605,7 +605,7 @@ class SpectrumReading:
                                    "averaged, coil-combined spectrum under 2 Hz apodization, in "
                                    "Hz (scan.calibrate.SpectrumReading)",
                       "naa_fwhm_hz": None if unread else round(self.naa_fwhm_hz, 2),
-                      "twin_without_broadening_hz": round(bare, 2)},
+                      "twin_without_broadening_hz": round(bare, 2), "twin": TWIN_VERSION},
             # the rule: a twin already as wide as the line without any broadening leaves the
             # bisection at its floor, and the line's width was not read
             failed=("the NAA line does not fall to half its height within 0.12 ppm on both "
@@ -843,7 +843,8 @@ class WaterSeriesReading:
                       "tops": tuple(round(top, 4) for top in self.tops),
                       "apparent_t2_ms": round(1e3 * self.apparent_t2_s, 1),
                       "misfit": round(self.misfit, 4),
-                      "tissue_t2_ms": {"gm": round(1e3 * t2.gm, 1), "wm": round(1e3 * t2.wm, 1)}},
+                      "tissue_t2_ms": {"gm": round(1e3 * t2.gm, 1), "wm": round(1e3 * t2.wm, 1)},
+                      "twin": TWIN_VERSION},
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),
@@ -1088,7 +1089,8 @@ class MetaboliteSeriesReading:
                           "ratios": tuple(round(r, 4) for r in self.ratios[name]),
                           "factor": round(float(np.median(factors[name])), 3),
                           "t2_ms": round(1e3 * value, 1),
-                          "water_apparent_t2_ms": round(1e3 * self.water.apparent_t2_s, 1)},
+                          "water_apparent_t2_ms": round(1e3 * self.water.apparent_t2_s, 1),
+                          "twin": TWIN_VERSION},
                 source={"dataset": dataset, "citation": citation, "url": url},
                 scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                          "model": self.header.get("ManufacturersModelName"),
@@ -1288,7 +1290,8 @@ class DiffusionSeriesReading:
                                   "b_ms_um2": tuple(round(b, 4) for b in self.b_ms_um2),
                                   "ratios": tuple(round(r, 4) for r in self.ratios[name]),
                                   "factor": round(float(np.median(factors[name])), 3),
-                                  "model": str(voxel.scan.params.diffusion.model)},
+                                  "model": str(voxel.scan.params.diffusion.model),
+                                  "twin": TWIN_VERSION},
                         source={"dataset": dataset, "citation": citation, "url": url},
                         scanner={"vendor": str(self.header.get("Manufacturer", "")).lower()
                                  or None,
@@ -1431,7 +1434,8 @@ class MacromoleculeReading:
                       "twin_peak_over_naa": round(float(np.median(twin["peak_over_naa"])), 4),
                       "factor": round(self.peak_over_naa
                                       / float(np.median(twin["peak_over_naa"])), 3),
-                      "twin_lipid_share": round(lipid, 3), "twin_held_at": dict(held or {})},
+                      "twin_lipid_share": round(lipid, 3), "twin_held_at": dict(held or {}),
+                      "twin": TWIN_VERSION},
             source={"dataset": dataset, "citation": citation, "url": url},
             scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
                      "model": self.header.get("ManufacturersModelName"),
@@ -2299,7 +2303,7 @@ class WaterReading:
                                    "(scan.calibrate.WaterReading)",
                       "delay_us": round(1e6 * delay, 1),
                       "creatine_phase_deg": round(self.creatine_phase_deg, 1),
-                      "intrinsic_phase_deg": round(intrinsic, 1),
+                      "intrinsic_phase_deg": round(intrinsic, 1), "twin": TWIN_VERSION,
                       "creatine_offset_hz": round(self.creatine_offset_hz, 1)},
             processing="NIfTI-MRS, noise-whitened SVD coil combination, the mean FID's spectrum "
                        "fourfold zero filled, phases at the peaks' maxima",

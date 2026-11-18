@@ -116,6 +116,43 @@ class Calibration:
                 "extrapolated": {k: list(v) for k, v in self.departures(scan).items()}}
 
 
+#******************#
+#   twin version   #
+#******************#
+# what a reading inverted through the twin was inverted under: a number the twin's physics gives
+# (its NAA width without broadening, its SNR, its water's echo tops, its 0.9 ppm peak over NAA,
+# creatine's phase and height against NAA), raised with every change that moves one of them, so a
+# value inverted under an earlier twin is known as such (tests/scan/test_twin.py holds the
+# numbers of this version and fails when the physics moves them)
+TWIN_VERSION = 1
+
+# the leaves whose readings were inverted through the twin before readings carried the version
+INVERTED = ("noise.sigma", "lineshape.gauss_hz", "acquisition.delay_s", "mm.level_mm",
+            "mm.kappa", "conc.Cr")
+
+
+#**************#
+#   inverted   #
+#**************#
+def inverted(record):
+    """Whether a record's value is the data's reading inverted through the twin (a reading
+    straight off the data, a map's median or a ratio of the data's own, is not): it says so
+    (`twin` in its measured, or a statistic that names the twin), or its leaf is one only
+    the twin reads."""
+    measured = record.measured or {}
+    return ("twin" in measured or "twin" in str(measured.get("statistic", "")).lower()
+            or record.leaf in INVERTED)
+
+
+#***********#
+#   stale   #
+#***********#
+def stale(record):
+    """Whether a record inverted through the twin was inverted under another twin than this
+    package's (TWIN_VERSION): its value no longer follows from its reading."""
+    return inverted(record) and (record.measured or {}).get("twin") != TWIN_VERSION
+
+
 #*****************************#
 #   array noise correlation   #
 #*****************************#
