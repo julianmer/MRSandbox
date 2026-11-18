@@ -144,8 +144,11 @@ def default_params(database=None, b0_t=3.0, scanner=None, records=(), channels=N
                                          cited=CREATINE))
     t2 = Priors.gudmundson_t2(names, tesla=tesla)  # pooled where the literature has rows
     # a metabolite's T2 read off the package's cohorts' echo series through the twin
-    # (scan.calibrate.MetaboliteSeriesReading) pooled beside the literature, which stays chosen
-    t2 = Params({name: _sourced(f"t2.{name}", served, Uniform, literature=leaf, cited=GUDMUNDSON)
+    # (scan.calibrate.MetaboliteSeriesReading, per tissue where the leaf is) pooled beside the
+    # literature, which stays chosen
+    t2 = Params({name: _per_tissue(f"t2.{name}", served, leaf, cited=GUDMUNDSON)
+                 if isinstance(leaf, PerTissue)
+                 else _sourced(f"t2.{name}", served, Uniform, literature=leaf, cited=GUDMUNDSON)
                  if f"t2.{name}" in served else leaf for name, leaf in t2.items()})
     literature_t1, literature_t2 = _water_relaxation(tesla)
     # the 3 T T2 studies each a voice of the mixed source, where their range is the literature
@@ -615,13 +618,13 @@ def _cited(record):
 #****************#
 #   per tissue   #
 #****************#
-def _per_tissue(leaf, served, literature, studies=None):
+def _per_tissue(leaf, served, literature, studies=None, cited=WATER_CITED):
     """A PerTissue leaf with its pooled source where the package's rows read it per tissue (a
     quantitative map on its subject's tissue maps, scan.maps): `leaf`.gm, .wm and .csf each
     pooled, a tissue without rows as the literature gives it; its mixed source the
     literature's studies (`studies`, {tissue: Values, one per study}, else the literature as
-    one) and the datasets as equal voices; the literature chosen. Without rows the
-    literature alone."""
+    one) and the datasets as equal voices; the literature chosen, `cited` its provenance.
+    Without rows the literature alone."""
     records = {tissue: served.get(f"{leaf}.{tissue}") for tissue in TISSUES}
     if not any(records.values()):
         return literature
@@ -633,7 +636,7 @@ def _per_tissue(leaf, served, literature, studies=None):
                          for tissue, record in records.items()})
     held = "; ".join(f"{tissue}: {_cited(record)}" for tissue, record in records.items() if record)
     return Sourced(literature=literature, pooled=pooled, mixed=mixed, chosen="literature",
-                   provenance={"literature": WATER_CITED, "pooled": held,
+                   provenance={"literature": cited, "pooled": held,
                                "mixed": f"the literature's studies and {held}, each an equal "
                                         "voice"})
 

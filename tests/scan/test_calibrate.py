@@ -17,7 +17,8 @@
 import numpy as np
 import pytest
 
-from mrsandbox import Brain, Params, Press, Scanner, VirtualScan
+from mrsandbox import (Brain, Params, PerTissue, Press, Scanner, Tissues, Uniform,
+                       VirtualScan)
 from mrsandbox.scan.calibrate import (CovarianceReading, DiffusionSeriesReading, GIRFReading,
                                       MacromoleculeReading, MetaboliteSeriesReading, NoiseReading,
                                       RelaxationReading, SpectrumReading, WaterSeriesReading)
@@ -580,9 +581,6 @@ class TestMetaboliteSeriesReading:
                           water=Unsuppressed(), mm=NoMM(), lipids=NoLipids())
         voxels = {te: twin.scans[te].voxel(**kw) for te in series}
         truth = voxels[0.035].sample(0)
-        # the twin's own T2s, one per metabolite (a grey and white mix reads as one decay)
-        for name in ("NAA", "Cr", "PCr"):
-            dict.__setitem__(truth.t2, name, voxels[0.035].t2(truth, name))
         rng = np.random.default_rng(0)
 
         def raw(fid, sigma):
@@ -606,23 +604,32 @@ class TestMetaboliteSeriesReading:
         reading = MetaboliteSeriesReading.from_arrays(runs, refs, dwell_s, f0_mhz, header)
         assert reading.te_s == (0.035, 0.068, 0.08) and not reading.water.failed
         assert all(reading.ratios[name][0] == 1.0 for name in ("NAA", "Cr"))
-        # the draw the data were made with is read back, creatine and phosphocreatine together
+        # the draw the data were made with is read back per tissue, as the twin draws the T2s
+        # (one factor on the grey and the white), creatine and phosphocreatine together
         t2 = reading.t2_s(voxels, seeds=1)
-        assert set(t2) == {"NAA", "Cr", "PCr"}
-        drawn = {name: voxels[0.035].t2(truth, name) for name in ("NAA", "Cr", "PCr")}
-        assert t2["NAA"] == pytest.approx(drawn["NAA"], rel=0.03)
-        assert t2["Cr"] == pytest.approx(drawn["Cr"], rel=0.03)
-        assert t2["PCr"] / t2["Cr"] == pytest.approx(drawn["PCr"] / drawn["Cr"], rel=1e-6)
-        # a subject whose NAA relaxes at half the drawn T2 reads half, the rest of the twin held
-        shorter = Multiplex(*pieces, params=calm | Params(t2=dict(NAA=0.5 * drawn["NAA"])))
+        drawn = {name: truth.t2[name] for name in ("NAA", "Cr", "PCr")}
+        assert set(t2) == {"NAA", "Cr", "PCr"} and isinstance(t2["NAA"], Tissues)
+        for name in ("NAA", "Cr"):
+            assert t2[name][:2] == pytest.approx(drawn[name][:2], rel=0.03)
+        assert t2["PCr"] / drawn["PCr"] == pytest.approx(t2["Cr"].gm / drawn["Cr"].gm, rel=1e-6)
+        # a subject whose NAA relaxes at half the drawn T2s reads half, the rest of the twin held
+        half = PerTissue(gm=0.5 * drawn["NAA"].gm, wm=0.5 * drawn["NAA"].wm)
+        shorter = Multiplex(*pieces, params=calm | Params(t2=dict(NAA=half)))
         halved = MetaboliteSeriesReading.from_arrays(
             *data(shorter, shorter.scans[0.035].voxel(**kw).sample(0)), dwell_s, f0_mhz,
             header).t2_s(voxels, seeds=1)
-        assert halved["NAA"] == pytest.approx(0.5 * drawn["NAA"], rel=0.1)
-        assert halved["Cr"] == pytest.approx(drawn["Cr"], rel=0.1)
+        assert halved["NAA"][:2] == pytest.approx((half.gm.value, half.wm.value), rel=0.1)
+        assert halved["Cr"][:2] == pytest.approx(drawn["Cr"][:2], rel=0.1)
         records = reading.records(voxels, "the twin", seeds=1)
-        assert [r.leaf for r in records] == ["t2.NAA", "t2.Cr", "t2.PCr"]
-        assert records[0].value == pytest.approx(t2["NAA"], abs=1e-4)
+        assert [r.leaf for r in records] == ["t2.NAA.gm", "t2.NAA.wm", "t2.Cr.gm", "t2.Cr.wm",
+                                             "t2.PCr"]
+        assert records[0].value == pytest.approx(t2["NAA"].gm, abs=1e-4)
+        # a scanner's own records serve the per-tissue leaves, each tissue its own, chosen
+        from mrsandbox.scan.defaults import default_params
+
+        leaf = default_params(records=records).t2.NAA
+        assert leaf.chosen == "own" and leaf.own.gm == Uniform(*records[0].prior)
+        assert leaf.own.wm == Uniform(*records[1].prior)
         assert records[0].carried_by == "subject" and not records[0].failed
         assert records[0].sequence["te_s"] == (0.035, 0.068, 0.08)
         # references a scale apart fail the series by the water reader's rule

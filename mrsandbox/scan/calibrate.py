@@ -967,9 +967,10 @@ class MetaboliteSeriesReading:
     #**************#
     def factors(self, voxels, seeds=3):
         """Per draw the factor on each line's drawn T2 at which the twin's ratios fall as
-        the data's: {echo time: scan.Voxel} of the suppressed twin at the data's voxel, one
-        design per echo time; returns ({line: [factor per seed]}, {leaf: [drawn T2 per
-        seed]})."""
+        the data's (on the grey and the white T2 together where they are drawn per tissue, as
+        the water's reader does): {echo time: scan.Voxel} of the suppressed twin at the data's
+        voxel, one design per echo time; returns ({line: [factor per seed]}, {leaf: [drawn
+        T2 per seed]})."""
         if tuple(sorted(voxels)) != self.te_s:
             raise ValueError(f"the twin's echo times {sorted(voxels)} are not the series' "
                              f"{self.te_s}")
@@ -988,7 +989,7 @@ class MetaboliteSeriesReading:
                 voxel._diffusion_factor(truth), source=Unsuppressed()), dwell_s)
                 for voxel in ordered])
             for name, (leaves, _) in self.LINES.items():
-                own = {leaf: ordered[0].t2(truth, leaf) for leaf in leaves}
+                own = {leaf: truth.t2[leaf] for leaf in leaves}
 
                 def misfit(factor):
                     areas = [self._areas(self._swapped(voxel, truth, own, factor, n, dwell_s)
@@ -1009,22 +1010,24 @@ class MetaboliteSeriesReading:
     @staticmethod
     def _swapped(voxel, truth, own, factor, npoints, dwell_s):
         """The twin's clean FID on the grid with the lines of the metabolites in `own`
-        ({leaf: drawn T2}) swapped at `factor` times their drawn T2: their systems alone
-        replayed through the design, the other metabolites' lines as the twin holds them
-        (left in the voxel's lines cache under the trial frame)."""
+        ({leaf: drawn T2, a Tissues where drawn per tissue}) swapped at `factor` times their
+        drawn T2: their systems alone replayed through the design at the T2 the voxel replays
+        (Voxel.t2), the other metabolites' lines as the twin holds them (left in the voxel's
+        lines cache under the trial frame)."""
         # the twin's lines at the drawn frame (held), then the trial on the truth
         for leaf, value in own.items():
             dict.__setitem__(truth.t2, leaf, value)
         lines = dict(voxel._metabolite_lines(truth))
         for leaf, value in own.items():
-            dict.__setitem__(truth.t2, leaf, factor * value)
+            dict.__setitem__(truth.t2, leaf, Tissues(*np.multiply(factor, value))
+                             if isinstance(value, Tissues) else factor * value)
         engine, design = voxel.scan.engine, voxel.design(truth)
         temperature_c = float(voxel.resolve(truth.water.temperature_c))
         for leaf, value in own.items():
             group = voxel.scan.systems(leaf, temperature_c)
             freqs, amps = engine.lines(
                 design, *(s.with_relaxation(t1_s=float(voxel.resolve(truth.t1[leaf])),
-                                            t2_s=factor * value) for s in group),
+                                            t2_s=voxel.t2(truth, leaf)) for s in group),
                 b1_scale=voxel.b1_input(truth), offset_hz=voxel.offset_hz(truth),
                 shift_mm=voxel.shift_mm)
             lines[leaf] = (np.asarray(ops.convert_to_numpy(freqs)),
@@ -1036,18 +1039,28 @@ class MetaboliteSeriesReading:
 
     def t2_s(self, voxels, seeds=3):
         """{leaf: T2 in seconds} of t2.NAA, t2.Cr and t2.PCr: per draw the drawn T2 times
-        the fitted factor, the median over `seeds`."""
-        factors, drawn = self.factors(voxels, seeds)
-        return {leaf: float(np.median([f * d for f, d in zip(factors[name], drawn[leaf])]))
-                for name, (leaves, _) in self.LINES.items() for leaf in leaves}
+        the fitted factor, the median over `seeds`; a Tissues where the twin draws them per
+        tissue."""
+        return self._medians(*self.factors(voxels, seeds))
+
+    def _medians(self, factors, drawn):
+        """`t2_s` of the fitted factors and the drawn T2s `factors` gives."""
+        found = {}
+        for name, (leaves, _) in self.LINES.items():
+            for leaf in leaves:
+                value = np.median([np.multiply(f, d) for f, d in zip(factors[name], drawn[leaf])],
+                                  axis=0)
+                found[leaf] = (Tissues(*(float(v) for v in value))
+                               if isinstance(drawn[leaf][0], Tissues) else float(value))
+        return found
 
     #*************#
     #   records   #
     #*************#
     def records(self, voxels, dataset, presets=(), citation=None, url=None, seeds=3):
-        """The Calibrations of t2.NAA, t2.Cr and t2.PCr, the twin's reading of this series,
-        the prior a quarter either side; carried by the subject; failed by the stated
-        rules."""
+        """The Calibrations of t2.NAA, t2.Cr and t2.PCr (of their .gm and .wm where the twin
+        draws them per tissue), the twin's reading of this series, the prior a quarter either
+        side; carried by the subject; failed by the stated rules."""
         factors, drawn = self.factors(voxels, seeds)
         voxel = voxels[self.te_s[0]]
         designs = [type(v.scan.sequence).__name__ for _, v in sorted(voxels.items())]
@@ -1057,44 +1070,48 @@ class MetaboliteSeriesReading:
         failed = self.water.failed or ("" if not at_bound else (
             f"no T2 between {low} and {high} of the drawn makes the twin's "
             f"{' and '.join(at_bound)} fall as the data's: not relaxation"))
-        found = []
-        for name, (leaves, _) in self.LINES.items():
-            for leaf in leaves:
-                value = float(np.median([f * d for f, d in zip(factors[name], drawn[leaf])]))
-                found.append(Calibration(
-                    leaf=f"t2.{leaf}", value=float(round(value, 4)),
-                    prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
-                    measured={"statistic": f"the {name} area over the water reference's echo "
-                                           "top at each echo, over the first; the T2 at which "
-                                           "the twin's ratios fall as the data's, its own lines "
-                                           "swapped (scan.calibrate.MetaboliteSeriesReading)",
-                              "ratios": tuple(round(r, 4) for r in self.ratios[name]),
-                              "factor": round(float(np.median(factors[name])), 3),
-                              "t2_ms": round(1e3 * value, 1),
-                              "water_apparent_t2_ms": round(1e3 * self.water.apparent_t2_s, 1)},
-                    source={"dataset": dataset, "citation": citation, "url": url},
-                    scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
-                             "model": self.header.get("ManufacturersModelName"),
-                             "software": self.header.get("SoftwareVersions"),
-                             "field_t": round(self.f0_mhz / 42.5774785, 2)},
-                    coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
-                    sequence={"name": self.header.get("SequenceName") or "/".join(designs),
-                              "family": "/".join(designs), "te_s": self.te_s,
-                              "tr_s": self.header.get("RepetitionTime"),
-                              "simulated_as": "/".join(designs)},
-                    acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
-                                 "transients": self.transients, "water_suppressed": True},
-                    voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
-                           "simulated_position_mm": tuple(voxel.position_mm),
-                           "fractions": tuple(round(float(f), 3) for f in voxel.fractions)},
-                    processing="the combined mean FID's spectrum phased on NAA, 2 Hz apodization, "
-                               "fourfold zero filled, the band's area over the 0.3 to 0.5 ppm "
-                               "level, over the reference's echo top; the twin's clean spectrum "
-                               "read the same way through the same designs at the voxel's own "
-                               "tissue fractions",
-                    date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
-                    presets=tuple(presets), failed=failed,
-                    note="one subject's series; made by scan.calibrate"))
+        found, read = [], self._medians(factors, drawn)
+        # a T2 drawn per tissue reads per tissue, as the water's
+        parts = {leaf: ({f".{tissue}": getattr(value, tissue) for tissue in ("gm", "wm")}
+                        if isinstance(value, Tissues) else {"": value})
+                 for leaf, value in read.items()}
+        rows = [(name, leaf, suffix, value) for name, (leaves, _) in self.LINES.items()
+                for leaf in leaves for suffix, value in parts[leaf].items()]
+        for name, leaf, suffix, value in rows:
+            found.append(Calibration(
+                leaf=f"t2.{leaf}{suffix}", value=float(round(value, 4)),
+                prior=(round(0.75 * value, 4), round(1.25 * value, 4)),
+                measured={"statistic": f"the {name} area over the water reference's echo "
+                                       "top at each echo, over the first; the T2 at which "
+                                       "the twin's ratios fall as the data's, its own lines "
+                                       "swapped (scan.calibrate.MetaboliteSeriesReading)",
+                          "ratios": tuple(round(r, 4) for r in self.ratios[name]),
+                          "factor": round(float(np.median(factors[name])), 3),
+                          "t2_ms": round(1e3 * value, 1),
+                          "water_apparent_t2_ms": round(1e3 * self.water.apparent_t2_s, 1)},
+                source={"dataset": dataset, "citation": citation, "url": url},
+                scanner={"vendor": str(self.header.get("Manufacturer", "")).lower() or None,
+                         "model": self.header.get("ManufacturersModelName"),
+                         "software": self.header.get("SoftwareVersions"),
+                         "field_t": round(self.f0_mhz / 42.5774785, 2)},
+                coil={"channels": (self.coils,), "name": self.header.get("ReceiveCoilName")},
+                sequence={"name": self.header.get("SequenceName") or "/".join(designs),
+                          "family": "/".join(designs), "te_s": self.te_s,
+                          "tr_s": self.header.get("RepetitionTime"),
+                          "simulated_as": "/".join(designs)},
+                acquisition={"npoints": self.npoints, "bandwidth_hz": 1.0 / self.dwell_s,
+                             "transients": self.transients, "water_suppressed": True},
+                voxel={"size_mm": voxel.size_mm, "simulated_brain": voxel.scan.brain.name,
+                       "simulated_position_mm": tuple(voxel.position_mm),
+                       "fractions": tuple(round(float(f), 3) for f in voxel.fractions)},
+                processing="the combined mean FID's spectrum phased on NAA, 2 Hz apodization, "
+                           "fourfold zero filled, the band's area over the 0.3 to 0.5 ppm "
+                           "level, over the reference's echo top; the twin's clean spectrum "
+                           "read the same way through the same designs at the voxel's own "
+                           "tissue fractions",
+                date=datetime.date.today().strftime("%d/%m/%y"), carried_by="subject",
+                presets=tuple(presets), failed=failed,
+                note="one subject's series; made by scan.calibrate"))
         return tuple(found)
 
 
