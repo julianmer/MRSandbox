@@ -18,7 +18,7 @@ import math
 
 import pytest
 
-from mrsandbox import Press, Scanner, SemiLaser
+from mrsandbox import LocalizedSemiLaser7T, Press, Scanner, SemiLaser
 from mrsandbox.sequences.events import (CoherenceFilter, Delay, Gradient, Pulse, SelectivePulse,
                                         Sequence, ShapedPulse)
 
@@ -59,6 +59,9 @@ class TestLimits:
         assert SemiLaser(te_s=0.030).feasible(Scanner.preset("philips_elition_3t"))
         assert SemiLaser(te_s=0.030, afp_peak_hz=1500.0).violations(scanner)[0].startswith(
             "shaped pulse peak 35.2 uT")
+        # the CMRR 7 T protocol at the consensus's shortest echo, 23.5 uT within a 7 T coil's
+        seven = LocalizedSemiLaser7T(0.026, 7.0 * 42.5774785)
+        assert seven.feasible(Scanner.preset("generic_7t"))
 
     def test_selective_bands_take_the_gaussian_length(self):
         scanner = Scanner.preset("generic_3t")

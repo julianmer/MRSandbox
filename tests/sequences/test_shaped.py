@@ -577,13 +577,19 @@ class TestAdiabatic:
         assert kept(slaser, 0.7) < 0.7
 
     def test_the_semi_laser_band_holds_the_spectrum_at_seven_tesla(self):
-        # the 10 kHz band centred at 2.67 ppm refocuses NAA's singlet at 7 T as at 3 T (a
-        # 1.5 kHz band on the water ends near 2.1 ppm at 7 T and lost it)
-        from mrsandbox import SemiLaser
+        # each field's protocol refocuses NAA's singlet (a 1.5 kHz band on the water ends near
+        # 2.1 ppm at 7 T and lost it); at 7 T the CMRR protocol's 23.5 uT keeps the water's echo
+        # the 3 T design's 15 uT loses there
+        from mrsandbox import LocalizedSemiLaser, LocalizedSemiLaser7T, SemiLaser, semi_laser
 
-        naa = SpinSystem.from_database("NAA")[0]
+        assert semi_laser(2.895 * GAMMA) is LocalizedSemiLaser and semi_laser() is LocalizedSemiLaser
+        assert semi_laser(6.98 * GAMMA) is LocalizedSemiLaser7T
+        naa, water = SpinSystem.from_database("NAA")[0], WaterSource.system(gamma_mhz_t=GAMMA)
         for field in (3.0, 7.0):
             engine = Engine(field)
             full = total_amplitude(engine, Sequence(Pulse(90.0)), naa)
-            _, a = engine.lines(SemiLaser(te_s=0.035), naa)
-            assert float(np.abs(ops.convert_to_numpy(a)).sum()) > 0.9 * full
+            design = SemiLaser(te_s=0.035, f0_mhz=field * GAMMA)
+            assert total_amplitude(engine, design, naa) > 0.9 * full
+        full = total_amplitude(engine, Sequence(Pulse(90.0)), water)
+        assert total_amplitude(engine, design, water) > 0.85 * full
+        assert total_amplitude(engine, SemiLaser(te_s=0.035), water) < 0.8 * full

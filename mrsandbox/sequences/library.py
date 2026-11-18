@@ -548,10 +548,12 @@ class LocalizedSemiLaser(Sequence):
     the transmit field's hold on the excitation emerge.
 
     The design of the across-vendor 3 T semi-LASER (Deelchand et al. 2021, NMR Biomed
-    34:e4218): GOIA-W(16,4) refocusing pulses of 4.5 ms and 10 kHz at 15 uT; the
-    excitation is a Shinnar-Le Roux 90 of their 2.6 ms and 2.6 kHz (linear phase
-    here, asymmetric in theirs, stated) under its slice gradient on x, rephased by
-    0.52 of its moment, the pairs play on y and z. Each axis is averaged over its
+    34:e4218): GOIA-W(16,4) refocusing pulses of 4.5 ms and 10 kHz at 15 uT, the
+    gradient's dip 0.85, the transmitter at 2.67 ppm ("The center frequency was set to
+    2.67 ppm for all metabolite acquisitions"); the excitation is a Shinnar-Le Roux 90 of
+    their 2.6 ms and 2.6 kHz (linear phase here, asymmetric in theirs, stated) under its
+    slice gradient on x, rephased by 0.52 of its moment, the pairs play on y and z. Another
+    field's protocol is a subclass of its own constants (`semi_laser` picks it). Each axis is averaged over its
     isochromats as soon as its pulses have played (`Projection`, the one-dimensional
     projection of Zhang et al. 2017), coherence filters on both sides of every
     refocusing pulse select the echo pathway as its crusher pair does (what recovered
@@ -567,19 +569,22 @@ class LocalizedSemiLaser(Sequence):
             carrier, a phase ramp from the pulse's start, reads zero at the pulse's
             centre, as a receiver locked to the transmitter sees it.
         size_mm: The voxel edge, or its (x, y, z) edges.
-        reference_ppm: The shift the three slabs are centred for; others displace.
+        reference_ppm: The shift the three slabs are centred for, others displace; the
+            protocol's transmitter (CENTRE_PPM) by default.
         span: The ensemble's extent per axis in voxel edges.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
     """
 
     EXCITATION_S, EXCITATION_TBW, REPHASE = 0.0026, 6.76, 0.52
     AFP_S, AFP_BANDWIDTH_HZ, AFP_PEAK_HZ = 0.0045, 10000.0, 15.0 * 42.5774785
+    MODULATION, CENTRE_PPM = 0.85, 2.67
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, f0_mhz, size_mm=20.0, reference_ppm=3.0, span=2.5, tr_s=None):
+    def __init__(self, te_s, f0_mhz, size_mm=20.0, reference_ppm=None, span=2.5, tr_s=None):
         self.te_s = te_s
+        reference_ppm = self.CENTRE_PPM if reference_ppm is None else reference_ppm
         edges = voxel_edges(size_mm)
         tau = (te_s - 4.0 * self.AFP_S) / 8.0
         if tau <= self.EXCITATION_S / 2.0:
@@ -591,7 +596,8 @@ class LocalizedSemiLaser(Sequence):
         def afp(axis, edge):
             # 128 steps: finer steps leave coupled spectra as they are
             return ShapedPulse.goia_wurst(self.AFP_S, self.AFP_BANDWIDTH_HZ, self.AFP_PEAK_HZ,
-                                          steps=128, offset_ppm=reference_ppm,
+                                          modulation=self.MODULATION, steps=128,
+                                          offset_ppm=reference_ppm,
                                           extent_mm=span * edge,
                                           gradient_hz_per_mm=self.AFP_BANDWIDTH_HZ / edge,
                                           gradient_axis=axis, recover=False)
@@ -609,6 +615,49 @@ class LocalizedSemiLaser(Sequence):
             CoherenceFilter(+1), afp_z, CoherenceFilter(-1), Projection(span), Delay(tau),
             tr_s=tr_s,
         )
+
+
+#**************************************************************************************************#
+#                                     Class LocalizedSemiLaser7T                                   #
+#**************************************************************************************************#
+#                                                                                                  #
+# The semi-LASER with its localization played, as the CMRR sequence plays it at 7 T.               #
+#                                                                                                  #
+#**************************************************************************************************#
+class LocalizedSemiLaser7T(LocalizedSemiLaser):
+    """The semi-LASER with its localization played, as the CMRR sequence plays it at 7 T.
+
+    No harmonized 7 T protocol is published. The experts' consensus (Oz et al. 2021, NMR
+    Biomed 34:e4236, Table 1) gives the 7 T semi-LASER as an asymmetric sinc and GOIA-WURST
+    pairs on a head transmit volume coil at 26 uT, the CMRR sequence (Deelchand's, "SEMI-LASER
+    Release 2016-12") the sites use (Park et al. 2021, Front Neurol 12:698675: its GOIA-WURST
+    lose adiabaticity below 18.8 uT); its pulse values are those of the University of Oxford's
+    basis code for that sequence at 7 T (W. T. Clarke's WIN MRS basis sets, slaser_dkd
+    generate.py, its defaults): a 1.5 ms excitation of time-bandwidth 6.775, GOIA-WURST(16,4)
+    of 3.5 ms at R 45 per ms (12.9 kHz), the gradient's dip 0.9, 1000 Hz at their peak (the
+    code's own choice; 23.5 uT, within the consensus's coils), the transmitter 1.7 ppm below
+    the water. Everything else as the 3 T design.
+    """
+
+    EXCITATION_S, EXCITATION_TBW = 0.0015, 6.775
+    AFP_S, AFP_BANDWIDTH_HZ, AFP_PEAK_HZ = 0.0035, 45.0 / 0.0035, 1000.0
+    MODULATION, CENTRE_PPM = 0.9, 4.65 - 1.7
+
+
+# the semi-LASER protocols by the field they are played at
+SEMI_LASERS = {3.0: LocalizedSemiLaser, 7.0: LocalizedSemiLaser7T}
+
+
+#****************#
+#   semi laser   #
+#****************#
+def semi_laser(f0_mhz=None):
+    """The semi-LASER protocol (its played class) at the field closest to `f0_mhz`'s; the
+    3 T across-vendor design without one."""
+    if f0_mhz is None:
+        return LocalizedSemiLaser
+    tesla = f0_mhz / 42.5774785
+    return SEMI_LASERS[min(SEMI_LASERS, key=lambda field: abs(field - tesla))]
 
 
 #**************************************************************************************************#
@@ -660,7 +709,7 @@ class LocalizedMegaSemiLaser(Sequence):
                  edit_s=0.014, span=2.5, tr_s=None):
         self.edit_ppm = edit_ppm
         self.te_s = te_s
-        laser = LocalizedSemiLaser
+        laser = semi_laser(f0_mhz)
         t90, afp_s, gap = laser.EXCITATION_S, laser.AFP_S, self.MARGIN_S
         # the pulse centres from the excitation's centre
         a = t90 / 2.0 + afp_s / 2.0 + gap
@@ -683,7 +732,8 @@ class LocalizedMegaSemiLaser(Sequence):
 
         def afp(axis, edge):
             return ShapedPulse.goia_wurst(afp_s, laser.AFP_BANDWIDTH_HZ, laser.AFP_PEAK_HZ,
-                                          steps=128, offset_ppm=reference_ppm,
+                                          modulation=laser.MODULATION, steps=128,
+                                          offset_ppm=reference_ppm,
                                           extent_mm=span * edge,
                                           gradient_hz_per_mm=laser.AFP_BANDWIDTH_HZ / edge,
                                           gradient_axis=axis, recover=False)
@@ -1146,34 +1196,38 @@ class SemiLaser(Sequence):
 
     Args:
         te_s: Echo time in seconds, at least the four pulses' durations.
-        afp_duration_s: Duration of each adiabatic pulse.
-        afp_bandwidth_hz: Sweep bandwidth of each adiabatic pulse.
-        afp_peak_hz: Peak RF amplitude; must sit above the adiabatic threshold.
+        afp_duration_s: Duration of each adiabatic pulse; the protocol's by default.
+        afp_bandwidth_hz: Sweep bandwidth of each adiabatic pulse; the protocol's by default.
+        afp_peak_hz: Peak RF amplitude; must sit above the adiabatic threshold; the
+            protocol's by default.
         tr_s: Repetition time; None is fully relaxed (see Sequence).
+        f0_mhz: The spectrometer frequency, which picks the protocol (`semi_laser`); the 3 T
+            across-vendor design without one.
 
-    The pulses are the across-vendor semi-LASER's (Deelchand et al. 2021, NMR Biomed
-    34:e4218), the LocalizedSemiLaser's: GOIA-WURST(16,4) of 4.5 ms and 10 kHz at 15 uT,
-    the RF a body coil delivers, its band centred where that protocol sets the
-    transmitter for every metabolite acquisition, 2.67 ppm, so its band holds the
-    spectrum at any field. Its 15 uT is the design's limit: below the nominal transmit
-    field the passage loses its adiabaticity sooner than a stronger pulse's would.
+    The pulses are the played protocol's at the field (`semi_laser`): at 3 T the
+    across-vendor semi-LASER's (Deelchand et al. 2021, NMR Biomed 34:e4218), GOIA-WURST(16,4)
+    of 4.5 ms and 10 kHz at 15 uT, the RF a body coil delivers, centred at 2.67 ppm; at 7 T
+    the CMRR sequence's (LocalizedSemiLaser7T). The 3 T design's 15 uT is its limit: below
+    the nominal transmit field the passage loses its adiabaticity sooner than a stronger
+    pulse's would.
     """
 
     #**********#
     #   init   #
     #**********#
-    def __init__(self, te_s, afp_duration_s=LocalizedSemiLaser.AFP_S,
-                 afp_bandwidth_hz=LocalizedSemiLaser.AFP_BANDWIDTH_HZ,
-                 afp_peak_hz=LocalizedSemiLaser.AFP_PEAK_HZ, tr_s=None, crushers=None):
+    def __init__(self, te_s, afp_duration_s=None, afp_bandwidth_hz=None, afp_peak_hz=None,
+                 tr_s=None, crushers=None, f0_mhz=None):
+        protocol = semi_laser(f0_mhz)
         self.te_s = te_s
-        self.afp_duration_s = afp_duration_s
-        self.afp_bandwidth_hz = afp_bandwidth_hz
-        self.afp_peak_hz = afp_peak_hz
+        self.afp_duration_s = afp_duration_s = afp_duration_s or protocol.AFP_S
+        self.afp_bandwidth_hz = afp_bandwidth_hz = afp_bandwidth_hz or protocol.AFP_BANDWIDTH_HZ
+        self.afp_peak_hz = afp_peak_hz = afp_peak_hz or protocol.AFP_PEAK_HZ
 
         # one pulse object played four times: its propagator is computed once per run; 128
-        # steps as the LocalizedSemiLaser's
-        afp = ShapedPulse.goia_wurst(afp_duration_s, afp_bandwidth_hz, afp_peak_hz, steps=128,
-                                     offset_ppm=2.67, recover=False)
+        # steps as the played design's
+        afp = ShapedPulse.goia_wurst(afp_duration_s, afp_bandwidth_hz, afp_peak_hz,
+                                     modulation=protocol.MODULATION, steps=128,
+                                     offset_ppm=protocol.CENTRE_PPM, recover=False)
         tau = (te_s - 4.0 * afp_duration_s) / 8.0
         if tau < 0.0:
             raise ValueError(f"te_s {te_s} is too short for four {afp_duration_s * 1e3:.1f} ms "

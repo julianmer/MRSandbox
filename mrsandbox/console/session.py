@@ -55,9 +55,10 @@ from mrsandbox.scan import Multiplex, ScannerProfile, VirtualScan
 from mrsandbox.sequences import (Chess, CoherenceFilter, Cows, SiemensChess, Delay,
                                  DiffusionGradient, Gradient,
                                  Hercules, Hermes, LocalizedMegaPress, LocalizedPress,
-                                 LocalizedSemiLaser, LocalizedSteam, MegaPress,
+                                 LocalizedSteam, MegaPress,
                                  OuterVolumeSuppression, Press, SelectivePulse,
-                                 Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet)
+                                 Pulse, SemiLaser, Sequence, ShapedPulse, Steam, Vapor, Wet,
+                                 semi_laser)
 from mrsandbox.sequences.events import Projection, trapezoid
 from mrsandbox.sequences.timeline import event_spans, gradient_waveforms
 from mrsandbox.spins import SpinSystem
@@ -121,7 +122,8 @@ SEQUENCES = {
         te1_s=min(0.011, te_s / 2.0), te2_s=te_s - min(0.011, te_s / 2.0), tr_s=tr_s),
     "STEAM": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: Steam(
         te_s=te_s, tm_s=card.tm_ms / 1000.0, tr_s=tr_s, diffusion=weighting(card)),
-    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: SemiLaser(te_s=te_s, tr_s=tr_s),
+    "sLASER": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: SemiLaser(
+        te_s=te_s, tr_s=tr_s, f0_mhz=f0_mhz),
     "PRESS, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: LocalizedPress(
         min(0.014 * fit.grow[180], te_s / 2.0), te_s - min(0.014 * fit.grow[180], te_s / 2.0),
         f0_mhz, size_mm=size_mm, tr_s=tr_s, axes=axes,
@@ -129,7 +131,7 @@ SEQUENCES = {
     "STEAM, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: fit(LocalizedSteam)(
         te_s, card.tm_ms / 1000.0, f0_mhz, size_mm=size_mm, tr_s=tr_s,
         diffusion=weighting(card)),
-    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: fit(LocalizedSemiLaser)(
+    "sLASER, played": lambda te_s, tr_s, f0_mhz, size_mm, fit, axes, card: fit(semi_laser(f0_mhz))(
         te_s, f0_mhz, size_mm=size_mm, tr_s=tr_s),
 }
 # a card's design with its pulses real (Protocol.real): shaped pulses under gradients, played in

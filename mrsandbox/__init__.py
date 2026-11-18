@@ -55,11 +55,12 @@ EXPORTS = {
     "mrsandbox.sequences": ("Chess", "Cows", "CoherenceFilter", "Cycled", "Delay",
                             "DiffusionGradient", "Gradient", "HadamardEditing", "Hercules", "Hermes", "InducedKick",
                             "LocalizedMegaPress", "LocalizedMegaSemiLaser", "LocalizedPress",
-                            "LocalizedSemiLaser", "LocalizedSteam", "MegaPress",
+                            "LocalizedSemiLaser", "LocalizedSemiLaser7T", "LocalizedSteam",
+                            "MegaPress",
                             "OuterVolumeSuppression", "Press", "Projection", "Pulse",
                             "PulseAcquire", "SelectivePulse", "SemiLaser", "Sequence",
                             "ShapedPulse", "SiemensChess", "Steam", "SuppressionTrain", "Vapor",
-                            "Wet"),
+                            "Wet", "semi_laser"),
     "mrsandbox.spins": ("Operators", "SpinSystem"),
 }
 OWNER = {name: module for module, names in EXPORTS.items() for name in names}

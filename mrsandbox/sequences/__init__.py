@@ -20,6 +20,7 @@ from mrsandbox.sequences.events import (CoherenceFilter, Delay, DiffusionGradien
                                         ShapedPulse)
 from mrsandbox.sequences.library import (Chess, Cows, HadamardEditing, Hercules, Hermes,
                                          LocalizedMegaPress, LocalizedMegaSemiLaser, LocalizedPress,
-                                         LocalizedSemiLaser, LocalizedSteam, MegaPress,
-                                         OuterVolumeSuppression, Press, PulseAcquire, SemiLaser,
-                                         SiemensChess, Steam, SuppressionTrain, Vapor, Wet)
+                                         LocalizedSemiLaser, LocalizedSemiLaser7T, LocalizedSteam,
+                                         MegaPress, OuterVolumeSuppression, Press, PulseAcquire,
+                                         SemiLaser, SiemensChess, Steam, SuppressionTrain, Vapor,
+                                         Wet, semi_laser)
