@@ -148,14 +148,14 @@ class Priors:
             metabolites: The package's names to cover.
             tesla: The scan's field.
             edited: Whether the scan edits (an editing design).
-            water: The tissues' water contents; the package's brain's by default.
+            water: The tissues' water contents; the package's brains' by default.
 
         Returns:
             Params mapping each metabolite to its contrast leaf.
         """
         from mrsandbox.database import tissue as tables
 
-        water = water if water is not None else tables.MRSI_CHALLENGE["water_content"]
+        water = water if water is not None else tables.WATER_CONTENT
         measured = {}
         for study in concentrations.TISSUE_STUDIES:
             if study["referencing"] is None:

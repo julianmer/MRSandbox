@@ -25,6 +25,23 @@ MRSI_CHALLENGE = {
     "water_shift_ppm": 4.65,
 }
 
+#*************************#
+#   oros-peusquens 2019   #
+#*************************#
+# Source: Oros-Peusquens, A.-M., Loucao, R., Abbas, Z., Gras, V., Zimmermann, M., Shah, N. J. A
+#         single-scan, rapid whole-brain protocol for quantitative water content mapping with
+#         neurobiological implications. Frontiers in Neurology 10 (2019) 1333,
+#         doi 10.3389/fneur.2019.01333, Table 1: long-TR multi-echo gradient echo at 3 T, 21
+#         healthy adults, the CSF taken as pure water.
+# Units:  water content as a fraction of pure water's per tissue: (mean, sd between subjects).
+# Notes:  the newest in vivo measurement readable here (Shah et al. 2022, NeuroImage 252:119014,
+#         the water content atlas, is newer: its tissue values were not readable); the MRSI
+#         challenge's table above is the synthetic dataset's own choice.
+OROS_PEUSQUENS_2019 = {"gm": (0.837, 0.012), "wm": (0.691, 0.017), "csf": (1.0, 0.0)}
+
+# the tissues' water content the package's brains carry: the newest measurement
+WATER_CONTENT = {tissue: mean for tissue, (mean, _) in OROS_PEUSQUENS_2019.items()}
+
 #***********************#
 #   water thermometry   #
 #***********************#

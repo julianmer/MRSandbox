@@ -52,8 +52,9 @@ class Brain:
     PRESETS = ("icbm152", "bigbrain_mr", "qsm_rc2", "colin27", "nihpd_4.5-18.5", "nihpd_4.5-8.5",
                "nihpd_7-11", "nihpd_7.5-13.5", "nihpd_10-14", "nihpd_13-18.5")
 
-    # the water content per tissue class that anchors the water signal (phantom.water)
-    water_content = tissue.MRSI_CHALLENGE["water_content"]
+    # the water content per tissue class that anchors the water signal (phantom.water): the
+    # newest measurement (database.tissue WATER_CONTENT)
+    water_content = tissue.WATER_CONTENT
 
     # BigBrain-MR atlas labels (Sainz Martinez et al. 2023, Table I) grouped by tissue.
     # Stated conventions for the mixed structures: the brainstem counts as white matter,
