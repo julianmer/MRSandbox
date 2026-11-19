@@ -617,6 +617,11 @@ class MRSI:
         sx, sy = self.source_matrix
         cx, cy = sx // 2, sy // 2
         k = k[cx - nx // 2:cx - nx // 2 + nx, cy - ny // 2:cy - ny // 2 + ny]
+        # an acquired cell is centred on the middle of its fine cells, (oversampling - 1) / 2
+        # of them past the first, where the transform alone would read it: a shift, in k
+        for axis, (n, fine) in enumerate(((nx, sx), (ny, sy))):
+            ramp = np.exp(1j * np.pi * (self.oversampling - 1) * (np.arange(n) - n // 2) / fine)
+            k = k * ramp.reshape([n if a == axis else 1 for a in range(k.ndim)])
         pad = [1] * (k.ndim - len(self.dims))
         if self.averages is not None:
             counts = self._averages_map()

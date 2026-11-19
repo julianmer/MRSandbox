@@ -43,30 +43,35 @@ def read_dicom(source, folder=None):
               else pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_")))
     folder.mkdir(parents=True, exist_ok=True)
 
-    def convert(where):
+    def convert(where, into):
         done = subprocess.run([tool, "-z", "y", "-b", "y", "-ba", "y", "-f", "%s_%p", "-o",
-                               str(folder), str(where)], capture_output=True, text=True)
-        return ({path.name[:-len(".nii.gz")]: path for path in sorted(folder.glob("*.nii.gz"))},
+                               str(into), str(where)], capture_output=True, text=True)
+        return ({path.name[:-len(".nii.gz")]: path for path in sorted(into.glob("*.nii.gz"))},
                 done.stdout.strip()[-300:])
 
     source = pathlib.Path(source)
     if source.is_file():
         # one file alone: an enhanced multi-frame file is its whole series (Philips, newer Siemens
         # and GE). A classic file is one slice, and its series is then taken from the folder it
-        # lies in, by the series number dcm2niix names it by
-        alone = pathlib.Path(tempfile.mkdtemp(prefix="mrsandbox_dicom_one_"))
-        (alone / source.name).symlink_to(source.resolve())
-        found, said = convert(alone)
+        # lies in, by the series number dcm2niix names it by; which of the two it is, a
+        # conversion of the file alone tells, made aside
         import nibabel as nib
 
-        if found and all((nib.load(str(path)).shape + (1, 1))[2] <= 1 for path in found.values()):
-            series = next(iter(found)).split("_")[0]
-            for path in folder.glob("*"):
-                path.unlink()
-            found, said = convert(source.parent)
-            found = {name: path for name, path in found.items() if name.split("_")[0] == series}
+        with tempfile.TemporaryDirectory(prefix="mrsandbox_dicom_one_") as aside:
+            alone, tried = pathlib.Path(aside, "in"), pathlib.Path(aside, "out")
+            alone.mkdir()
+            tried.mkdir()
+            (alone / source.name).symlink_to(source.resolve())
+            found, said = convert(alone, tried)
+            slice_of = (next(iter(found)).split("_")[0] if found and all(
+                (nib.load(str(path)).shape + (1, 1))[2] <= 1 for path in found.values()) else None)
+            if found:
+                found, said = convert(alone if slice_of is None else source.parent, folder)
+        if slice_of is not None:
+            found = {name: path for name, path in found.items()
+                     if name.split("_")[0] == slice_of}
     else:
-        found, said = convert(source)
+        found, said = convert(source, folder)
     if not found:
         raise ValueError(f"no DICOM image found under {source}: {said}")
     return found

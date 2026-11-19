@@ -115,7 +115,7 @@ class TestShapedPulse:
         j = j + j.T
 
         flip_deg, duration, offset_ppm = 90.0, 0.005, 3.0
-        steps = 32
+        steps = 64
         tau = ((np.arange(steps) + 0.5) / steps) * 2.0 - 1.0
         env = np.exp(np.log(0.01) * tau * tau)
 
@@ -145,10 +145,13 @@ class TestShapedPulse:
         rho = fz / 2 ** (n - 1)
         dt = duration / steps
         f1 = env * (flip_deg / 360.0) / (env.sum() * dt)
-        phase = 2.0 * np.pi * (offset_ppm * GAMMA * B0_T) * (np.arange(steps) + 0.5) * dt
-        for k in range(steps):
-            h_k = h + f1[k] * (np.cos(phase[k]) * fx + np.sin(phase[k]) * fy)
-            u = scipy.linalg.expm(-2j * np.pi * h_k * dt)
+        # the carrier runs on through every step of the envelope (64 pieces of each)
+        pieces = 64
+        phase = (2.0 * np.pi * (offset_ppm * GAMMA * B0_T)
+                 * (np.arange(steps * pieces) + 0.5) * dt / pieces)
+        for k in range(steps * pieces):
+            h_k = h + f1[k // pieces] * (np.cos(phase[k]) * fx + np.sin(phase[k]) * fy)
+            u = scipy.linalg.expm(-2j * np.pi * h_k * dt / pieces)
             rho = u @ rho @ u.conj().T
         rho = np.where(order == -1, rho, 0.0)
 

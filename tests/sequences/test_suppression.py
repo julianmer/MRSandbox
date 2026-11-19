@@ -240,3 +240,13 @@ class TestNamedSchemes:
             full = total_amplitude(engine, PulseAcquire(tr_s=2.0), water)
             assert total_amplitude(engine, train + PulseAcquire(tr_s=2.0), water) < 0.003 * full
 
+    def test_a_pulse_off_the_carrier_plays_its_flip(self):
+        # the pulse's own frequency is held at one phase through a step; on few long steps far
+        # from the reference (the water at 7 T) the spin on it still gets the whole flip
+        engine = Engine(7.0)
+        water = WaterSource.system(gamma_mhz_t=42.5774785)
+        full = total_amplitude(engine, PulseAcquire(), water)
+        thirty = ShapedPulse.gaussian(30.0, 0.01792, offset_ppm=4.65, steps=64)
+        assert total_amplitude(engine, Sequence(thirty, CoherenceFilter(-1)), water) / full == (
+            pytest.approx(0.5, abs=1e-3))
+

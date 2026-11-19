@@ -91,6 +91,14 @@ class TestFolder:
         assert paired == {"sub-01_acq-slaser_svs.nii.gz": "sub-01_acq-slaser_mrsref.nii.gz",
                           "S01_PRESS_35.dat": "S01_PRESS_35_H2O.dat", "SV_PRESS.raw": None}
 
+    def test_plainly_named_runs_find_their_own_references(self, tmp_path):
+        # no word for the sequence in the names: the run is its reference's name without "_ref"
+        found = [folder.Found(tmp_path / name, kind) for name, kind in (
+            ("a.dat", "MRS run"), ("a_ref.dat", "MRS reference"),
+            ("b.dat", "MRS run"), ("b_ref.dat", "MRS reference"))]
+        assert [(run.path.name, reference.path.name) for run, reference in folder.pairs(found)] == [
+            ("a.dat", "a_ref.dat"), ("b.dat", "b_ref.dat")]
+
     def test_a_raw_file_that_will_not_convert_says_so(self, tmp_path):
         found = folder.survey(scans(tmp_path))
         item = next(f for f in found if f.path.name == "S01_PRESS_35.dat")

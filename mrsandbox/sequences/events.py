@@ -655,6 +655,10 @@ class ShapedPulse(Event):
             # integral to the end of each step would lead the envelope by half a step
             # and skew the inversion profile)
             phase = phase + 2.0 * math.pi * (ops.cumsum(sweep) - sweep / 2.0) * dt
+        else:
+            # a fixed carrier keeps its midpoint phase through a step, which leaves the spins
+            # it plays on sin(x)/x of the amplitude, x = pi offset dt: played that much stronger
+            f1 = f1 / ops.sinc(offset_hz * dt)
         # every step Hamiltonian is a z rotation of H_free + f1 Fx: the RF phase and,
         # in the interaction frame of delta Fz, the frame term itself become one
         # angle theta = phase - 2 pi delta t per step (the frame term sampled at the

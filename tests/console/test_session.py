@@ -291,11 +291,11 @@ class TestSession:
         session.prescan = False
         assert session.run(session.plan(), seed=3).adjustment == 1.0
         # the train played real: its Gaussians' own band and the relaxation through them put its
-        # null a tenth above the ideal one and leave more there than the record says, so the
+        # null a little above the ideal one and leave more there than the record says, so the
         # prescan searches the engine's steady state and lands on that null
         session.prescan, session.protocol.real = True, True
         played = session.run(session.plan(), seed=3)
-        assert exam.adjustment + 0.05 < played.adjustment < 1.5
+        assert exam.adjustment < played.adjustment < 1.5
         water, start = residual(played.data)
         assert 0.3 < abs(water) < 3.0
         assert abs(np.angle(water / start)) > np.pi / 2
@@ -416,16 +416,26 @@ class TestSession:
                 future.set_result(pickle.loads(pickle.dumps(result)))
                 return future
 
-        session = Session(ICBM)
-        session.protocol.water_reference = 0
-        session.protocol.water_suppression = "assumed residual"
-        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 4, 512
-        here = session.run(session.plan(), seed=3)
+        # the second exam of a queue keeps its place there: its own noise, not the first's
+        sessions = []
+        for _ in range(2):
+            session = Session(ICBM)
+            session.seed = 3   # one subject, so one drift of the scanner
+            session.protocol.water_reference = 0
+            session.protocol.water_suppression = "assumed residual"
+            session.protocol.real, session.protocol.averages = False, 4
+            session.protocol.npoints = 512
+            sessions.append(session)
+        page, session = sessions
+        first, here = page.plan(), page.plan()
+        here, first = page.run(here, seed=3), page.run(first, seed=3)   # the same clock as there
         monkeypatch.setitem(console.WORKER, "pool", Pickling())
         monkeypatch.setitem(console.WORKER, "session", Session())
+        session.plan()
         clock, there = session.clock_s, session.plan()
         assert session.remote("run", there, 3) is not there and there.status == "done"
         assert np.array_equal(np.asarray(there.data[:]), np.asarray(here.data[:]))
+        assert not np.array_equal(np.asarray(here.data[:]), np.asarray(first.data[:]))
         assert session.clock_s == clock + there.card.scan_time_s
 
     @pytest.mark.slow
@@ -446,6 +456,7 @@ class TestSession:
                                                       initializer=worker.working)
         monkeypatch.setitem(worker.WORKER, "pool", pool)
         try:
+            session.queue.clear()   # the same place in the queue, so the same noise
             there = session.plan()
             session.remote("run", there, 3)
         finally:
@@ -1352,6 +1363,23 @@ class TestSession:
         assert exam.room["field_t"] == 1.5
         session.field_t = None
         assert session.profile().scanner.b0_t == 3.0  # the generic system's nominal field
+
+    def test_a_resized_voxel_gets_its_own_design(self):
+        # the slice gradients follow the voxel's edges, so a new size makes a new design
+        session = Session(ICBM)
+        gradients = []
+        for edge in (20.0, 30.0):
+            session.size_mm = [edge, edge, edge]
+            gradients.append({event.gradient_hz_per_mm for event in session.sequence().events
+                              if getattr(event, "gradient_hz_per_mm", 0.0)})
+        assert gradients[0] and gradients[0] != gradients[1]
+
+    def test_the_field_map_follows_the_field_strength(self):
+        # the map's offsets scale with B0, so another field strength reads the map anew
+        session = Session(ICBM)
+        low = session.fields()["field"].offsets_hz
+        session.field_t = 7.0
+        assert not np.array_equal(session.fields()["field"].offsets_hz, low)
 
 
     @pytest.mark.slow

@@ -417,7 +417,7 @@ class TestFieldGroups:
         # the microscopic field (lineshape.gauss_hz) is a spread of frequencies and a train
         # suppresses each at its own: without a train the spread is the Gaussian envelope on the
         # unspread water exactly (nothing the water meets depends on its frequency); Siemens' train
-        # played at its null (the flips scaled by 1.2, where the relaxation through its 24 ms
+        # played at its null (the flips scaled by 1.1, where the relaxation through its 24 ms
         # pulses leaves half a percent) leaves parts of the spread water at phases apart, and a
         # tenth of what an envelope on the unspread residual would say cancels. The ideal train
         # cannot show it: its box takes every spin alike.
@@ -448,7 +448,7 @@ class TestFieldGroups:
         sharp, spread = water(press, 0.0), water(press, 6.0)
         full = np.abs(sharp).max()
         np.testing.assert_allclose(spread, sharp * envelope, atol=2e-3 * full)
-        train = SiemensChess(real=True).scaled(1.2)
+        train = SiemensChess(real=True).scaled(1.1)
         sharp, spread = water(train + press, 0.0), water(train + press, 6.0)
         assert np.abs(sharp).max() < 6e-3 * full  # at the null
         assert np.abs(spread).max() < 0.92 * np.abs(sharp * envelope).max()

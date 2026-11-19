@@ -44,3 +44,15 @@ class TestDicom:
         (tmp_path / "empty").mkdir()
         with pytest.raises(ValueError):
             read_dicom(tmp_path / "empty")
+
+    def test_one_file_takes_its_series_and_leaves_the_folder_alone(self, tmp_path):
+        from pydicom.data import get_testdata_file
+
+        from mrsandbox.io import read_dicom
+
+        (tmp_path / "in").mkdir()
+        (tmp_path / "out").mkdir()
+        shutil.copy(get_testdata_file("MR_small.dcm"), tmp_path / "in" / "MR_small.dcm")
+        (tmp_path / "out" / "notes.txt").write_text("the operator's own")
+        assert len(read_dicom(tmp_path / "in" / "MR_small.dcm", tmp_path / "out")) == 1
+        assert (tmp_path / "out" / "notes.txt").exists()

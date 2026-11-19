@@ -254,7 +254,7 @@ def pairs(found):
     references = [f for f in found if f.kind == "MRS reference"]
 
     def stem(item):
-        name = item.path.name.lower()
+        name = item.path.name.lower().removesuffix("".join(item.path.suffixes).lower())
         for word in ("_mrsref", "_ref", "-ref", "_water", "_h2o", "_unsuppressed", "_wref", "_svs",
                      "_press", "_slaser", "_metab"):
             name = name.split(word)[0]

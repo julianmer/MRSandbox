@@ -999,11 +999,11 @@ class MetaboliteSeriesReading:
                     twin = np.log(np.array(areas) / tops)
                     return float(np.sum((twin[1:] - twin[0] - np.log(self.ratios[name][1:])) ** 2))
 
-                factor = scipy.optimize.minimize_scalar(misfit, bounds=self.BOUNDS,
-                                                        method="bounded").x
+                fit = scipy.optimize.minimize_scalar(misfit, bounds=self.BOUNDS, method="bounded")
                 for leaf, value in own.items():
                     dict.__setitem__(truth.t2, leaf, value)
-                found[name].append(float(factor))
+                # a series no factor fits (a ratio under zero, its line lost) reads as none
+                found[name].append(float(fit.x) if np.isfinite(fit.fun) else float("nan"))
                 for leaf, value in own.items():
                     drawn[leaf].append(value)
         return found, drawn
@@ -1241,12 +1241,12 @@ class DiffusionSeriesReading:
                     twin = np.log(np.array(areas))
                     return float(np.sum((twin[1:] - twin[0] - np.log(self.ratios[name][1:])) ** 2))
 
-                factor = scipy.optimize.minimize_scalar(misfit, bounds=self.BOUNDS,
-                                                        method="bounded").x
+                fit = scipy.optimize.minimize_scalar(misfit, bounds=self.BOUNDS, method="bounded")
                 for leaf, adc in own.items():
                     dict.__setitem__(truth.diffusion.adc, leaf, adc)
                     drawn[leaf].append(adc)
-                found[name].append(float(factor))
+                # a series no factor fits (a ratio under zero, its line lost) reads as none
+                found[name].append(float(fit.x) if np.isfinite(fit.fun) else float("nan"))
         return found, drawn
 
     def adc_um2_ms(self, voxels, seeds=3):

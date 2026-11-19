@@ -234,6 +234,16 @@ class TestEncoding:
         neighbours = power[3, 4], power[5, 4], power[4, 3], power[4, 5]
         assert all(n > 0.01 * power[centre] for n in neighbours)  # Gibbs bleed exists
 
+    def test_an_oversampled_lattice_sits_on_its_affine(self, scan):
+        # a source filling the fine cells of one acquired cell is centred on that cell, so it
+        # bleeds the same into the neighbours on either side
+        mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(8, 8), voxel_mm=4.0, oversampling=2)
+        source = np.zeros(mrsi.source_matrix + (1,), dtype=np.complex64)
+        source[6:8, 6:8] = 1.0
+        decoded = np.abs(mrsi._encode(source))[..., 0]
+        assert decoded[2, 3] == pytest.approx(decoded[4, 3], rel=1e-5)
+        assert decoded[3, 2] == pytest.approx(decoded[3, 4], rel=1e-5)
+
     def test_hamming_suppresses_the_far_sidelobes(self):
         plain = self.acquire_point(weighting=None)
         hamming = self.acquire_point(weighting="hamming")

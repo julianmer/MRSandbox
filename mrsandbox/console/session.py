@@ -1011,14 +1011,15 @@ class Session:
         edited card and an own design play the coupled systems (CoupledMM), which run through the
         sequence: the measured shape carries no editing response, and no phase cycle or
         sub-acquisition weight acts on it."""
-        key = (self.field, self.transmit)
+        b0_t = self.profile().scanner.b0_t
+        key = (self.field, self.transmit, b0_t)
         if key not in self._bodies:
             name = self.field
             # placed by hand, like the head
             if name == "qsm_rc2_measured" and not Resources.cached("qsm_rc2/total_field"):
                 name = "qsm_rc2"
             field = None if name == "uniform" else (
-                FieldMap.load(name, b0_t=self.profile().scanner.b0_t) if name in FieldMap.PRESETS
+                FieldMap.load(name, b0_t=b0_t) if name in FieldMap.PRESETS
                 else FieldMap.from_map(self.volume(name).data, self.volume(name).affine,
                                        name=pathlib.Path(name).name))
             self._bodies[key] = dict(field=field, transmit=None if self.transmit is None
@@ -2028,7 +2029,7 @@ class Session:
         scanner = self.profile().scanner
         # what the design depends on
         key = (dataclasses.astuple(card), self.condition, repr(self.designs), scanner.b0_t,
-               scanner.peak_b1_ut)
+               scanner.peak_b1_ut, tuple(self.size_mm))
         if self._sequence_memo[0] == key:
             return self._sequence_memo[1]
         self._sequence_memo = (key, self._sequence(card, scanner))
@@ -2908,9 +2909,10 @@ class Session:
         state = {name: value for name, value in vars(self).items() if not name.startswith("_")
                  and name not in ("subjects", "pictures", "coils", "queue")}
         # a queued exam moves the scanner's clock, a preview does not: the queue crosses as the
-        # exam alone, pickled with it, so the worker holds one object in both
+        # exam alone at its own place, pickled with it, so the worker holds one object in both
         state.update(_drift=self._drift, _took=self._took,
-                     queue=[args[0]] if task == "run" and args[0] in self.queue else [])
+                     queue=[None] * self.queue.index(args[0]) + [args[0]]
+                     if task == "run" and args[0] in self.queue else [])
         try:
             result, self.clock_s, self._took = WORKER["pool"].submit(
                 worked, state, task, *args).result()

@@ -637,6 +637,11 @@ class TestMetaboliteSeriesReading:
             runs, {0.035: refs[0.035], 0.068: 0.3 * refs[0.035], 0.08: 0.1 * refs[0.035]},
             dwell_s, f0_mhz, header)
         assert "scale" in scaled.water.failed
+        # a line lost in the noise (its area negative at an echo) has no T2: the series fails
+        import dataclasses
+
+        lost = dataclasses.replace(reading, ratios={**reading.ratios, "Cr": (1.0, -0.2, 0.1)})
+        assert all("Cr" in r.failed for r in lost.records(voxels, "the twin", seeds=1))
 
 
 #**************************************************************************************************#
