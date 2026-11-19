@@ -360,20 +360,22 @@ class MRSI:
         The clean source grid is phase encoded (spatial FFT), truncated to the central
         acquisition matrix of k with the optional weighting, and decoded back; receiver
         noise is drawn per acquired voxel and per coil, or, with `averages`, per encode
-        in k-space with the acquisition-weighted scheme's per-count scaling. With a
-        CoilArray on the scan the data gains a trailing DIM_COIL dimension.
+        in k-space with the acquisition-weighted scheme's per-count scaling. The channels
+        lie on DIM_COIL, a CoilArray's or the one ideal channel.
         """
         seed, truth, rng = draw(self.scan.params, seed)
         data, _, n_dead = self._decoded(truth, npoints, dwell_s)
         noise = self._noise(truth, rng, npoints, dwell_s)
         if noise is not None:
             data = data + noise
+        if self.scan.coils is None:
+            data = data[..., None]
         hdr = self._header(seed, truth, dwell_s, n_dead)
         return nifti_mrs(data, dwell_s, hdr, affine=self.affine)
 
     def acquire_components(self, seed=None, npoints=512, dwell_s=1.0 / 4000.0):
-        """Acquire the slice component by component and return NIfTI-MRS on DIM_USER_0
-        (after DIM_COIL with a CoilArray): the same subject, noise, header, and
+        """Acquire the slice component by component and return NIfTI-MRS on DIM_COIL
+        then DIM_USER_0: the same subject, noise, header, and
         provenance as `acquire` with the same arguments, every cell split into the
         signal components named in the header's SimulationComponents (the union over
         the cells in order of appearance, noise last), each encoded and decoded on
@@ -385,9 +387,11 @@ class MRSI:
         if noise is None:
             noise = np.zeros(data.shape[:-1], dtype=np.complex64)
         data = np.concatenate([data, noise[..., None]], axis=-1)
+        if self.scan.coils is None:
+            data = data[..., None, :]
         names = names + ["noise"]
         hdr = self._header(seed, truth, dwell_s, n_dead)
-        hdr.set_dim_info(0 if self.scan.coils is None else 1, "DIM_USER_0",
+        hdr.set_dim_info(1, "DIM_USER_0",
                          info="MRSandbox: the signal components named in SimulationComponents.")
         hdr.set_user_def("SimulationComponents", {"names": names},
                          "MRSandbox: the components on DIM_USER_0, in order; they sum to "
@@ -557,8 +561,7 @@ class MRSI:
 
         period = self.samples_per_period + n_dead
         hdr = Hdr_Ext(self.voxels[0][0][0]._f0_mhz(), "1H")
-        if self.scan.coils is not None:
-            hdr.set_dim_info(0, "DIM_COIL")
+        hdr.set_dim_info(0, "DIM_COIL")
         hdr.set_user_def(
             "SimulationGroundTruth",
             {"seed": seed, "params": truth.to_dict()},

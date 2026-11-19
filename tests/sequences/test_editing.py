@@ -216,8 +216,8 @@ class TestMultiplex:
     pytestmark = pytest.mark.render  # full-scan renders, skipped on the tensorflow CI leg
 
     def test_conditions_stack_on_dim_edit(self, acquisition):
-        assert acquisition.shape == (1, 1, 1, 2048, 2)
-        assert acquisition.dim_tags[0] == "DIM_EDIT"
+        assert acquisition.shape == (1, 1, 1, 2048, 1, 2)
+        assert acquisition.dim_tags[:2] == ["DIM_COIL", "DIM_EDIT"]
         header = acquisition.hdr_ext.to_dict()
         assert header["SimulationConditions"]["names"] == ["on", "off"]
         assert "GABA" in header["SimulationGroundTruth"]["params"]["conc"]
@@ -226,7 +226,7 @@ class TestMultiplex:
     #   shared truth diff   #
     #***********************#
     def test_difference_spectrum_edits_the_voxel(self, acquisition):
-        volume = np.asarray(acquisition[:])[0, 0, 0]
+        volume = np.asarray(acquisition[:])[0, 0, 0, :, 0]
         diff_fid = volume[:, 0] - volume[:, 1]
         spec = np.abs(np.fft.fft(diff_fid))
         # the file's frame: the centre at 4.65 ppm
@@ -242,8 +242,8 @@ class TestMultiplex:
     #**********************#
     def test_hadamard_conditions_and_weights_are_recorded(self, hermes_acquisition):
         _, data = hermes_acquisition
-        assert data.shape == (1, 1, 1, 512, 4)
-        assert data.dim_tags[0] == "DIM_EDIT"
+        assert data.shape == (1, 1, 1, 512, 1, 4)
+        assert data.dim_tags[:2] == ["DIM_COIL", "DIM_EDIT"]
         record = data.hdr_ext.to_dict()["SimulationConditions"]
         assert record["names"] == ["a", "b", "c", "d"]
         assert record["combinations"] == Hermes.combinations
@@ -253,9 +253,9 @@ class TestMultiplex:
     #**********************#
     def test_combine_applies_the_hadamard_weights(self, hermes_acquisition):
         multiplex, data = hermes_acquisition
-        volume = np.asarray(data[:])[0, 0, 0]
+        volume = np.asarray(data[:])[0, 0, 0, :, 0]
         manual = volume[:, 0] + volume[:, 1] - volume[:, 2] - volume[:, 3]
-        np.testing.assert_allclose(multiplex.combine(data, "gaba"), manual,
+        np.testing.assert_allclose(multiplex.combine(data, "gaba")[:, 0], manual,
                                    atol=1e-5 * np.abs(volume).max())
 
     #****************#
@@ -268,13 +268,14 @@ class TestMultiplex:
         parts = multiplex.acquire_components(position_mm=(10.0, -20.0, 5.0), size_mm=20.0,
                                              seed=7, npoints=512)
         names = parts.hdr_ext.to_dict()["SimulationComponents"]["names"]
-        assert parts.dim_tags[:2] == ["DIM_EDIT", "DIM_USER_0"]
-        assert parts.shape == (1, 1, 1, 512, 4, len(names))
+        assert parts.dim_tags == ["DIM_COIL", "DIM_EDIT", "DIM_USER_0"]
+        assert parts.shape == (1, 1, 1, 512, 1, 4, len(names))
         assert names[0] == "metabolites" and names[-1] == "noise" and "water" in names
         summed = np.asarray(parts[:]).sum(axis=-1)
-        np.testing.assert_allclose(summed, np.asarray(data[:]), atol=1e-5 * np.abs(summed).max())
+        np.testing.assert_allclose(summed, np.asarray(data[:]).reshape(summed.shape),
+                                   atol=1e-5 * np.abs(summed).max())
         combined = multiplex.combine(parts, "gaba")
-        assert combined.shape == (512, len(names))
+        assert combined.shape == (512, 1, len(names))
         np.testing.assert_allclose(combined.sum(axis=-1), multiplex.combine(data, "gaba"),
                                    atol=1e-5 * np.abs(combined).max())
         assert (parts.hdr_ext.to_dict()["SimulationConditions"]
@@ -286,7 +287,8 @@ class TestMultiplex:
                                          npoints=256)
         assert np.abs(np.asarray(parts[:])[..., -1]).max() > 0.0
         summed = np.asarray(parts[:]).sum(axis=-1)
-        np.testing.assert_allclose(summed, np.asarray(whole[:]), atol=1e-5 * np.abs(summed).max())
+        np.testing.assert_allclose(summed, np.asarray(whole[:]).reshape(summed.shape),
+                                   atol=1e-5 * np.abs(summed).max())
 
     #*****************#
     #   replay path   #
@@ -350,9 +352,9 @@ class TestTransients:
     def test_still_scanner_repeats_the_transient_exactly(self):
         data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, seed=3, npoints=256,
                                            synthesis=self.still())
-        assert data.shape == (1, 1, 1, 256, 4)
-        assert data.dim_tags[0] == "DIM_DYN"
-        volume = np.asarray(data[:])[0, 0, 0]
+        assert data.shape == (1, 1, 1, 256, 1, 4)
+        assert data.dim_tags[:2] == ["DIM_COIL", "DIM_DYN"]
+        volume = np.asarray(data[:])[0, 0, 0, :, 0]
         for k in range(1, 4):
             np.testing.assert_array_equal(volume[:, k], volume[:, 0])
 
@@ -367,7 +369,7 @@ class TestTransients:
         moved = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (8.0, 0.0, 0.0), (0.0, 0.0, 0.0)]
         data = multiplex.transients((10, -20, 5), 20.0, schedule=4, seed=3, npoints=256,
                                     synthesis=self.still(), displacement_mm=moved)
-        volume = np.asarray(data[:])[0, 0, 0]
+        volume = np.asarray(data[:])[0, 0, 0, :, 0]
         np.testing.assert_array_equal(volume[:, 1], volume[:, 0])
         np.testing.assert_array_equal(volume[:, 3], volume[:, 0])
         elsewhere = multiplex.transients((2, -20, 5), 20.0, schedule=1, seed=3, npoints=256,
@@ -385,7 +387,7 @@ class TestTransients:
         multiplex = self.multiplex()
         turned = multiplex.transients((10, -20, 5), 20.0, schedule=2, seed=3, npoints=128,
                                       synthesis=self.still(), rotation_deg=[(0, 0, 0), (0, 0, 90)])
-        volume = np.asarray(turned[:])[0, 0, 0]
+        volume = np.asarray(turned[:])[0, 0, 0, :, 0]
         elsewhere = multiplex.transients((-20, -10, 5), 20.0, schedule=1, seed=3, npoints=128,
                                          synthesis=self.still())
         np.testing.assert_allclose(volume[:, 1], np.asarray(elsewhere[:])[0, 0, 0],
@@ -414,7 +416,7 @@ class TestTransients:
         kicked = np.asarray(record["frequency_hz"]) != 0.0
         assert kicked.any() and np.all(np.linalg.norm(path[~kicked], axis=1) == 0.0)
         assert np.linalg.norm(path[kicked], axis=1).max() >= 4.0 - 1e-9
-        a, b = np.asarray(plain[:])[0, 0, 0], np.asarray(moving[:])[0, 0, 0]
+        a, b = np.asarray(plain[:])[0, 0, 0, :, 0], np.asarray(moving[:])[0, 0, 0, :, 0]
         np.testing.assert_array_equal(b[:, ~kicked], a[:, ~kicked])
         assert np.abs(b[:, kicked] - a[:, kicked]).max() > 0.0
 
@@ -434,19 +436,19 @@ class TestTransients:
             return multiplex.transients((10, -20, 5), 20.0, schedule=8, seed=3, npoints=512,
                                         synthesis=self.still())
 
-        clean = np.asarray(run(amplitude=0.0, rate=0.0)[:])[0, 0, 0]
+        clean = np.asarray(run(amplitude=0.0, rate=0.0)[:])[0, 0, 0, :, 0]
         some = run(amplitude=0.1, rate=0.5)
         record = some.hdr_ext["SimulationSchedule"]["spurious"]
         carried = np.asarray(record["amplitude"]) > 0.0
         assert carried.any() and not carried.all()
         assert [p is None for p in record["phase_deg"]] == (~carried).tolist()
-        volume = np.asarray(some[:])[0, 0, 0]
+        volume = np.asarray(some[:])[0, 0, 0, :, 0]
         np.testing.assert_array_equal(volume[:, ~carried], clean[:, ~carried])
         assert np.abs(volume[:, carried] - clean[:, carried]).max() > 1e-3 * np.abs(clean).max()
         # every transient carries it: the same echo (a Gaussian about 100 ms, the drawn size)
         # turned to each transient's own phase
         every = run(amplitude=0.1, rate=1.0)
-        echoes = np.asarray(every[:])[0, 0, 0] - clean
+        echoes = np.asarray(every[:])[0, 0, 0, :, 0] - clean
         phases = np.radians(every.hdr_ext["SimulationSchedule"]["spurious"]["phase_deg"])
         assert np.ptp(phases) > 0.5
         t = np.arange(512) / 4000.0
@@ -462,7 +464,7 @@ class TestTransients:
     def test_drift_accumulates_on_the_acquisition_clock(self):
         data = self.multiplex().transients((10, -20, 5), 20.0, schedule=4, tr_s=2.0, seed=3,
                                            npoints=256, synthesis=self.still(drift_hz_per_min=6.0))
-        volume = np.asarray(data[:])[0, 0, 0]
+        volume = np.asarray(data[:])[0, 0, 0, :, 0]
         t = np.arange(256) / 4000.0
         for k in (1, 3):
             expected = volume[:, 0] * np.exp(2j * np.pi * (6.0 * k * 2.0 / 60.0) * t)
@@ -493,7 +495,7 @@ class TestTransients:
         schedule = ["on", "off", "on", "off"]
         data = self.multiplex().transients((10, -20, 5), 20.0, schedule=schedule, seed=3,
                                            npoints=256, synthesis=self.still())
-        volume = np.asarray(data[:])[0, 0, 0]
+        volume = np.asarray(data[:])[0, 0, 0, :, 0]
         np.testing.assert_array_equal(volume[:, 0], volume[:, 2])
         np.testing.assert_array_equal(volume[:, 1], volume[:, 3])
 
@@ -516,7 +518,7 @@ class TestLoopSurface:
         assert len({id(scan.engine) for scan in multiplex.scans.values()}) == 1
         kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0, seed=7, npoints=512)
         on = multiplex.acquire(**kw, conditions=("on",), step=0)
-        assert on.shape == (1, 1, 1, 512, 1)
+        assert on.shape == (1, 1, 1, 512, 1, 1)
         assert on.hdr_ext["SimulationConditions"]["names"] == ["on"]
         later = multiplex.acquire(**kw, conditions=("on",), step=1)
         assert (on.hdr_ext["SimulationGroundTruth"]["params"]

@@ -287,6 +287,22 @@ class Voxel:
         return (truth.noise.sigma * self.noise_place()
                 * noise_scale(self.volume_ml, self.scan.engine.b0_t, dwell_s, averages))
 
+    def noise(self, truth, rng, npoints, dwell_s, averages=1):
+        """One draw of the receiver's noise on this voxel's acquisition, (channels,
+        npoints): the array's correlated channels, or the one ideal channel; zeros when
+        the drawn sigma is none."""
+        sigma, coils = self.noise_sigma(truth, dwell_s, averages), self.scan.coils
+        if sigma > 0.0:
+            return np.atleast_2d(receiver_noise(rng, sigma, npoints, self.scan.receiver, coils))
+        return np.zeros((1 if coils is None else len(coils), npoints), dtype=np.complex64)
+
+    def sensitivities(self):
+        """What every receive channel makes of this voxel's signal: the array's complex
+        sensitivities here, or one for the one ideal channel."""
+        if self.scan.coils is None:
+            return np.ones(1, dtype=np.complex64)
+        return self.scan.coils.sensitivities(self.position_mm, self.size_mm, self.turn)
+
     def noise_place(self):
         """The scan's noise map at this voxel over the map at the place the noise prior
         belongs to (VirtualScan noise_map): an array's combined noise, or a measured
@@ -1083,63 +1099,39 @@ class Voxel:
         square root), and `step` selects the noise stream of the seed, so a loop
         acquiring one subject repeatedly draws fresh noise each time.
 
-        With a CoilArray on the scan, every coil receives the FID weighted by its
-        complex sensitivity at this voxel plus correlated noise (covariance sigma^2 R),
-        and the data gains a DIM_COIL dimension.
+        The channels lie on DIM_COIL, always: with a CoilArray on the scan every coil
+        receives the FID weighted by its complex sensitivity at this voxel plus correlated
+        noise (covariance sigma^2 R); without one the dimension holds the one ideal channel.
         """
         seed, truth, rng = draw(self.scan.params, seed, step)
-        coils = self.scan.coils
-        sigma = self.noise_sigma(truth, dwell_s, averages)
-        if coils is None:
-            _, fid = self._render(truth, rng, npoints, dwell_s, averages)
-            data = fid.reshape(1, 1, 1, npoints)
-        else:
-            _, fid = self._clean_fid(truth, npoints, dwell_s)
-            channels = (coils.sensitivities(self.position_mm, self.size_mm, self.turn)[:, None]
-                        * fid[None, :])
-            if sigma > 0.0:
-                channels = channels + receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
-            data = np.transpose(channels.astype(np.complex64)).reshape(1, 1, 1, npoints, len(coils))
+        _, fid = self._clean_fid(truth, npoints, dwell_s)
+        channels = (self.sensitivities()[:, None] * fid[None, :]
+                    + self.noise(truth, rng, npoints, dwell_s, averages))
+        data = np.transpose(channels.astype(np.complex64)).reshape(1, 1, 1, npoints, -1)
         hdr = self._header(seed, step, averages, truth)
-        if coils is not None:
-            hdr.set_dim_info(0, "DIM_COIL")
         return nifti_mrs(data, dwell_s, hdr)
 
     def acquire_components(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0, averages=1,
                            step=0):
-        """Acquire the voxel component by component and return NIfTI-MRS on DIM_USER_0:
-        the same subject, noise, header, and provenance as `acquire` with the same
-        arguments, the data split into the signal components named in the header's
+        """Acquire the voxel component by component and return NIfTI-MRS on DIM_COIL then
+        DIM_USER_0: the same subject, noise, header, and provenance as `acquire` with the
+        same arguments, the data split into the signal components named in the header's
         SimulationComponents (metabolites, water, lipids, mm, downfield, spurious as
         present, and noise last), so the components sum to the acquisition exactly.
-        With a CoilArray on the scan every component is received per coil (DIM_COIL
-        first, the components on the dimension after it) and the noise component is
-        the coils' correlated noise. The second file of a training pair: one
+        Every component is received per channel and the noise component is the
+        channels' own noise. The second file of a training pair: one
         acquisition, one decomposition, never squeezed into the acquisition's own
         dimensions."""
         seed, truth, rng = draw(self.scan.params, seed, step)
-        coils = self.scan.coils
-        sigma = self.noise_sigma(truth, dwell_s, averages)
         fids = self._component_fids(truth, npoints, dwell_s)
-        names = list(fids)
-        stack = [fids[name] for name in names]
-        if coils is None:
-            stack.append(receiver_noise(rng, sigma, npoints, self.scan.receiver) if sigma > 0.0
-                         else np.zeros(npoints, dtype=np.complex64))
-            data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(stack))
-        else:
-            sensitivities = coils.sensitivities(self.position_mm, self.size_mm, self.turn)
-            channels = [sensitivities[:, None] * fid[None, :] for fid in stack]
-            channels.append(receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
-                            if sigma > 0.0
-                            else np.zeros((len(coils), npoints), dtype=np.complex64))
-            data = np.stack([np.transpose(c.astype(np.complex64)) for c in channels], axis=-1)
-            data = data.reshape(1, 1, 1, npoints, len(coils), len(channels))
-        names.append("noise")
+        names = list(fids) + ["noise"]
+        sensitivities = self.sensitivities()
+        channels = [sensitivities[:, None] * fid[None, :] for fid in fids.values()]
+        channels.append(self.noise(truth, rng, npoints, dwell_s, averages))
+        data = np.stack([np.transpose(c.astype(np.complex64)) for c in channels], axis=-1)
+        data = data.reshape(1, 1, 1, npoints, -1, len(channels))
         hdr = self._header(seed, step, averages, truth)
-        if coils is not None:
-            hdr.set_dim_info(0, "DIM_COIL")
-        hdr.set_dim_info(0 if coils is None else 1, "DIM_USER_0",
+        hdr.set_dim_info(1, "DIM_USER_0",
                          info="MRSandbox: the signal components named in SimulationComponents.")
         hdr.set_user_def("SimulationComponents", {"names": names},
                          "MRSandbox: the components on DIM_USER_0, in order; they sum to "
@@ -1151,6 +1143,7 @@ class Voxel:
         from nifti_mrs.hdr_ext import Hdr_Ext
 
         hdr = Hdr_Ext(self._f0_mhz(), "1H")
+        hdr.set_dim_info(0, "DIM_COIL")
         timings = {k: float(v) for k, v in vars(self.scan.sequence).items()
                    if k.endswith("_s") and isinstance(v, (int, float))}
         timings["tr_s"] = (None if self.scan.sequence.tr_s is None

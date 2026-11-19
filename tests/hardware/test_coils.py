@@ -223,16 +223,23 @@ class TestNoiseByPlace:
         assert header["calibrations"]["noise.sigma"]["extrapolated"] == {}
         assert abs(header["noise_place"] - ratio) < 1e-6
 
-    def test_a_condition_stack_receives_the_array_combined(self, pieces):
-        # the noise alone, far above the signal: the same draws at the level of each place
+    def test_a_condition_stack_keeps_the_channels_apart(self, pieces):
         brain, scanner, sequence = pieces
         helmet = CoilArray.helmet().loaded().calibrated(self.REFERENCE)
-        loud = Params(noise=dict(sigma=1e6))
-        plain = Multiplex(brain, scanner, {"a": sequence}, params=loud)
-        array = Multiplex(brain, scanner, {"a": sequence}, params=loud, coils=helmet)
-        level = np.linalg.norm(plain.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=256)[:])
-        deep = np.linalg.norm(array.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=256)[:])
-        assert abs(deep / level - helmet.noise_gain((0.0, 0.0, 0.0), 20.0)) < 1e-3
+        loud, place = Params(noise=dict(sigma=1e6)), (0.0, 0.0, 0.0)
+        plain = Multiplex(brain, scanner, {"a": sequence, "b": sequence}, params=loud)
+        array = Multiplex(brain, scanner, {"a": sequence, "b": sequence}, params=loud,
+                          coils=helmet)
+        one = plain.acquire(place, 20.0, seed=3, npoints=4096)
+        data = array.acquire(place, 20.0, seed=3, npoints=4096)
+        assert one.shape == (1, 1, 1, 4096, 1, 2) and data.shape == (1, 1, 1, 4096, 32, 2)
+        assert one.dim_tags[:2] == data.dim_tags[:2] == ["DIM_COIL", "DIM_EDIT"]
+        # the noise alone, far above the signal: combined, the channels leave the place's level
+        channels = np.asarray(data[:])[0, 0, 0, :, :, 0].T
+        level = np.linalg.norm(helmet.combine(channels, place, 20.0)) / np.linalg.norm(one[:])
+        assert abs(level * np.sqrt(2.0) / helmet.noise_gain(place, 20.0) - 1.0) < 0.1
+        run = array.transients(place, 20.0, ["a", "b", "a"], seed=3, npoints=256)
+        assert run.shape == (1, 1, 1, 256, 32, 3) and run.dim_tags[:2] == ["DIM_COIL", "DIM_DYN"]
         # a head that moved leaves the receiver's noise where the scanner placed the voxel
         mapped = Multiplex(brain, scanner, {"a": sequence}, params=loud, noise_map=helmet)
         still = dict(drift_hz_per_min=0.0, events_per_min=0.0)

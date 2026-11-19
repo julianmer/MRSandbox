@@ -1518,8 +1518,9 @@ class CovarianceReading:
                  if isinstance(source, (str, bytes)) or hasattr(source, "__fspath__") else source)
         extension = json.loads(image.header.extensions[0].get_content())
         tags = [extension.get(f"dim_{k}") for k in (5, 6, 7)]
-        if "DIM_COIL" not in tags:
-            raise ValueError("the channels are needed apart (DIM_COIL)")
+        shape = image.shape + (1,) * 3
+        if "DIM_COIL" not in tags or shape[4 + tags.index("DIM_COIL")] < 2:
+            raise ValueError("the channels are needed apart (DIM_COIL), more than one")
         data = np.moveaxis(np.asarray(image.dataobj)[0, 0, 0], 1 + tags.index("DIM_COIL"), -1)
         start = int(round(data.shape[0] * (1.0 - tail)))
         header = {key: extension[key] for key in HEADER if extension.get(key) not in (None, "")}

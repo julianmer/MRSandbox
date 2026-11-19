@@ -92,7 +92,7 @@ class TestTaskRun:
 
     def test_the_task_transients_carry_the_courses_and_rest_is_the_plain_run(self, run):
         data, plain, _ = run
-        x, y = (np.asarray(image[:])[0, 0, 0] for image in (data, plain))
+        x, y = (np.asarray(image[:])[0, 0, 0, :, 0] for image in (data, plain))
         # the rest transients are the plain run's; every task transient at the plateau differs
         # from it by the one course, whose spectrum is lactate's doublet and glutamate's lines
         # and nothing else (the one truth, the same lines otherwise)
@@ -108,7 +108,7 @@ class TestTaskRun:
 
     def test_the_reader_reads_the_courses_back(self, run):
         data, _, paradigm = run
-        x = np.asarray(data[:])[0, 0, 0]
+        x = np.asarray(data[:])[0, 0, 0, :, 0]
         reading = TaskReading.from_arrays(x[:, None, :], 1.0 / 2000.0, 42.5774785 * 3.0, 1.0,
                                           paradigm, rise_s=0.5)
         # the response lags the task by a transient, so the onset transient counts as rest; the

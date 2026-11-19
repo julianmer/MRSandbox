@@ -96,7 +96,7 @@ class TestSession:
         session.display(exam)
         ppm = exam.ppm
         # no apodization
-        real = np.fft.fftshift(np.fft.fft(np.asarray(exam.data[:])[0, 0, 0].mean(axis=1),
+        real = np.fft.fftshift(np.fft.fft(np.asarray(exam.data[:])[0, 0, 0, :, 0].mean(axis=1),
                                           2 * 1024)).real
         # the signal is the tallest of the metabolite lines, not the residual water's wing
         quiet, lines = (ppm > 9.0) & (ppm < 12.0), (ppm > 1.8) & (ppm < 3.4)
@@ -274,7 +274,7 @@ class TestSession:
         from mrsandbox.scan.calibrate import _exponentials
 
         def residual(data):
-            mean = np.asarray(data[:])[0, 0, 0].mean(axis=1).astype(np.complex128)
+            mean = np.asarray(data[:])[0, 0, 0, :, 0].mean(axis=1).astype(np.complex128)
             dwell_s = 1.0 / session.protocol.bandwidth_hz
             freqs, damping, amplitudes = _exponentials(mean[:1024], dwell_s)
             water = ((np.abs(freqs) < 0.4 * float(data.hdr_ext["SpectrometerFrequency"][0]))
@@ -437,6 +437,23 @@ class TestSession:
         assert np.array_equal(np.asarray(there.data[:]), np.asarray(here.data[:]))
         assert not np.array_equal(np.asarray(here.data[:]), np.asarray(first.data[:]))
         assert session.clock_s == clock + there.card.scan_time_s
+
+    def test_an_arrays_channels_stay_apart_in_the_file_and_combine_on_the_display(self):
+        # the same subject under one ideal channel and under the head array: the file holds
+        # every channel, and the display's combination is the one channel's spectrum again
+        shown = {}
+        for coil in ("one ideal channel", "head array"):
+            session = Session(ICBM)
+            session.protocol.water_reference = 0
+            session.protocol.water_suppression = "assumed residual"
+            session.protocol.real, session.protocol.averages = False, 8
+            session.protocol.npoints, session.coil = 512, coil
+            exam = session.run(session.plan(), seed=3)
+            assert exam.data.dim_tags[:2] == ["DIM_COIL", "DIM_DYN"]
+            assert exam.data.shape == (1, 1, 1, 512, len(session.array() or (0,)), 8)
+            shown[coil] = np.asarray(exam.spectra["scan"])
+        one, array = shown.values()
+        assert np.dot(one, array) > 0.98 * np.linalg.norm(one) * np.linalg.norm(array)
 
     def test_a_lipid_layer_reaches_the_worker(self, monkeypatch, tmp_path):
         # the layer is the page's state: the worker's own subject wears it for the exam

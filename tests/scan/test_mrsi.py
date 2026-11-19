@@ -64,7 +64,7 @@ class TestLattice:
 
     def test_acquisition_shape_and_affine(self, acquisition):
         mrsi, data = acquisition
-        assert data.shape == (8, 8, 1, 128)
+        assert data.shape == (8, 8, 1, 128, 1) and data.dim_tags[0] == "DIM_COIL"
         assert np.allclose(np.asarray(data.voxToWorldMat), mrsi.affine)
 
     #**************#
@@ -177,11 +177,9 @@ class TestSeeds:
             names = parts.hdr_ext.to_dict()["SimulationComponents"]["names"]
             assert names[0] == "metabolites" and names[-1] == "noise" and "water" in names
             assert parts.shape == whole.shape + (len(names),)
-            assert parts.dim_tags[0 if coils is None else 1] == "DIM_USER_0"
-            if coils is not None:
-                assert parts.dim_tags[0] == "DIM_COIL"
+            assert parts.dim_tags[:2] == ["DIM_COIL", "DIM_USER_0"]
             summed = np.asarray(parts[:]).sum(axis=-1)
-            np.testing.assert_allclose(summed, np.asarray(whole[:]),
+            np.testing.assert_allclose(summed, np.asarray(whole[:]).reshape(summed.shape),
                                        atol=1e-5 * np.abs(summed).max())
             noise = np.asarray(parts[:])[..., -1]
             assert (np.abs(noise).max() == 0.0) == (params is QUIET)
@@ -477,7 +475,7 @@ class TestSlab3D:
         mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 3), voxel_mm=4.0,
                          thickness_mm=2.0)
         data = mrsi.acquire(seed=3, npoints=16)
-        assert data.shape == (2, 2, 3, 16)
+        assert data.shape == (2, 2, 3, 16, 1)
         assert data.hdr_ext.to_dict()["SimulationGrid"]["matrix"] == [2, 2, 3]
         assert mrsi.position(0, 0, 0)[2] == -2.0 and mrsi.position(0, 0, 2)[2] == 2.0
         assert np.allclose(np.diag(mrsi.affine)[:3], (4.0, 4.0, 2.0))
@@ -659,7 +657,7 @@ class TestTrajectory:
         mrsi = scan.mrsi(center_mm=(0.0, 0.0, 0.0), matrix=(2, 2, 3), voxel_mm=4.0,
                          thickness_mm=2.0, trajectory="epsi")
         data = mrsi.acquire(seed=3, npoints=16)
-        assert data.shape == (2, 2, 3, 16)
+        assert data.shape == (2, 2, 3, 16, 1)
         power = np.abs(np.asarray(data[:])).sum(axis=(0, 1, 3))
         assert power[2] > 0.0  # the top partition reaches the tissue
         # kz still resolves under EPSI: only float32 FFT round-trip noise leaks (the

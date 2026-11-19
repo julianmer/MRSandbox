@@ -23,7 +23,7 @@ from mrsandbox.phantom.macromolecules import CoupledMM
 from mrsandbox.phantom.solution import Phantom
 from mrsandbox.phantom.volume import turning
 from mrsandbox.scan.virtual_scan import VirtualScan
-from mrsandbox.scan.voxel import draw, nifti_mrs, receiver_noise
+from mrsandbox.scan.voxel import draw, nifti_mrs
 
 
 #**************#
@@ -46,11 +46,10 @@ class Multiplex:
     truth draw.
 
     Every condition is a full VirtualScan differing only in its sequence, so water,
-    lipids, macromolecules, and B0 apply identically; one parameter draw serves
+    lipids, macromolecules, B0, and coils apply identically; one parameter draw serves
     all conditions (the subject does not change between sub-acquisitions), while noise
     is drawn per condition. `acquire` stacks the conditions on DIM_EDIT in their given
-    order. An array (`coils`) is received combined: one channel, at the noise the
-    array's optimum combination leaves at the voxel.
+    order, after the receive channels on DIM_COIL (an array's, or the one ideal channel).
 
     Args:
         brain, scanner: As for VirtualScan.
@@ -103,9 +102,9 @@ class Multiplex:
     #*****************#
     def acquire(self, position_mm, size_mm, seed=None, npoints=2048, dwell_s=1.0 / 4000.0,
                 conditions=None, step=0, averages=1):
-        """Acquire conditions of one voxel and return NIfTI-MRS on DIM_EDIT.
+        """Acquire conditions of one voxel and return NIfTI-MRS on DIM_COIL then DIM_EDIT.
 
-        Returns data of shape (1, 1, 1, npoints, n_conditions); the header records the
+        Returns data of shape (1, 1, 1, npoints, channels, n_conditions); the header records the
         condition order, the shared realized truth, and the voxel placement. The
         subject is the seed's; `conditions` selects a subset in the given order
         (default all), `step` the noise stream of the seed (a loop acquiring one
@@ -118,14 +117,15 @@ class Multiplex:
         for name in conditions:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
             _, fid = voxel._clean_fid(truth, npoints, dwell_s)
-            stack.append(fid + self._noise(voxel, truth, rng, npoints, dwell_s, averages))
-        data = np.stack(stack, axis=-1).reshape(1, 1, 1, npoints, len(conditions))
+            stack.append(voxel.sensitivities()[:, None] * fid[None, :]
+                         + voxel.noise(truth, rng, npoints, dwell_s, averages))
+        data = np.swapaxes(np.stack(stack, axis=-1), 0, 1)[None, None, None]
         hdr = self._header(conditions, position_mm, size_mm, seed, step, averages, truth)
         return nifti_mrs(data, dwell_s, hdr)
 
     def acquire_components(self, position_mm, size_mm, seed=None, npoints=2048,
                            dwell_s=1.0 / 4000.0, conditions=None, step=0, averages=1):
-        """Acquire the conditions component by component and return NIfTI-MRS on
+        """Acquire the conditions component by component and return NIfTI-MRS on DIM_COIL,
         DIM_EDIT then DIM_USER_0: the same subject, noise, header, and provenance as
         `acquire` with the same arguments, every condition split into the signal
         components named in the header's SimulationComponents (the union over the
@@ -137,31 +137,25 @@ class Multiplex:
         parts, names = [], []
         for name in conditions:
             voxel = self.scans[name].voxel(position_mm, size_mm, compiled=self.compiled)
-            fids = voxel._component_fids(truth, npoints, dwell_s)
+            sensitivities = voxel.sensitivities()
+            fids = {n: sensitivities[:, None] * fid[None, :]
+                    for n, fid in voxel._component_fids(truth, npoints, dwell_s).items()}
             names += [n for n in fids if n not in names]
-            fids["noise"] = self._noise(voxel, truth, rng, npoints, dwell_s, averages)
+            fids["noise"] = voxel.noise(truth, rng, npoints, dwell_s, averages)
             parts.append(fids)
         names.append("noise")
-        zero = np.zeros(npoints, dtype=np.complex64)
+        zero = np.zeros_like(parts[0]["noise"])
+        # (channels, npoints, conditions, components), the channels then moved behind the time
         data = np.stack([np.stack([fids.get(n, zero) for n in names], axis=-1) for fids in parts],
-                        axis=-2).reshape(1, 1, 1, npoints, len(conditions), len(names))
+                        axis=-2)
+        data = np.swapaxes(data, 0, 1)[None, None, None]
         hdr = self._header(conditions, position_mm, size_mm, seed, step, averages, truth)
-        hdr.set_dim_info(1, "DIM_USER_0",
+        hdr.set_dim_info(2, "DIM_USER_0",
                          info="MRSandbox: the signal components named in SimulationComponents.")
         hdr.set_user_def("SimulationComponents", {"names": names},
                          "MRSandbox: the components on DIM_USER_0, in order; they sum to "
                          "the acquisition of the same seed and step.")
         return nifti_mrs(data, dwell_s, hdr)
-
-    @staticmethod
-    def _noise(voxel, truth, rng, npoints, dwell_s, averages):
-        """One condition's receiver noise of `averages` transients, zeros when silent."""
-        sigma = voxel.noise_sigma(truth, dwell_s, averages)
-        if voxel.scan.coils is not None:
-            sigma = sigma * voxel.scan.coils.noise_gain(voxel.position_mm, voxel.size_mm,
-                                                        voxel.turn)
-        return (receiver_noise(rng, sigma, npoints, voxel.scan.receiver) if sigma > 0.0
-                else np.zeros(npoints, dtype=np.complex64))
 
     def _header(self, conditions, position_mm, size_mm, seed, step, averages, truth):
         """The header extension every acquisition of a condition stack carries."""
@@ -169,7 +163,8 @@ class Multiplex:
 
         voxel = self.scans[conditions[0]].voxel(position_mm, size_mm)
         hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
-        hdr.set_dim_info(0, "DIM_EDIT")
+        hdr.set_dim_info(0, "DIM_COIL")
+        hdr.set_dim_info(1, "DIM_EDIT")
         hdr.set_user_def(
             "SimulationGroundTruth",
             {"seed": seed, "step": int(step), "averages": int(averages), "params": truth.to_dict(),
@@ -199,8 +194,8 @@ class Multiplex:
     def combine(self, acquisition, name):
         """One named combination of an acquired condition stack (e.g. the Hadamard GABA
         difference): the weighted sum over DIM_EDIT, returned as a complex array of
-        the voxel's remaining dimensions (the FID, or the FID by the components of an
-        `acquire_components` file)."""
+        the voxel's remaining dimensions (the FID by the channels, or by the channels and
+        the components of an `acquire_components` file)."""
         weights = self.combinations[name]
         w = np.asarray([weights[c] for c in self.conditions], dtype=np.float32)
         axis = 4 + acquisition.dim_tags.index("DIM_EDIT")
@@ -213,7 +208,7 @@ class Multiplex:
                    npoints=2048, dwell_s=1.0 / 4000.0, synthesis=None, displacement_mm=None,
                    motion_mm=None, rotation_deg=None, pivot_mm=(0.0, 0.0, 0.0), step=0,
                    frequency_start_hz=0.0, turn_deg=None, paradigm=None):
-        """Acquire a schedule of transients and return NIfTI-MRS on DIM_DYN.
+        """Acquire a schedule of transients and return NIfTI-MRS on DIM_COIL then DIM_DYN.
 
         The schedule names one condition per transient (a closed loop may interleave
         them arbitrarily); an integer repeats the first condition. One truth serves the
@@ -404,9 +399,10 @@ class Multiplex:
         turn = ghosts.uniform(0.0, 360.0, n)
 
         grid = np.arange(npoints) * dwell_s
-        data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
-        # the voxel as the scanner placed it: the receiver's noise does not follow the head
+        # the voxel as the scanner placed it: the channels and their noise do not follow the head
         voxel = self.scans[schedule[0]].voxel(position_mm, size_mm, turn=box)
+        sensitivities = voxel.sensitivities()
+        data = np.zeros((1, 1, 1, npoints, sensitivities.size, n), dtype=np.complex64)
         for k, name in enumerate(schedule):
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
@@ -420,11 +416,13 @@ class Multiplex:
                 # the rendered echo, scaled to this transient's size and turned to its phase
                 fid = fid + echo[name, places[k]] * (size[k] / spur.amplitude) * np.exp(
                     1j * np.radians(turn[k] - spur.phase_deg))
-            data[0, 0, 0, :, k] = fid * modulation + self._noise(voxel, truth, rng, npoints,
-                                                                 dwell_s, 1)
+            data[0, 0, 0, :, :, k] = np.transpose(
+                sensitivities[:, None] * (fid * modulation)[None, :]
+                + voxel.noise(truth, rng, npoints, dwell_s))
 
         hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
-        hdr.set_dim_info(0, "DIM_DYN")
+        hdr.set_dim_info(0, "DIM_COIL")
+        hdr.set_dim_info(1, "DIM_DYN")
         hdr.set_user_def(
             "SimulationGroundTruth",
             {"seed": seed, "params": truth.to_dict(),

@@ -151,7 +151,7 @@ class TestVirtualScan:
     def test_acquire_returns_nifti_mrs_with_provenance(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
         data = voxel.acquire(seed=7, npoints=1024, dwell_s=1.0 / 4000.0)
-        assert data.shape == (1, 1, 1, 1024)
+        assert data.shape == (1, 1, 1, 1024, 1) and data.dim_tags[0] == "DIM_COIL"
         assert abs(data.dwelltime - 1.0 / 4000.0) < 1e-12
         truth = data.hdr_ext["SimulationGroundTruth"]
         assert truth["seed"] == 7
@@ -1002,16 +1002,17 @@ class TestComponents:
         whole = voxel.acquire(seed=11, npoints=256, step=1)
         parts = voxel.acquire_components(seed=11, npoints=256, step=1)
         names = parts.hdr_ext["SimulationComponents"]["names"]
-        assert parts.dim_tags[0] == "DIM_USER_0"
-        assert parts.shape == (1, 1, 1, 256, len(names))
+        assert parts.dim_tags[:2] == ["DIM_COIL", "DIM_USER_0"]
+        assert parts.shape == (1, 1, 1, 256, 1, len(names))
         assert names[:2] == ["metabolites", "water"] and names[-1] == "noise"
         assert {"mm", "downfield", "spurious"} <= set(names)  # no fat layer mid-brain
         assert parts.hdr_ext["SimulationGroundTruth"] == whole.hdr_ext["SimulationGroundTruth"]
         summed = np.asarray(parts[:]).sum(axis=-1)
-        np.testing.assert_allclose(summed, np.asarray(whole[:]), atol=1e-5 * np.abs(summed).max())
+        np.testing.assert_allclose(summed, np.asarray(whole[:]).reshape(summed.shape),
+                                   atol=1e-5 * np.abs(summed).max())
         # every component carries signal of its own
         for k, name in enumerate(names):
-            assert np.abs(np.asarray(parts[:])[0, 0, 0, :, k]).max() > 0.0, name
+            assert np.abs(np.asarray(parts[:])[0, 0, 0, :, 0, k]).max() > 0.0, name
         # with coils: DIM_COIL first, the components after it, the noise correlated
         coiled = VirtualScan(scan.brain, scan.scanner, scan.sequence, coils=CoilArray.ring(4))
         voxel = coiled.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
@@ -1020,7 +1021,8 @@ class TestComponents:
         assert parts.dim_tags[:2] == ["DIM_COIL", "DIM_USER_0"]
         assert parts.shape == (1, 1, 1, 256, 4, len(names))
         summed = np.asarray(parts[:]).sum(axis=-1)
-        np.testing.assert_allclose(summed, np.asarray(whole[:]), atol=1e-5 * np.abs(summed).max())
+        np.testing.assert_allclose(summed, np.asarray(whole[:]).reshape(summed.shape),
+                                   atol=1e-5 * np.abs(summed).max())
 
     def test_frame_is_the_key_of_the_rendered_lines(self, scan):
         voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)

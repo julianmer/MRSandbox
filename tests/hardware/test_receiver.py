@@ -97,7 +97,7 @@ class TestScan:
         # the components pass the same linear filter and the header names the receiver
         whole = real.acquire(seed=7, npoints=256)
         parts = real.acquire_components(seed=7, npoints=256)
-        np.testing.assert_allclose(np.asarray(parts[:]).sum(axis=-1), np.asarray(whole[:]),
+        np.testing.assert_allclose(np.asarray(parts[:]).sum(axis=-1)[..., 0], np.asarray(whole[:]),
                                    atol=1e-3 * np.abs(clean).max())
         assert whole.hdr_ext["SimulationPhantom"]["receiver"] == {"oversampling": 8,
                                                                   "span_dwells": 8}

@@ -480,7 +480,7 @@ class TestFieldGroups:
                                   params=quiet, field=field, field_groups=groups, water=NoWater(),
                                   lipids=NoLipids(), mm=NoMM(), downfield=NoDownfield())
             data = np.asarray(multiplex.acquire((0.0, 0.0, 0.0), 20.0, seed=3,
-                                                npoints=1024)[:])[0, 0, 0]
+                                                npoints=1024)[:])[0, 0, 0, :, 0]
             # the FID is referenced to 0 ppm, a line at f hertz is exp(+i 2 pi f t); one envelope
             # on every case, so a truncated FID rings alike under every ramp
             t = np.arange(1024) / 4000.0

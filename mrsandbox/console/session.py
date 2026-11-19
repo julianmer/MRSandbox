@@ -573,7 +573,10 @@ class Exam:
         card: The Protocol as it was when the exam was planned.
         position_mm, size_mm: The voxel as it was planned.
         status: "planned", "running", "done", or "failed" (with `problem`, the reason).
-        data: NIfTI-MRS with the transients apart (DIM_DYN), once it ran.
+        data: NIfTI-MRS with the channels and the transients apart (DIM_COIL, DIM_DYN), once
+            it ran.
+        channels: The weight the optimum combination gives every channel of an array at the
+            voxel, which the display combines them with; None with one channel.
         ppm: The display's axis, the whole acquired band.
         frames: The display as the scan comes in, [(transients so far, the real spectrum of their
             average, the last transient's own)], on `ppm`; `window` is what the display
@@ -613,6 +616,7 @@ class Exam:
     status: str = "planned"
     problem: str = ""
     data: object = None
+    channels: object = None
     ppm: object = None
     frames: list = dataclasses.field(default_factory=list)
     records: dict = dataclasses.field(default_factory=dict)
@@ -2010,9 +2014,11 @@ class Session:
         # a file with its coils apart, and an array in the room standing in for the coil's
         # geometry: the share of the channels' noise that is their own is read too, and the
         # profile carries the array so loaded
-        tags = json.loads(nib.load(str(source)).header.extensions[0].get_content())
-        array = (self.array() if "DIM_COIL" in (tags.get("dim_5"), tags.get("dim_6"),
-                                                tags.get("dim_7")) else None)
+        image = nib.load(str(source))
+        tags = json.loads(image.header.extensions[0].get_content())
+        tags = [tags.get(f"dim_{k}") for k in (5, 6, 7)]
+        array = (self.array() if "DIM_COIL" in tags
+                 and (image.shape + (1,) * 3)[4 + tags.index("DIM_COIL")] > 1 else None)
         in_vitro = hasattr(self.body(), "contents")
         ScannerProfile.read(str(source), twin, dataset=name, array=array,
                             load="a phantom" if in_vitro else "a head", in_vitro=in_vitro,
@@ -2989,7 +2995,8 @@ class Session:
                 trajectory=None if card.mrsi_readout == "phase encoded" else card.mrsi_readout)
             exam.data = grid.acquire(seed=seed, npoints=card.npoints,
                                      dwell_s=1.0 / card.bandwidth_hz)
-            fids = np.asarray(exam.data[:])                         # (nx, ny, nz, points)
+            # (nx, ny, nz, points), of the one channel
+            fids = np.asarray(exam.data[:]).reshape(exam.data.shape[:4])
             window = np.exp(-np.pi * 3.0 * np.arange(card.npoints) / card.bandwidth_hz)
             spectra = np.fft.fftshift(np.fft.fft(fids * window, 2 * card.npoints, axis=-1), axes=-1)
             f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
@@ -3078,6 +3085,10 @@ class Session:
         started = 0.0 if self.prescan else self.drift_hz_per_min * self.clock_s / 60.0
         if exam in self.queue:      # a preview leaves the scanner's clock alone
             self.clock_s += card.scan_time_s
+        # what the optimum combination makes of every channel alone: its weights at the voxel
+        exam.channels = None if coils is None else shared["coils"].combine(
+            np.eye(len(coils)), exam.position_mm, exam.size_mm,
+            turning(exam.turn_deg) if any(exam.turn_deg) else None)
         exam.data = room.transients(exam.position_mm, exam.size_mm, exam.schedule,
                                     tr_s=card.tr_ms / 1000.0, seed=seed, turn_deg=exam.turn_deg,
                                     step=self.queue.index(exam) + 1 if exam in self.queue else 0,
@@ -3258,8 +3269,8 @@ class Session:
     #*************#
     def display(self, exam):
         """What the console shows of an exam that ran, made from its raw transients as `processing`
-        stands, so a finished exam follows the switch and the export stays raw. The coils are
-        summed; then
+        stands, so a finished exam follows the switch and the export stays raw. An array's
+        channels are combined as the optimum combination weighs them at the voxel; then
         COMBINE is the data as they came in: the transients averaged, no phase, no alignment, so
         the phase the acquisition started with and what drift and motion do to the average show;
         ALIGN is a rough cleaning: every transient aligned in frequency and phase to the others of
@@ -3274,9 +3285,10 @@ class Session:
         one.
         Fills `builds`, `frames`, `transients`, `spectra`, `snr`, `ppm` and `window`."""
         card, names = exam.card, list(exam.conditions)
-        fids = np.array(exam.data[:])[0, 0, 0]
-        # one transient; channels summed for the display alone
-        fids = fids[:, None] if fids.ndim == 1 else fids if fids.ndim == 2 else fids.sum(axis=1)
+        # (points, channels, transients), the channels combined for the display alone
+        fids = np.array(exam.data[:]).reshape(card.npoints, -1, len(exam.schedule))
+        fids = (fids[:, 0] if exam.channels is None
+                else np.tensordot(fids, exam.channels, axes=([1], [0])))
         played = np.asarray(exam.schedule)
         f0_mhz = float(exam.data.hdr_ext["SpectrometerFrequency"][0])
         reference = exam.overrides.get("water.residual_fraction") == 1.0

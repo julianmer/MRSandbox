@@ -60,7 +60,7 @@ fever = VirtualScan(brain, Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_
 # J-difference editing emerges from the density matrix; HERMES and HERCULES ship too
 gaba = Multiplex(brain, Scanner.preset("generic_3t"), MegaPress.pair(),
                  combinations={"difference": {"on": 1.0, "off": -1.0}})
-stack = gaba.acquire((0, -45, 35), 30.0, seed=1)          # NIfTI-MRS on DIM_EDIT, one truth
+stack = gaba.acquire((0, -45, 35), 30.0, seed=1)          # NIfTI-MRS on DIM_COIL and DIM_EDIT, one truth
 edited = gaba.combine(stack, "difference")
 ```
 

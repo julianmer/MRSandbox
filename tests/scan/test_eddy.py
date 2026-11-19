@@ -218,7 +218,7 @@ class TestKernel:
         voxel = warped.voxel(**kw)
         whole = voxel.acquire(seed=7, npoints=512)
         parts = voxel.acquire_components(seed=7, npoints=512)
-        np.testing.assert_allclose(np.asarray(parts[:]).sum(axis=-1), np.asarray(whole[:]),
+        np.testing.assert_allclose(np.asarray(parts[:]).sum(axis=-1)[..., 0], np.asarray(whole[:]),
                                    atol=1e-5 * np.abs(np.asarray(whole[:])).max())
 
 
