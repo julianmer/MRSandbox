@@ -17,11 +17,13 @@
 #****************#
 # Source: Stanisz, G. J., Odrobina, E. E., Pun, J., Escaravage, M., Graham, S. J., Bronskill,
 #         M. J., Henkelman, R. M. T1, T2 relaxation and magnetization transfer in tissue at 3T.
-#         MRM 54 (2005) 507-512, as the pulseq-CEST library transcribes it
-#         (github.com/kherz/pulseq-cest-library, sim-library/Stanisz_3T, the 2-pool files).
+#         MRM 54 (2005) 507-512, Table 2 (white matter M0B 13.9 percent, R 23 1/s, T2B 10.0
+#         us; gray matter 5.0 percent, 40 1/s, 9.1 us).
 # Units:  pool_fraction the bound pool's size over the free water's (M0B / M0A); exchange_hz
 #         its exchange rate toward the water pool, 1/s; t2_s its transverse relaxation time
-#         (super-Lorentzian); its R1 the library's assumed 1/s.
+#         (super-Lorentzian).
+# Notes:  the paper gives the bound pool no R1: 1/s is stated, the value the two-pool fits
+#         hold it at.
 STANISZ_2005_3T = {
     "gm": {"pool_fraction": 0.050, "exchange_hz": 40.0, "t2_s": 9.1e-6},
     "wm": {"pool_fraction": 0.139, "exchange_hz": 23.0, "t2_s": 10.0e-6},

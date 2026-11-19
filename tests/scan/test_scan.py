@@ -22,6 +22,7 @@ from keras import ops
 
 from mrsandbox import (Brain, Engine, Fixed, Normal, Params, PerTissue, Press, Scanner,
                        Uniform, VirtualScan)
+from mrsandbox.scan.voxel import CARRIER_PPM
 
 # full-scan integration renders: the tensorflow CI leg skips these (-m 'not render')
 pytestmark = pytest.mark.render
@@ -400,7 +401,10 @@ class TestAcquisitionImperfections:
         # a delay of k dwells is the undelayed FID advanced by k samples, every
         # component alike (metabolites, water, lipids, MM, downfield, the field
         # kernel, the microscopic envelope, the shift and the phase); half a dwell
-        # lands on the points of the grid twice as fine
+        # lands on the points of the grid twice as fine. The receiver stands at the
+        # carrier, so in the engine's frame the delay also turns the FID by the carrier's
+        # phase over it
+        carrier_hz = CARRIER_PPM * 42.5774785 * 3.0
         brain, pieces = scan.brain, (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
         quiet = dict(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0))
 
@@ -413,10 +417,12 @@ class TestAcquisitionImperfections:
             return voxel.fid(seed=7, npoints=npoints, dwell_s=dwell_s)[1]
 
         prompt = fid(0.0, 512 + 8)
-        np.testing.assert_allclose(fid(8 / 4000.0, 512), prompt[8:],
+        np.testing.assert_allclose(fid(8 / 4000.0, 512),
+                                   prompt[8:] * np.exp(-2j * np.pi * carrier_hz * 8 / 4000.0),
                                    atol=1e-4 * np.abs(prompt).max())
         fine = fid(0.0, 1024, dwell_s=1.0 / 8000.0)
-        np.testing.assert_allclose(fid(1 / 8000.0, 512), fine[1::2],
+        np.testing.assert_allclose(fid(1 / 8000.0, 512),
+                                   fine[1::2] * np.exp(-2j * np.pi * carrier_hz / 8000.0),
                                    atol=1e-4 * np.abs(prompt).max())
 
     def test_receiver_delay_moves_the_spurious_echo_with_the_clock(self, scan):
@@ -435,7 +441,8 @@ class TestAcquisitionImperfections:
             return fids["spurious"] / np.abs(sum(fid for name, fid in fids.items()
                                                  if name not in ("spurious", "water"))).max()
 
-        np.testing.assert_allclose(echo(8 / 4000.0, 512), echo(0.0, 520)[8:], atol=1e-4)
+        turn = np.exp(-2j * np.pi * CARRIER_PPM * 42.5774785 * 3.0 * 8 / 4000.0)
+        np.testing.assert_allclose(echo(8 / 4000.0, 512), echo(0.0, 520)[8:] * turn, atol=1e-4)
 
     #****************#
     #   eddy phase   #

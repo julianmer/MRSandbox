@@ -101,3 +101,27 @@ class TestScan:
                                    atol=1e-3 * np.abs(clean).max())
         assert whole.hdr_ext["SimulationPhantom"]["receiver"] == {"oversampling": 8,
                                                                   "span_dwells": 8}
+
+    def test_the_receiver_stands_at_the_carrier(self):
+        brain = Brain.load("icbm152")
+        pieces = (Scanner.preset("generic_3t"), Press(te1_s=0.011, te2_s=0.019))
+        quiet = Params(noise=dict(sigma=0.0), spurious=dict(amplitude=0.0),
+                       acquisition=dict(shift_hz=0.0, phase_deg=0.0, eddy_std_rad=0.0, delay_s=0.0,
+                                        eddy_transient_rad=0.0), oov=dict(fraction=0.0))
+        kw = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+
+        def file(params, **scan):
+            data = VirtualScan(brain, *pieces, params=params, **scan).voxel(**kw).acquire(
+                seed=7, npoints=4096)
+            return np.asarray(data[:])[0, 0, 0]
+
+        # a receiver that starts one dwell late delivers the same file a sample on: the phase
+        # the lines gather over the delay is counted from the file's own centre
+        plain = file(quiet)
+        late = file(quiet | Params(acquisition=dict(delay_s=1.0 / 4000.0)))
+        np.testing.assert_allclose(late[:-1], plain[1:], atol=1e-3 * np.abs(plain).max())
+        # the filter's band lies about that centre: the noise falls alike at both edges
+        noise = file(Params(noise=dict(sigma=1e6)), receiver=Receiver())
+        power = np.abs(np.fft.fftshift(np.fft.fft(noise))) ** 2
+        assert abs(power[:256].sum() / power[-256:].sum() - 1.0) < 0.2
+

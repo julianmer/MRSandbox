@@ -133,36 +133,51 @@ PRESETS = {
                                  cited="XQ gradients 45 mT/m at 200 T/m/s, nominal, as the vendor "
                                        "quotes it and the trade compares it; the sheet itself not "
                                        "read (27/09/26)"),
-    "siemens_verio_3t": Scanner("siemens_verio_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=45.0,
+    "siemens_verio_3t": Scanner("siemens_verio_3t", 2.895, peak_b1_ut=25.0, max_grad_mt_m=45.0,
                                 max_slew_t_m_s=200.0, vendor="siemens", model="Verio",
                                 cited="45 mT/m at 200 T/m/s (Block Imaging, Siemens 3T MRI "
                                       "scanners compared "
                                       "(blockimaging.com/siemens-3t-mri-scanners-compared, read "
-                                      "27/09/26))"),
-    "siemens_skyra_3t": Scanner("siemens_skyra_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=45.0,
+                                      "27/09/26))"
+                                      "; the field the Siemens 3 T magnets' own, as the "
+                                      "Prisma's and the Trio's raw headers state it "
+                                      "(123.2 MHz), no header of this model read"),
+    "siemens_skyra_3t": Scanner("siemens_skyra_3t", 2.895, peak_b1_ut=25.0, max_grad_mt_m=45.0,
                                 max_slew_t_m_s=200.0, vendor="siemens", model="Skyra",
                                 cited="XQ gradients 45 mT/m, 200 T/m/s (the slew from Block "
                                       "Imaging, Siemens 3T MRI scanners compared "
                                       "(blockimaging.com/siemens-3t-mri-scanners-compared, read "
                                       "27/09/26), the amplitude nominal, as the vendor quotes it "
                                       "and the trade compares it; the sheet itself not read "
-                                      "(27/09/26))"),
-    "siemens_spectra_3t": Scanner("siemens_spectra_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=33.0,
+                                      "(27/09/26))"
+                                      "; the field the Siemens 3 T magnets' own, as the "
+                                      "Prisma's and the Trio's raw headers state it "
+                                      "(123.2 MHz), no header of this model read"),
+    "siemens_spectra_3t": Scanner("siemens_spectra_3t", 2.895, peak_b1_ut=25.0, max_grad_mt_m=33.0,
                                   max_slew_t_m_s=125.0, vendor="siemens", model="Spectra",
                                   cited="33 mT/m at 125 T/m/s (Block Imaging, Siemens 3T MRI "
                                         "scanners compared "
                                         "(blockimaging.com/siemens-3t-mri-scanners-compared, read "
-                                        "27/09/26))"),
-    "siemens_vida_3t": Scanner("siemens_vida_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=60.0,
+                                        "27/09/26))"
+                                        "; the field the Siemens 3 T magnets' own, as the "
+                                        "Prisma's and the Trio's raw headers state it "
+                                        "(123.2 MHz), no header of this model read"),
+    "siemens_vida_3t": Scanner("siemens_vida_3t", 2.895, peak_b1_ut=25.0, max_grad_mt_m=60.0,
                                max_slew_t_m_s=200.0, vendor="siemens", model="Vida",
                                cited="XT gradients 60 mT/m at 200 T/m/s, nominal, as the vendor "
                                      "quotes it and the trade compares it; the sheet itself not "
-                                     "read (27/09/26)"),
-    "siemens_lumina_3t": Scanner("siemens_lumina_3t", 3.0, peak_b1_ut=25.0, max_grad_mt_m=36.0,
+                                     "read (27/09/26)"
+                                     "; the field the Siemens 3 T magnets' own, as the "
+                                     "Prisma's and the Trio's raw headers state it "
+                                     "(123.2 MHz), no header of this model read"),
+    "siemens_lumina_3t": Scanner("siemens_lumina_3t", 2.895, peak_b1_ut=25.0, max_grad_mt_m=36.0,
                                  max_slew_t_m_s=200.0, vendor="siemens", model="Lumina",
                                  cited="XK gradients 36 mT/m at 200 T/m/s, nominal, as the vendor "
                                        "quotes it and the trade compares it; the sheet itself not "
-                                       "read (27/09/26)"),
+                                       "read (27/09/26)"
+                                       "; the field the Siemens 3 T magnets' own, as the "
+                                       "Prisma's and the Trio's raw headers state it "
+                                       "(123.2 MHz), no header of this model read"),
     "siemens_terra_7t": Scanner("siemens_terra_7t", 7.0, peak_b1_ut=30.0, max_grad_mt_m=80.0,
                                 max_slew_t_m_s=200.0, vendor="siemens", model="Terra",
                                 cited="XR gradients 80 mT/m at 200 T/m/s, nominal, as the vendor "

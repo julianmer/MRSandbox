@@ -66,6 +66,10 @@ def draw(params, seed, step=0):
 #***************#
 #   nifti mrs   #
 #***************#
+# where the receiver's centre sits on the ppm axis: a scanner with water on resonance
+CARRIER_PPM = 4.65
+
+
 def nifti_mrs(data, dwell_s, hdr, **kwargs):
     """Simulated FIDs (the time axis fourth) as NIfTI-MRS in the standard's frame. The engine
     renders with 0 ppm on the carrier; the standard has no field for that and every reader
@@ -75,7 +79,7 @@ def nifti_mrs(data, dwell_s, hdr, **kwargs):
     from nifti_mrs.create_nmrs import gen_nifti_mrs_hdr_ext
 
     data = np.asarray(data)
-    turn = np.exp(-2j * np.pi * 4.65 * float(hdr.to_dict()["SpectrometerFrequency"][0])
+    turn = np.exp(-2j * np.pi * CARRIER_PPM * float(hdr.to_dict()["SpectrometerFrequency"][0])
                   * np.arange(data.shape[3]) * dwell_s)
     return gen_nifti_mrs_hdr_ext(
         (data * turn.reshape((1, 1, 1, -1) + (1,) * (data.ndim - 4))).astype(np.complex64),
@@ -293,7 +297,12 @@ class Voxel:
         the drawn sigma is none."""
         sigma, coils = self.noise_sigma(truth, dwell_s, averages), self.scan.coils
         if sigma > 0.0:
-            return np.atleast_2d(receiver_noise(rng, sigma, npoints, self.scan.receiver, coils))
+            noise = np.atleast_2d(receiver_noise(rng, sigma, npoints, self.scan.receiver, coils))
+            if self.scan.receiver is not None:
+                # the filter's band lies about the receiver's centre, not about 0 ppm
+                noise = noise * np.exp(2j * np.pi * CARRIER_PPM * self._f0_mhz() * dwell_s
+                                       * np.arange(npoints)).astype(np.complex64)
+            return noise
         return np.zeros((1 if coils is None else len(coils), npoints), dtype=np.complex64)
 
     def sensitivities(self):
@@ -733,7 +742,8 @@ class Voxel:
 
     def fid(self, seed=None, npoints=2048, dwell_s=1.0 / 4000.0, averages=1):
         """(t, complex FID) at any grid: all components summed, the sampled noise of
-        `averages` averaged transients added."""
+        `averages` averaged transients added; with a CoilArray on the scan the channels
+        apart, (channels, npoints)."""
         if isinstance(seed, np.random.Generator):
             rng, truth = seed, self.scan.params.sample(seed)
         else:
@@ -746,12 +756,12 @@ class Voxel:
     #*****************#
     def _render(self, truth, rng, npoints, dwell_s, averages=1):
         """Render all components in one call and add the sampled complex Gaussian noise
-        of `averages` averaged transients."""
+        of `averages` averaged transients: the FID of the one ideal channel, or an array's
+        channels, (channels, npoints)."""
         t, fid = self._clean_fid(truth, npoints, dwell_s)
-        sigma = self.noise_sigma(truth, dwell_s, averages)
-        if sigma > 0.0:
-            fid = fid + receiver_noise(rng, sigma, npoints, self.scan.receiver)
-        return t, fid
+        channels = (self.sensitivities()[:, None] * fid[None, :]
+                    + self.noise(truth, rng, npoints, dwell_s, averages)).astype(np.complex64)
+        return t, channels[0] if self.scan.coils is None else channels
 
     def _clean_fid(self, truth, npoints, dwell_s, basis=None):
         """The noise-free voxel FID: the components of `_component_fids` summed."""
@@ -766,14 +776,22 @@ class Voxel:
         """Every component's noise-free FID as the receiver delivers it: the rendered
         components of `_rendered_fids`, with a hardware.Receiver on the scan rendered
         on the receiver's oversampled grid and each filtered and decimated (a linear
-        step, so the components still sum to the clean FID exactly)."""
+        step, so the components still sum to the clean FID exactly). The receiver stands
+        at CARRIER_PPM: its filter passes the band about that centre, and the phase the
+        lines gather over the receiver delay is counted from it."""
         receiver = self.scan.receiver
+        carrier_hz = CARRIER_PPM * self._f0_mhz()
+        late = np.complex64(np.exp(-2j * np.pi * carrier_hz * float(truth.acquisition.delay_s)))
         if receiver is None:
-            return self._rendered_fids(truth, npoints, dwell_s, basis)
+            return {name: fid * late
+                    for name, fid in self._rendered_fids(truth, npoints, dwell_s, basis).items()}
         fine_n, fine_dwell = receiver.grid(npoints, dwell_s)
         if basis is not None:
             basis = self.metabolite_basis(truth, fine_n, fine_dwell)
-        return {name: receiver.decimate(fid, npoints)
+        # filtered in the receiver's own frame, and back to the engine's
+        down = np.exp(-2j * np.pi * carrier_hz * fine_dwell * np.arange(fine_n))
+        up = late * np.exp(2j * np.pi * carrier_hz * dwell_s * np.arange(npoints))
+        return {name: (receiver.decimate(fid * down, npoints) * up).astype(np.complex64)
                 for name, fid in self._rendered_fids(truth, fine_n, fine_dwell, basis).items()}
 
     def _rendered_fids(self, truth, npoints, dwell_s, basis=None):
@@ -802,9 +820,8 @@ class Voxel:
         try:
             from augmentrum.augmentation import EddyCurrent
         except ImportError as error:
-            raise ImportError("acquisitions need Augmentrum for the eddy phase (the "
-                              "mrsandbox[augment] extra; see pyproject.toml for the install "
-                              "recipe)") from error
+            raise ImportError("acquisitions need Augmentrum for the eddy phase (pip install "
+                              "augmentrum)") from error
         # the receiver delay: every sample sits start_s after the readout's start
         start_s = float(truth.acquisition.delay_s)
         grid = start_s + np.arange(npoints) * dwell_s

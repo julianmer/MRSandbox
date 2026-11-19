@@ -70,8 +70,8 @@ class ParametricEcho(SpuriousSource):
         try:
             from augmentrum.augmentation import SpuriousEchoes
         except ImportError as error:
-            raise ImportError("the drawn spurious echo needs Augmentrum (the mrsandbox[augment] "
-                              "extra; see pyproject.toml for the install recipe)") from error
+            raise ImportError("the drawn spurious echo needs Augmentrum (pip install "
+                              "augmentrum)") from error
         f0_mhz = voxel._f0_mhz()
         echo = SpuriousEchoes(mode="echo", echoes=[dict(
             alpha=spur.amplitude, t_echo=spur.tau_s - start_s,

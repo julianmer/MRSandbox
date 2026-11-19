@@ -384,8 +384,8 @@ class MappedCoilArray(CoilArray):
             try:
                 from augmentrum.sampling.coil_sampling import T2starMove
             except ImportError as error:
-                raise ImportError("the t2star_move coil maps come through Augmentrum (the "
-                                  "mrsandbox[augment] extra)") from error
+                raise ImportError("the t2star_move coil maps come through Augmentrum (pip "
+                                  "install augmentrum)") from error
             maps = T2starMove.fetch(subject, progress=False)
             affine = np.diag([2.0, 2.0, 3.0, 1.0])
             affine[:3, 3] = -affine[:3, :3] @ ((np.asarray(maps.shape[:3]) - 1) / 2.0)

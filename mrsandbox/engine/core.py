@@ -507,12 +507,14 @@ class Engine:
     #******************#
     def _signal_index(self, full, sequence, groups, isochromats, bounds):
         """The elements of a graph's output that carry signal on generic replays
-        (relaxation 1.5 and 0.2 s, the sequence's own timings, two frames: transmit
-        scale 0.8 on resonance and 1.25 at 7 Hz off), as an index tensor and the
-        groups' bounds in it. An element under 1e-9 of its group's maximum in both
-        replays is a structural zero (a coherence filter's, zero at every draw), two
-        orders below float32 itself: an element that carries signal sits on a null
-        at one frame only by coincidence, and the other frame lifts it.
+        (relaxation 1.5 and 0.2 s, two frames: transmit scale 0.8 on resonance at the
+        sequence's own timings, and 1.25 at 7 Hz off with every timing a thousandth
+        off its own), as an index tensor and the groups' bounds in it. An element
+        under 1e-9 of its group's maximum in both replays is a structural zero (a
+        coherence filter's, zero at every draw and every timing), two orders below
+        float32 itself: an element that carries signal sits on a null at one frame
+        only by coincidence (a flip of zero, a crusher of whole cycles), and the
+        other frame lifts it, so the index serves every design of the structure.
 
         The index is a pure function of the graph, so where graphs persist as exports
         it is kept beside them, under the export's own key (`_export_path`: the code,
@@ -523,7 +525,12 @@ class Engine:
         timings, shift = self.tensors(sequence.timings()), ops.zeros((3,), dtype=precision.REAL)
         n = len(bounds) - 1
 
-        def probe(b1, offset):
+        def nudged(value):
+            if isinstance(value, tuple):
+                return tuple(nudged(v) for v in value)
+            return value + 1e-3 * (1.0 + ops.abs(value))
+
+        def probe(b1, offset, timings):
             return (ops.convert_to_tensor(np.full(n, relax[0], precision.REAL)),
                     ops.convert_to_tensor(np.full(n, relax[1], precision.REAL)),
                     ops.convert_to_tensor(np.asarray(b1, precision.REAL)),
@@ -535,8 +542,8 @@ class Engine:
             stored = np.load(path)
             return ops.convert_to_tensor(stored["index"]), stored["kept"]
         keep = np.zeros(int(bounds[-1]), dtype=bool)
-        for b1, offset in frames:
-            _, amps = full(*probe(b1, offset))
+        for (b1, offset), played in zip(frames, (timings, nudged(timings))):
+            _, amps = full(*probe(b1, offset, played))
             amps = np.abs(np.asarray(ops.convert_to_numpy(amps)))
             for g in range(n):
                 part = amps[bounds[g]:bounds[g + 1]]

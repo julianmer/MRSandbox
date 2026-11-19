@@ -23,7 +23,7 @@ from mrsandbox import Brain, CoilArray, Params, Press, Scanner, ScannerProfile, 
 from mrsandbox.scan import cohort as cohorts
 from mrsandbox.scan.calibrate import WaterReading, _raw
 from mrsandbox.scan.calibrations import calibrations
-from mrsandbox.scan.voxel import noise_scale
+from mrsandbox.scan.voxel import CARRIER_PPM, noise_scale
 
 PLACE, SIZE = (0.0, -45.0, 35.0), 30.0
 # the leaked water off: these gates set a residual and read it back, and read the noise beside the
@@ -207,9 +207,11 @@ class TestScannerProfile:
                             mm=NoMM(), downfield=NoDownfield())
         voxel = scan.voxel(position_mm=(0.0, -45.0, 35.0), size_mm=20.0)
         power = np.zeros(2048)
+        # in the receiver's frame, its centre at the carrier
+        turn = np.exp(-2j * np.pi * CARRIER_PPM * voxel._f0_mhz() * np.arange(2048) / 4000.0)
         for seed in range(8):
             _, fid = voxel.fid(seed=seed, npoints=2048)
-            power += np.abs(np.fft.fftshift(np.fft.fft(fid))) ** 2
+            power += np.abs(np.fft.fftshift(np.fft.fft(fid * turn))) ** 2
         edge = (0.5 * (power[:102].mean() + power[-102:].mean())
                 / power[1024 - 102: 1024 + 102].mean())
         assert 0.3 < edge < 0.6, edge

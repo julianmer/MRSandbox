@@ -288,9 +288,7 @@ class Multiplex:
             import augmentrum
             from augmentrum.augmentation import TransientSynthesizer
         except ImportError as error:
-            raise ImportError("transients need Augmentrum (the mrsandbox[augment] extra; "
-                              "its fsl-mrs dependency is not on PyPI, see pyproject.toml "
-                              "for the install recipe)") from error
+            raise ImportError("transients need Augmentrum (pip install augmentrum)") from error
         from nifti_mrs.hdr_ext import Hdr_Ext
 
         if isinstance(schedule, int):

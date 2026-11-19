@@ -533,6 +533,25 @@ class TestGraph:
                 s_full, s_kept = (np.asarray(ops.convert_to_numpy(v)) for v in (s_full, s_kept))
                 assert np.abs(s_full - s_kept).max() <= 1e-5 * np.abs(s_full).max()
 
+    def test_a_design_first_seen_silent_keeps_the_lines_of_the_next(self):
+        # the index belongs to the structure: a shaped excitation of no flip, seen first, carries
+        # no signal, and the 90 that follows through the same graph must keep all of its own
+        from mrsandbox import SpinSystem
+        from mrsandbox.sequences.events import ShapedPulse
+
+        engine, groups = Engine(3.0), (tuple(SpinSystem.from_database("Lac")),)
+        args = (ops.convert_to_tensor(np.float32([1.5])), ops.convert_to_tensor(np.float32([0.2])),
+                ops.convert_to_tensor(np.float32(1.0)), ops.convert_to_tensor(np.float32(0.0)))
+        silent, played = (Sequence(ShapedPulse.gaussian(flip, 0.004, offset_ppm=1.3),
+                                   CoherenceFilter(-1), Delay(0.01)) for flip in (0.0, 90.0))
+        engine.compiled_batch(silent, groups, pruned=True)[0](*args)
+        _, kept = (np.asarray(ops.convert_to_numpy(v))
+                   for v in engine.compiled_batch(played, groups, pruned=True)[0](*args))
+        _, whole = (np.asarray(ops.convert_to_numpy(v))
+                    for v in engine.compiled_batch(played, groups)[0](*args))
+        assert np.abs(whole).sum() > 0.0
+        assert abs(np.abs(kept).sum() - np.abs(whole).sum()) < 1e-6 * np.abs(whole).sum()
+
     def test_the_signal_index_persists_across_engines(self, backend, tmp_path):
         # the index is a pure function of the graph, so a second engine reads it back from the
         # cache directory instead of replaying the full graph: a tampered file coming back

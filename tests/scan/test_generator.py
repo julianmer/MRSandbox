@@ -53,6 +53,14 @@ class TestGenerator:
         column = gen.metabolites.index("NAA")
         assert all(7.5 <= value < 12.0 for value in y[:, column])
         assert len(gen.truths) == 4
+        # an array's channels stay apart, in the stream and in the voxel's own FID
+        from mrsandbox import CoilArray
+
+        array = VirtualScan(scan.brain, scan.scanner, scan.sequence, coils=CoilArray.ring(4))
+        x, _ = next(array.generator(**VOXEL, batch_size=2, seed=1, npoints=128))
+        assert x.shape == (2, 4, 2, 128)
+        channels = array.voxel(**VOXEL).fid(seed=1, npoints=128)[1]
+        assert channels.shape == (4, 128) and np.abs(channels[0] - channels[1]).max() > 0.0
 
     #*******************#
     #   random access   #

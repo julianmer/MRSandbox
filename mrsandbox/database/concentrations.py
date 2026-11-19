@@ -17,27 +17,30 @@
 #   de graaf   #
 #**************#
 # Source: de Graaf, R. A. In Vivo NMR Spectroscopy: Principles and Techniques, 3rd
-#         edition. Wiley, 2019; as compiled in julianmer/WAND-for-MRS
-#         simulation/simulationDefs.py (normConcs).
-# Units:  (low, high) in mM, healthy adult human brain.
-# Notes:  macromolecules excluded, their scale being implementation dependent.
+#         edition. Wiley, 2019, Figure 2.3 (cerebral metabolite concentration ranges).
+# Data:   the figure's bars, the approximate minimum and maximum reported in the literature
+#         for normal adult human and rat brain; they stand on half millimolars, the lows of
+#         0.1 and 0.2 apart. The book prints no numbers beside them.
+# Units:  (low, high) in mM.
+# Notes:  macromolecules excluded, their scale being implementation dependent; the figure's
+#         total choline bar (0.5 to 2.5) is not typed, its two compounds are.
 DE_GRAAF = {
     "Ace": (0.0, 0.5),        # Acetate
-    "Ala": (0.1, 1.6),        # Alanine
-    "Asc": (0.4, 1.7),        # Ascorbate
+    "Ala": (0.1, 1.5),        # Alanine
+    "Asc": (0.5, 1.5),        # Ascorbate
     "Asp": (1.0, 2.0),        # Aspartate
     "ATP": (2.0, 4.0),        # Adenosine triphosphate
     "BCAA": (0.0, 0.5),       # Branched chain amino acids
     "Cr": (4.5, 10.5),        # Creatine
-    "EA": (0.0, 1.6),         # Ethanolamine
+    "EA": (0.0, 1.5),         # Ethanolamine
     "GABA": (1.0, 2.0),       # Gamma-aminobutyric acid
     "Glc": (1.0, 2.0),        # Glucose
     "Gln": (3.0, 6.0),        # Glutamine
     "Glu": (6.0, 12.5),       # Glutamate
     "Gly": (0.2, 1.0),        # Glycine
     "Glycogen": (3.0, 6.0),   # Glycogen
-    "GPC": (0.4, 1.7),        # Glycerophosphocholine
-    "GSH": (1.7, 3.0),        # Glutathione
+    "GPC": (0.5, 1.5),        # Glycerophosphocholine
+    "GSH": (1.5, 3.0),        # Glutathione
     "Ins": (4.0, 9.0),        # Myo-inositol
     "Lac": (0.2, 1.0),        # Lactate
     "NAA": (7.5, 12.0),       # N-acetylaspartate

@@ -23,7 +23,7 @@ import os
 
 import numpy as np
 
-from mrsandbox.scan.voxel import draw, nifti_mrs, noise_scale, receiver_noise
+from mrsandbox.scan.voxel import CARRIER_PPM, draw, nifti_mrs, noise_scale, receiver_noise
 from mrsandbox.sequences.events import Projection
 
 
@@ -310,8 +310,8 @@ class MRSI:
         try:
             from augmentrum.sampling.kspace_sampling import TrajectoryRegistry
         except ImportError as error:
-            raise ImportError("non-Cartesian trajectories need Augmentrum (the "
-                              "mrsandbox[augment] extra)") from error
+            raise ImportError("non-Cartesian trajectories need Augmentrum (pip install "
+                              "augmentrum)") from error
         nx, ny = self.matrix[0], self.matrix[1]
         geometry = {"matrix": (nx, ny, self.partitions),
                     "fov_mm": (nx * self.voxel_mm, ny * self.voxel_mm,
@@ -525,11 +525,15 @@ class MRSI:
         if sigma <= 0.0:
             return None
         noise = np.zeros((nx, ny, nz) + tail, dtype=np.complex64)
+        # a receiver's filter leaves its band about the receiver's centre, not about 0 ppm
+        centred = 1.0 if self.scan.receiver is None else np.exp(
+            2j * np.pi * CARRIER_PPM * self.voxels[0][0][0]._f0_mhz() * dwell_s
+            * np.arange(npoints)).astype(np.complex64).reshape((npoints,) + (1,) * (len(tail) - 1))
         if self.averages is None:
             for index in np.ndindex(nx, ny, nz):
                 drawn = receiver_noise(rng, sigma, npoints, self.scan.receiver, coils)
                 noise[index] = drawn if coils is None else np.transpose(drawn)
-            return noise
+            return noise * centred
         # per-encode noise, summed over the NA(k) transients and normalized by
         # the centre count like the signal: std sigma sqrt(prod(dims)) sqrt(NA)
         # over NA(0) in the centred k frame, nothing where never measured
@@ -553,7 +557,7 @@ class MRSI:
                         receiver_noise(rng, float(scale[index]), npoints, receiver, coils))
         axes = tuple(range(len(self.dims)))
         image = np.fft.ifftn(np.fft.ifftshift(noise_k, axes=axes), axes=axes)
-        return image.reshape((nx, ny, nz) + tail).astype(np.complex64)
+        return image.reshape((nx, ny, nz) + tail).astype(np.complex64) * centred
 
     def _header(self, seed, truth, dwell_s, n_dead):
         """The header extension every acquisition of the lattice carries."""

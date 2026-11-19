@@ -37,6 +37,10 @@ class TestLimits:
         assert Scanner.preset("generic_7t").peak_b1_ut == 30.0
         assert Scanner("custom", 3.0).max_grad_mt_m == 40.0
 
+    def test_the_siemens_3_t_systems_stand_at_their_magnets_field(self):
+        for model in ("prisma", "trio", "verio", "skyra", "spectra", "vida", "lumina"):
+            assert Scanner.preset(f"siemens_{model}_3t").b0_t == 2.895
+
     def test_hard_pulses_take_the_time_the_peak_b1_allows(self):
         scanner = Scanner.preset("generic_3t")
         shortest = 0.25 / (GAMMA * scanner.peak_b1_ut)  # a 90 at the peak B1, in seconds
