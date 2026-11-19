@@ -24,7 +24,7 @@ import pytest
 
 from keras import ops
 
-from mrsandbox import (Brain, CoherenceFilter, Delay, DiffusionGradient, Engine, Gradient,
+from mrsandbox import (Brain, Chess, CoherenceFilter, Delay, DiffusionGradient, Engine, Gradient,
                        LocalizedMegaPress, LocalizedSteam, NoLipids, NoMM, NoWater, Params,
                        PerTissue, Press, Pulse, Scanner, Sequence, SpinSystem, Steam, Unsuppressed,
                        VirtualScan)
@@ -69,6 +69,16 @@ class TestBValue:
         # the TM crusher plays at coherence order zero and adds nothing, while the
         # stored helix attenuates through the whole mixing time, as a stimulated echo does
         assert abs(b_value_ms_um2(steam) - expected) < 1e-9 * expected
+
+    def test_played_crushers_follow_the_pathway_no_filter_names(self):
+        # the stimulated echo: the half's kick comes back turned over, the mixing spoiler
+        # plays on the stored order
+        te, tm = 0.02, 0.2
+        expected = (2.0 * math.pi * 0.15 * 1e3) ** 2 * (te / 2.0 + tm) * 1e-9
+        steam = Steam(te, tm, crushers=(0.15, 0.25))
+        assert abs(b_value_ms_um2(steam) - expected) < 1e-9 * expected
+        # a suppression train leaves the order at zero: the excitation raises it again
+        assert abs(b_value_ms_um2(Chess(3) + steam) - expected) < 1e-9 * expected
 
     #**********#
     #   axes   #

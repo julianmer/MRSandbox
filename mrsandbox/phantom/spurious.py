@@ -242,9 +242,10 @@ class PathwayEcho(SpuriousSource):
             [t1] * rows.size, [t2] * rows.size, [voxel.b1_scale(truth)] * rows.size,
             voxel.offset_hz(truth) + rows)]
         # in units of the nominal voxel volume, as every source renders
+        voxel_mm3 = 1000.0 * voxel.volume_ml
         water_mm = (tissue.MRSI_CHALLENGE["water_molarity_mm"] * self.SCALP_WATER
-                    * (float(np.prod(size)) - fat_mm3) / edge_mm ** 3)
-        lipid_mm = float(truth.lipids.amplitude_mm) * fat_mm3 / edge_mm ** 3
+                    * (float(np.prod(size)) - fat_mm3) / voxel_mm3)
+        lipid_mm = float(truth.lipids.amplitude_mm) * fat_mm3 / voxel_mm3
         echo = np.zeros(npoints, dtype=np.complex64)
         for sign, played in ((1.0, crushed), (-1.0, design)):
             replay, bounds = engine.replay_draws(played.confined(size).as_whole(), groups,

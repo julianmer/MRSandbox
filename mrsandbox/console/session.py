@@ -798,6 +798,7 @@ class Session:
         # {path: source}: literature or measured chosen per leaf (the custom is an override)
         self.choices = {}
         self.subjects, self.pictures, self.images = dict(SUBJECTS), dict(PICTURES), {}
+        self.layers = {}
         self.field = FIELDS.get(self.subject, "uniform")
         self.transmit = None
         self.shim, self.shim_mm = "quadratic", None
@@ -822,10 +823,24 @@ class Session:
     #   body   #
     #**********#
     def body(self):
-        """The subject on the table, made once per name."""
+        """The subject on the table, made once per name, under the lipid layer it was given
+        (`lipids`): the layer is the session's state, so the worker's subject wears it too."""
         if self.subject not in self._bodies:
             self._bodies[self.subject] = self.subjects[self.subject]()
-        return self._bodies[self.subject]
+        body, layer = self._bodies[self.subject], self.layers.get(self.subject)
+        if layer is not None and self._bodies.get(("layer", self.subject)) != layer:
+            if isinstance(layer, tuple):
+                from mrsandbox.resources.qsm import QSMHead
+
+                body.fat = QSMHead.fat(layer[1])
+            else:
+                body.fat = Volume(self.volume(layer).data, body.affine,
+                                  name=pathlib.Path(layer).name)
+            self._bodies[("layer", self.subject)] = layer
+            for key in [k for k in self._bodies
+                        if isinstance(k, tuple) and k[0] in ("fat", "wash")]:
+                self._bodies.pop(key)
+        return body
 
     def picture(self):
         """The subject as the planes show it, 8 bits on the subject's grid, made once per name
@@ -921,19 +936,15 @@ class Session:
         head's layer carried into the average brain's or BigBrain-MR's world (resources.qsm
         QSMHead.fat), which have no scalp of their own."""
         if path == LENT:
-            from mrsandbox.resources.qsm import QSMHead
-
             space = {"Brain, ICBM152 average, 2 mm": "icbm152",
                      "Brain, BigBrain-MR, 0.8 mm": "bigbrain_mr"}.get(self.subject)
             if space is None:
                 raise ValueError("the QSM head's layer is carried into the average brain and "
                                  "BigBrain-MR only: another anatomy would need it registered")
-            self.body().fat = QSMHead.fat(space)
+            self.layers[self.subject] = (LENT, space)
         else:
-            self.body().fat = Volume(self.volume(self.onto(path)).data, self.body().affine,
-                                     name=pathlib.Path(path).name)
-        for key in [k for k in self._bodies if isinstance(k, tuple) and k[0] in ("fat", "wash")]:
-            self._bodies.pop(key)
+            self.layers[self.subject] = str(self.onto(path))
+        self.body()
 
     def anatomy(self, name, gm, wm, csf, picture=None, fat=None):
         """Put the operator's own subject on the shelf: three NIfTI probability maps on one grid

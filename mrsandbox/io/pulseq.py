@@ -141,8 +141,8 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
             # Pulseq RF amplitudes are already in Hz, so the pulse plays in peak_hz mode
             # (exact amplitudes, scaled by the drawn transmit field like any RF). The
             # carrier sits at center_ppm plus the file's ppm offset; the file's Hz offset
-            # and any phase modulation become the per-step frequency track, with the
-            # half-step phase correction so the midpoint-sampled phase is exact.
+            # and any phase modulation become the per-step frequency track, each step's
+            # midpoint phase the file's own, and a phase of whole half turns a signed envelope.
             signal = np.asarray(rf.signal, dtype=np.complex128)
             t = np.asarray(rf.t, dtype=np.float64)
             dt = float(rf.shape_dur) / steps
@@ -150,8 +150,16 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
             amplitude = np.interp(mid, t, np.abs(signal))
             phase = np.interp(mid, t, np.unwrap(np.angle(signal)))
             peak = float(amplitude.max())
-            freq_offset = float(rf.freq_offset)
-            sweep = np.diff(phase, prepend=phase[0]) / (2.0 * math.pi * dt) + freq_offset
+            flips = np.round((phase - phase[0]) / math.pi)
+            sweep, total = np.zeros(steps), 0.0
+            if np.allclose(phase - phase[0], flips * math.pi, atol=1e-6):
+                amplitude = amplitude * np.where(flips % 2 == 0, 1.0, -1.0)
+            else:
+                target = (phase - phase[0]) / (2.0 * math.pi * dt)
+                for k in range(steps):
+                    sweep[k] = 2.0 * (target[k] - total)
+                    total += sweep[k]
+            sweep = sweep + float(rf.freq_offset)
             # every gradient of the block (Hz/m along its own times) split at the pulse: the
             # one axis that plays under the pulse is its slice gradient, a flat trapezoid over
             # the whole pulse (its ramps unapplied, stated), an extended trapezoid or an
@@ -193,8 +201,7 @@ def read_seq_all(path, center_ppm=4.65, steps=128, extent_mm=20.0):
                 duration_s=float(rf.shape_dur),
                 envelope=(amplitude / peak).astype(np.float32),
                 offset_ppm=center_ppm + float(getattr(rf, "freq_ppm", 0.0)),
-                phase_deg=math.degrees(float(phase[0]) + float(rf.phase_offset)
-                                       - math.pi * freq_offset * dt),
+                phase_deg=math.degrees(float(phase[0]) + float(rf.phase_offset)),
                 frequency_hz=sweep.astype(np.float32) if np.any(sweep) else None,
                 peak_hz=peak,
                 gradient_hz_per_mm=slice_hz_per_mm,
@@ -272,8 +279,9 @@ def write_seq(sequence, path, npoints, dwell_s, f0_mhz, center_ppm=4.65,
                 amplitude = envelope * (float(event.flip_deg) / 360.0) / (envelope.sum() * dt)
             phase = np.full(envelope.size, math.radians(float(event.phase_deg)))
             if event.frequency_hz is not None:
-                phase = phase + 2.0 * math.pi * np.cumsum(
-                    np.asarray(event.frequency_hz, dtype=np.float64)) * dt
+                # the track's phase at the step midpoints, where the engine plays it
+                sweep = np.asarray(event.frequency_hz, dtype=np.float64)
+                phase = phase + 2.0 * math.pi * (np.cumsum(sweep) - sweep / 2.0) * dt
             offsets = (event.offset_ppm if isinstance(event.offset_ppm, tuple)
                        else (event.offset_ppm,))
             if len(offsets) != 1:

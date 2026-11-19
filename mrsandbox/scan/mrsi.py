@@ -767,11 +767,12 @@ class MRSI:
                                       np.arange(nz)[None, None, :], slots[:, None, None]]
         if self.odd_sweeps is not None:
             # the odd sweeps' own gain and phase, and their k lines read off place by
-            # the delay over the time one k step takes (a linear phase across x)
+            # the delay over the time one k step takes (a linear phase across x, none at
+            # the lattice's centre)
             odd = (slice(None),) * len(self.dims) + (slice(1, None, 2),)
             factor = self.odd_sweeps["gain"] * np.exp(1j * np.radians(self.odd_sweeps["phase_deg"]))
             steps = self.odd_sweeps["delay_s"] / (dwell_s / period)  # in k steps
-            ramp = np.exp(2j * np.pi * steps * np.fft.fftfreq(nx))
+            ramp = np.exp(2j * np.pi * steps * (np.arange(nx) - (nx - 1) / 2.0) / nx)
             ramp = ramp.reshape((nx,) + (1,) * (kdata[odd].ndim - 1))
             lines = np.fft.ifft(np.fft.ifftshift(kdata[odd], axes=0), axis=0) * ramp
             kdata[odd] = factor * np.fft.fftshift(np.fft.fft(lines, axis=0), axes=0)

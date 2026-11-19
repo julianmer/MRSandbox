@@ -46,19 +46,21 @@ def kicks(sequence):
     Following the consensus formulation (Ligneul et al. 2024, Box 2), every Gradient
     event adds its moment times the coherence order of the detected pathway to the
     running helix of its axis. The pathway order is set by the CoherenceFilters where the
-    sequence declares them, defaults to +1 after excitation, and negates at refocusing
-    pulses (flip >= 135 degrees) when no filter overrides; kicks played at order zero (a
-    STEAM mixing time) add nothing while the stored helix keeps attenuating, exactly as a
-    stimulated echo does. A filter standing for a crusher (its crusher_per_mm) kicks on
-    the order it retains, along z (stated: the filter names no axis), so a pair around a
-    pulse of length tau weights by (2 pi m)^2 tau and rephases. Gradient events are
+    sequence declares them. Where none does, it is zero before the excitation, +1 after
+    it, negates at refocusing pulses (flip >= 135 degrees), and a smaller flip stores a
+    transverse order along z and brings a stored one back at the opposite sign, the
+    stimulated echo; kicks played at order zero (a STEAM mixing time) add nothing while
+    the stored helix keeps attenuating, exactly as a stimulated echo does. A filter
+    standing for a crusher (its crusher_per_mm) kicks on the order it retains, along z
+    (stated: the filter names no axis), so a pair around a pulse of length tau weights
+    by (2 pi m)^2 tau and rephases. Gradient events are
     instantaneous kicks, the zero-duration limit of the Stejskal-Tanner delta/3 term; a
     DiffusionGradient is a rectangular pulse of its duration from where it stands,
     spread into STEPS equal kicks at the midpoints of as many intervals, so the kicks
     come back in the order of their times; in-pulse slice gradients are not counted
     (stated).
     """
-    order, now, found = 1, 0.0, []
+    order, stored, now, found = 0, -1, 0.0, []
     for event in sequence.events:
         if isinstance(event, CoherenceFilter):
             order = event.orders[0]
@@ -75,13 +77,15 @@ def kicks(sequence):
                          for step in range(STEPS))
         elif isinstance(event, Delay):
             now += float(event.t_s)
-        elif isinstance(event, ShapedPulse):
-            now += float(event.duration_s)
-            if event.peak_hz is not None or float(event.flip_deg) >= 135.0:
+        elif isinstance(event, (ShapedPulse, Pulse)):
+            shaped = isinstance(event, ShapedPulse)
+            if shaped:
+                now += float(event.duration_s)
+            if shaped and event.peak_hz is not None or float(event.flip_deg) >= 135.0:
                 order = -order
-        elif isinstance(event, Pulse):
-            if float(event.flip_deg) >= 135.0:
-                order = -order
+            else:
+                # a transverse order goes along z, a stored one comes back turned over
+                order, stored = (0, order) if order else (-stored, stored)
     return now, sorted(found, key=lambda kick: kick[0])
 
 

@@ -23,8 +23,8 @@ import pathlib
 import numpy as np
 import pytest
 
-from mrsandbox import (Brain, CoilArray, Loop, MappedCoilArray, Params, Press, Scanner,
-                       VirtualScan)
+from mrsandbox import (Brain, CoilArray, Loop, MappedCoilArray, Multiplex, Params, Press,
+                       Scanner, VirtualScan)
 
 VOXEL = dict(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
 
@@ -222,6 +222,25 @@ class TestNoiseByPlace:
         header = placed.acquire(seed=1, npoints=256).hdr_ext["SimulationPhantom"]
         assert header["calibrations"]["noise.sigma"]["extrapolated"] == {}
         assert abs(header["noise_place"] - ratio) < 1e-6
+
+    def test_a_condition_stack_receives_the_array_combined(self, pieces):
+        # the noise alone, far above the signal: the same draws at the level of each place
+        brain, scanner, sequence = pieces
+        helmet = CoilArray.helmet().loaded().calibrated(self.REFERENCE)
+        loud = Params(noise=dict(sigma=1e6))
+        plain = Multiplex(brain, scanner, {"a": sequence}, params=loud)
+        array = Multiplex(brain, scanner, {"a": sequence}, params=loud, coils=helmet)
+        level = np.linalg.norm(plain.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=256)[:])
+        deep = np.linalg.norm(array.acquire((0.0, 0.0, 0.0), 20.0, seed=3, npoints=256)[:])
+        assert abs(deep / level - helmet.noise_gain((0.0, 0.0, 0.0), 20.0)) < 1e-3
+        # a head that moved leaves the receiver's noise where the scanner placed the voxel
+        mapped = Multiplex(brain, scanner, {"a": sequence}, params=loud, noise_map=helmet)
+        still = dict(drift_hz_per_min=0.0, events_per_min=0.0)
+        runs = [mapped.transients(self.REFERENCE, 20.0, 2, seed=3, npoints=256, synthesis=still,
+                                  displacement_mm=moved)
+                for moved in (None, [(0.0, -40.0, 30.0)] * 2)]
+        stayed, went = (np.linalg.norm(run[:]) for run in runs)
+        assert abs(went / stayed - 1.0) < 1e-3
 
 
     @pytest.mark.skipif(not (pathlib.Path(__file__).parents[2]

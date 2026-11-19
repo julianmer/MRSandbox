@@ -35,11 +35,11 @@ def brain():
     return Brain.load("icbm152")
 
 
-def echo_of(brain, sequence, source, position=SCALP, **params):
+def echo_of(brain, sequence, source, position=SCALP, size=20.0, **params):
     scan = VirtualScan(brain, Scanner.preset("generic_3t"), sequence, params=Params(**{**STILL,
                                                                                        **params}),
                        spurious=source)
-    voxel = scan.voxel(position_mm=position, size_mm=20.0)
+    voxel = scan.voxel(position_mm=position, size_mm=size)
     truth = voxel.sample(seed=7)
     parts = voxel._component_fids(truth, NPOINTS, DWELL_S)
     dry = np.abs(sum(fid for name, fid in parts.items() if name not in ("water", "spurious"))).max()
@@ -105,3 +105,24 @@ class TestSpurious:
         # the T2 decay pulls the envelope's peak a little early: by 1 / (2 W T2), about a ms
         assert gap_s - 0.003 <= t[late.argmax()] <= gap_s + 2.0 * DWELL_S
         assert late.max() > 1e-3 * dry
+
+    #****************#
+    #   the volume   #
+    #****************#
+    def test_the_echo_is_in_units_of_the_voxels_volume(self, brain):
+        # one region beside two voxels of the same longest edge, one of 4 / 9 the volume: the
+        # same echo, 9 / 4 as large against what the smaller voxel holds
+        class Kept(PathwayEcho):
+            LONE, kept = 0.3, None
+
+            def region(self, voxel):
+                Kept.kept = Kept.kept or super().region(voxel)
+                return Kept.kept
+
+        design = Sequence(SelectivePulse(90.0, offset_ppm=4.65, bandwidth_hz=60.0),
+                          CoherenceFilter(0), Delay(0.050), Pulse(90.0), CoherenceFilter(+1),
+                          Delay(0.010), CoherenceFilter(+1), Pulse(180.0, phase_deg=90.0),
+                          CoherenceFilter(-1), Delay(0.010))
+        cube, _ = echo_of(brain, design, Kept(), size=30.0)
+        slab, _ = echo_of(brain, design, Kept(), size=(30.0, 20.0, 20.0))
+        assert abs(np.abs(slab).max() / np.abs(cube).max() - 2.25) < 0.25

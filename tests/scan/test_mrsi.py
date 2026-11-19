@@ -613,7 +613,7 @@ class TestTrajectory:
         _, late = self.acquired(scan, trajectory="epsi-bidirectional",
                                 odd_sweeps=dict(delay_s=0.5 * (1.0 / 4000.0) / 4))
         np.testing.assert_array_equal(late[..., 0::2], plain[..., 0::2])
-        ramp = np.exp(2j * np.pi * 0.5 * np.fft.fftfreq(4))
+        ramp = np.exp(2j * np.pi * 0.5 * (np.arange(4) - 1.5) / 4)  # none at the centre
         np.testing.assert_allclose(late[..., 1::2], ramp[:, None, None] * plain[..., 1::2],
                                    atol=1e-5 * np.abs(plain).max())
         with pytest.raises(ValueError):

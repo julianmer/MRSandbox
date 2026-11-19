@@ -156,6 +156,40 @@ class TestPulseqExport:
         corr = correlation(spectrum(engine, back, lac), spectrum(engine, native, lac))
         assert corr > 0.999
 
+    def test_a_file_offset_plays_as_the_carrier_it_is(self, engine, tmp_path):
+        # the same Gaussian on lactate's doublet, its carrier once in the file's hertz
+        f0 = 42.5774785 * 3.0
+        native = ShapedPulse.gaussian(90.0, 0.004, offset_ppm=1.31, steps=128)
+        hz = np.asarray(native.envelope, dtype=float)
+        hz = hz * 0.25 / (hz.sum() * 0.004 / 128)
+        seq = pypulseq.Sequence()
+        seq.add_block(pypulseq.make_arbitrary_rf(
+            signal=hz, flip_angle=np.pi / 2.0, dwell=0.004 / 128, no_signal_scaling=True,
+            freq_offset=(1.31 - 4.65) * f0, use="excitation"))
+        seq.add_block(pypulseq.make_adc(num_samples=256, dwell=2.5e-4))
+        path = tmp_path / "offset.seq"
+        seq.write(str(path))
+        lac = SpinSystem.from_database("Lac")
+        back = spectrum(engine, read_seq(path), lac)
+        own = spectrum(engine, Sequence(native), lac)
+        assert np.linalg.norm(back - own) < 1e-2 * np.linalg.norm(own)
+
+    def test_a_swept_pulse_exports_its_midpoint_phase(self, tmp_path):
+        from mrsandbox.io import write_seq
+
+        native = ShapedPulse.hyperbolic_secant(0.008, 5000.0, 1000.0)
+        path = tmp_path / "sweep.seq"
+        write_seq(Sequence(Pulse(90.0), native, Delay(0.010)), path, npoints=256, dwell_s=2.5e-4,
+                  f0_mhz=127.73)
+        seq = pypulseq.Sequence()
+        seq.read(str(path))
+        written = np.asarray(seq.get_block(2).rf.signal)
+        sweep = np.asarray(native.frequency_hz, dtype=float)
+        dt = 0.008 / sweep.size
+        played = 1000.0 * np.asarray(native.envelope) * np.exp(
+            2j * np.pi * (np.cumsum(sweep) - sweep / 2.0) * dt)
+        assert np.abs(written - played).max() < 1.0
+
     #***************#
     #   spin echo   #
     #***************#

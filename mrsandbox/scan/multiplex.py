@@ -46,10 +46,11 @@ class Multiplex:
     truth draw.
 
     Every condition is a full VirtualScan differing only in its sequence, so water,
-    lipids, macromolecules, B0, and coils apply identically; one parameter draw serves
+    lipids, macromolecules, and B0 apply identically; one parameter draw serves
     all conditions (the subject does not change between sub-acquisitions), while noise
     is drawn per condition. `acquire` stacks the conditions on DIM_EDIT in their given
-    order.
+    order. An array (`coils`) is received combined: one channel, at the noise the
+    array's optimum combination leaves at the voxel.
 
     Args:
         brain, scanner: As for VirtualScan.
@@ -156,6 +157,9 @@ class Multiplex:
     def _noise(voxel, truth, rng, npoints, dwell_s, averages):
         """One condition's receiver noise of `averages` transients, zeros when silent."""
         sigma = voxel.noise_sigma(truth, dwell_s, averages)
+        if voxel.scan.coils is not None:
+            sigma = sigma * voxel.scan.coils.noise_gain(voxel.position_mm, voxel.size_mm,
+                                                        voxel.turn)
         return (receiver_noise(rng, sigma, npoints, voxel.scan.receiver) if sigma > 0.0
                 else np.zeros(npoints, dtype=np.complex64))
 
@@ -401,6 +405,8 @@ class Multiplex:
 
         grid = np.arange(npoints) * dwell_s
         data = np.zeros((1, 1, 1, npoints, n), dtype=np.complex64)
+        # the voxel as the scanner placed it: the receiver's noise does not follow the head
+        voxel = self.scans[schedule[0]].voxel(position_mm, size_mm, turn=box)
         for k, name in enumerate(schedule):
             modulation = amplitude[k] * np.exp(-np.pi * broaden_hz[k] * grid) * np.exp(
                 1j * (2.0 * np.pi * freq_hz[k] * grid + phase_rad[k]))
@@ -414,13 +420,9 @@ class Multiplex:
                 # the rendered echo, scaled to this transient's size and turned to its phase
                 fid = fid + echo[name, places[k]] * (size[k] / spur.amplitude) * np.exp(
                     1j * np.radians(turn[k] - spur.phase_deg))
-            fid = fid * modulation
-            sigma = voxel.noise_sigma(truth, dwell_s)
-            if sigma > 0.0:
-                fid = fid + receiver_noise(rng, sigma, npoints, voxel.scan.receiver)
-            data[0, 0, 0, :, k] = fid
+            data[0, 0, 0, :, k] = fid * modulation + self._noise(voxel, truth, rng, npoints,
+                                                                 dwell_s, 1)
 
-        voxel = self.scans[schedule[0]].voxel(position_mm, size_mm, turn=box)
         hdr = Hdr_Ext(voxel._f0_mhz(), "1H")
         hdr.set_dim_info(0, "DIM_DYN")
         hdr.set_user_def(

@@ -114,6 +114,10 @@ class TestScannerProfile:
         assert (scan.params.noise.sigma.low, scan.params.noise.sigma.high) == (7.0, 9.0)
         transfer = {f"mt.rate.{name}" for name in ("Cr", "PCr", "NAA", "NAAG", "PCho", "GPC")}
         assert set(profile.calibrations()) == {"conc.Cr", *transfer, *cohorts.leaves()}
+        # sixteen participants: the median lies between the two in the middle
+        rate = profile.calibrations()["mt.rate.Cr"]
+        middle = sorted(rate.measured["values"])[7:9]
+        assert middle[0] < rate.value == sum(middle) / 2.0 < middle[1]
         data = scan.voxel(PLACE, SIZE).acquire(seed=0, npoints=256)
         named = data.hdr_ext["SimulationPhantom"]["calibrations"]["noise.sigma"]
         assert named["source"] == "my scanner" and named["value"] == 8.0

@@ -18,6 +18,7 @@
 #   imports   #
 #*************#
 import dataclasses
+import statistics
 
 from mrsandbox.phantom.solution import Phantom
 
@@ -328,7 +329,7 @@ TRANSFER_RATES = {
 TRANSFER_BACON_2026 = tuple(
     Calibration(
         leaf=f"mt.rate.{name}",
-        value=sorted(values)[len(values) // 2],
+        value=statistics.median(values),
         prior=(min(values), max(values)),
         measured={"statistic": f"the transfer rate in 1/s that makes the {peak} peak as much "
                                "lower under VAPOR as its raw height read without over with "

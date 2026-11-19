@@ -438,6 +438,32 @@ class TestSession:
         assert not np.array_equal(np.asarray(here.data[:]), np.asarray(first.data[:]))
         assert session.clock_s == clock + there.card.scan_time_s
 
+    def test_a_lipid_layer_reaches_the_worker(self, monkeypatch, tmp_path):
+        # the layer is the page's state: the worker's own subject wears it for the exam
+        import concurrent.futures
+
+        import nibabel as nib
+
+        from mrsandbox.console import session as console
+
+        class Direct:
+            def submit(self, fn, *args):
+                future = concurrent.futures.Future()
+                future.set_result(fn(*args))
+                return future
+
+        session = Session(ICBM)
+        session.protocol.real, session.protocol.averages, session.protocol.npoints = False, 1, 128
+        body = session.body()
+        path = tmp_path / "scalp.nii.gz"
+        nib.save(nib.Nifti1Image(np.ones(body.gm.shape, dtype=np.float32), body.affine), str(path))
+        session.lipids(path)
+        assert session.body().fat.name == "scalp.nii.gz"
+        monkeypatch.setitem(console.WORKER, "pool", Direct())
+        monkeypatch.setitem(console.WORKER, "session", Session())
+        session.remote("run", session.plan(), 3)
+        assert console.WORKER["session"].body().fat.name == "scalp.nii.gz"
+
     @pytest.mark.slow
     def test_a_spawned_worker_plays_an_exam_as_the_page_does(self, monkeypatch):
         # the worker as the console starts it, a spawned process `working` (without the warm-up):
