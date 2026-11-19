@@ -244,7 +244,7 @@ def slab_pulse(flip_deg, duration_s, time_bandwidth, axis, edge_mm, span, refere
     reading `phase_deg` at the pulse's centre; `recover` False for a pulse between
     crushers (ShapedPulse)."""
     slope = time_bandwidth / duration_s / edge_mm
-    kind = "excitation" if flip_deg == 90 else "refocusing"
+    kind = "excitation" if flip_deg < 135.0 else "refocusing"
     pulse = ShapedPulse.slr(float(flip_deg), duration_s, time_bandwidth, kind, steps=128,
                             offset_ppm=reference_ppm,
                             phase_deg=phase_deg - 180.0 * reference_ppm * f0_mhz * duration_s,

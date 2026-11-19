@@ -18,8 +18,8 @@
 #*************#
 import numpy as np
 
-from mrsandbox.sequences.events import (Delay, DiffusionGradient, Gradient, ShapedPulse,
-                                        trapezoid)
+from mrsandbox.sequences.events import (CoherenceFilter, Delay, DiffusionGradient, Gradient,
+                                        Projection, ShapedPulse, trapezoid)
 
 
 #*****************#
@@ -74,7 +74,9 @@ def gradient_waveforms(sequence, scanner, dt_s, until_s, gamma_mhz_t=42.5774785)
         if isinstance(event, Gradient):
             area = float(event.moment_per_mm) * 1e3 / (gamma_mhz_t * 1e6)  # T s / m
             amplitude, ramp, flat = trapezoid(area, max_grad, max_slew)
-            following = next((e for e in events[k + 1:] if not isinstance(e, Gradient)), None)
+            # what plays next: filters and projections stand between and take no time
+            following = next((e for e in events[k + 1:] if not isinstance(
+                e, (Gradient, CoherenceFilter, Projection))), None)
             start = now if isinstance(following, Delay) else now - (2.0 * ramp + flat)
             play(event.axis, start, amplitude, ramp, flat)
         elif isinstance(event, DiffusionGradient):

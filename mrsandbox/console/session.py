@@ -351,7 +351,7 @@ def shaped(block):
     flip, duration = block["flip_deg"], block["duration_ms"] / 1000.0
     if block["shape"] == "slr":
         return ShapedPulse.slr(flip, duration, block.get("time_bandwidth", 4.0),
-                               "excitation" if flip == 90.0 else "refocusing",
+                               "excitation" if flip < 135.0 else "refocusing",
                                offset_ppm=block["offset_ppm"], phase_deg=block["phase_deg"],
                                **slice)
     own = {"sinc": dict(lobes=int(block.get("lobes", 2))),

@@ -485,6 +485,13 @@ class TestAdiabatic:
                                      gradient_axis="x", extent_mm=50.0)
         refocused = profile(Sequence(Pulse(90.0), CoherenceFilter(+1), one_eighty,
                                      CoherenceFilter(-1)))
+        # a smaller flip excites its own sine in the slab
+        slope = 6.0 / 0.0026 / 20.0
+        small = ShapedPulse.slr(45.0, 0.0026, 6.0, "excitation", offset_ppm=4.65, steps=128,
+                                gradient_hz_per_mm=slope, gradient_axis="x", extent_mm=50.0)
+        tipped = profile(Sequence(small, Gradient(-0.52 * slope * 0.0026, 50.0, axis="x"),
+                                  CoherenceFilter(-1)))
+        assert abs(tipped[100 - 20:100 + 21].mean() - np.sqrt(0.5)) < 0.04
         for kept in (excited, refocused):
             assert kept[100 - 28:100 + 29].min() > 0.95            # to 7 mm: the passband
             assert 0.4 < kept[140] < 0.6 and 0.4 < kept[60] < 0.6  # the edge at 10 mm

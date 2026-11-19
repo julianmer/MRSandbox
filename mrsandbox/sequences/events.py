@@ -439,7 +439,8 @@ class ShapedPulse(Event):
         McClellan), here its beta polynomial, of `time_bandwidth` (the bandwidth is
         that over the duration, between the half-amplitude points); the minimum-phase
         alpha polynomial completes it, and the inverse transform peels the hard
-        pulses off one by one. `kind` sets how the passband and stopband `ripples`
+        pulses off one by one. The passband of beta is the sine of half `flip_deg`.
+        `kind` sets how the passband and stopband `ripples`
         of the magnetization map onto the filter's: "excitation" (a 90, rephased by
         half its gradient moment) or "refocusing" (a spin-echo 180 between crushers).
         `minimum_phase` makes the beta polynomial the minimum-phase half of a filter
@@ -450,11 +451,11 @@ class ShapedPulse(Event):
         """
         from scipy import signal
 
-        d1, d2 = ripples
+        (d1, d2), scale = ripples, math.sin(math.radians(float(flip_deg)) / 2.0)
         if kind == "excitation":
-            scale, d1, d2 = math.sqrt(0.5), math.sqrt(d1 / 2.0), d2 / math.sqrt(2.0)
+            d1, d2 = math.sqrt(d1 / 2.0), d2 / math.sqrt(2.0)
         elif kind == "refocusing":
-            scale, d1, d2 = 1.0, d1 / 4.0, math.sqrt(d2)
+            d1, d2 = d1 / 4.0, math.sqrt(d2)
         else:
             raise ValueError(f"unknown kind {kind!r}; known: excitation, refocusing")
         # the transition width of an equiripple filter for these ripples (their Eq. 23)

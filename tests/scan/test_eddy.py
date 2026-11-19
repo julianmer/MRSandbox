@@ -21,7 +21,8 @@ import pytest
 
 from keras import ops
 
-from mrsandbox import Brain, Engine, Params, Scanner, Unsuppressed, VirtualScan
+from mrsandbox import (Brain, Engine, LocalizedPress, Params, Scanner, Unsuppressed,
+                       VirtualScan)
 from mrsandbox.phantom.water import WaterSource
 from mrsandbox.resources import GIRF
 from mrsandbox.scan.eddy import (TIME_STEP_S, exponential_response, induced_fields, induced_phase,
@@ -78,6 +79,16 @@ class TestTimeline:
         rise = 10e-3 / scanner.max_slew_t_m_s
         assert y[np.argmin(np.abs(t - (0.005 - rise / 2.0)))] < 6.0  # mid ramp
         assert y[t < 0.005 - rise - TIME_STEP_S].max() == 0.0
+
+    def test_a_rephasing_lobe_plays_after_its_pulse_in_a_localized_design(self):
+        # the excitation's slice gradient stays flat under the pulse: the lobe that rephases it
+        # starts where the pulse ends, whatever filter stands between it and the delay
+        design = LocalizedPress(0.015, 0.015, GAMMA * 3.0)
+        pulse = design.events[0]
+        t, waves = gradient_waveforms(design, Scanner.preset("generic_3t"), TIME_STEP_S, 0.010)
+        level = float(pulse.gradient_hz_per_mm) / GAMMA
+        under = (t >= 0.0) & (t <= float(pulse.duration_s))
+        np.testing.assert_allclose(waves[pulse.gradient_axis][under], level, atol=1e-6)
 
     def test_a_modulated_slice_gradient_rides_on_the_flat_top(self):
         scanner = Scanner.preset("generic_3t")
@@ -190,6 +201,21 @@ class TestKernel:
         # off centre the same box picks up the phase of its position
         np.testing.assert_allclose(shifted, at_centre * np.exp(2j * np.pi * residual * 15.0),
                                    atol=1e-4)
+
+    def test_another_response_plays_other_lines(self):
+        # one scan, one subject, the response's size alone drawn anew: the metabolite lines
+        # carry the phase the kicks induce, so they are rendered again
+        strong = Params(gradients=dict(tau_short_s=0.050, tau_long_s=1.0,
+                                       b0_short_hz_per_mt_m=0.5, b0_long_hz_per_mt_m=0.0,
+                                       linear_short=0.0, linear_long=0.0))
+        scan = VirtualScan(Brain.load("icbm152"), Scanner.preset("generic_3t"),
+                           crushed_echo(GAMMA * 1e6 * 30e-3 * 2e-3 * 1e-3), params=QUIET | strong)
+        voxel = scan.voxel(position_mm=(10.0, -20.0, 5.0), size_mm=20.0)
+        truth = voxel.sample(seed=7)
+        first = np.asarray(voxel._metabolite_lines(truth)["NAA"][1])
+        dict.__setitem__(truth.gradients, "b0_short_hz_per_mt_m", 0.25)
+        second = np.asarray(voxel._metabolite_lines(truth)["NAA"][1])
+        assert np.abs(second - first).max() > 1e-3 * np.abs(first).max()
 
     def test_the_line_turns_asymmetric_in_the_acquisition(self):
         brain = Brain.load("icbm152")

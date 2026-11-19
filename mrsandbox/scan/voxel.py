@@ -259,7 +259,7 @@ class Voxel:
         transmit being `b1_scale` or, with a per-isochromat profile, (b1_scale, the
         profile's bytes). Together
         with the scan's `sequence.structure()` and timings (and, under a gradient
-        response, this voxel's position, `_design_key`) it is the complete key of a
+        response, this voxel's position and the response, `_design_key`) it is the complete key of a
         rendered basis, so a caller caching bases across voxels or draws keys them
         by this tuple."""
         names = tuple(name for name, concentration in truth.conc.items()
@@ -1059,16 +1059,17 @@ class Voxel:
     def _design_key(self, truth):
         """What a line or basis cache adds for this voxel's design: nothing while the
         voxel plays the scan's own design (no response, or one with nothing to act
-        on), the position once it carries kicks (they depend on it) or once the voxel
-        is a cell of a box (its place in the box decides what the design leaves)."""
-        kicked = self._response(truth) is not None
+        on), the position and the response once it carries kicks (they depend on both)
+        or once the voxel is a cell of a box (its place in the box decides what the
+        design leaves)."""
+        response = self._response(truth)
+        kicked = () if response is None else (self.position_mm,) + response[0]
         if self.box_center_mm is not None:
             # cells at one place in the box (every interior cell sits at its centre)
             # and of one size share their lines
             placed = ("cell", self.size_mm) + tuple(round(v, 6) for v in self.shift_mm.values())
-            return placed + ((self.position_mm,) if kicked else ())
-        return ((self.position_mm,) if kicked and self.design(truth) is not self.scan.sequence
-                else ())
+            return placed + kicked
+        return kicked if kicked and self.design(truth) is not self.scan.sequence else ()
 
     def _gradient_kernel(self, truth, npoints, dwell_s, start_s=0.0):
         """The cached eddy-current kernel of this voxel's readout (scan.eddy), the
